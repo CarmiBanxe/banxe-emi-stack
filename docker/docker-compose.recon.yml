@@ -96,7 +96,7 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
     ports:
-      - "8080:8080"
+      - "8181:8080"   # 8080 occupied by nginx on GMKtec
     depends_on:
       postgres:
         condition: service_healthy
