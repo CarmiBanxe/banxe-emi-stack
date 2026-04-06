@@ -1,0 +1,16 @@
+# Dockerfile.postgres-pgaudit
+# Extends postgres:17 with pgAudit extension
+# Used to replace vanilla postgres:17 on GMKtec for FCA FA-04 compliance
+# Build: docker build -f docker/Dockerfile.postgres-pgaudit -t banxe-postgres:17-pgaudit .
+
+FROM postgres:17
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends postgresql-17-pgaudit \
+    && rm -rf /var/lib/apt/lists/*
+
+# Inject pgaudit into shared_preload_libraries at container start
+RUN echo "shared_preload_libraries = 'pgaudit'" >> /usr/share/postgresql/postgresql.conf.sample
+
+# Copy init SQL (runs on first start only, when data dir is empty)
+COPY docker/postgres/pgaudit.sql /docker-entrypoint-initdb.d/01_pgaudit.sql
