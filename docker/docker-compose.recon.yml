@@ -1,0 +1,107 @@
+version: "3.9"
+# P0 Reconciliation Stack — FCA CASS 7.15
+# Components: PostgreSQL (pgAudit) + ClickHouse + bankstatementparser
+
+services:
+  # PostgreSQL 17 with pgAudit extension
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: banxe-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-banxe_compliance}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/pgaudit.sql:/docker-entrypoint-initdb.d/01_pgaudit.sql:ro
+    ports:
+      - "5432:5432"
+    command: >
+      postgres
+        -c shared_preload_libraries=pgaudit
+        -c pgaudit.log=write,ddl
+        -c pgaudit.log_relation=on
+        -c log_destination=csvlog
+        -c logging_collector=on
+        -c log_directory=/var/log/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ClickHouse — audit trail + safeguarding_events (append-only, TTL 5Y)
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.3
+    container_name: banxe-clickhouse
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-banxe}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./docker/clickhouse/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis — session cache for recon state
+  redis:
+    image: redis:7-alpine
+    container_name: banxe-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # n8n — MLRO alert workflows
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: banxe-n8n
+    environment:
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: admin
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_PASSWORD:-changeme}
+      WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://localhost:5678}
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB:-banxe_compliance}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5678:5678"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+  # Frankfurter — self-hosted ECB FX rates (no API key)
+  frankfurter:
+    image: hakanensari/frankfurter:latest
+    container_name: banxe-frankfurter
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  clickhouse_data:
+  n8n_data:

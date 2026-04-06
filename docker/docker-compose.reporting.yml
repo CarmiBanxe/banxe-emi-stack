@@ -1,0 +1,44 @@
+version: "3.9"
+# P0 Reporting Stack — FCA FIN060 / RegData
+# Components: dbt Core + WeasyPrint (FIN060 PDF generator)
+
+services:
+  # dbt Core — staging → marts → fin060 transformations
+  dbt:
+    image: ghcr.io/dbt-labs/dbt-clickhouse:1.8.0
+    container_name: banxe-dbt
+    environment:
+      DBT_PROFILES_DIR: /usr/app/dbt
+      DBT_TARGET: ${DBT_TARGET:-dev}
+    volumes:
+      - ../dbt:/usr/app/dbt:ro
+      - dbt_logs:/usr/app/logs
+    working_dir: /usr/app/dbt
+    # Run on demand (not a long-running service)
+    # Use: docker compose -f docker-compose.reporting.yml run --rm dbt dbt run
+    entrypoint: ["dbt"]
+    command: ["--version"]
+
+  # WeasyPrint — FIN060 PDF generation
+  # Wraps fin060_generator.py via gunicorn
+  fin060-generator:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.reporting
+    container_name: banxe-fin060
+    environment:
+      CLICKHOUSE_HOST: ${CLICKHOUSE_HOST:-localhost}
+      CLICKHOUSE_PORT: ${CLICKHOUSE_PORT:-9000}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-banxe}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      FIN060_OUTPUT_DIR: ${FIN060_OUTPUT_DIR:-/data/banxe/reports/fin060}
+      FCA_REGDATA_URL: ${FCA_REGDATA_URL:-https://regdata.fca.org.uk}
+    volumes:
+      - fin060_reports:/data/banxe/reports/fin060
+    # Run on demand
+    # Use: docker compose -f docker-compose.reporting.yml run --rm fin060-generator
+
+volumes:
+  dbt_logs:
+  fin060_reports:
