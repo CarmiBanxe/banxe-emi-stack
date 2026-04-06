@@ -23,7 +23,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://psd2-postgres:5432/adorsys
       SPRING_DATASOURCE_USERNAME: ${PSD2_POSTGRES_USER:-adorsys}
       SPRING_DATASOURCE_PASSWORD: ${PSD2_POSTGRES_PASSWORD:-adorsys}
-      ASPSP_URL: http://aspsp-mock:8090
+      ASPSP_URL: http://aspsp-mock:8090   # internal container port stays 8090
       FINTECH_CALLBACK_URL: http://localhost:8888/v1/consent
       # Sandbox mode — no real bank certificate needed
       PKCS12_KEYSTORE_PATH: ""
@@ -45,7 +45,7 @@ services:
     container_name: banxe-aspsp-mock
     restart: unless-stopped
     ports:
-      - "8090:8090"
+      - "8096:8090"   # 8090 occupied by guiyon_api.py (I-18)
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://psd2-postgres:5432/adorsys_mock
       SPRING_DATASOURCE_USERNAME: ${PSD2_POSTGRES_USER:-adorsys}
