@@ -1,78 +1,41 @@
 version: "3.9"
-# P0 PSD2 Stack — FA-07 adorsys open-banking-gateway (sandbox mode)
+# P0 PSD2 Stack — FA-07 mock-ASPSP (FastAPI sandbox)
 # FCA CASS 7.15 | banxe-emi-stack | IL-011
 #
+# Replaces adorsys open-banking-gateway (private registry, unavailable)
+# with a lightweight FastAPI mock that generates CAMT.053 XML.
+#
 # Ports:
-#   :8888 → open-banking-gateway API (ADORSYS_PSD2_URL)
-#   :8090 → aspsp-mock (sandbox bank — generates CAMT.053 statements)
-#   :4200 → fintech-ui (consent management UI, optional)
+#   :8888 → mock-aspsp (PSD2 AIS API + CAMT.053 generator)
 #
 # Usage:
-#   docker compose -f docker/docker-compose.psd2.yml up -d
+#   docker compose -f docker/docker-compose.psd2.yml up -d --build
 #   curl http://localhost:8888/actuator/health
 
 services:
-  # ── adorsys open-banking-gateway ─────────────────────────────────────────
-  open-banking-gateway:
-    image: adorsys/open-banking-gateway:develop
-    container_name: banxe-psd2-gateway
+  mock-aspsp:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.mock-aspsp
+    image: banxe-mock-aspsp:latest
+    container_name: banxe-mock-aspsp
     restart: unless-stopped
     ports:
-      - "8888:8085"
+      - "8888:8888"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://psd2-postgres:5432/adorsys
-      SPRING_DATASOURCE_USERNAME: ${PSD2_POSTGRES_USER:-adorsys}
-      SPRING_DATASOURCE_PASSWORD: ${PSD2_POSTGRES_PASSWORD:-adorsys}
-      ASPSP_URL: http://aspsp-mock:8090   # internal container port stays 8090
-      FINTECH_CALLBACK_URL: http://localhost:8888/v1/consent
-      # Sandbox mode — no real bank certificate needed
-      PKCS12_KEYSTORE_PATH: ""
-      PKCS12_KEYSTORE_PASSWORD: ""
-      XS2A_SANDBOX_ENABLED: "true"
-    depends_on:
-      psd2-postgres:
-        condition: service_healthy
+      # Sandbox placeholder IBANs — DO NOT set real IBANs until
+      # logging / env-exposure / network-isolation validation complete
+      SAFEGUARDING_OPERATIONAL_IBAN:   ${SAFEGUARDING_OPERATIONAL_IBAN:-GB29BARC20201530093459}
+      SAFEGUARDING_CLIENT_FUNDS_IBAN:  ${SAFEGUARDING_CLIENT_FUNDS_IBAN:-GB94BARC20201530093460}
+      SAFEGUARDING_OPERATIONAL_ACCOUNT: ${SAFEGUARDING_OPERATIONAL_ACCOUNT:-019d6332-f274-709a-b3a7-983bc8745886}
+      SAFEGUARDING_CLIENT_FUNDS_ACCOUNT: ${SAFEGUARDING_CLIENT_FUNDS_ACCOUNT:-019d6332-da7f-752f-b9fd-fa1c6fc777ec}
+      # Mock balances for sandbox testing
+      MOCK_OPERATIONAL_BALANCE:  ${MOCK_OPERATIONAL_BALANCE:-125000.00}
+      MOCK_CLIENT_FUNDS_BALANCE: ${MOCK_CLIENT_FUNDS_BALANCE:-480000.00}
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:8085/actuator/health"]
+      test: ["CMD", "python3", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8888/actuator/health')"]
       interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-
-  # ── aspsp-mock (simulated bank — generates CAMT.053 on demand) ───────────
-  aspsp-mock:
-    image: adorsys/xs2a-sandbox:develop
-    container_name: banxe-aspsp-mock
-    restart: unless-stopped
-    ports:
-      - "8096:8090"   # 8090 occupied by guiyon_api.py (I-18)
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://psd2-postgres:5432/adorsys_mock
-      SPRING_DATASOURCE_USERNAME: ${PSD2_POSTGRES_USER:-adorsys}
-      SPRING_DATASOURCE_PASSWORD: ${PSD2_POSTGRES_PASSWORD:-adorsys}
-    depends_on:
-      psd2-postgres:
-        condition: service_healthy
-
-  # ── Dedicated PostgreSQL for adorsys (isolated from compliance DB) ────────
-  psd2-postgres:
-    image: postgres:17
-    container_name: banxe-psd2-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${PSD2_POSTGRES_USER:-adorsys}
-      POSTGRES_PASSWORD: ${PSD2_POSTGRES_PASSWORD:-adorsys}
-      POSTGRES_MULTIPLE_DATABASES: adorsys,adorsys_mock
-    volumes:
-      - psd2_postgres_data:/var/lib/postgresql/data
-      - ./postgres/psd2-init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
-    ports:
-      - "5434:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${PSD2_POSTGRES_USER:-adorsys}"]
-      interval: 10s
       timeout: 5s
-      retries: 5
-
-volumes:
-  psd2_postgres_data:
+      retries: 3
+      start_period: 10s

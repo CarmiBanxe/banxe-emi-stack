@@ -1,0 +1,15 @@
+# Dockerfile.mock-aspsp — lightweight PSD2 sandbox (FastAPI)
+# FA-07 IL-011 | banxe-emi-stack
+# Build: docker build -f docker/Dockerfile.mock-aspsp -t banxe-mock-aspsp:latest .
+
+FROM python:3.12-slim
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir fastapi==0.115.0 uvicorn==0.30.6
+
+COPY services/ services/
+
+EXPOSE 8888
+
+CMD ["uvicorn", "services.recon.mock_aspsp:app", "--host", "0.0.0.0", "--port", "8888"]
