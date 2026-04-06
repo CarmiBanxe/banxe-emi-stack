@@ -1,0 +1,78 @@
+version: "3.9"
+# P0 PSD2 Stack — FA-07 adorsys open-banking-gateway (sandbox mode)
+# FCA CASS 7.15 | banxe-emi-stack | IL-011
+#
+# Ports:
+#   :8888 → open-banking-gateway API (ADORSYS_PSD2_URL)
+#   :8090 → aspsp-mock (sandbox bank — generates CAMT.053 statements)
+#   :4200 → fintech-ui (consent management UI, optional)
+#
+# Usage:
+#   docker compose -f docker/docker-compose.psd2.yml up -d
+#   curl http://localhost:8888/actuator/health
+
+services:
+  # ── adorsys open-banking-gateway ─────────────────────────────────────────
+  open-banking-gateway:
+    image: adorsys/open-banking-gateway:develop
+    container_name: banxe-psd2-gateway
+    restart: unless-stopped
+    ports:
+      - "8888:8085"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://psd2-postgres:5432/adorsys
+      SPRING_DATASOURCE_USERNAME: ${PSD2_POSTGRES_USER:-adorsys}
+      SPRING_DATASOURCE_PASSWORD: ${PSD2_POSTGRES_PASSWORD:-adorsys}
+      ASPSP_URL: http://aspsp-mock:8090
+      FINTECH_CALLBACK_URL: http://localhost:8888/v1/consent
+      # Sandbox mode — no real bank certificate needed
+      PKCS12_KEYSTORE_PATH: ""
+      PKCS12_KEYSTORE_PASSWORD: ""
+      XS2A_SANDBOX_ENABLED: "true"
+    depends_on:
+      psd2-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8085/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ── aspsp-mock (simulated bank — generates CAMT.053 on demand) ───────────
+  aspsp-mock:
+    image: adorsys/xs2a-sandbox:develop
+    container_name: banxe-aspsp-mock
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://psd2-postgres:5432/adorsys_mock
+      SPRING_DATASOURCE_USERNAME: ${PSD2_POSTGRES_USER:-adorsys}
+      SPRING_DATASOURCE_PASSWORD: ${PSD2_POSTGRES_PASSWORD:-adorsys}
+    depends_on:
+      psd2-postgres:
+        condition: service_healthy
+
+  # ── Dedicated PostgreSQL for adorsys (isolated from compliance DB) ────────
+  psd2-postgres:
+    image: postgres:17
+    container_name: banxe-psd2-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${PSD2_POSTGRES_USER:-adorsys}
+      POSTGRES_PASSWORD: ${PSD2_POSTGRES_PASSWORD:-adorsys}
+      POSTGRES_MULTIPLE_DATABASES: adorsys,adorsys_mock
+    volumes:
+      - psd2_postgres_data:/var/lib/postgresql/data
+      - ./postgres/psd2-init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PSD2_POSTGRES_USER:-adorsys}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  psd2_postgres_data:
