@@ -1,0 +1,78 @@
+version: 2
+
+# ── Sources: raw ClickHouse tables written by ReconciliationEngine ──────────
+# FCA CASS 15 | IL-013 Sprint 9 | banxe-emi-stack
+#
+# These tables are the J-audit append-only audit trail.
+# All downstream dbt models reference these via {{ source() }} — never direct SQL.
+
+sources:
+  - name: banxe
+    description: >
+      Core Banxe EMI analytics database in ClickHouse.
+      Append-only by design (MergeTree engine, no DELETE/UPDATE).
+      TTL = 5 years per FCA CASS 15 / I-15.
+    database: banxe
+    schema: banxe
+
+    tables:
+      - name: safeguarding_events
+        description: >
+          Daily FCA CASS 7.15 reconciliation results.
+          One row per account per recon_date.
+          Written by ReconciliationEngine via ClickHouseReconClient.
+          Source of truth for FIN060 reporting and MLRO dashboards.
+        columns:
+          - name: inserted_at
+            description: Wall-clock time of the reconciliation run (UTC)
+          - name: recon_date
+            description: Business date being reconciled (Date type)
+            tests:
+              - not_null
+          - name: account_id
+            description: Midaz account UUID (safeguarding operational or client_funds)
+            tests:
+              - not_null
+          - name: account_type
+            description: operational | client_funds
+            tests:
+              - not_null
+              - accepted_values:
+                  values: ['operational', 'client_funds']
+          - name: currency
+            description: ISO-4217 currency code (GBP for safeguarding)
+            tests:
+              - not_null
+          - name: internal_balance
+            description: Midaz ledger balance in GBP major units (Float64)
+          - name: external_balance
+            description: Bank statement closing balance in GBP major units (CAMT.053/CSV)
+          - name: discrepancy
+            description: external_balance - internal_balance (negative = internal overstates)
+          - name: status
+            description: MATCHED | DISCREPANCY | PENDING
+            tests:
+              - not_null
+              - accepted_values:
+                  values: ['MATCHED', 'DISCREPANCY', 'PENDING']
+          - name: alert_sent
+            description: 1 if n8n/Slack alert was fired, 0 otherwise
+          - name: source_file
+            description: Statement filename for audit traceability
+
+      - name: safeguarding_breaches
+        description: >
+          FCA-reportable safeguarding breaches.
+          A breach = DISCREPANCY persists for > 1 business day (CASS 7.15.29R).
+          Filed to FCA RegData when reported_to_fca = 1.
+        columns:
+          - name: detected_at
+            description: When the breach was first detected
+          - name: recon_date
+            description: Business date of the breach
+          - name: account_id
+            description: Midaz account UUID
+          - name: discrepancy
+            description: Size of discrepancy in GBP
+          - name: reported_to_fca
+            description: 1 if filed to FCA RegData

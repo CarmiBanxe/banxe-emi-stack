@@ -21,6 +21,6 @@ SELECT
     status,
     alert_sent,
     source_file,
-    created_at
+    inserted_at
 FROM {{ source('banxe', 'safeguarding_events') }}
 WHERE recon_date IS NOT NULL
