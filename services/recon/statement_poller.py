@@ -39,7 +39,6 @@ def poll_statements(recon_date: Optional[date] = None) -> list[Path]:
     if recon_date is None:
         recon_date = date.today() - timedelta(days=1)  # yesterday's statement
 
-    STATEMENT_DIR.mkdir(parents=True, exist_ok=True)
     ibans = [iban for iban in [OPERATIONAL_IBAN, CLIENT_FUNDS_IBAN] if iban]
 
     if not ibans:
@@ -49,6 +48,7 @@ def poll_statements(recon_date: Optional[date] = None) -> list[Path]:
         )
         return []
 
+    STATEMENT_DIR.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
     for iban in ibans:
         path = _fetch_camt053(iban, recon_date)

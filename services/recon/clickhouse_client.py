@@ -21,17 +21,18 @@ Schema: banxe.safeguarding_events (see scripts/schema/clickhouse_safeguarding.sq
 from __future__ import annotations
 
 import logging
-import os
 from dataclasses import dataclass
 from typing import List, Optional
 
-logger = logging.getLogger(__name__)
+from services.config import (
+    CLICKHOUSE_DB,
+    CLICKHOUSE_HOST,
+    CLICKHOUSE_PASSWORD,
+    CLICKHOUSE_PORT,
+    CLICKHOUSE_USER,
+)
 
-CLICKHOUSE_HOST = os.environ.get("CLICKHOUSE_HOST", "localhost")
-CLICKHOUSE_PORT = int(os.environ.get("CLICKHOUSE_PORT", "9000"))
-CLICKHOUSE_DB = os.environ.get("CLICKHOUSE_DB", "banxe")
-CLICKHOUSE_USER = os.environ.get("CLICKHOUSE_USER", "default")
-CLICKHOUSE_PASSWORD = os.environ.get("CLICKHOUSE_PASSWORD", "")
+logger = logging.getLogger(__name__)
 
 
 class ClickHouseReconClient:

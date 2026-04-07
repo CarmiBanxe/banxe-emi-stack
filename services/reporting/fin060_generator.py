@@ -15,13 +15,16 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
-CLICKHOUSE_HOST = os.environ.get("CLICKHOUSE_HOST", "localhost")
-CLICKHOUSE_PORT = int(os.environ.get("CLICKHOUSE_PORT", "9000"))
-CLICKHOUSE_DB = os.environ.get("CLICKHOUSE_DB", "banxe")
-CLICKHOUSE_USER = os.environ.get("CLICKHOUSE_USER", "default")
-CLICKHOUSE_PASSWORD = os.environ.get("CLICKHOUSE_PASSWORD", "")
-FIN060_OUTPUT_DIR = Path(os.environ.get("FIN060_OUTPUT_DIR", "/data/banxe/reports/fin060"))
-FCA_REGDATA_URL = os.environ.get("FCA_REGDATA_URL", "https://regdata.fca.org.uk")
+from services.config import (
+    CLICKHOUSE_DB,
+    CLICKHOUSE_HOST,
+    CLICKHOUSE_PASSWORD,
+    CLICKHOUSE_PORT,
+    CLICKHOUSE_USER,
+    FIN060_OUTPUT_DIR as _FIN060_DIR,
+)
+
+FIN060_OUTPUT_DIR = Path(_FIN060_DIR)
 
 
 @dataclass(frozen=True)

@@ -120,18 +120,7 @@ class ReconciliationEngine:
         internal = self._port.get_balance(self._org_id, self._ledger_id, account_id)
 
         if account_id not in ext_map:
-            # No external statement for this account → PENDING
-            return ReconResult(
-                recon_date=recon_date,
-                account_id=account_id,
-                account_type=account_type,
-                currency="GBP",
-                internal_balance=internal,
-                external_balance=Decimal("0"),
-                discrepancy=Decimal("0"),
-                status="PENDING",
-                source_file="",
-            )
+            return self._pending_result(recon_date, account_id, account_type, internal)
 
         ext = ext_map[account_id]
         discrepancy = abs(ext.balance - internal)
@@ -147,6 +136,26 @@ class ReconciliationEngine:
             discrepancy=ext.balance - internal,
             status=status,
             source_file=ext.source_file,
+        )
+
+    @staticmethod
+    def _pending_result(
+        recon_date: date,
+        account_id: str,
+        account_type: str,
+        internal: Decimal,
+    ) -> ReconResult:
+        """No bank statement available → PENDING (not an error, expected in sandbox)."""
+        return ReconResult(
+            recon_date=recon_date,
+            account_id=account_id,
+            account_type=account_type,
+            currency="GBP",
+            internal_balance=internal,
+            external_balance=Decimal("0"),
+            discrepancy=Decimal("0"),
+            status="PENDING",
+            source_file="",
         )
 
     def _write_to_clickhouse(self, r: ReconResult) -> None:
