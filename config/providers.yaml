@@ -1,0 +1,112 @@
+# providers.yaml — Banxe Provider Registry Configuration
+# Pattern: Plugin Architecture (Geniusto v5 Plugin2/Provider2)
+# Each category has: primary → fallback → sandbox
+# Health endpoints are polled at startup and every 60s in production.
+
+payment_rails:
+  primary:
+    adapter: modulr
+    display_name: "Modulr Finance"
+    health_url: "https://api.modulrfinance.com/api-sandbox/health"
+    priority: 1
+    enabled: false          # Enable when MODULR_API_KEY set (BT-001)
+    rails: [FPS, SEPA_CT, SEPA_INSTANT, BACS, CHAPS]
+  fallback:
+    adapter: clearbank
+    display_name: "ClearBank"
+    health_url: "https://institution-api.clearbank.co.uk/v1/ping"
+    priority: 2
+    enabled: false          # Enable when CLEARBANK_API_KEY set
+    rails: [FPS, BACS, CHAPS]
+  sandbox:
+    adapter: mock
+    display_name: "MockPaymentAdapter"
+    health_url: null
+    priority: 99
+    enabled: true           # Always available for tests/dev
+
+idv:
+  primary:
+    adapter: sumsub
+    display_name: "Sumsub"
+    health_url: "https://api.sumsub.com/resources/status/api"
+    priority: 1
+    enabled: false          # Enable when SUMSUB_APP_TOKEN set (BT-004)
+    capabilities: [document_verification, liveness, address_check]
+  fallback:
+    adapter: onfido
+    display_name: "Onfido"
+    health_url: "https://api.onfido.com/v3/ping"
+    priority: 2
+    enabled: false          # Enable when ONFIDO_API_TOKEN set (BT-015)
+    capabilities: [document_verification, liveness]
+  sandbox:
+    adapter: mock_kyc
+    display_name: "MockKYCWorkflow"
+    health_url: null
+    priority: 99
+    enabled: true
+
+fraud:
+  primary:
+    adapter: sardine
+    display_name: "Sardine.ai"
+    health_url: "https://api.sardine.ai/v1/health"
+    priority: 1
+    enabled: false          # Enable when SARDINE_CLIENT_ID set (BT-009)
+    capabilities: [transaction_scoring, device_fingerprinting, app_scam]
+  sandbox:
+    adapter: mock_fraud
+    display_name: "MockFraudAdapter"
+    health_url: null
+    priority: 99
+    enabled: true
+
+kyb:
+  primary:
+    adapter: companies_house
+    display_name: "Companies House API"
+    health_url: "https://api.company-information.service.gov.uk/company/00000000"
+    priority: 1
+    enabled: false          # Enable when COMPANIES_HOUSE_API_KEY set (BT-005)
+    capabilities: [ubo_registry, director_check, company_status]
+  sandbox:
+    adapter: mock_kyb
+    display_name: "MockKYBAdapter"
+    health_url: null
+    priority: 99
+    enabled: true
+
+notification:
+  email:
+    adapter: sendgrid
+    display_name: "SendGrid"
+    health_url: "https://status.sendgrid.com/api/v2/status.json"
+    priority: 1
+    enabled: false          # Enable when SENDGRID_API_KEY set
+  sms:
+    adapter: twilio
+    display_name: "Twilio"
+    health_url: "https://status.twilio.com/api/v2/status.json"
+    priority: 1
+    enabled: false          # Enable when TWILIO_ACCOUNT_SID set
+  fallback:
+    adapter: telegram
+    display_name: "Telegram (MLRO alerts only)"
+    health_url: null
+    priority: 99
+    enabled: true
+
+iam:
+  primary:
+    adapter: keycloak
+    display_name: "Keycloak OIDC"
+    health_url: "http://localhost:8080/health"
+    priority: 1
+    enabled: false          # Enable when KEYCLOAK_URL set (BT-011)
+  sandbox:
+    adapter: mock_iam
+    display_name: "MockIAMAdapter"
+    health_url: null
+    priority: 99
+    enabled: true

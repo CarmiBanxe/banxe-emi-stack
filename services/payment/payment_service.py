@@ -47,6 +47,11 @@ from services.payment.payment_port import (
 
 logger = logging.getLogger(__name__)
 
+# Lazy import to avoid circular dependency — event_bus imported only when used
+def _get_event_bus_types():
+    from services.events.event_bus import BanxeEventType, DomainEvent, InMemoryEventBus
+    return BanxeEventType, DomainEvent, InMemoryEventBus
+
 PAYMENT_ADAPTER = os.environ.get("PAYMENT_ADAPTER", "mock")
 N8N_WEBHOOK_URL = os.environ.get("N8N_WEBHOOK_URL", "")
 
@@ -81,10 +86,12 @@ class PaymentService:
         rail: PaymentRailPort,
         ch_client,          # ClickHouseClientProtocol (from clickhouse_client.py)
         ledger_port=None,   # LedgerPortProtocol — optional, for Midaz debit
+        event_bus=None,     # EventBusPort — optional, for domain event emission (S17-11)
     ) -> None:
         self._rail = rail
         self._ch = ch_client
         self._ledger = ledger_port
+        self._event_bus = event_bus
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -213,6 +220,7 @@ class PaymentService:
 
         self._write_audit(intent, result)
         self._notify_n8n(result)
+        self._emit_event(intent, result)
         return result
 
     def _write_audit(self, intent: PaymentIntent, result: PaymentResult) -> None:
@@ -244,6 +252,36 @@ class PaymentService:
         except Exception as exc:
             # Audit failure must NEVER suppress the payment result (I-24)
             logger.error("ClickHouse payment audit write failed: %s", exc)
+
+    def _emit_event(self, intent: PaymentIntent, result: PaymentResult) -> None:
+        """Publish typed domain event to Event Bus (S17-11, Geniusto NOTIFICATION.OUT.PAYMENT)."""
+        if self._event_bus is None:
+            return
+        try:
+            BanxeEventType, DomainEvent, _ = _get_event_bus_types()
+            event_type = (
+                BanxeEventType.PAYMENT_COMPLETED
+                if result.status == PaymentStatus.COMPLETED
+                else BanxeEventType.PAYMENT_FAILED
+            )
+            event = DomainEvent.create(
+                event_type=event_type,
+                source_service="payment_service",
+                payload={
+                    "idempotency_key": intent.idempotency_key,
+                    "provider_payment_id": result.provider_payment_id,
+                    "rail": intent.rail.value,
+                    "amount": str(intent.amount),
+                    "currency": intent.currency,
+                    "status": result.status.value,
+                    "error_code": result.error_code or "",
+                },
+                correlation_id=intent.idempotency_key,
+            )
+            self._event_bus.publish(event)
+        except Exception as exc:
+            # Event bus failure MUST NOT suppress the payment result
+            logger.warning("Event bus publish failed: %s", exc)
 
     def _notify_n8n(self, result: PaymentResult) -> None:
         """Fire n8n webhook for FAILED payments (ops alerting)."""
