@@ -151,7 +151,11 @@ class ReconciliationEngine:
         )
 
     def _write_to_clickhouse(self, r: ReconResult) -> None:
-        """Insert one reconciliation event into banxe.safeguarding_events."""
+        """
+        Insert one reconciliation event into banxe.safeguarding_events.
+        Column names match the GMKtec schema (event_time, Decimal(18,2) amounts).
+        amounts passed as str → ClickHouse driver casts to Decimal(18,2) correctly.
+        """
         self._ch.execute(
             """
             INSERT INTO banxe.safeguarding_events
@@ -165,9 +169,11 @@ class ReconciliationEngine:
                 "account_id": r.account_id,
                 "account_type": r.account_type,
                 "currency": r.currency,
-                "internal_balance": float(r.internal_balance),
-                "external_balance": float(r.external_balance),
-                "discrepancy": float(r.discrepancy),
+                # Pass as string — clickhouse-driver converts to Decimal(18,2)
+                # Never float (FCA I-24)
+                "internal_balance": str(r.internal_balance),
+                "external_balance": str(r.external_balance),
+                "discrepancy": str(r.discrepancy),
                 "status": r.status,
                 "alert_sent": int(r.alert_sent),
                 "source_file": r.source_file,

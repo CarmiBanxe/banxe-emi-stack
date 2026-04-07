@@ -21,6 +21,6 @@ SELECT
     status,
     alert_sent,
     source_file,
-    inserted_at
+    event_time   -- column name in GMKtec schema (was inserted_at in DDL draft)
 FROM {{ source('banxe', 'safeguarding_events') }}
 WHERE recon_date IS NOT NULL

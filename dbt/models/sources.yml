@@ -23,8 +23,8 @@ sources:
           Written by ReconciliationEngine via ClickHouseReconClient.
           Source of truth for FIN060 reporting and MLRO dashboards.
         columns:
-          - name: inserted_at
-            description: Wall-clock time of the reconciliation run (UTC)
+          - name: event_time
+            description: Wall-clock time of the reconciliation run (DateTime64(3), UTC)
           - name: recon_date
             description: Business date being reconciled (Date type)
             tests:

@@ -91,11 +91,13 @@ class ClickHouseReconClient:
 
     def ensure_schema(self) -> None:
         """
-        Create safeguarding_events table if it does not exist.
-        Safe to call on every startup (idempotent).
+        Create safeguarding_events and safeguarding_breaches tables if they do not exist.
+        Safe to call on every startup — CREATE TABLE IF NOT EXISTS is idempotent.
+        NOTE: existing safeguarding_events on GMKtec has compatible schema (Decimal(18,2)).
         """
         self._client.execute(_CREATE_TABLE_SQL)
-        logger.info("ClickHouse schema ensured: banxe.safeguarding_events")
+        self._client.execute(_CREATE_BREACHES_SQL)
+        logger.info("ClickHouse schema ensured: safeguarding_events + safeguarding_breaches")
 
 
 @dataclass
@@ -143,31 +145,51 @@ class InMemoryReconClient:
 _CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS banxe.safeguarding_events
 (
-    -- When the reconciliation was performed
-    inserted_at     DateTime        DEFAULT now(),
+    -- Unique event ID for deduplication
+    event_id         UUID            DEFAULT generateUUIDv4(),
+    -- Wall-clock time of reconciliation run (matches existing schema on GMKtec)
+    event_time       DateTime64(3)   DEFAULT now(),
     -- The date being reconciled (not necessarily today)
-    recon_date      Date,
+    recon_date       Date,
     -- Midaz account UUID
-    account_id      String,
+    account_id       String,
     -- 'operational' | 'client_funds'
-    account_type    LowCardinality(String),
+    account_type     LowCardinality(String),
     -- ISO-4217
-    currency        LowCardinality(String),
-    -- Balance according to Midaz ledger (pence → GBP in Float64 for CH storage)
-    internal_balance  Float64,
-    -- Balance according to bank statement (CAMT.053 / CSV)
-    external_balance  Float64,
-    -- external - internal (negative = internal overstates)
-    discrepancy       Float64,
+    currency         LowCardinality(String),
+    -- Decimal(18,2) — FCA I-24: never float for financial amounts
+    internal_balance Decimal(18, 2),
+    external_balance Decimal(18, 2),
+    discrepancy      Decimal(18, 2),
     -- 'MATCHED' | 'DISCREPANCY' | 'PENDING'
-    status          LowCardinality(String),
-    -- Whether an n8n/Slack alert was sent
-    alert_sent      UInt8,
-    -- Source filename for audit traceability
-    source_file     String
+    status           LowCardinality(String),
+    -- 1 if n8n/Slack alert was fired
+    alert_sent       UInt8           DEFAULT 0,
+    -- Statement filename for audit traceability
+    source_file      String,
+    -- Which service wrote this record
+    created_by       String          DEFAULT 'recon-engine'
 )
 ENGINE = MergeTree()
 ORDER BY (recon_date, account_id)
 TTL recon_date + INTERVAL 5 YEAR
 SETTINGS index_granularity = 8192;
+"""
+
+_CREATE_BREACHES_SQL = """
+CREATE TABLE IF NOT EXISTS banxe.safeguarding_breaches
+(
+    detected_at      DateTime        DEFAULT now(),
+    recon_date       Date,
+    account_id       String,
+    account_type     LowCardinality(String),
+    currency         LowCardinality(String),
+    discrepancy      Decimal(18, 2),
+    days_outstanding UInt16          DEFAULT 1,
+    reported_to_fca  UInt8           DEFAULT 0,
+    notes            String          DEFAULT ''
+)
+ENGINE = MergeTree()
+ORDER BY (detected_at, account_id)
+TTL detected_at + INTERVAL 5 YEAR;
 """
