@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from decimal import Decimal
 from typing import List, Optional
 
 from services.config import (
@@ -98,6 +99,85 @@ class ClickHouseReconClient:
         self._client.execute(_CREATE_BREACHES_SQL)
         logger.info("ClickHouse schema ensured: safeguarding_events + safeguarding_breaches")
 
+    def get_discrepancy_streak(
+        self, account_id: str, as_of: "date", min_days: int  # noqa: F821
+    ) -> int:
+        """
+        Return the number of consecutive DISCREPANCY days for account_id,
+        ending on as_of (inclusive). Used by BreachDetector.
+        """
+        from datetime import timedelta
+        rows = self._client.execute(
+            """
+            SELECT recon_date, status
+            FROM banxe.safeguarding_events
+            WHERE account_id = %(account_id)s
+              AND recon_date >= %(from_date)s
+              AND recon_date <= %(as_of)s
+            ORDER BY recon_date DESC
+            """,
+            {
+                "account_id": account_id,
+                "from_date": (as_of - timedelta(days=min_days + 5)).isoformat(),
+                "as_of": as_of.isoformat(),
+            },
+        )
+        streak = 0
+        for row in (rows or []):
+            if row[1] == "DISCREPANCY":
+                streak += 1
+            else:
+                break
+        return streak
+
+    def write_breach(self, breach: "BreachRecord") -> None:  # noqa: F821
+        """Insert one breach record into banxe.safeguarding_breaches."""
+        self._client.execute(
+            """
+            INSERT INTO banxe.safeguarding_breaches
+            (recon_date, account_id, account_type, currency,
+             discrepancy, days_outstanding)
+            VALUES
+            """,
+            {
+                "recon_date": breach.latest_date.isoformat(),
+                "account_id": breach.account_id,
+                "account_type": breach.account_type,
+                "currency": breach.currency,
+                "discrepancy": str(breach.discrepancy),
+                "days_outstanding": breach.days_outstanding,
+            },
+        )
+        logger.info(
+            "Breach written to CH: account=%s days=%d discrepancy=%s",
+            breach.account_id, breach.days_outstanding, breach.discrepancy,
+        )
+
+    def get_latest_discrepancy(self, account_id: str, as_of: "date") -> Optional[dict]:  # noqa: F821
+        """Return most recent DISCREPANCY row for account (for BreachDetector)."""
+        rows = self._client.execute(
+            """
+            SELECT account_id, account_type, currency, discrepancy, recon_date
+            FROM banxe.safeguarding_events
+            WHERE account_id = %(account_id)s
+              AND status = 'DISCREPANCY'
+              AND recon_date <= %(as_of)s
+            ORDER BY recon_date DESC
+            LIMIT 1
+            """,
+            {"account_id": account_id, "as_of": as_of.isoformat()},
+        )
+        if not rows:
+            return None
+        row = rows[0]
+        return {
+            "account_id": row[0],
+            "account_type": row[1],
+            "currency": row[2],
+            "discrepancy": Decimal(str(row[3])),
+            "recon_date": row[4],
+        }
+
 
 @dataclass
 class _CapturedEvent:
@@ -137,6 +217,47 @@ class InMemoryReconClient:
 
     def reset(self) -> None:
         self._log.clear()
+
+    # ── BreachClientProtocol stubs ────────────────────────────────────────────
+
+    def get_discrepancy_streak(self, account_id: str, as_of, min_days: int) -> int:
+        """Stub: count DISCREPANCY events for account in captured log."""
+        count = 0
+        for e in reversed(self._log):
+            if (
+                e.params.get("account_id") == account_id
+                and e.params.get("status") == "DISCREPANCY"
+            ):
+                count += 1
+            else:
+                break
+        return count
+
+    def write_breach(self, breach) -> None:
+        """Stub: record breach insert in log."""
+        self._log.append(_CapturedEvent(query="BREACH", params={
+            "account_id": breach.account_id,
+            "account_type": breach.account_type,
+            "currency": breach.currency,
+            "discrepancy": str(breach.discrepancy),
+            "days_outstanding": breach.days_outstanding,
+            "_is_breach": True,
+        }))
+
+    def get_latest_discrepancy(self, account_id: str, as_of) -> Optional[dict]:
+        """Stub: return last DISCREPANCY event params for account."""
+        for e in reversed(self._log):
+            if (
+                e.params.get("account_id") == account_id
+                and e.params.get("status") == "DISCREPANCY"
+            ):
+                return e.params
+        return None
+
+    @property
+    def breaches(self) -> List[dict]:
+        """Return list of breach param dicts from captured log."""
+        return [e.params for e in self._log if e.params.get("_is_breach")]
 
 
 # ── DDL ──────────────────────────────────────────────────────────────────────

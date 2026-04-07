@@ -104,9 +104,20 @@ def run_daily_recon(
     summary = _build_summary(recon_date, results)
     _log_summary(summary)
 
-    # ── 4. Fire alerts if needed ──────────────────────────────────────────────
+    # ── 4. Fire day-1 alerts if needed ───────────────────────────────────────
     if not dry_run:
         _fire_alerts(results, recon_date)
+
+    # ── 5. Breach detection (CASS 15.12: escalate after BREACH_DAYS) ─────────
+    if not dry_run:
+        from services.recon.breach_detector import BreachDetector
+        detector = BreachDetector(ch_client)
+        breaches = detector.check_and_escalate(results, recon_date)
+        if breaches:
+            summary["breaches"] = len(breaches)
+            logger.warning("CASS 15 BREACH: %d breach(es) escalated to FCA channel", len(breaches))
+        else:
+            summary["breaches"] = 0
 
     logger.info("=== Banxe Daily Recon END | %s ===", summary["overall_status"])
     return summary
