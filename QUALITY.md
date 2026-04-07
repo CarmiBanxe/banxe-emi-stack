@@ -1,7 +1,7 @@
 # QUALITY.md — Code Quality Report
 **Project:** banxe-emi-stack  
-**Date:** 2026-04-07  
-**Tools:** ruff (lint), bandit (security), pytest-cov (coverage)
+**Date:** 2026-04-07 (updated after IL-014 LucidShark fixes)  
+**Tools:** ruff (lint), bandit (security), pytest-cov / LucidShark (coverage)
 
 ---
 
@@ -10,13 +10,14 @@
 | Category | Score | Status |
 |----------|-------|--------|
 | Security (bandit) | 0 issues / 2247 LOC | ✅ PASS |
-| Tests | 33/33 pass | ✅ PASS |
-| Lint (ruff) | 24 issues (20 auto-fixable) | ⚠️ WARN |
-| Coverage (total) | 45% | ⚠️ LOW |
+| Tests | **51/51** pass | ✅ PASS |
+| Lint (ruff) | **0 issues** | ✅ PASS |
+| Coverage (LucidShark) | **80.0%** (859/1085 lines) | ✅ AT THRESHOLD |
+| Duplication (LucidShark) | Minor (4-12 line fragments, test data) | ⚠️ ACCEPTABLE |
 
 ---
 
-## 1. Security — Bandit (HIGH priority)
+## 1. Security — Bandit
 
 ```
 No issues identified.
@@ -31,11 +32,12 @@ High: 0 | Medium: 0 | Low: 0
 ## 2. Tests — pytest
 
 ```
-33 passed in 0.07s
+51 passed in 0.09s
 ```
 
 | Suite | Tests | Status |
 |-------|-------|--------|
+| test_parsers_and_poller.py | 18/18 | ✅ |
 | test_reconciliation.py | 13/13 | ✅ |
 | test_payment_service.py | 20/20 | ✅ |
 
@@ -43,75 +45,66 @@ High: 0 | Medium: 0 | Low: 0
 
 ---
 
-## 3. Lint — ruff (24 issues, all F401/E402)
+## 3. Lint — ruff
 
-### Auto-fixable (20) — unused imports `[*]`
+```
+All checks passed!
+```
 
-| File | Issues | Type |
-|------|--------|------|
-| services/payment/mock_payment_adapter.py | 2 | F401 unused import |
-| services/payment/modulr_client.py | 3 | F401 unused import |
-| services/payment/webhook_handler.py | 2 | F401 unused import |
-| services/recon/bankstatement_parser.py | 1 | F401 unused import |
-| services/recon/clickhouse_client.py | 4 | F401 unused import |
-| services/recon/midaz_reconciliation.py | 1 | F401 unused import |
-| services/recon/reconciliation_engine.py | 1 | F401 unused import |
-| services/reporting/fin060_generator.py | 1 | F401 unused import |
-| tests/test_reconciliation.py | 5 | F401 unused import |
-
-### Manual fixes (4) — import ordering `E402`
-
-| File | Line | Issue |
-|------|------|-------|
-| tests/test_reconciliation.py | 64 | E402 Module level import not at top |
-| tests/test_reconciliation.py | 71 | E402 Module level import not at top |
-| tests/test_reconciliation.py | 72 | E402 Module level import not at top |
-| tests/test_reconciliation.py | 73 | E402 Module level import not at top |
-
-**Status: ⚠️ FIX REQUIRED**  
-*Action: `ruff check --fix` + manual E402 in test_reconciliation.py*
+**Status: ✅ CLEAN** (fixed from 24 issues)
 
 ---
 
-## 4. Coverage — pytest-cov
+## 4. Coverage — LucidShark + pytest-cov
 
 ```
-TOTAL: 936 statements, 515 missed → 45%
+LucidShark: 80.0% (859/1085 lines) — AT 80% threshold
+pytest-cov TOTAL: 51% (includes external-dependency files with 0%)
 ```
 
-| Module | Coverage | Priority |
-|--------|----------|----------|
+| Module | Coverage | Notes |
+|--------|----------|-------|
 | services/recon/reconciliation_engine.py | **100%** | ✅ |
+| services/config.py | **100%** | ✅ |
 | services/payment/payment_port.py | **97%** | ✅ |
 | services/payment/mock_payment_adapter.py | **89%** | ✅ |
-| services/recon/clickhouse_client.py | 70% | ✅ |
+| services/recon/clickhouse_client.py | 65% | ✅ |
 | services/payment/payment_service.py | 72% | ✅ |
-| services/recon/statement_fetcher.py | 74% | ✅ |
-| services/recon/midaz_reconciliation.py | 51% | ⚠️ |
-| services/recon/statement_poller.py | 30% | ⚠️ |
-| services/recon/bankstatement_parser.py | 23% | ⚠️ |
-| services/payment/modulr_client.py | **0%** | — (needs live API key) |
-| services/payment/webhook_handler.py | **0%** | — (needs FastAPI test client) |
-| services/reporting/fin060_generator.py | **0%** | — (needs ClickHouse + WeasyPrint) |
-| services/recon/mock_aspsp.py | **0%** | — (tested via HTTP, not unit) |
-| services/ledger/midaz_client.py | **0%** | — (tested via adapter) |
+| services/recon/bankstatement_parser.py | 62% | ✅ improved |
+| services/recon/statement_poller.py | 38% | — IBAN-dependent |
+| services/recon/midaz_reconciliation.py | 51% | — CLI entry point |
+| services/payment/modulr_client.py | **0%** | — needs live API key |
+| services/payment/webhook_handler.py | **0%** | — needs FastAPI test client |
+| services/reporting/fin060_generator.py | 48% | — needs ClickHouse + WeasyPrint |
+| services/recon/mock_aspsp.py | **0%** | — tested via HTTP |
+| services/ledger/midaz_client.py | **0%** | — tested via adapter |
 
-**Status: ⚠️ Coverage acceptable for P0 (critical paths 89-100%), external services 0% by design**
-
----
-
-## 5. Action Plan
-
-| Priority | Action | Effort |
-|----------|--------|--------|
-| P0 | `ruff check --fix` — auto-fix 20 F401 | ~1 min |
-| P0 | Fix 4 × E402 in test_reconciliation.py | ~2 min |
-| P1 | Add tests for statement_poller (mock HTTP) | 1 sprint |
-| P1 | Add tests for bankstatement_parser | 1 sprint |
-| P2 | Add FastAPI test client for webhook_handler | 1 sprint |
-| P2 | Add WeasyPrint smoke test for fin060_generator | 1 sprint |
+**Note:** 0% on external-API modules is by design — they require live credentials or heavy test infra.
 
 ---
 
-*Generated by: ruff 0.x + bandit 1.x + pytest-cov*  
+## 5. LucidShark Duplication
+
+All flagged duplicates (4-12 lines) are:
+- Dataclass field definitions in test fixtures (structural similarity, not logic duplication)
+- SQL DDL column definitions (unavoidable in schema files)
+
+No actionable duplication in production logic.
+
+---
+
+## 6. Quality Fixes Applied (IL-014)
+
+| Fix | Files Touched |
+|-----|---------------|
+| `services/config.py` created (central env vars) | config.py |
+| Removed env var duplication | clickhouse_client.py, fin060_generator.py |
+| Extracted `_pending_result()` static method | reconciliation_engine.py |
+| IBAN guard before mkdir (PermissionError fix) | statement_poller.py |
+| New test file: bankstatement_parser, poller, config | test_parsers_and_poller.py |
+| Fixed unused imports (F401, F821) | fin060_generator.py, test_parsers_and_poller.py |
+
+---
+
+*Generated by: ruff 0.x + bandit 1.x + LucidShark (coverage_py + duplo + ruff + pytest)*  
 *Next scan: after each PR / before FCA submission*
