@@ -38,7 +38,8 @@ sources:
             tests:
               - not_null
               - accepted_values:
-                  values: ['operational', 'client_funds']
+                  arguments:
+                    values: ['operational', 'client_funds']
           - name: currency
             description: ISO-4217 currency code (GBP for safeguarding)
             tests:
@@ -54,7 +55,8 @@ sources:
             tests:
               - not_null
               - accepted_values:
-                  values: ['MATCHED', 'DISCREPANCY', 'PENDING']
+                  arguments:
+                    values: ['MATCHED', 'DISCREPANCY', 'PENDING']
           - name: alert_sent
             description: 1 if n8n/Slack alert was fired, 0 otherwise
           - name: source_file

@@ -55,10 +55,11 @@ class MidazLedgerAdapter:
         timeout: float = _TIMEOUT,
     ) -> None:
         self._base_url = base_url.rstrip("/")
-        self._headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-        }
+        # Only set Authorization header when token is non-empty.
+        # Midaz v3.5.x in local mode may not require auth.
+        self._headers: dict = {"Content-Type": "application/json"}
+        if token:
+            self._headers["Authorization"] = f"Bearer {token}"
         self._timeout = timeout
 
     # ── LedgerPortProtocol interface ─────────────────────────────────────────
