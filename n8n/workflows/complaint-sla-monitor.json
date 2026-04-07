@@ -1,0 +1,148 @@
+{
+  "name": "Banxe — Complaint SLA Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 9 * * *" }]
+        }
+      },
+      "id": "cron-daily",
+      "name": "Daily 09:00 Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://localhost:8082/complaints/sla-check",
+        "options": { "timeout": 10000 }
+      },
+      "id": "http-sla-check",
+      "name": "SLA Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.breaches }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "if-breaches",
+      "name": "Has SLA Breaches?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 240]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.warnings }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "if-warnings",
+      "name": "Has SLA Warnings?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 420]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_MLRO_CHAT_ID }}",
+        "text": "=🚨 *BANXE FCA ALERT — COMPLAINT SLA BREACHED*\n\nComplaint(s) past 8-week deadline (DISP 1.4.1R):\nCount: {{ $node['SLA Check'].json.breaches }}\nIDs: {{ $node['SLA Check'].json.breach_ids.join(', ') }}\n\n⚠️ FOS escalation required immediately.\nFCA Consumer Duty violation if not acted upon.",
+        "additionalFields": { "parse_mode": "Markdown" }
+      },
+      "id": "telegram-breach-alert",
+      "name": "Telegram MLRO — SLA Breach",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [900, 160],
+      "credentials": { "telegramApi": { "id": "telegram-banxe", "name": "Banxe Telegram" } }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_MLRO_CHAT_ID }}",
+        "text": "=⏰ *BANXE — COMPLAINT SLA WARNING (7 days)*\n\nComplaint(s) approaching 8-week deadline (DISP 1.4.1R):\nCount: {{ $node['SLA Check'].json.warnings }}\nIDs: {{ $node['SLA Check'].json.warning_ids.join(', ') }}\n\nAction required before SLA breach.",
+        "additionalFields": { "parse_mode": "Markdown" }
+      },
+      "id": "telegram-warning-alert",
+      "name": "Telegram MLRO — SLA Warning",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.1,
+      "position": [900, 420],
+      "credentials": { "telegramApi": { "id": "telegram-banxe", "name": "Banxe Telegram" } }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:9000",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "=INSERT INTO banxe.complaint_events (complaint_id, event_type, note, actor) SELECT id, 'SLA_BREACHED', concat('Automated FOS escalation triggered. Days overdue: ', toString(dateDiff('day', sla_deadline, now()))), 'n8n_sla_monitor' FROM banxe.complaints WHERE status NOT IN ('RESOLVED', 'FOS_ESCALATED') AND sla_deadline < now()"
+            }
+          ]
+        }
+      },
+      "id": "ch-log-breach",
+      "name": "ClickHouse — Log Breach Events",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 160]
+    }
+  ],
+  "connections": {
+    "Daily 09:00 Trigger": {
+      "main": [[{ "node": "SLA Check", "type": "main", "index": 0 }]]
+    },
+    "SLA Check": {
+      "main": [
+        [{ "node": "Has SLA Breaches?", "type": "main", "index": 0 }],
+        [{ "node": "Has SLA Warnings?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Has SLA Breaches?": {
+      "main": [
+        [{ "node": "Telegram MLRO — SLA Breach", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Has SLA Warnings?": {
+      "main": [
+        [{ "node": "Telegram MLRO — SLA Warning", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Telegram MLRO — SLA Breach": {
+      "main": [[{ "node": "ClickHouse — Log Breach Events", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "banxe-gmktec"
+  },
+  "tags": [{ "name": "FCA", "createdAt": "2026-04-07" }, { "name": "Consumer Duty" }]
+}

@@ -1,0 +1,14 @@
+[run]
+source = services
+
+[report]
+omit =
+    # External-service clients — require live API keys or running services
+    # (blocked: see BLOCKED-TASKS.md BT-001, BT-006)
+    services/payment/modulr_client.py
+    services/payment/webhook_handler.py
+    services/recon/mock_aspsp.py
+    services/recon/statement_fetcher.py
+    services/ledger/midaz_client.py
+    # ClickHouse production adapters — require running ClickHouse
+    */clickhouse_client.py
