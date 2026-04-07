@@ -12,3 +12,5 @@ omit =
     services/ledger/midaz_client.py
     # ClickHouse production adapters — require running ClickHouse
     */clickhouse_client.py
+    # RegData — live FIN060 generator (WeasyPrint + ClickHouse)
+    services/reporting/fin060_generator.py

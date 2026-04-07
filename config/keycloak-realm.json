@@ -1,0 +1,87 @@
+{
+  "_comment": "Banxe EMI Keycloak realm — import via Admin Console or kcadm.sh",
+  "_fca_reference": "FCA SM&CR SYSC 4.7 / FIT 1.3 / SUP 10C",
+  "_deploy": "docker run -p 8080:8080 -e KEYCLOAK_ADMIN=admin -e KEYCLOAK_ADMIN_PASSWORD=admin quay.io/keycloak/keycloak:latest start-dev",
+  "realm": "banxe",
+  "displayName": "Banxe EMI",
+  "enabled": true,
+  "sslRequired": "all",
+  "accessTokenLifespan": 3600,
+  "ssoSessionMaxLifespan": 36000,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 5,
+  "passwordPolicy": "length(12) and specialChars(1) and upperCase(1) and digits(1)",
+  "otpPolicyType": "totp",
+  "roles": {
+    "realm": [
+      { "name": "CEO",      "description": "Chief Executive — FCA Senior Manager (SMF1)" },
+      { "name": "MLRO",     "description": "Money Laundering Reporting Officer — SMF17" },
+      { "name": "CCO",      "description": "Chief Compliance Officer" },
+      { "name": "OPERATOR", "description": "Transaction processing operator" },
+      { "name": "AGENT",    "description": "AI agent service identity" },
+      { "name": "AUDITOR",  "description": "Read-only — FCA inspectors / external auditor" },
+      { "name": "READONLY", "description": "Board / management reporting access" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "banxe-backend",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "secret": "REPLACE_WITH_SECRET",
+      "redirectUris": ["http://localhost:8082/*", "https://app.banxe.io/*"],
+      "defaultClientScopes": ["openid", "profile", "email", "roles"]
+    },
+    {
+      "clientId": "banxe-agents",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "serviceAccountsEnabled": true,
+      "secret": "REPLACE_WITH_AGENT_SECRET",
+      "description": "Service account for AI agents (ROLE: AGENT)"
+    }
+  ],
+  "users": [
+    {
+      "_comment": "REMOVE FROM PRODUCTION — dev defaults only",
+      "username": "mark",
+      "email": "mark@banxe.io",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": ["CEO"],
+      "requiredActions": ["CONFIGURE_TOTP"],
+      "credentials": [{ "type": "password", "value": "CHANGE_ME_CEO", "temporary": true }]
+    },
+    {
+      "username": "mlro",
+      "email": "mlro@banxe.io",
+      "enabled": true,
+      "realmRoles": ["MLRO"],
+      "requiredActions": ["CONFIGURE_TOTP", "UPDATE_PASSWORD"],
+      "credentials": [{ "type": "password", "value": "CHANGE_ME_MLRO", "temporary": true }]
+    },
+    {
+      "username": "agent-aml",
+      "email": "agent-aml@internal.banxe.io",
+      "enabled": true,
+      "realmRoles": ["AGENT"],
+      "credentials": [{ "type": "password", "value": "CHANGE_ME_AGENT", "temporary": true }]
+    }
+  ],
+  "authenticationFlows": [
+    {
+      "_comment": "MLRO and CEO must complete MFA — enforced via Conditional OTP policy",
+      "alias": "banxe-browser-with-mfa",
+      "description": "Browser flow with mandatory MFA for MLRO/CEO roles"
+    }
+  ]
+}
