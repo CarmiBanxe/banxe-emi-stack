@@ -120,5 +120,27 @@ case $RECON_EXIT in
     *) log "=== daily-recon unknown exit=$RECON_EXIT ===" ;;
 esac
 
+# ── Step 5: Fire n8n shortfall webhook (S6-11 / CASS 7.15) ───────────────────
+# Sends result to n8n → Telegram MLRO alert on discrepancy.
+# N8N_WEBHOOK_URL must be set in .env (e.g. http://localhost:5678/webhook/safeguarding-shortfall)
+if [[ -n "${N8N_WEBHOOK_URL:-}" ]]; then
+    MIDAZ_BAL=$(grep -oP '"midaz_balance":\s*\K[\d.]+' "$LOGFILE" 2>/dev/null | tail -1 || echo "0")
+    BANK_BAL=$(grep -oP '"bank_balance":\s*\K[\d.]+' "$LOGFILE" 2>/dev/null | tail -1 || echo "0")
+    SHORTFALL=$(grep -oP '"shortfall":\s*\K[\d.]+' "$LOGFILE" 2>/dev/null | tail -1 || echo "0")
+    STATUS_STR="MATCHED"
+    [[ $RECON_EXIT -eq 1 ]] && STATUS_STR="DISCREPANCY"
+    [[ $RECON_EXIT -eq 2 ]] && STATUS_STR="PENDING"
+
+    log "Step 5: Firing n8n shortfall webhook (status=$STATUS_STR)..."
+    curl -s -X POST "${N8N_WEBHOOK_URL}" \
+        -H "Content-Type: application/json" \
+        -d "{\"recon_date\":\"${RECON_DATE}\",\"status\":\"${STATUS_STR}\",\"midaz_balance\":${MIDAZ_BAL},\"bank_balance\":${BANK_BAL},\"shortfall_amount\":${SHORTFALL}}" \
+        --max-time 10 --output /dev/null \
+        && log "  n8n webhook OK" \
+        || log "  WARNING: n8n webhook failed (non-fatal)"
+else
+    log "Step 5: N8N_WEBHOOK_URL not set — skipping shortfall notification"
+fi
+
 # Propagate meaningful exit codes (1=discrepancy, 2=pending alert cron monitor)
 exit $RECON_EXIT

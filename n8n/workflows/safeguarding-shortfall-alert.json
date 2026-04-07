@@ -1,0 +1,129 @@
+{
+  "name": "Banxe — Safeguarding Shortfall Alert (CASS 7.15)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "safeguarding-shortfall",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Shortfall Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "banxe-safeguarding-shortfall"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false },
+          "conditions": [
+            {
+              "id": "shortfall-check",
+              "leftValue": "={{ $json.body.status }}",
+              "rightValue": "DISCREPANCY",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ]
+        }
+      },
+      "id": "if-discrepancy",
+      "name": "Is Discrepancy?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.MLRO_TELEGRAM_CHAT_ID }}",
+        "text": "=🚨 *SAFEGUARDING SHORTFALL ALERT* (CASS 7.15.29R)\n\n*Date:* {{ $json.body.recon_date }}\n*Status:* {{ $json.body.status }}\n*Balance (Midaz):* £{{ $json.body.midaz_balance }}\n*Balance (Bank stmt):* £{{ $json.body.bank_balance }}\n*Shortfall:* £{{ $json.body.shortfall_amount }}\n\n⚠️ FCA CASS 7.15.29R requires investigation within 1 business day.\n\nEscalate immediately to MLRO and safeguarding bank contact.",
+        "additionalFields": {
+          "parse_mode": "Markdown",
+          "disable_notification": false
+        }
+      },
+      "id": "telegram-mlro",
+      "name": "Alert MLRO",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [700, 200],
+      "credentials": { "telegramApi": { "id": "banxe-telegram-bot", "name": "Banxe Telegram Bot" } }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.MLRO_TELEGRAM_CHAT_ID }}",
+        "text": "=✅ *Safeguarding Reconciliation OK* (CASS 7.15)\n\n*Date:* {{ $json.body.recon_date }}\n*Status:* {{ $json.body.status }}\n*Balance matched:* £{{ $json.body.midaz_balance }}",
+        "additionalFields": { "parse_mode": "Markdown" }
+      },
+      "id": "telegram-ok",
+      "name": "Notify OK",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [700, 420],
+      "credentials": { "telegramApi": { "id": "banxe-telegram-bot", "name": "Banxe Telegram Bot" } }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CLICKHOUSE_HTTP_URL }}/",
+        "sendBody": true,
+        "contentType": "rawBody",
+        "rawContentType": "text/plain",
+        "body": "=INSERT INTO banxe.safeguarding_events (event_id, event_type, recon_date, status, midaz_balance, bank_balance, shortfall_amount, created_at) VALUES (generateUUIDv4(), 'SHORTFALL_ALERT_FIRED', '{{ $json.body.recon_date }}', '{{ $json.body.status }}', {{ $json.body.midaz_balance }}, {{ $json.body.bank_balance }}, {{ $json.body.shortfall_amount }}, now())",
+        "options": { "timeout": 5000 }
+      },
+      "id": "ch-log-shortfall",
+      "name": "Log to ClickHouse",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [940, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"acknowledged\": true, \"status\": \"{{ $json.body.status }}\", \"action\": \"alerted\"}"
+      },
+      "id": "respond-ok",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1160, 300]
+    }
+  ],
+  "connections": {
+    "Shortfall Webhook": {
+      "main": [[{ "node": "Is Discrepancy?", "type": "main", "index": 0 }]]
+    },
+    "Is Discrepancy?": {
+      "main": [
+        [{ "node": "Alert MLRO", "type": "main", "index": 0 }],
+        [{ "node": "Notify OK", "type": "main", "index": 0 }]
+      ]
+    },
+    "Alert MLRO": {
+      "main": [[{ "node": "Log to ClickHouse", "type": "main", "index": 0 }]]
+    },
+    "Notify OK": {
+      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+    },
+    "Log to ClickHouse": {
+      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": true
+  },
+  "tags": ["safeguarding", "cass", "fca", "compliance"],
+  "_meta": {
+    "fca_rule": "CASS 7.15.29R",
+    "trigger": "daily-recon.sh exit code 1 (DISCREPANCY)",
+    "webhook_path": "/webhook/safeguarding-shortfall",
+    "env_required": ["MLRO_TELEGRAM_CHAT_ID", "CLICKHOUSE_HTTP_URL", "N8N_WEBHOOK_URL"],
+    "deploy_note": "CEO: import via n8n UI http://gmktec:5678 → Workflows → Import from JSON"
+  }
+}
