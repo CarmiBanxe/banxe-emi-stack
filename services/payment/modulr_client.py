@@ -33,7 +33,6 @@ import hashlib
 import hmac
 import logging
 import os
-import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional
@@ -41,8 +40,6 @@ from typing import Optional
 import httpx
 
 from services.payment.payment_port import (
-    BankAccount,
-    PaymentDirection,
     PaymentIntent,
     PaymentRail,
     PaymentResult,

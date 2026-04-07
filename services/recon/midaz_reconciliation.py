@@ -37,7 +37,7 @@ import os
 import sys
 from datetime import date, datetime, timezone
 from decimal import Decimal
-from typing import List, Optional
+from typing import Optional
 
 # ── logging ──────────────────────────────────────────────────────────────────
 logging.basicConfig(

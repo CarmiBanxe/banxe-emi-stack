@@ -16,15 +16,13 @@ Run:
 """
 from __future__ import annotations
 
-import os
 import tempfile
 import csv
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
-import pytest
 
 # ── Stubs ─────────────────────────────────────────────────────────────────────
 
@@ -61,16 +59,14 @@ class StubFetcher:
 
 # ── Import under test ─────────────────────────────────────────────────────────
 
-from services.recon.reconciliation_engine import (
+from services.recon.reconciliation_engine import (  # noqa: E402
     ReconciliationEngine,
-    ReconResult,
-    SAFEGUARDING_ACCOUNTS,
     ORG_ID,
     LEDGER_ID,
 )
-from services.recon.statement_fetcher import StatementFetcher, StatementBalance
-from services.ledger.midaz_adapter import StubLedgerAdapter
-from services.recon.clickhouse_client import InMemoryReconClient
+from services.recon.statement_fetcher import StatementFetcher, StatementBalance  # noqa: E402
+from services.ledger.midaz_adapter import StubLedgerAdapter  # noqa: E402
+from services.recon.clickhouse_client import InMemoryReconClient  # noqa: E402
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

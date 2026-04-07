@@ -14,7 +14,6 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
-from typing import Optional
 
 CLICKHOUSE_HOST = os.environ.get("CLICKHOUSE_HOST", "localhost")
 CLICKHOUSE_PORT = int(os.environ.get("CLICKHOUSE_PORT", "9000"))

@@ -30,14 +30,13 @@ import os
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Dict, Optional
+from typing import Dict
 
 from services.payment.payment_port import (
     PaymentIntent,
     PaymentRail,
     PaymentResult,
     PaymentStatus,
-    PaymentStatusUpdate,
 )
 
 logger = logging.getLogger(__name__)

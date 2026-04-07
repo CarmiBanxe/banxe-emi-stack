@@ -12,7 +12,6 @@ its output into StatementBalance dataclasses for use by ReconciliationEngine.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from pathlib import Path

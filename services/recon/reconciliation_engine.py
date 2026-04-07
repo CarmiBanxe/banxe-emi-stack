@@ -9,7 +9,6 @@ CTX-06 AMBER — calls LedgerPort only, never Midaz HTTP directly.
 from __future__ import annotations
 
 import logging
-import os
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
