@@ -1,0 +1,201 @@
+openapi: "3.1.0"
+
+info:
+  title: Banxe Payment Webhook API
+  description: |
+    Modulr → Banxe webhook handler for payment status updates.
+    FCA CASS 6 / PSD2 | IL-014 / IL-017 | banxe-emi-stack
+  version: "1.0.0"
+  contact:
+    name: Banxe CTIO
+    email: ctio@banxe.com
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:8080
+    description: Local development (GMKtec)
+  - url: https://api.banxe.com
+    description: Production (future)
+
+tags:
+  - name: webhooks
+    description: Incoming Modulr payment event webhooks
+  - name: health
+    description: Service health checks
+
+paths:
+  /health:
+    get:
+      tags: [health]
+      summary: Health check
+      operationId: health_check
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /webhooks/modulr:
+    post:
+      tags: [webhooks]
+      summary: Receive Modulr payment event
+      description: |
+        Modulr calls this endpoint for every payment status update.
+        Banxe verifies HMAC-SHA256 signature before processing.
+        Always returns 200 OK — audit write never blocks response.
+        Retry-safe: idempotent by Modulr event ID.
+      operationId: handle_modulr_webhook
+      security:
+        - ModulrHmacSignature: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModulrWebhookEvent"
+            examples:
+              fps_completed:
+                summary: FPS payment completed
+                value:
+                  eventId: "EVT-001-ABC"
+                  type: "PAYMENT_STATUS_CHANGED"
+                  payload:
+                    id: "P00001-ABC"
+                    status: "EXECUTED"
+                    amount: 25000
+                    currency: "GBP"
+                    type: "FASTER_PAYMENTS"
+                    externalReference: "order-12345"
+              sepa_processing:
+                summary: SEPA CT processing
+                value:
+                  eventId: "EVT-002-XYZ"
+                  type: "PAYMENT_STATUS_CHANGED"
+                  payload:
+                    id: "P00002-XYZ"
+                    status: "SUBMITTED"
+                    amount: 5000
+                    currency: "EUR"
+                    type: "SEPA_CREDIT_TRANSFER"
+                    externalReference: "order-67890"
+      responses:
+        "200":
+          description: Event received and acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookAckResponse"
+        "401":
+          description: Invalid HMAC signature
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Invalid payload structure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  securitySchemes:
+    ModulrHmacSignature:
+      type: apiKey
+      in: header
+      name: X-Modulr-Signature
+      description: |
+        HMAC-SHA256 of request body using MODULR_WEBHOOK_SECRET.
+        Format: `sha256=<hex_digest>`
+
+  schemas:
+    ModulrWebhookEvent:
+      type: object
+      required: [eventId, type, payload]
+      properties:
+        eventId:
+          type: string
+          description: Unique event ID (used for idempotency)
+          example: "EVT-001-ABC"
+        type:
+          type: string
+          enum: [PAYMENT_STATUS_CHANGED, ACCOUNT_UPDATED, MANDATE_CREATED]
+          example: "PAYMENT_STATUS_CHANGED"
+        payload:
+          $ref: "#/components/schemas/ModulrPaymentPayload"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-04-07T09:00:00Z"
+
+    ModulrPaymentPayload:
+      type: object
+      required: [id, status, amount, currency]
+      properties:
+        id:
+          type: string
+          description: Modulr payment reference
+          example: "P00001-ABC"
+        status:
+          type: string
+          enum: [SUBMITTED, EXECUTED, REVERSED, FAILED, CANCELLED]
+          example: "EXECUTED"
+        amount:
+          type: integer
+          description: Amount in pence/cents (integer — never float, I-05)
+          example: 25000
+        currency:
+          type: string
+          description: ISO-4217
+          example: "GBP"
+        type:
+          type: string
+          enum: [FASTER_PAYMENTS, SEPA_CREDIT_TRANSFER, SEPA_INSTANT_CREDIT_TRANSFER, CHAPS, BACS]
+          example: "FASTER_PAYMENTS"
+        externalReference:
+          type: string
+          description: Banxe idempotency_key passed at payment submission
+          example: "order-12345"
+        errorCode:
+          type: string
+          nullable: true
+          description: Set when status = FAILED or REVERSED
+          example: "INSUFFICIENT_FUNDS"
+        errorMessage:
+          type: string
+          nullable: true
+          example: "Insufficient funds in source account"
+
+    WebhookAckResponse:
+      type: object
+      required: [received]
+      properties:
+        received:
+          type: boolean
+          example: true
+        event_id:
+          type: string
+          example: "EVT-001-ABC"
+
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+          example: "ok"
+        version:
+          type: string
+          example: "0.7.0"
+
+    ErrorResponse:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: string
+          example: "Invalid HMAC signature"
