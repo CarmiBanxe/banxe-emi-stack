@@ -1,0 +1,110 @@
+rules:
+  - id: banxe-hardcoded-secret
+    patterns:
+      - pattern-either:
+          - pattern: $KEY = "sk-..."
+          - pattern: $KEY = "sk_..."
+          - pattern: $KEY = "BSADQ..."
+          - pattern: token = "..."
+          - pattern: api_key = "..."
+          - pattern: password = "..."
+    message: |
+      Захардкоженный секрет/токен/пароль. Используй переменные окружения
+      или /etc/banxe/secrets.env. FCA требует защиту credentials.
+    languages: [python, javascript, bash]
+    severity: ERROR
+
+  - id: banxe-sql-injection-python
+    patterns:
+      - pattern-either:
+          - pattern: f"SELECT ... {$VAR} ..."
+          - pattern: f"INSERT ... {$VAR} ..."
+          - pattern: f"DELETE ... {$VAR} ..."
+    message: |
+      Возможная SQL-инъекция в запросе (Python).
+      Используй параметризованные запросы для ClickHouse.
+    languages: [python]
+    severity: ERROR
+
+  - id: banxe-sql-injection-javascript
+    pattern: |
+      `SELECT ... ${$VAR}`
+    message: |
+      Возможная SQL-инъекция в запросе (JS).
+      Используй параметризованные запросы для ClickHouse.
+    languages: [javascript]
+    severity: ERROR
+
+  - id: banxe-unsafe-eval
+    pattern: eval($X)
+    message: "eval() недопустим в продакшн коде — risk of code injection"
+    languages: [javascript, python]
+    severity: ERROR
+
+  - id: banxe-float-money
+    patterns:
+      - pattern-either:
+          - pattern: parseFloat($AMOUNT)
+          - pattern: float($AMOUNT)
+    message: |
+      Финансовые расчёты через float недопустимы — потеря точности.
+      Используй Decimal (Python) или BigInt/специализированные библиотеки (JS).
+    languages: [javascript, python]
+    severity: ERROR
+
+  - id: banxe-log-pii
+    patterns:
+      - pattern-either:
+          - pattern: console.log(..., $IBAN, ...)
+          - pattern: print(..., $IBAN, ...)
+          - pattern: logger.info(..., $PAN, ...)
+    message: "Возможная утечка PII/IBAN/PAN в логах — GDPR нарушение"
+    languages: [javascript, python]
+    severity: WARNING
+
+  - id: banxe-no-plain-password
+    patterns:
+      - pattern-either:
+          - pattern: password = $X
+          - pattern: passwd = $X
+          - pattern: secret = $X
+    message: "Не храни пароли/секреты в переменных с предсказуемыми именами"
+    languages: [javascript, python, bash]
+    severity: WARNING
+
+  - id: banxe-shell-injection
+    patterns:
+      - pattern-either:
+          - pattern: os.system(f"... {$VAR} ...")
+          - pattern: subprocess.call(f"... {$VAR} ...", shell=True)
+    message: "Shell injection risk — не используй shell=True с пользовательским вводом"
+    languages: [python]
+    severity: ERROR
+
+  - id: banxe-audit-delete
+    pattern-either:
+      - pattern: |
+          "DELETE FROM safeguarding_events ..."
+      - pattern: |
+          "DELETE FROM compliance_screenings ..."
+      - pattern: |
+          "UPDATE safeguarding_events ..."
+      - pattern: |
+          "DELETE FROM payment_events ..."
+      - pattern: |
+          "UPDATE payment_events ..."
+    message: |
+      I-24: Audit log append-only. DELETE/UPDATE запрещены для таблиц аудита.
+      ClickHouse safeguarding_events/payment_events/compliance_screenings должны
+      быть immutable. Используй INSERT-только паттерн.
+    languages: [python, sql]
+    severity: ERROR
+
+  - id: banxe-clickhouse-ttl-reduce
+    patterns:
+      - pattern: "... TTL ... INTERVAL $N DAY ..."
+    message: |
+      I-08: ClickHouse TTL минимум 5 лет (1825 дней) для FCA audit trail.
+      Проверь значение — не уменьшай существующий TTL.
+    languages: [sql]
+    severity: WARNING
