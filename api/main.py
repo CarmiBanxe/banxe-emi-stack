@@ -39,6 +39,7 @@ from api.routers import (
     ledger,
     notifications,
     payments,
+    reporting,
 )
 
 logger = logging.getLogger("banxe.api")
@@ -104,3 +105,4 @@ app.include_router(notifications.router, prefix="/v1")
 app.include_router(fraud.router, prefix="/v1")
 app.include_router(consumer_duty.router, prefix="/v1")
 app.include_router(hitl.router, prefix="/v1")
+app.include_router(reporting.router, prefix="/v1")
