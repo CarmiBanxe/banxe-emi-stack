@@ -81,23 +81,56 @@ class Address:
 
 @dataclass
 class IndividualProfile:
-    """Natural person (UK GDPR Art.5, MLR 2017 §18)."""
+    """
+    Natural person (UK GDPR Art.5, MLR 2017 §18).
+    Extended to full Geniusto v5 ABS Customer DTO (IL-036).
+    """
     first_name: str
     last_name: str
     date_of_birth: date
-    nationality: str                 # ISO-3166-1 alpha-2
-    address: Address
-    pep: bool = False                # Politically Exposed Person
+    nationality: str                            # ISO-3166-1 alpha-2
+    address: Address                            # Registration address
+    # v5 extended fields
+    title: Optional[str] = None                 # Mr / Ms / Dr / Prof
+    middle_name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None                 # E.164 format
+    preferred_language: str = "EN"              # EN / RU / FR
+    correspondence_address: Optional[Address] = None  # if different from address
+    # Compliance flags (FATCA / CRS / AML)
+    pep: bool = False                           # Politically Exposed Person
     sanctions_hit: bool = False
+    fatca_us_person: bool = False               # FATCA: US person flag
+    crs_tax_residencies: list[str] = field(default_factory=list)  # ISO country codes
+    # Admin
+    notes: Optional[str] = None
+
+    @property
+    def full_name(self) -> str:
+        parts = [self.title, self.first_name, self.middle_name, self.last_name]
+        return " ".join(p for p in parts if p)
 
 
 @dataclass
 class CompanyProfile:
-    """Legal entity (MLR 2017 §19, Companies House KYB)."""
+    """
+    Legal entity (MLR 2017 §19, Companies House KYB).
+    Extended to full Geniusto v5 ABS Legal Entity DTO (IL-036).
+    """
     company_name: str
-    registration_number: str         # Companies House number
+    registration_number: str                    # Companies House number
     country_of_incorporation: str
     registered_address: Address
+    # v5 extended fields
+    company_type: Optional[str] = None          # Ltd / PLC / LLP / LTD Partnership
+    industry: Optional[str] = None             # SIC code or description
+    tax_id: Optional[str] = None               # TIN (HMRC UTR)
+    date_of_registration: Optional[date] = None
+    correspondence_address: Optional[Address] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    preferred_language: str = "EN"
+    # KYB
     ubo_registry: list[UBORecord] = field(default_factory=list)
     companies_house_verified: bool = False
 
