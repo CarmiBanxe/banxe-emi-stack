@@ -163,29 +163,121 @@ class InMemoryConfigStore:
 
 # ── PostgreSQL config store (stub — production) ───────────────────────────────
 
-class PostgreSQLConfigStore:  # pragma: no cover
+class PostgreSQLConfigStore:
     """
-    Loads config from PostgreSQL `banxe.product_config` table.
-    STATUS: STUB — requires PostgreSQL banxe DB + schema migration.
+    Loads product/fee/limit config from PostgreSQL banxe schema.
+    Supports hot-reload via LISTEN/NOTIFY (set POSTGRES_DSN env var).
 
-    Schema (migration TBD):
-        product_config(product_id, display_name, currencies[], active)
-        fee_schedule(product_id, tx_type, fee_type, flat_fee, percentage, min_fee, max_fee, currency)
-        payment_limits(product_id, entity_type, single_tx_max, daily_max, monthly_max,
-                       daily_tx_count, monthly_tx_count, min_tx)
+    Schema: scripts/schema/postgres_config.sql
+    Seed:   scripts/seed_postgres_config.py (or SQL seed in postgres_config.sql)
 
-    Hot reload: poll `config_version` table or use LISTEN/NOTIFY.
+    Hot reload: call reload() manually or use LISTEN 'config_changed' in a
+                background thread (triggered by banxe.config_version INSERT).
     """
 
-    def __init__(self) -> None:
-        self._dsn = os.environ.get("POSTGRES_DSN", "")
+    def __init__(self, dsn: Optional[str] = None) -> None:
+        self._dsn = dsn or os.environ.get("POSTGRES_DSN", "")
         if not self._dsn:
-            raise EnvironmentError("POSTGRES_DSN not set")
+            raise EnvironmentError(
+                "POSTGRES_DSN not set. "
+                "Example: postgresql://banxe:password@localhost:5432/banxe_compliance"
+            )
         self._products: dict[str, ProductConfig] = {}
         self.reload()
 
     def reload(self) -> None:
-        raise NotImplementedError("PostgreSQLConfigStore.reload() — schema migration pending")
+        """
+        (Re)load all products, fees, and limits from PostgreSQL.
+        Thread-safe for reads after this method returns.
+        """
+        try:
+            import psycopg2  # type: ignore[import]
+            import psycopg2.extras  # type: ignore[import]
+        except ImportError as exc:
+            raise RuntimeError("psycopg2 not installed: pip install psycopg2-binary") from exc
+
+        conn = psycopg2.connect(self._dsn)
+        try:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    "SELECT product_id, display_name, currencies, active "
+                    "FROM banxe.product_config WHERE active = TRUE"
+                )
+                products_raw = cur.fetchall()
+
+                products: dict[str, ProductConfig] = {}
+                for row in products_raw:
+                    product_id = row["product_id"]
+
+                    # ── Fees ──────────────────────────────────────────────────
+                    cur.execute(
+                        "SELECT tx_type, fee_type, flat_fee, percentage, "
+                        "min_fee, max_fee, currency "
+                        "FROM banxe.fee_schedule WHERE product_id = %s",
+                        (product_id,),
+                    )
+                    fees = [
+                        FeeSchedule(
+                            product_id=product_id,
+                            tx_type=r["tx_type"],
+                            fee_type=r["fee_type"],
+                            flat_fee=Decimal(str(r["flat_fee"])),
+                            percentage=Decimal(str(r["percentage"])),
+                            min_fee=Decimal(str(r["min_fee"])),
+                            max_fee=Decimal(str(r["max_fee"])) if r["max_fee"] is not None else None,
+                            currency=r["currency"],
+                        )
+                        for r in cur.fetchall()
+                    ]
+
+                    # ── Limits ────────────────────────────────────────────────
+                    cur.execute(
+                        "SELECT entity_type, single_tx_max, daily_max, monthly_max, "
+                        "daily_tx_count, monthly_tx_count, min_tx "
+                        "FROM banxe.payment_limits WHERE product_id = %s",
+                        (product_id,),
+                    )
+                    limits_by_entity: dict[str, PaymentLimits] = {
+                        r["entity_type"]: PaymentLimits(
+                            product_id=product_id,
+                            entity_type=r["entity_type"],
+                            single_tx_max=Decimal(str(r["single_tx_max"])),
+                            daily_max=Decimal(str(r["daily_max"])),
+                            monthly_max=Decimal(str(r["monthly_max"])),
+                            daily_tx_count=int(r["daily_tx_count"]),
+                            monthly_tx_count=int(r["monthly_tx_count"]),
+                            min_tx=Decimal(str(r["min_tx"])),
+                        )
+                        for r in cur.fetchall()
+                    }
+
+                    def _fallback_limits(entity_type: str) -> PaymentLimits:
+                        return PaymentLimits(
+                            product_id=product_id, entity_type=entity_type,
+                            single_tx_max=Decimal("999999999"),
+                            daily_max=Decimal("999999999"),
+                            monthly_max=Decimal("999999999"),
+                            daily_tx_count=9999, monthly_tx_count=99999,
+                        )
+
+                    products[product_id] = ProductConfig(
+                        product_id=product_id,
+                        display_name=row["display_name"],
+                        currencies=list(row["currencies"]),
+                        fee_schedules=fees,
+                        individual_limits=limits_by_entity.get(
+                            "INDIVIDUAL", _fallback_limits("INDIVIDUAL")
+                        ),
+                        company_limits=limits_by_entity.get(
+                            "COMPANY", _fallback_limits("COMPANY")
+                        ),
+                        active=bool(row["active"]),
+                    )
+
+                self._products = products
+                logger.info("PostgreSQLConfigStore: loaded %d products", len(products))
+        finally:
+            conn.close()
 
     def get_product(self, product_id: str) -> Optional[ProductConfig]:
         return self._products.get(product_id)

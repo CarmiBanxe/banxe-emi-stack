@@ -278,18 +278,96 @@ class InMemoryWebhookAuditStore:
         return [e for e in self._store.values() if e.provider == provider]
 
 
-class ClickHouseWebhookAuditStore:  # pragma: no cover
+class ClickHouseWebhookAuditStore:
     """
-    Production ClickHouse audit store.
-    STATUS: STUB — requires ClickHouse banxe.webhook_events table.
-    Run: scripts/schema/clickhouse_webhooks.sql
+    Production ClickHouse audit store for inbound webhooks.
+    Writes to banxe.webhook_events (append-only, FCA I-24, 5yr TTL).
+
+    Prerequisites:
+        Run scripts/schema/clickhouse_webhooks.sql on GMKtec ClickHouse.
+        Set CLICKHOUSE_HOST / CLICKHOUSE_PORT / CLICKHOUSE_DB / CLICKHOUSE_PASSWORD.
     """
+
+    def __init__(
+        self,
+        host: str = "localhost",
+        port: int = 9000,
+        database: str = "banxe",
+        user: str = "default",
+        password: str = "",
+    ) -> None:
+        from services.config import (
+            CLICKHOUSE_DB, CLICKHOUSE_HOST, CLICKHOUSE_PASSWORD,
+            CLICKHOUSE_PORT, CLICKHOUSE_USER,
+        )
+        try:
+            import clickhouse_driver  # type: ignore[import]
+            self._client = clickhouse_driver.Client(
+                host=host or CLICKHOUSE_HOST,
+                port=port or CLICKHOUSE_PORT,
+                database=database or CLICKHOUSE_DB,
+                user=user or CLICKHOUSE_USER,
+                password=password or CLICKHOUSE_PASSWORD,
+            )
+        except ImportError as exc:
+            raise RuntimeError("clickhouse-driver not installed: pip install clickhouse-driver") from exc
 
     def save(self, event: WebhookEvent) -> None:
-        raise NotImplementedError("Deploy clickhouse_webhooks.sql first")
+        """Append webhook audit record to ClickHouse (immutable, FCA I-24)."""
+        record = event.to_audit_record()
+        self._client.execute(
+            """
+            INSERT INTO banxe.webhook_events
+            (webhook_id, provider, event_type, received_at, status, signature_valid, error)
+            VALUES
+            """,
+            [{
+                "webhook_id": record["webhook_id"],
+                "provider": record["provider"],
+                "event_type": record["event_type"],
+                "received_at": event.received_at,
+                "status": record["status"],
+                "signature_valid": record["signature_valid"],
+                "error": record["error"],
+            }],
+        )
+        logger.debug("Webhook logged to CH: %s [%s]", event.webhook_id[:8], event.provider)
 
     def get(self, webhook_id: str) -> Optional[WebhookEvent]:
-        raise NotImplementedError
+        """
+        Retrieve a webhook audit record by ID.
+        Note: returns a minimal WebhookEvent (raw_body and headers are not stored in CH).
+        """
+        rows, col_types = self._client.execute(
+            "SELECT webhook_id, provider, event_type, received_at, status, signature_valid, error "
+            "FROM banxe.webhook_events WHERE webhook_id = %(wid)s LIMIT 1",
+            {"wid": webhook_id},
+            with_column_types=True,
+        )
+        if not rows:
+            return None
+        col_names = [c[0] for c in col_types]
+        row = dict(zip(col_names, rows[0]))
+        return WebhookEvent(
+            webhook_id=row["webhook_id"],
+            provider=WebhookProvider(row["provider"]),
+            event_type=row["event_type"],
+            payload={},          # not stored in CH (only audit fields)
+            received_at=row["received_at"],
+            status=WebhookStatus(row["status"]),
+            signature_valid=bool(row["signature_valid"]),
+            raw_body=b"",        # not stored in CH
+            error=row["error"] or None,
+        )
 
     def update_status(self, webhook_id: str, status: WebhookStatus) -> None:
-        raise NotImplementedError
+        """
+        Append a status-update row (ReplacingMergeTree + ClickHouse append-only pattern).
+        Does a SELECT to get original record then re-inserts with new status.
+        """
+        existing = self.get(webhook_id)
+        if existing is None:
+            logger.warning("ClickHouseWebhookAuditStore.update_status: %s not found", webhook_id)
+            return
+        existing.status = status
+        self.save(existing)

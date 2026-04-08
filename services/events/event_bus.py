@@ -209,10 +209,73 @@ class RabbitMQEventBus:  # pragma: no cover
         logger.info("RabbitMQ published: %s [%s]", event.event_type, event.event_id[:8])
 
     def subscribe(self, event_type: BanxeEventType, handler: EventHandler) -> None:
-        raise NotImplementedError(
-            "RabbitMQEventBus.subscribe() not implemented. "
-            "Use n8n workflows or pika consumer to subscribe to banxe-events exchange."
-        )
+        """
+        Start a background pika consumer thread for one event type.
+
+        Binds a transient queue to the banxe-events exchange with
+        routing_key = event_type.value (topic pattern).
+        The consumer thread is a daemon — it stops when the process exits.
+
+        Note: for production use, prefer a dedicated consumer process or
+        n8n workflow subscription rather than an in-process daemon thread.
+        """
+        try:
+            import pika  # type: ignore[import]
+        except ImportError:
+            raise ImportError("Install pika: pip install pika")
+
+        import threading
+
+        routing_key = event_type.value
+
+        def _consume() -> None:
+            params = pika.URLParameters(self._url)
+            conn = pika.BlockingConnection(params)
+            channel = conn.channel()
+            channel.exchange_declare(
+                exchange="banxe-events",
+                exchange_type="topic",
+                durable=True,
+            )
+            result = channel.queue_declare(queue="", exclusive=True)
+            queue_name = result.method.queue
+            channel.queue_bind(
+                exchange="banxe-events",
+                queue=queue_name,
+                routing_key=routing_key,
+            )
+
+            def _on_message(ch, method, props, body: bytes) -> None:  # type: ignore[no-untyped-def]
+                try:
+                    data = json.loads(body.decode())
+                    event = DomainEvent(
+                        event_id=data["event_id"],
+                        event_type=BanxeEventType(data["event_type"]),
+                        source_service=data["source_service"],
+                        payload=data.get("payload", {}),
+                        occurred_at=datetime.fromisoformat(data["occurred_at"]),
+                        correlation_id=data.get("correlation_id"),
+                        customer_id=data.get("customer_id"),
+                    )
+                    handler(event)
+                    ch.basic_ack(delivery_tag=method.delivery_tag)
+                except Exception as exc:
+                    logger.error(
+                        "RabbitMQ handler %s failed: %s", handler.__name__, exc
+                    )
+                    ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+
+            channel.basic_qos(prefetch_count=1)
+            channel.basic_consume(queue=queue_name, on_message_callback=_on_message)
+            logger.info(
+                "RabbitMQ consumer started: exchange=banxe-events routing_key=%s",
+                routing_key,
+            )
+            channel.start_consuming()
+
+        thread = threading.Thread(target=_consume, daemon=True, name=f"rmq-{routing_key}")
+        thread.start()
+        logger.info("RabbitMQ subscribe thread started: %s → %s", routing_key, handler.__name__)
 
 
 # ── Factory ────────────────────────────────────────────────────────────────────
