@@ -1,0 +1,99 @@
+{
+  "id": "banxe-business-kyb-v1",
+  "name": "Banxe Business KYB v1",
+  "version": 1,
+  "definitionType": "statechart-json",
+  "contextSchema": {
+    "type": "object",
+    "required": ["customerId", "entityType"],
+    "properties": {
+      "customerId": { "type": "string" },
+      "entityType": { "type": "string", "const": "business" },
+      "companyName": { "type": "string" },
+      "registrationNumber": { "type": "string" },
+      "documents": { "type": "array" },
+      "ubos": {
+        "type": "array",
+        "description": "Ultimate Beneficial Owners (FCA MLR Reg.28)"
+      },
+      "riskScore": { "type": "number" },
+      "eddRequired": { "type": "boolean" },
+      "mlroSignOff": { "type": "boolean" },
+      "result": {
+        "type": "string",
+        "enum": ["approved", "rejected", "pending_edd"]
+      }
+    }
+  },
+  "definition": {
+    "id": "banxe-business-kyb-v1",
+    "predictableActionArguments": true,
+    "initial": "company_verification",
+    "context": {
+      "entityType": "business",
+      "documents": [],
+      "ubos": [],
+      "eddRequired": false,
+      "mlroSignOff": false
+    },
+    "states": {
+      "company_verification": {
+        "on": {
+          "COMPANY_VERIFIED": "ubo_collection",
+          "COMPANY_NOT_FOUND": "rejected"
+        }
+      },
+      "ubo_collection": {
+        "on": {
+          "UBOS_SUBMITTED": "document_review"
+        }
+      },
+      "document_review": {
+        "on": {
+          "APPROVE": "risk_assessment",
+          "REJECT": "rejected",
+          "REQUEST_RESUBMISSION": "document_review"
+        }
+      },
+      "risk_assessment": {
+        "on": {
+          "RISK_LOW": "approved",
+          "RISK_MEDIUM": "enhanced_due_diligence",
+          "RISK_HIGH": "enhanced_due_diligence"
+        }
+      },
+      "enhanced_due_diligence": {
+        "entry": ["setEddRequired"],
+        "on": {
+          "EDD_PASSED": "mlro_review",
+          "EDD_FAILED": "rejected"
+        }
+      },
+      "mlro_review": {
+        "entry": ["setMlroSignOffRequired"],
+        "on": {
+          "MLRO_APPROVE": "approved",
+          "MLRO_REJECT": "rejected"
+        }
+      },
+      "approved": {
+        "type": "final",
+        "entry": ["setResultApproved"]
+      },
+      "rejected": {
+        "type": "final",
+        "entry": ["setResultRejected"]
+      }
+    }
+  },
+  "extensions": {
+    "apiPlugins": [],
+    "commonPlugins": []
+  },
+  "config": {
+    "callbackResult": {
+      "transformers": [],
+      "deliverEvent": "WORKFLOW_COMPLETED"
+    }
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "id": "banxe-individual-kyc-v1",
+  "name": "Banxe Individual KYC v1",
+  "version": 1,
+  "definitionType": "statechart-json",
+  "contextSchema": {
+    "type": "object",
+    "required": ["customerId", "entityType"],
+    "properties": {
+      "customerId": { "type": "string" },
+      "entityType": { "type": "string", "const": "individual" },
+      "documents": { "type": "array" },
+      "riskScore": { "type": "number" },
+      "eddRequired": { "type": "boolean" },
+      "mlroSignOff": { "type": "boolean" },
+      "result": {
+        "type": "string",
+        "enum": ["approved", "rejected", "pending_edd"]
+      }
+    }
+  },
+  "definition": {
+    "id": "banxe-individual-kyc-v1",
+    "predictableActionArguments": true,
+    "initial": "document_collection",
+    "context": {
+      "entityType": "individual",
+      "documents": [],
+      "eddRequired": false,
+      "mlroSignOff": false
+    },
+    "states": {
+      "document_collection": {
+        "on": {
+          "DOCUMENTS_SUBMITTED": "document_review"
+        }
+      },
+      "document_review": {
+        "on": {
+          "APPROVE": "risk_assessment",
+          "REJECT": "rejected",
+          "REQUEST_RESUBMISSION": "document_collection"
+        }
+      },
+      "risk_assessment": {
+        "on": {
+          "RISK_LOW": "approved",
+          "RISK_MEDIUM": "enhanced_due_diligence",
+          "RISK_HIGH": "enhanced_due_diligence"
+        }
+      },
+      "enhanced_due_diligence": {
+        "entry": ["setEddRequired"],
+        "on": {
+          "EDD_PASSED": "mlro_review",
+          "EDD_FAILED": "rejected"
+        }
+      },
+      "mlro_review": {
+        "entry": ["setMlroSignOffRequired"],
+        "on": {
+          "MLRO_APPROVE": "approved",
+          "MLRO_REJECT": "rejected"
+        }
+      },
+      "approved": {
+        "type": "final",
+        "entry": ["setResultApproved"]
+      },
+      "rejected": {
+        "type": "final",
+        "entry": ["setResultRejected"]
+      }
+    }
+  },
+  "extensions": {
+    "apiPlugins": [],
+    "commonPlugins": []
+  },
+  "config": {
+    "callbackResult": {
+      "transformers": [],
+      "deliverEvent": "WORKFLOW_COMPLETED"
+    }
+  }
+}
