@@ -77,9 +77,13 @@ def get_fraud_adapter() -> FraudScoringPort:
     Factory: returns correct adapter based on FRAUD_ADAPTER env var.
 
     FRAUD_ADAPTER=mock    → MockFraudAdapter (default, always available)
-    FRAUD_ADAPTER=sardine → SardineFraudAdapter (requires API keys)
+    FRAUD_ADAPTER=jube    → JubeAdapter (self-hosted GMKtec :5001, AGPLv3)
+    FRAUD_ADAPTER=sardine → SardineFraudAdapter (requires API keys, BT-004)
     """
     adapter_name = os.environ.get("FRAUD_ADAPTER", "mock").lower()
+    if adapter_name == "jube":
+        from services.fraud.jube_adapter import JubeAdapter
+        return JubeAdapter()
     if adapter_name == "sardine":
         from services.fraud.sardine_adapter import SardineFraudAdapter  # noqa
         return SardineFraudAdapter()
