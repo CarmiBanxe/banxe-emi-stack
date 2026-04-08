@@ -69,6 +69,7 @@ class FraudScoringRequest:
     session_id: Optional[str] = None
     first_transaction_to_payee: bool = True
     amount_unusual: bool = False      # significantly above customer average
+    entity_type: str = "INDIVIDUAL"   # "INDIVIDUAL" | "COMPANY" — affects AML thresholds
 
 
 @dataclass

@@ -29,6 +29,7 @@ import logging
 import time
 from decimal import Decimal
 
+from services.aml.aml_thresholds import get_thresholds
 from services.fraud.fraud_port import (
     AppScamIndicator,
     FraudRisk,
@@ -48,9 +49,11 @@ _HIGH_RISK_COUNTRIES = {
 # Hard-block countries (AML Category A — OFAC / UK HMT)
 _BLOCKED_COUNTRIES = {"RU", "BY", "IR", "KP", "CU", "MM", "AF", "VE"}
 
-_AMOUNT_CRITICAL = Decimal("50000")
-_AMOUNT_HIGH = Decimal("10000")
+# Critical = scheme-level block (≥£100k — always CRITICAL regardless of entity type)
+# EDD threshold (£10k individual / £50k company) handled below via get_thresholds()
+_AMOUNT_CRITICAL = Decimal("100000")
 _AMOUNT_MEDIUM = Decimal("1000")
+# _AMOUNT_HIGH is now entity-type-aware — fetched from aml_thresholds.get_thresholds()
 
 
 class MockFraudAdapter:
@@ -96,15 +99,21 @@ class MockFraudAdapter:
             factors.append(f"Destination country {req.destination_country} is OFAC/HMT sanctioned")
             return FraudRisk.CRITICAL, 95, factors, AppScamIndicator.NONE
 
-        # ── Amount scoring ────────────────────────────────────────────────────
-        # £50k → CRITICAL alone (score 90); £10k → HIGH when combined with
+        # ── Amount scoring (entity-type-aware) ───────────────────────────────
+        # _AMOUNT_HIGH = EDD trigger from AML thresholds (INDIVIDUAL=£10k, COMPANY=£50k)
+        # £50k → CRITICAL alone (score 90); EDD threshold → HIGH when combined with
         # first_to_payee (50+20=70); £1k → MEDIUM alone (40).
+        thresholds = get_thresholds(req.entity_type)
+        amount_high = thresholds.edd_trigger
+
         if req.amount >= _AMOUNT_CRITICAL:
             score += 90
             factors.append(f"High-value transaction ≥ £{_AMOUNT_CRITICAL:,.0f}")
-        elif req.amount >= _AMOUNT_HIGH:
+        elif req.amount >= amount_high:
             score += 50
-            factors.append(f"Transaction ≥ £{_AMOUNT_HIGH:,.0f} (EDD threshold I-04)")
+            factors.append(
+                f"Transaction ≥ £{amount_high:,.0f} (EDD threshold I-04 [{req.entity_type}])"
+            )
         elif req.amount >= _AMOUNT_MEDIUM:
             score += 40
             factors.append(f"Transaction ≥ £{_AMOUNT_MEDIUM:,.0f}")
@@ -125,8 +134,8 @@ class MockFraudAdapter:
             factors.append(f"Destination country {req.destination_country} (FATF greylist)")
 
         # ── APP scam heuristic (PSR APP 2024) ─────────────────────────────────
-        # Simplified: first_to_payee + high amount + unusual → investment scam signal
-        if req.first_transaction_to_payee and req.amount >= _AMOUNT_HIGH and req.amount_unusual:
+        # Simplified: first_to_payee + EDD amount + unusual → investment scam signal
+        if req.first_transaction_to_payee and req.amount >= amount_high and req.amount_unusual:
             app_scam = AppScamIndicator.INVESTMENT_SCAM
             score += 10
             factors.append("APP scam signal: first-time payee + high + unusual amount")

@@ -1,0 +1,235 @@
+# banxe_config.yaml — Runtime product/fee/limit configuration
+# Geniusto v5 Pattern #6 — Config-as-Data
+# FCA: COBS 6 (fee disclosure), PSR 2017 Reg.67 (payment limits)
+#
+# Edit this file to change fees, limits, or add products.
+# No code deploy needed — YAMLConfigStore.reload() picks it up at runtime.
+#
+# Fee types:
+#   FLAT:       fee = flat_fee (percentage must be "0")
+#   PERCENTAGE: fee = amount * percentage (flat_fee must be "0")
+#   MIXED:      fee = flat_fee + amount * percentage
+# All amounts in GBP (or native currency for FX products).
+
+products:
+
+  # ── EMI Account — retail customers (FCA-authorised EMI) ───────────────────
+  EMI_ACCOUNT:
+    display_name: "Banxe EMI Account"
+    currencies: [GBP, EUR, USD]
+    active: true
+    fees:
+      FPS:
+        fee_type: FLAT
+        flat_fee: "0.20"
+        percentage: "0.0000"
+        min_fee: "0.20"
+        max_fee: null
+        currency: GBP
+      BACS:
+        fee_type: FLAT
+        flat_fee: "0.10"
+        percentage: "0.0000"
+        min_fee: "0.10"
+        max_fee: null
+        currency: GBP
+      SEPA_CT:
+        fee_type: FLAT
+        flat_fee: "0.50"
+        percentage: "0.0000"
+        min_fee: "0.50"
+        max_fee: null
+        currency: EUR
+      SEPA_INSTANT:
+        fee_type: FLAT
+        flat_fee: "1.00"
+        percentage: "0.0000"
+        min_fee: "1.00"
+        max_fee: null
+        currency: EUR
+      FX:
+        fee_type: PERCENTAGE
+        flat_fee: "0.00"
+        percentage: "0.0025"   # 0.25% FX markup
+        min_fee: "1.00"
+        max_fee: "500.00"
+        currency: GBP
+      CARD_PAYMENT:
+        fee_type: FLAT
+        flat_fee: "0.00"
+        percentage: "0.0000"
+        min_fee: "0.00"
+        max_fee: null
+        currency: GBP
+    limits:
+      INDIVIDUAL:
+        single_tx_max: "50000.00"
+        daily_max: "25000.00"
+        monthly_max: "100000.00"
+        daily_tx_count: 10
+        monthly_tx_count: 100
+        min_tx: "0.01"
+      COMPANY:
+        single_tx_max: "500000.00"
+        daily_max: "500000.00"
+        monthly_max: "2000000.00"
+        daily_tx_count: 50
+        monthly_tx_count: 500
+        min_tx: "0.01"
+
+  # ── Business Account — SME/corporate customers ────────────────────────────
+  BUSINESS_ACCOUNT:
+    display_name: "Banxe Business Account"
+    currencies: [GBP, EUR, USD, CHF]
+    active: true
+    fees:
+      FPS:
+        fee_type: MIXED
+        flat_fee: "0.30"
+        percentage: "0.0000"
+        min_fee: "0.30"
+        max_fee: null
+        currency: GBP
+      BACS:
+        fee_type: FLAT
+        flat_fee: "0.15"
+        percentage: "0.0000"
+        min_fee: "0.15"
+        max_fee: null
+        currency: GBP
+      SEPA_CT:
+        fee_type: FLAT
+        flat_fee: "1.00"
+        percentage: "0.0000"
+        min_fee: "1.00"
+        max_fee: null
+        currency: EUR
+      SEPA_INSTANT:
+        fee_type: FLAT
+        flat_fee: "2.00"
+        percentage: "0.0000"
+        min_fee: "2.00"
+        max_fee: null
+        currency: EUR
+      FX:
+        fee_type: PERCENTAGE
+        flat_fee: "0.00"
+        percentage: "0.0020"   # 0.20% preferential rate for business
+        min_fee: "2.00"
+        max_fee: "2000.00"
+        currency: GBP
+      CARD_PAYMENT:
+        fee_type: FLAT
+        flat_fee: "0.00"
+        percentage: "0.0000"
+        min_fee: "0.00"
+        max_fee: null
+        currency: GBP
+    limits:
+      INDIVIDUAL:
+        single_tx_max: "100000.00"
+        daily_max: "50000.00"
+        monthly_max: "200000.00"
+        daily_tx_count: 20
+        monthly_tx_count: 200
+        min_tx: "0.01"
+      COMPANY:
+        single_tx_max: "1000000.00"
+        daily_max: "1000000.00"
+        monthly_max: "5000000.00"
+        daily_tx_count: 100
+        monthly_tx_count: 1000
+        min_tx: "0.01"
+
+  # ── FX Account — multi-currency exchange ──────────────────────────────────
+  FX_ACCOUNT:
+    display_name: "Banxe FX Account"
+    currencies: [GBP, EUR, USD, CHF, JPY, CAD, AUD, SGD]
+    active: true
+    fees:
+      FX:
+        fee_type: PERCENTAGE
+        flat_fee: "0.00"
+        percentage: "0.0015"   # 0.15% competitive FX spread
+        min_fee: "1.00"
+        max_fee: "1000.00"
+        currency: GBP
+      FPS:
+        fee_type: FLAT
+        flat_fee: "0.20"
+        percentage: "0.0000"
+        min_fee: "0.20"
+        max_fee: null
+        currency: GBP
+      SEPA_CT:
+        fee_type: FLAT
+        flat_fee: "0.50"
+        percentage: "0.0000"
+        min_fee: "0.50"
+        max_fee: null
+        currency: EUR
+      SEPA_INSTANT:
+        fee_type: FLAT
+        flat_fee: "1.00"
+        percentage: "0.0000"
+        min_fee: "1.00"
+        max_fee: null
+        currency: EUR
+    limits:
+      INDIVIDUAL:
+        single_tx_max: "25000.00"
+        daily_max: "25000.00"
+        monthly_max: "100000.00"
+        daily_tx_count: 5
+        monthly_tx_count: 50
+        min_tx: "1.00"
+      COMPANY:
+        single_tx_max: "250000.00"
+        daily_max: "500000.00"
+        monthly_max: "2000000.00"
+        daily_tx_count: 20
+        monthly_tx_count: 200
+        min_tx: "1.00"
+
+  # ── Prepaid Card — consumer prepaid Mastercard ────────────────────────────
+  PREPAID_CARD:
+    display_name: "Banxe Prepaid Card"
+    currencies: [GBP, EUR]
+    active: true
+    fees:
+      CARD_PAYMENT:
+        fee_type: FLAT
+        flat_fee: "0.00"
+        percentage: "0.0000"
+        min_fee: "0.00"
+        max_fee: null
+        currency: GBP
+      FX:
+        fee_type: PERCENTAGE
+        flat_fee: "0.00"
+        percentage: "0.0200"   # 2% card FX (standard prepaid)
+        min_fee: "0.50"
+        max_fee: null
+        currency: GBP
+      FPS:                     # top-up via FPS
+        fee_type: FLAT
+        flat_fee: "0.00"
+        percentage: "0.0000"
+        min_fee: "0.00"
+        max_fee: null
+        currency: GBP
+    limits:
+      INDIVIDUAL:
+        single_tx_max: "5000.00"
+        daily_max: "5000.00"
+        monthly_max: "20000.00"
+        daily_tx_count: 20
+        monthly_tx_count: 200
+        min_tx: "0.01"
+      COMPANY:
+        single_tx_max: "10000.00"
+        daily_max: "10000.00"
+        monthly_max: "50000.00"
+        daily_tx_count: 50
+        monthly_tx_count: 500
+        min_tx: "0.01"

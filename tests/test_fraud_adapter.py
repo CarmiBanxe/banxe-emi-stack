@@ -5,7 +5,7 @@ PSR APP 2024 | FCA CONC 13 | banxe-emi-stack
 Tests cover:
   - Score classification (LOW/MEDIUM/HIGH/CRITICAL)
   - Blocked country → CRITICAL immediately
-  - High-value thresholds (£10k EDD, £50k CRITICAL)
+  - High-value thresholds (£10k EDD individual, £50k EDD corporate, £100k CRITICAL)
   - APP scam heuristic (PSR APP 2024 first-time payee + unusual amount)
   - 100ms SLA (mock well within)
   - FraudScoringPort protocol satisfied
@@ -124,7 +124,8 @@ class TestCriticalRisk:
             assert result.score >= 90
 
     def test_very_high_value(self, adapter):
-        result = adapter.score(_req(amount=Decimal("50000")))
+        # CRITICAL threshold is £100,000 (scheme-level, entity-independent)
+        result = adapter.score(_req(amount=Decimal("100000")))
         assert result.risk == FraudRisk.CRITICAL
         assert result.block is True
         assert result.score == 100 or result.score >= 85

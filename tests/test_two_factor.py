@@ -8,7 +8,7 @@ import pytest
 
 pyotp = pytest.importorskip("pyotp", reason="pyotp not installed")
 
-from services.auth.two_factor import TOTPService
+from services.auth.two_factor import TOTPService  # noqa: E402
 
 
 @pytest.fixture

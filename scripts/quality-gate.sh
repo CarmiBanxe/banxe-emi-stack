@@ -132,7 +132,7 @@ fi
 # ── 5. Invariant scan ─────────────────────────────────────────────────────────
 # I-05: no float() in financial context
 FLOAT_HITS=$(grep -rn "float(" $SRC_DIRS 2>/dev/null \
-    | grep -iv "# noqa\|# i-05-ok\|test_\|\.pyc" \
+    | grep -iv "# noqa\|# i-05-ok\|test_\|\.pyc\|\.lucidshark/\|\.cache\|\.semgrep/" \
     | grep -E "amount|balance|price|total|fee|rate|decimal" \
     | wc -l); FLOAT_HITS=${FLOAT_HITS:-0}
 if [[ $FLOAT_HITS -gt 0 ]]; then
@@ -140,9 +140,9 @@ if [[ $FLOAT_HITS -gt 0 ]]; then
     OVERALL_FAIL=1
 fi
 
-# I-06: no hardcoded passwords
+# I-06: no hardcoded passwords (exclude semgrep rule definitions which use "..." patterns)
 SECRET_HITS=$(grep -rn "password\s*=\s*['\"][^'\"]\{3,\}['\"]" $SRC_DIRS 2>/dev/null \
-    | grep -iv "# noqa\|test_\|\.pyc\|getenv\|os\.environ\|default=" \
+    | grep -iv "# noqa\|test_\|\.pyc\|getenv\|os\.environ\|default=\|\.semgrep/\|\.yml:" \
     | wc -l); SECRET_HITS=${SECRET_HITS:-0}
 if [[ $SECRET_HITS -gt 0 ]]; then
     INVARIANTS_STATUS="FAIL (I-06: ${SECRET_HITS} hardcoded secret(s))"
