@@ -135,40 +135,99 @@ class MockIAMAdapter:
         return True
 
 
-# ── Keycloak adapter stub ──────────────────────────────────────────────────────
+# ── Keycloak adapter (LIVE — deployed on GMKtec :8180) ────────────────────────
 
 class KeycloakAdapter:  # pragma: no cover
     """
-    Live Keycloak adapter stub.
-    STATUS: STUB — requires Keycloak deployment (Docker or managed).
+    Live Keycloak OIDC adapter.
+    STATUS: DEPLOYED — Keycloak 26.2.5 running on GMKtec :8180 (BT-011 UNBLOCKED 2026-04-08)
 
-    Deploy: docker run -p 8080:8080 quay.io/keycloak/keycloak:latest start-dev
-    Realm config: config/keycloak-realm.json (import via Admin Console)
+    Realm: banxe | Roles: CEO / MLRO / CCO / OPERATOR / AGENT / AUDITOR / READONLY
+    Admin Console: http://gmktec:8180/admin
+    KEYCLOAK_URL=http://localhost:8180
+    KEYCLOAK_REALM=banxe
+
+    authenticate(): Resource Owner Password Grant (internal services only).
+    In production: replace with Authorization Code Flow + PKCE for user-facing apps.
     """
 
     def __init__(self) -> None:
         self._url = os.environ.get("KEYCLOAK_URL", "")
         self._realm = os.environ.get("KEYCLOAK_REALM", "banxe")
-        self._client_id = os.environ.get("KEYCLOAK_CLIENT_ID", "")
+        self._client_id = os.environ.get("KEYCLOAK_CLIENT_ID", "banxe-backend")
         self._client_secret = os.environ.get("KEYCLOAK_CLIENT_SECRET", "")
-        if not self._url or not self._client_id:
+        if not self._url:
             raise EnvironmentError(
-                "KEYCLOAK_URL and KEYCLOAK_CLIENT_ID must be set. "
-                "Deploy Keycloak first, then import config/keycloak-realm.json. "
-                "Use IAM_ADAPTER=mock for development."
+                "KEYCLOAK_URL not set. Keycloak is deployed at http://gmktec:8180. "
+                "Set KEYCLOAK_URL=http://localhost:8180 and IAM_ADAPTER=keycloak."
             )
+        self._token_url = f"{self._url}/realms/{self._realm}/protocol/openid-connect/token"
+        self._userinfo_url = f"{self._url}/realms/{self._realm}/protocol/openid-connect/userinfo"
 
     def authenticate(self, username: str, password: str) -> Optional[AuthToken]:
-        raise NotImplementedError("KeycloakAdapter.authenticate() not yet implemented.")
+        """Resource Owner Password Grant — direct user login."""
+        import urllib.parse
+        import urllib.request
+        from datetime import timedelta
+        data = urllib.parse.urlencode({
+            "client_id": self._client_id,
+            "username": username,
+            "password": password,
+            "grant_type": "password",
+            **({"client_secret": self._client_secret} if self._client_secret else {}),
+        }).encode()
+        req = urllib.request.Request(self._token_url, data=data, method="POST")
+        req.add_header("Content-Type", "application/x-www-form-urlencoded")
+        try:
+            import json
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                token_data = json.loads(resp.read())
+            expiry = datetime.now(timezone.utc) + timedelta(seconds=token_data.get("expires_in", 3600))
+            return AuthToken(
+                access_token=token_data["access_token"],
+                expires_at=expiry,
+                subject=username,
+                roles=[],  # Roles extracted from JWT in validate_token
+            )
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning("Keycloak authenticate failed: %s", exc)
+            return None
 
     def validate_token(self, token: str) -> Optional[UserIdentity]:
-        raise NotImplementedError("KeycloakAdapter.validate_token() not yet implemented.")
+        """Introspect JWT via userinfo endpoint."""
+        import json
+        import urllib.request
+        req = urllib.request.Request(self._userinfo_url)
+        req.add_header("Authorization", f"Bearer {token}")
+        try:
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                info = json.loads(resp.read())
+            roles_raw = info.get("realm_access", {}).get("roles", [])
+            roles = {BanxeRole(r) for r in roles_raw if r in BanxeRole.__members__}
+            return UserIdentity(
+                subject=info.get("sub", ""),
+                username=info.get("preferred_username", ""),
+                email=info.get("email", ""),
+                roles=roles or {BanxeRole.READONLY},
+                mfa_verified=info.get("acr", "") in ("mfa", "aal2"),
+                token_expiry=datetime.now(timezone.utc) + timedelta(seconds=300),
+            )
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning("Keycloak validate_token failed: %s", exc)
+            return None
 
     def authorize(self, identity: UserIdentity, permission: Permission) -> bool:
         return identity.has_permission(permission)
 
     def health(self) -> bool:
-        return False
+        import urllib.request
+        try:
+            with urllib.request.urlopen(f"{self._url}/realms/{self._realm}", timeout=3) as r:
+                return r.status == 200
+        except Exception:
+            return False
 
 
 def get_iam_adapter() -> IAMPort:
