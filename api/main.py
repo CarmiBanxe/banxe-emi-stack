@@ -34,6 +34,7 @@ from api.routers import (
     customers,
     fraud,
     health,
+    hitl,
     kyc,
     ledger,
     notifications,
@@ -102,3 +103,4 @@ app.include_router(ledger.router, prefix="/v1")
 app.include_router(notifications.router, prefix="/v1")
 app.include_router(fraud.router, prefix="/v1")
 app.include_router(consumer_duty.router, prefix="/v1")
+app.include_router(hitl.router, prefix="/v1")
