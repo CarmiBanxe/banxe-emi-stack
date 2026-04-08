@@ -36,7 +36,7 @@
 | 17 | Consumer Duty PS22/9 | IL-050 | ✅ | PS22/9 | — |
 | 18 | **Jube Fraud Rules Engine** | IL-057 | ✅ | MLR 2017 Reg.26 | — |
 | 19 | **Ballerine KYC Workflow Definitions** | IL-058 | ✅ | MLR 2017 §18 | — |
-| 20 | **Marble Case Management** | IL-059 | ⏳ | EU AI Act Art.14 | — |
+| 20 | **Marble Case Management** | IL-059 | ✅ | EU AI Act Art.14 | — |
 | 21 | Modulr Payments API (live) | BT-001 | 🔒 | PSR 2017 | CEO: register modulrfinance.com/developer |
 | 22 | Companies House KYB | BT-002 | 🔒 | MLR 2017 Reg.28 | `COMPANIES_HOUSE_API_KEY` |
 | 23 | OpenCorporates KYB | BT-003 | 🔒 | — | `OPENCORPORATES_API_KEY` |
@@ -70,7 +70,7 @@
 | Service | Port | Integrated | Next step |
 |---------|------|-----------|-----------|
 | Jube (fraud rules engine) | :5001 | ✅ JubeAdapter (FRAUD_ADAPTER=jube) | Jube password needed |
-| Marble (transaction monitoring UI) | :5002/:5003 | ❌ | IL-059 |
+| Marble (transaction monitoring UI) | :5002/:5003 | ✅ MarbleAdapter (CASE_ADAPTER=marble) | MARBLE_API_KEY + MARBLE_INBOX_ID needed |
 | Ballerine workflow-service | :3000 | ✅ adapter + definitions | Run register-ballerine-workflows.sh |
 | Ballerine backoffice | :5137 | ✅ | — |
 | Midaz ledger | :8095 | ✅ | — |
@@ -100,9 +100,10 @@
 
 | Suite | Tests | Status |
 |-------|-------|--------|
-| **Full suite** | **934** | ✅ |
+| **Full suite** | **995** | ✅ |
 | Phase 2 HITL + Feedback Loop | 35 | ✅ IL-056 |
 | IL-057 Jube adapter | 67 | ✅ IL-057 |
+| IL-059 Marble case management | 61 | ✅ IL-059 |
 | Phase 1 core | 480 | ✅ |
 | Phase 2 services | 234 | ✅ |
 | Phase 3 reporting | 37 | ✅ |
