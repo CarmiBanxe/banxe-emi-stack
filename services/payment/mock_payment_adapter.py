@@ -42,7 +42,7 @@ from services.payment.payment_port import (
 logger = logging.getLogger(__name__)
 
 # Configurable: set MOCK_PAYMENT_FAILURE_RATE=0.1 to simulate 10% failure rate
-_FAILURE_RATE = float(os.environ.get("MOCK_PAYMENT_FAILURE_RATE", "0"))
+_FAILURE_RATE: float = float(os.environ.get("MOCK_PAYMENT_FAILURE_RATE", "0"))  # i-05-ok: probability 0.0-1.0, not a monetary amount
 
 # Rails that settle instantly in mock mode
 _INSTANT_RAILS = {PaymentRail.FPS, PaymentRail.SEPA_INSTANT}

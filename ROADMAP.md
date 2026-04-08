@@ -6,7 +6,7 @@
 
 ## Phase 1 — Core EMI Platform ✅ COMPLETE
 
-All Phase 1 items delivered. 832 tests green, ruff clean, coverage ≥ 80%.
+867 тестов green, ruff clean, coverage ≥ 80%.
 
 | # | Feature | IL | Status | FCA ref |
 |---|---------|-----|--------|---------|
@@ -30,13 +30,17 @@ All Phase 1 items delivered. 832 tests green, ruff clean, coverage ≥ 80%.
 
 | # | Feature | IL | Status | FCA ref | Blocker |
 |---|---------|-----|--------|---------|---------|
-| 10 | **HITL Feedback Loop** (AI learns from CTIO) | IL-056 | 🔄 | EU AI Act Art.14 | None |
-| 11 | Notification Service (email/Telegram) | IL-047 | ✅ | — | None |
-| 12 | Redis Velocity Tracker | IL-048 | ✅ | — | None |
-| 13 | Consumer Duty PS22/9 | IL-050 | ✅ | PS22/9 | None |
-| 7 | Modulr Payments API (live) | BT-001 | 🔒 | PSR 2017 | CEO: register modulrfinance.com/developer |
-| 8 | Companies House (KYB) | BT-002 | 🔒 | MLR 2017 Reg.28 | `COMPANIES_HOUSE_API_KEY` |
-| 9 | OpenCorporates (KYB) | BT-003 | 🔒 | — | `OPENCORPORATES_API_KEY` |
+| 14 | HITL Feedback Loop (AI learns from CTIO) | IL-056 | ✅ | EU AI Act Art.14 | — |
+| 15 | Notification Service (email/Telegram) | IL-047 | ✅ | — | — |
+| 16 | Redis Velocity Tracker | IL-048 | ✅ | — | — |
+| 17 | Consumer Duty PS22/9 | IL-050 | ✅ | PS22/9 | — |
+| 18 | **Jube Fraud Rules Engine** | IL-057 | ⏳ | MLR 2017 Reg.26 | — |
+| 19 | **Ballerine KYC Workflow Definitions** | IL-058 | ⏳ | MLR 2017 §18 | — |
+| 20 | **Marble Case Management** | IL-059 | ⏳ | EU AI Act Art.14 | — |
+| 21 | Modulr Payments API (live) | BT-001 | 🔒 | PSR 2017 | CEO: register modulrfinance.com/developer |
+| 22 | Companies House KYB | BT-002 | 🔒 | MLR 2017 Reg.28 | `COMPANIES_HOUSE_API_KEY` |
+| 23 | OpenCorporates KYB | BT-003 | 🔒 | — | `OPENCORPORATES_API_KEY` |
+| 24 | Sardine.ai Fraud Scoring | BT-004 | 🔒 | — | `SARDINE_API_KEY` |
 
 ---
 
@@ -50,28 +54,45 @@ All Phase 1 items delivered. 832 tests green, ruff clean, coverage ≥ 80%.
 
 ---
 
-## Phase 4 — Infrastructure & Deployment ⏳ PLANNED
+## Phase 4 — Infrastructure & Deployment ✅ DEPLOYED
 
 | # | Feature | IL | Status | Notes |
 |---|---------|-----|--------|-------|
-| 14 | Safeguarding Deploy to GMKtec | IL-043 | 🔒 | **CEO action required:** run `bash scripts/task1-safeguarding-deploy.sh` on GMKtec |
-| 15 | n8n Workflows (regulatory alerts) | — | 🔒 | Waiting for GMKtec n8n password |
-| 16 | Ballerine Deploy to GMKtec | IL-055 | ⏳ | `docker compose -f infra/ballerine/docker-compose.yml up` on GMKtec |
-| 17 | Sardine.ai Fraud Scoring | BT-004 | 🔒 | `SARDINE_API_KEY` required |
+| 25 | Safeguarding Deploy to GMKtec | IL-043 | ✅ | systemd timer 07:00 UTC Mon-Fri, next: Thu 09:01 CEST |
+| 26 | n8n Workflows (shortfall alert) | IL-043 | ✅ | Imported. TODO: set Telegram credentials → activate |
+| 27 | Ballerine Deploy to GMKtec | IL-055 | ✅ | workflow-service :3000, backoffice :5137 |
+| 28 | Keycloak Deploy | IL-039 | ✅ | :8180, realm banxe, 7 roles |
 
 ---
 
-## Invariants blocking NO feature (reference)
+## GMKtec — Running Services (2026-04-09)
 
-| Invariant | Rule | Current state |
-|-----------|------|---------------|
-| I-01 | No float for money | Enforced (Decimal strings) |
-| I-02 | Hard-block jurisdictions | RU/BY/IR/KP/CU/MM/AF/VE |
-| I-03 | FATF greylist → EDD | 23 countries |
-| I-04 | EDD threshold £10k | Enforced in pipeline + HITL |
-| I-05 | Decimal strings in API | Pydantic validators active |
-| I-27 | HITL feedback loop supervised | feedback_loop.py PROPOSES only |
-| I-28 | Execution discipline | QRAA + IL ledger |
+| Service | Port | Integrated | Next step |
+|---------|------|-----------|-----------|
+| Jube (fraud rules engine) | :5001 | ❌ | IL-057 |
+| Marble (transaction monitoring UI) | :5002/:5003 | ❌ | IL-059 |
+| Ballerine workflow-service | :3000 | ⚠️ adapter ✅, definitions ❌ | IL-058 |
+| Ballerine backoffice | :5137 | ✅ | — |
+| Midaz ledger | :8095 | ✅ | — |
+| Keycloak | :8180 | ✅ | — |
+| Redis | :6379 | ✅ | — |
+| RabbitMQ | :3004 | ✅ | — |
+| n8n | :5678 | ✅ | Set Telegram credentials |
+| Mock ASPSP | :8888 | ✅ | — |
+
+---
+
+## Invariants (reference)
+
+| Invariant | Rule | State |
+|-----------|------|-------|
+| I-01 | No float for money | ✅ Decimal strings only |
+| I-02 | Hard-block jurisdictions | ✅ RU/BY/IR/KP/CU/MM/AF/VE |
+| I-03 | FATF greylist → EDD | ✅ 23 countries |
+| I-04 | EDD threshold £10k | ✅ pipeline + HITL |
+| I-05 | Decimal strings in API | ✅ Pydantic validators |
+| I-27 | HITL feedback supervised | ✅ PROPOSES only |
+| I-28 | Execution discipline | ✅ QRAA + IL ledger |
 
 ---
 
@@ -79,7 +100,8 @@ All Phase 1 items delivered. 832 tests green, ruff clean, coverage ≥ 80%.
 
 | Suite | Tests | Status |
 |-------|-------|--------|
-| Full suite | 832 | ✅ green |
+| **Full suite** | **867** | ✅ |
+| Phase 2 HITL + Feedback Loop | 35 | ✅ IL-056 |
 | Phase 1 core | 480 | ✅ |
 | Phase 2 services | 234 | ✅ |
 | Phase 3 reporting | 37 | ✅ |
@@ -89,4 +111,4 @@ All Phase 1 items delivered. 832 tests green, ruff clean, coverage ≥ 80%.
 
 ---
 
-*Automatically updated by Claude Code. Last updated: 2026-04-09.*
+*Last updated: 2026-04-09 by Claude Code.*
