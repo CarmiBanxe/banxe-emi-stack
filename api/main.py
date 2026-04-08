@@ -29,7 +29,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from api.routers import customers, health, kyc, ledger, payments
+from api.routers import customers, health, kyc, ledger, notifications, payments
 
 logger = logging.getLogger("banxe.api")
 
@@ -90,3 +90,4 @@ app.include_router(customers.router, prefix="/v1")
 app.include_router(kyc.router, prefix="/v1")
 app.include_router(payments.router, prefix="/v1")
 app.include_router(ledger.router, prefix="/v1")
+app.include_router(notifications.router, prefix="/v1")
