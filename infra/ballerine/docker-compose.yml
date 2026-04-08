@@ -1,0 +1,95 @@
+# infra/ballerine/docker-compose.yml
+# Ballerine KYC Orchestration Stack — self-hosted on GMKtec
+# IL-055 | S5-13 | FCA MLR 2017 §18 CDD requirement
+#
+# Deploy on GMKtec:
+#   cd ~/banxe-emi-stack/infra/ballerine
+#   cp .env.example .env  # fill in secrets
+#   docker compose up -d
+#
+# Ballerine API available at: http://gmktec:3000
+# Backoffice UI available at: http://gmktec:5173
+#
+# After deploy, set in banxe-emi-stack/.env:
+#   KYC_ADAPTER=ballerine
+#   BALLERINE_URL=http://gmktec:3000
+#   BALLERINE_AUTH_SECRET=<your_secret_from_.env>
+#
+# Banxe KYC workflow definition ID (register on first run):
+#   BALLERINE_KYC_DEFINITION_ID=banxe-individual-kyc-v1
+#   BALLERINE_KYB_DEFINITION_ID=banxe-business-kyb-v1
+
+version: "3.9"
+
+services:
+
+  # ── PostgreSQL (Ballerine persistence) ────────────────────────────────────────
+  ballerine-db:
+    image: postgres:15-alpine
+    container_name: ballerine-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${BALLERINE_DB_USER:-ballerine}
+      POSTGRES_PASSWORD: ${BALLERINE_DB_PASSWORD:?set BALLERINE_DB_PASSWORD}
+      POSTGRES_DB: ${BALLERINE_DB_NAME:-ballerine}
+    volumes:
+      - ballerine_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ballerine"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ballerine-net
+
+  # ── Ballerine Workflow Service (REST API) ─────────────────────────────────────
+  ballerine-workflow:
+    image: ghcr.io/ballerine-io/workflows-service:latest
+    container_name: ballerine-workflow
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${BALLERINE_DB_USER:-ballerine}:${BALLERINE_DB_PASSWORD}@ballerine-db:5432/${BALLERINE_DB_NAME:-ballerine}
+      JWT_SECRET_KEY: ${BALLERINE_JWT_SECRET:?set BALLERINE_JWT_SECRET}
+      JWT_EXPIRATION: "7d"
+      SESSION_SECRET: ${BALLERINE_SESSION_SECRET:?set BALLERINE_SESSION_SECRET}
+      BCRYPT_SALT: "10"
+      CORS_ORIGIN: "*"
+      PORT: "3000"
+      # Workflow definitions seeding
+      SEED_WORKFLOW_DEFINITIONS: "true"
+    depends_on:
+      ballerine-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/v1/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - ballerine-net
+
+  # ── Ballerine Backoffice (MLRO review UI) ─────────────────────────────────────
+  ballerine-backoffice:
+    image: ghcr.io/ballerine-io/backoffice:latest
+    container_name: ballerine-backoffice
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    environment:
+      VITE_API_URL: http://gmktec:3000
+      VITE_AUTH_ENABLED: "true"
+    depends_on:
+      - ballerine-workflow
+    networks:
+      - ballerine-net
+
+volumes:
+  ballerine_db_data:
+
+networks:
+  ballerine-net:
+    driver: bridge

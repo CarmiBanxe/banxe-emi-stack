@@ -24,6 +24,7 @@ State machine transitions:
 """
 from __future__ import annotations
 
+import logging as _logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -31,6 +32,7 @@ from typing import Optional
 
 from services.kyc.kyc_port import (
     KYCStatus,
+    KYCType,
     KYCWorkflowPort,
     KYCWorkflowRequest,
     KYCWorkflowResult,
@@ -196,36 +198,307 @@ class MockKYCWorkflow:
         return True
 
 
-class BallerineAdapter:  # pragma: no cover
-    """
-    Live Ballerine KYC orchestration adapter (stub).
-    STATUS: STUB — requires Ballerine deployment.
+_bl_logger = _logging.getLogger(__name__)
 
-    Deploy: docker compose -f infra/ballerine/docker-compose.yml up
-    Docs: https://docs.ballerine.com
+
+# ── Ballerine status → KYCStatus mapping ─────────────────────────────────────
+
+_BALLERINE_STATUS_MAP: dict[str, KYCStatus] = {
+    # Workflow runtime states
+    "created":            KYCStatus.PENDING,
+    "active":             KYCStatus.DOCUMENT_REVIEW,
+    "pending":            KYCStatus.PENDING,
+    "document_review":    KYCStatus.DOCUMENT_REVIEW,
+    "risk_assessment":    KYCStatus.RISK_ASSESSMENT,
+    "edd_required":       KYCStatus.EDD_REQUIRED,
+    "manual_review":      KYCStatus.MLRO_REVIEW,
+    "mlro_review":        KYCStatus.MLRO_REVIEW,
+    "approved":           KYCStatus.APPROVED,
+    "completed":          KYCStatus.APPROVED,   # check result field below
+    "rejected":           KYCStatus.REJECTED,
+    "failed":             KYCStatus.REJECTED,
+    "expired":            KYCStatus.EXPIRED,
+}
+
+_REJECTION_REASON_MAP: dict[str, RejectionReason] = {
+    "SANCTIONS_HIT":          RejectionReason.SANCTIONS_HIT,
+    "DOCUMENT_FRAUD":         RejectionReason.DOCUMENT_FRAUD,
+    "HIGH_RISK_JURISDICTION": RejectionReason.HIGH_RISK_JURISDICTION,
+    "PEP_NO_EDD":             RejectionReason.PEP_NO_EDD,
+    "RISK_SCORE_TOO_HIGH":    RejectionReason.RISK_SCORE_TOO_HIGH,
+    "INCOMPLETE_DOCUMENTS":   RejectionReason.INCOMPLETE_DOCUMENTS,
+    "AML_PATTERN":            RejectionReason.AML_PATTERN,
+}
+
+
+class BallerineAdapter:
+    """
+    Live Ballerine KYC orchestration adapter.
+    Connects to a self-hosted Ballerine workflow-service via REST API.
+
+    Prerequisites:
+        docker compose -f infra/ballerine/docker-compose.yml up
+        Set BALLERINE_URL=http://gmktec:3000 in .env
+        Set BALLERINE_KYC_DEFINITION_ID and BALLERINE_KYB_DEFINITION_ID
+
+    Ballerine API:
+        POST /api/v1/end-users        — create end user
+        POST /api/v1/workflows/run    — start a workflow
+        GET  /api/v1/workflows/{id}   — get workflow state
+        PATCH /api/v1/workflows/{id}/event — send workflow event
+        GET  /api/v1/health           — health check
     """
 
-    def create_workflow(self, request: KYCWorkflowRequest) -> KYCWorkflowResult:
-        raise NotImplementedError(
-            "BallerineAdapter not implemented. "
-            "Deploy Ballerine and configure BALLERINE_URL. "
-            "Use KYC_ADAPTER=mock for development."
+    def __init__(
+        self,
+        base_url: Optional[str] = None,
+        api_token: Optional[str] = None,
+        kyc_definition_id: Optional[str] = None,
+        kyb_definition_id: Optional[str] = None,
+        timeout: int = 30,
+    ) -> None:
+        import os
+        try:
+            import httpx  # type: ignore[import]
+        except ImportError:
+            raise RuntimeError("httpx not installed: pip install httpx")
+
+        self._base_url = (base_url or os.environ.get("BALLERINE_URL", "")).rstrip("/")
+        if not self._base_url:
+            raise EnvironmentError(
+                "BALLERINE_URL not set. "
+                "Deploy Ballerine: docker compose -f infra/ballerine/docker-compose.yml up"
+            )
+        self._kyc_def_id = (
+            kyc_definition_id
+            or os.environ.get("BALLERINE_KYC_DEFINITION_ID", "banxe-individual-kyc-v1")
+        )
+        self._kyb_def_id = (
+            kyb_definition_id
+            or os.environ.get("BALLERINE_KYB_DEFINITION_ID", "banxe-business-kyb-v1")
+        )
+        headers = {"Content-Type": "application/json"}
+        token = api_token or os.environ.get("BALLERINE_API_TOKEN", "")
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        self._client = httpx.Client(
+            base_url=self._base_url,
+            headers=headers,
+            timeout=timeout,
         )
 
+    # ── Internal helpers ──────────────────────────────────────────────────────
+
+    def _parse_workflow(self, data: dict) -> KYCWorkflowResult:
+        """Map Ballerine workflow runtime JSON → KYCWorkflowResult."""
+        from datetime import timezone
+        raw_status = data.get("status", "").lower()
+        # If completed, check result context for approved/rejected
+        if raw_status == "completed":
+            ctx = data.get("context", {})
+            result = ctx.get("result", "").lower()
+            if result == "rejected":
+                raw_status = "rejected"
+
+        status = _BALLERINE_STATUS_MAP.get(raw_status, KYCStatus.PENDING)
+
+        ctx = data.get("context", {})
+        rejection_raw = ctx.get("rejectionReason") or ctx.get("rejection_reason")
+        rejection: Optional[RejectionReason] = None
+        if rejection_raw:
+            rejection = _REJECTION_REASON_MAP.get(str(rejection_raw).upper())
+
+        edd_required = status in (
+            KYCStatus.EDD_REQUIRED, KYCStatus.MLRO_REVIEW
+        ) or bool(ctx.get("eddRequired", False))
+
+        created_at_raw = data.get("createdAt") or data.get("created_at", "")
+        updated_at_raw = data.get("updatedAt") or data.get("updated_at", "")
+        expires_at_raw = data.get("expiresAt") or data.get("expires_at", "")
+
+        now = datetime.now(timezone.utc)
+
+        def _parse_dt(raw: str) -> datetime:
+            if not raw:
+                return now
+            try:
+                return datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            except (ValueError, AttributeError):
+                return now
+
+        entity = data.get("entity", {}) or {}
+        customer_id = (
+            ctx.get("customerId")
+            or ctx.get("customer_id")
+            or entity.get("id", "")
+            or data.get("id", "")
+        )
+
+        kyc_type = KYCType.INDIVIDUAL
+        if (entity.get("type", "") or "").upper() in ("BUSINESS", "COMPANY"):
+            kyc_type = KYCType.BUSINESS
+
+        return KYCWorkflowResult(
+            workflow_id=str(data.get("id", "")),
+            customer_id=customer_id,
+            status=status,
+            kyc_type=kyc_type,
+            created_at=_parse_dt(created_at_raw),
+            updated_at=_parse_dt(updated_at_raw),
+            expires_at=_parse_dt(expires_at_raw) if expires_at_raw else (
+                _parse_dt(created_at_raw) + timedelta(days=_WORKFLOW_TTL_DAYS)
+                if created_at_raw else now
+            ),
+            edd_required=edd_required,
+            rejection_reason=rejection,
+            risk_score=ctx.get("riskScore") or ctx.get("risk_score"),
+            notes=ctx.get("notes") or [],
+            mlro_sign_off=bool(ctx.get("mlroSignOff", False)),
+        )
+
+    def _raise_for_status(self, response: object, action: str) -> dict:
+        if response.is_error:
+            raise RuntimeError(
+                f"Ballerine API error [{action}]: "
+                f"{response.status_code} — {response.text[:200]}"
+            )
+        return response.json()
+
+    # ── KYCWorkflowPort interface ─────────────────────────────────────────────
+
+    def create_workflow(self, request: KYCWorkflowRequest) -> KYCWorkflowResult:
+        """
+        Create a Ballerine end-user then start a KYC/KYB workflow run.
+        Ballerine: POST /api/v1/end-users → POST /api/v1/workflows/run
+        """
+        # 1. Create end user
+        entity_type = "individual" if request.kyc_type == KYCType.INDIVIDUAL else "business"
+        end_user_payload: dict = {
+            "firstName": request.first_name,
+            "lastName": request.last_name,
+            "dateOfBirth": request.date_of_birth,
+            "nationalId": request.customer_id,
+            "additionalInfo": {
+                "customerId": request.customer_id,
+                "nationality": request.nationality,
+                "countryOfResidence": request.country_of_residence,
+                "isPep": request.is_pep,
+                "expectedTransactionVolume": str(request.expected_transaction_volume),
+            },
+        }
+        if entity_type == "business" and request.business_name:
+            end_user_payload["business"] = {
+                "companyName": request.business_name,
+                "registrationNumber": request.registration_number or "",
+            }
+
+        end_user_resp = self._client.post("/api/v1/end-users", json=end_user_payload)
+        end_user_data = self._raise_for_status(end_user_resp, "create_end_user")
+        end_user_id = end_user_data.get("id", "")
+
+        # 2. Run workflow
+        definition_id = (
+            self._kyc_def_id if request.kyc_type == KYCType.INDIVIDUAL
+            else self._kyb_def_id
+        )
+        wf_payload = {
+            "workflowDefinitionId": definition_id,
+            "endUserId": end_user_id,
+            "context": {
+                "customerId": request.customer_id,
+                "entity": {"id": end_user_id, "type": entity_type},
+            },
+        }
+        wf_resp = self._client.post("/api/v1/workflows/run", json=wf_payload)
+        wf_data = self._raise_for_status(wf_resp, "create_workflow")
+        result = self._parse_workflow(wf_data)
+        # Preserve customerId from request (Ballerine may return end_user_id instead)
+        result.customer_id = request.customer_id
+        _bl_logger.info(
+            "Ballerine workflow created: %s → %s (customer=%s)",
+            result.workflow_id, result.status, request.customer_id,
+        )
+        return result
+
     def get_workflow(self, workflow_id: str) -> Optional[KYCWorkflowResult]:
-        raise NotImplementedError
+        """GET /api/v1/workflows/{id} — returns None if not found."""
+        resp = self._client.get(f"/api/v1/workflows/{workflow_id}")
+        if resp.status_code == 404:
+            return None
+        data = self._raise_for_status(resp, "get_workflow")
+        return self._parse_workflow(data)
 
     def submit_documents(self, workflow_id: str, document_ids: list[str]) -> KYCWorkflowResult:
-        raise NotImplementedError
+        """
+        Signal to Ballerine that documents are ready for review.
+        PATCH /api/v1/workflows/{id}/event → event: DOCUMENTS_SUBMITTED
+        """
+        payload = {
+            "name": "DOCUMENTS_SUBMITTED",
+            "payload": {"documentIds": document_ids},
+        }
+        resp = self._client.patch(
+            f"/api/v1/workflows/{workflow_id}/event", json=payload
+        )
+        data = self._raise_for_status(resp, "submit_documents")
+        result = self._parse_workflow(data)
+        _bl_logger.info(
+            "Ballerine docs submitted: workflow=%s docs=%s status=%s",
+            workflow_id, document_ids, result.status,
+        )
+        return result
 
     def approve_edd(self, workflow_id: str, mlro_user_id: str) -> KYCWorkflowResult:
-        raise NotImplementedError
+        """
+        MLRO approves EDD — moves workflow to APPROVED.
+        PATCH /api/v1/workflows/{id}/event → event: APPROVE
+        FCA MLR 2017 §33: MLRO sign-off required for EDD.
+        """
+        payload = {
+            "name": "MANUAL_REVIEW_APPROVE",
+            "payload": {"mlroUserId": mlro_user_id},
+        }
+        resp = self._client.patch(
+            f"/api/v1/workflows/{workflow_id}/event", json=payload
+        )
+        data = self._raise_for_status(resp, "approve_edd")
+        result = self._parse_workflow(data)
+        result.mlro_sign_off = True
+        _bl_logger.warning(
+            "Ballerine EDD approved: workflow=%s by_mlro=%s status=%s",
+            workflow_id, mlro_user_id, result.status,
+        )
+        return result
 
     def reject_workflow(self, workflow_id: str, reason: RejectionReason) -> KYCWorkflowResult:
-        raise NotImplementedError
+        """
+        Reject KYC workflow (sanctions hit, fraud, risk too high).
+        PATCH /api/v1/workflows/{id}/event → event: REJECT
+        """
+        payload = {
+            "name": "MANUAL_REVIEW_REJECT",
+            "payload": {"rejectionReason": reason.value},
+        }
+        resp = self._client.patch(
+            f"/api/v1/workflows/{workflow_id}/event", json=payload
+        )
+        data = self._raise_for_status(resp, "reject_workflow")
+        result = self._parse_workflow(data)
+        result.rejection_reason = reason
+        _bl_logger.warning(
+            "Ballerine workflow rejected: workflow=%s reason=%s",
+            workflow_id, reason.value,
+        )
+        return result
 
     def health(self) -> bool:
-        return False
+        """GET /api/v1/health — True if Ballerine is reachable and healthy."""
+        try:
+            resp = self._client.get("/api/v1/health", timeout=5)
+            return resp.status_code == 200
+        except Exception as exc:
+            _bl_logger.warning("Ballerine health check failed: %s", exc)
+            return False
 
 
 def get_kyc_adapter() -> KYCWorkflowPort:

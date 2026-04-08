@@ -230,10 +230,11 @@ class AccountStatementService:
             generated_at=datetime.now(timezone.utc),
         )
 
-    def generate_pdf(self, stmt: AccountStatement, output_dir: Path) -> Path:  # pragma: no cover
+    def generate_pdf(self, stmt: AccountStatement, output_dir: Path) -> Path:
         """
-        Generate PDF using WeasyPrint (same pattern as FIN060 PDF).
-        STATUS: STUB — WeasyPrint installed, template TBD.
+        Generate a PDF account statement using WeasyPrint.
+        Output: {output_dir}/statement_{account_id}_{YYYYMM}.pdf
+        FCA PS7/24: monthly statement must be available to client on request.
         """
         try:
             from weasyprint import HTML  # type: ignore[import]
@@ -241,30 +242,176 @@ class AccountStatementService:
             raise ImportError("Install weasyprint: pip install weasyprint")
 
         html = self._render_html(stmt)
-        output_path = output_dir / f"statement_{stmt.account_id}_{stmt.period_start.strftime('%Y%m')}.pdf"
+        filename = f"statement_{stmt.account_id}_{stmt.period_start.strftime('%Y%m')}.pdf"
+        output_path = output_dir / filename
         output_dir.mkdir(parents=True, exist_ok=True)
         HTML(string=html).write_pdf(str(output_path))
+        logger.info("Statement PDF written: %s", output_path)
         return output_path
 
     def _render_html(self, stmt: AccountStatement) -> str:
-        rows = "".join(
-            f"<tr><td>{tx.date}</td><td>{tx.description}</td>"
+        """
+        Render account statement as HTML with Banxe branding.
+        Inline CSS is required — WeasyPrint does not load external stylesheets.
+        """
+        ccy = stmt.currency
+
+        def _fmt(amount: Optional[Decimal]) -> str:
+            return f"{ccy} {amount:,.2f}" if amount else ""
+
+        def _sign_class(amount: Optional[Decimal]) -> str:
+            if amount and amount > 0:
+                return 'class="positive"'
+            if amount and amount < 0:
+                return 'class="negative"'
+            return ""
+
+        tx_rows = "".join(
+            f"<tr>"
+            f"<td>{tx.date.strftime('%d %b %Y')}</td>"
+            f"<td>{tx.description}</td>"
             f"<td>{tx.reference}</td>"
-            f"<td>{tx.debit or ''}</td><td>{tx.credit or ''}</td>"
-            f"<td>{tx.balance_after}</td></tr>"
+            f'<td class="amount-col negative">{_fmt(tx.debit)}</td>'
+            f'<td class="amount-col positive">{_fmt(tx.credit)}</td>'
+            f'<td class="amount-col">{_fmt(tx.balance_after)}</td>'
+            f"</tr>"
             for tx in stmt.transactions
         )
-        return f"""
-        <html><body>
-        <h1>Account Statement — {stmt.account_id}</h1>
-        <p>Period: {stmt.period_start} to {stmt.period_end}</p>
-        <p>Currency: {stmt.currency} | Customer: {stmt.customer_id}</p>
-        <table border="1">
-          <tr><th>Date</th><th>Description</th><th>Reference</th>
-              <th>Debit</th><th>Credit</th><th>Balance</th></tr>
-          {rows}
-        </table>
-        <p>Opening: {stmt.opening_balance} | Closing: {stmt.closing_balance}</p>
-        <p>Generated: {stmt.generated_at.isoformat()}</p>
-        </body></html>
-        """
+
+        no_tx_row = (
+            '<tr><td colspan="6" style="text-align:center;color:#888;padding:16px;">'
+            "No transactions in this period</td></tr>"
+            if not stmt.transactions else ""
+        )
+
+        net_class = "positive" if stmt.net_movement >= 0 else "negative"
+
+        return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Account Statement — {stmt.statement_id}</title>
+<style>
+  @page {{
+    size: A4;
+    margin: 1.5cm 1.8cm;
+    @bottom-center {{
+      content: "Statement ID: {stmt.statement_id} | Generated: {stmt.generated_at.strftime('%d %b %Y %H:%M UTC')} | Page " counter(page) " of " counter(pages);
+      font-size: 7pt;
+      color: #888;
+    }}
+  }}
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{ font-family: Arial, Helvetica, sans-serif; font-size: 9.5pt; color: #222; line-height: 1.4; }}
+  .header {{ display: flex; justify-content: space-between; align-items: flex-start;
+             border-bottom: 2.5px solid #1a3560; padding-bottom: 14px; margin-bottom: 18px; }}
+  .bank-name {{ font-size: 20pt; font-weight: bold; color: #1a3560; letter-spacing: -0.5px; }}
+  .bank-tagline {{ font-size: 8pt; color: #666; margin-top: 2px; }}
+  .statement-meta {{ text-align: right; }}
+  .statement-title {{ font-size: 13pt; font-weight: bold; color: #1a3560; }}
+  .statement-date {{ font-size: 8pt; color: #666; margin-top: 4px; }}
+  .info-section {{ display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; margin-bottom: 18px; }}
+  .info-block {{ border: 1px solid #dde3ed; border-radius: 4px; padding: 10px 12px; }}
+  .info-block-title {{ font-size: 8pt; font-weight: bold; color: #666; text-transform: uppercase;
+                       letter-spacing: 0.5px; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 4px; }}
+  .info-row {{ display: flex; justify-content: space-between; padding: 2px 0; font-size: 9pt; }}
+  .info-label {{ color: #555; }}
+  .info-value {{ font-weight: bold; }}
+  .summary {{ background: #f0f4f9; border: 1px solid #c8d6e8; border-radius: 4px;
+              display: grid; grid-template-columns: repeat(4, 1fr);
+              gap: 0; margin-bottom: 20px; }}
+  .summary-item {{ padding: 12px 10px; text-align: center; border-right: 1px solid #c8d6e8; }}
+  .summary-item:last-child {{ border-right: none; }}
+  .summary-label {{ font-size: 7.5pt; color: #555; text-transform: uppercase; letter-spacing: 0.4px; }}
+  .summary-value {{ font-size: 13pt; font-weight: bold; margin-top: 4px; }}
+  .positive {{ color: #1a7340; }}
+  .negative {{ color: #c0392b; }}
+  .neutral {{ color: #1a3560; }}
+  table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; page-break-inside: auto; }}
+  thead {{ display: table-header-group; }}
+  th {{ background: #1a3560; color: white; padding: 7px 8px; text-align: left;
+        font-size: 8.5pt; font-weight: bold; letter-spacing: 0.2px; }}
+  th.amount-col {{ text-align: right; }}
+  td {{ padding: 5.5px 8px; border-bottom: 1px solid #eee; font-size: 9pt; vertical-align: top; }}
+  tr:nth-child(even) td {{ background: #f9fafb; }}
+  .amount-col {{ text-align: right; font-family: 'Courier New', Courier, monospace; font-size: 8.5pt; }}
+  .footer {{ border-top: 1px solid #dde3ed; padding-top: 10px; font-size: 7.5pt; color: #888; margin-top: 12px; }}
+  .footer p + p {{ margin-top: 3px; }}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="bank-name">Banxe</div>
+    <div class="bank-tagline">Electronic Money Institution — FCA Authorised</div>
+  </div>
+  <div class="statement-meta">
+    <div class="statement-title">Account Statement</div>
+    <div class="statement-date">
+      {stmt.period_start.strftime('%d %b %Y')} – {stmt.period_end.strftime('%d %b %Y')}
+    </div>
+  </div>
+</div>
+
+<div class="info-section">
+  <div class="info-block">
+    <div class="info-block-title">Account Details</div>
+    <div class="info-row"><span class="info-label">Account ID</span><span class="info-value">{stmt.account_id}</span></div>
+    <div class="info-row"><span class="info-label">Customer ID</span><span class="info-value">{stmt.customer_id}</span></div>
+    <div class="info-row"><span class="info-label">Currency</span><span class="info-value">{ccy}</span></div>
+  </div>
+  <div class="info-block">
+    <div class="info-block-title">Statement Period</div>
+    <div class="info-row"><span class="info-label">From</span><span class="info-value">{stmt.period_start.strftime('%d %b %Y')}</span></div>
+    <div class="info-row"><span class="info-label">To</span><span class="info-value">{stmt.period_end.strftime('%d %b %Y')}</span></div>
+    <div class="info-row"><span class="info-label">Transactions</span><span class="info-value">{stmt.transaction_count}</span></div>
+  </div>
+</div>
+
+<div class="summary">
+  <div class="summary-item">
+    <div class="summary-label">Opening Balance</div>
+    <div class="summary-value neutral">{_fmt(stmt.opening_balance)}</div>
+  </div>
+  <div class="summary-item">
+    <div class="summary-label">Total Credits</div>
+    <div class="summary-value positive">{_fmt(stmt.total_credits)}</div>
+  </div>
+  <div class="summary-item">
+    <div class="summary-label">Total Debits</div>
+    <div class="summary-value negative">{_fmt(stmt.total_debits)}</div>
+  </div>
+  <div class="summary-item">
+    <div class="summary-label">Closing Balance</div>
+    <div class="summary-value {net_class}">{_fmt(stmt.closing_balance)}</div>
+  </div>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th style="width:12%">Date</th>
+      <th style="width:34%">Description</th>
+      <th style="width:18%">Reference</th>
+      <th class="amount-col" style="width:12%">Debit ({ccy})</th>
+      <th class="amount-col" style="width:12%">Credit ({ccy})</th>
+      <th class="amount-col" style="width:12%">Balance ({ccy})</th>
+    </tr>
+  </thead>
+  <tbody>
+    {tx_rows}
+    {no_tx_row}
+  </tbody>
+</table>
+
+<div class="footer">
+  <p><strong>Banxe Ltd</strong> is an Electronic Money Institution authorised and regulated by the
+     Financial Conduct Authority (FCA). Reference number: FRN {stmt.statement_id[:8].upper()}.</p>
+  <p>This statement is provided in accordance with FCA PS7/24. If you have questions, contact
+     support@banxe.com. For complaints, refer to our Complaints Policy at banxe.com/complaints.</p>
+  <p>Statement ID: {stmt.statement_id} | Generated: {stmt.generated_at.strftime('%d %b %Y %H:%M UTC')}</p>
+</div>
+
+</body>
+</html>"""
