@@ -3,12 +3,13 @@ agreement_port.py — Agreement Service Port (Hexagonal Architecture)
 S17-02: T&C generation per product + DocuSign e-signature + version history
 FCA: FCA COBS 6 (product disclosure), eIDAS Reg.910/2014 (qualified e-sig)
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Optional, Protocol
+from typing import Protocol
 
 
 class ProductType(str, Enum):
@@ -19,26 +20,27 @@ class ProductType(str, Enum):
 
 
 class SignatureStatus(str, Enum):
-    PENDING = "PENDING"         # Awaiting customer signature
-    SIGNED = "SIGNED"           # Qualified e-signature collected
-    EXPIRED = "EXPIRED"         # Signature window expired (>30 days)
-    REVOKED = "REVOKED"         # Customer withdrew consent
+    PENDING = "PENDING"  # Awaiting customer signature
+    SIGNED = "SIGNED"  # Qualified e-signature collected
+    EXPIRED = "EXPIRED"  # Signature window expired (>30 days)
+    REVOKED = "REVOKED"  # Customer withdrew consent
 
 
 class AgreementStatus(str, Enum):
     DRAFT = "DRAFT"
     SENT_FOR_SIGNATURE = "SENT_FOR_SIGNATURE"
-    ACTIVE = "ACTIVE"           # Signed + in force
-    SUPERSEDED = "SUPERSEDED"   # Replaced by newer version
+    ACTIVE = "ACTIVE"  # Signed + in force
+    SUPERSEDED = "SUPERSEDED"  # Replaced by newer version
     TERMINATED = "TERMINATED"
 
 
 @dataclass
 class TermsVersion:
     """One version of T&C content — immutable once published."""
-    version: str                # semver: "1.0.0"
+
+    version: str  # semver: "1.0.0"
     product_type: ProductType
-    content_hash: str           # SHA-256 of T&C text for audit
+    content_hash: str  # SHA-256 of T&C text for audit
     effective_date: datetime
     is_current: bool = True
 
@@ -49,6 +51,7 @@ class Agreement:
     Customer-product agreement — FCA COBS 6 product disclosure.
     Signed via DocuSign (eIDAS Reg.910/2014 qualified e-sig).
     """
+
     agreement_id: str
     customer_id: str
     product_type: ProductType
@@ -59,8 +62,8 @@ class Agreement:
     updated_at: datetime
 
     # DocuSign / e-sig metadata
-    docusign_envelope_id: Optional[str] = None
-    signed_at: Optional[datetime] = None
+    docusign_envelope_id: str | None = None
+    signed_at: datetime | None = None
     signature_provider: str = "DocuSign"
 
     # Version history (all past versions for this agreement)
@@ -79,7 +82,7 @@ class SignAgreementRequest:
     agreement_id: str
     customer_id: str
     signature_provider: str = "DocuSign"
-    docusign_envelope_id: Optional[str] = None
+    docusign_envelope_id: str | None = None
 
 
 @dataclass

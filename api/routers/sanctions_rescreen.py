@@ -19,14 +19,14 @@ FCA basis: MLR 2017 Reg.28(1) — screening must reflect current lists.
            JMLSG 3.10 — MLRO oversight of re-screening procedures.
            I-24: job audit log, append-only.
 """
+
 from __future__ import annotations
 
 import json
 import logging
 import os
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Header, HTTPException, status
 from pydantic import BaseModel
@@ -51,10 +51,11 @@ def clear_job_log() -> None:
 
 # ── Models ────────────────────────────────────────────────────────────────────
 
+
 class HighRiskRescreenRequest(BaseModel):
     reason: str
-    list_name: Optional[str] = None
-    as_of: Optional[datetime] = None
+    list_name: str | None = None
+    as_of: datetime | None = None
 
 
 class HighRiskRescreenEnqueued(BaseModel):
@@ -66,6 +67,7 @@ class HighRiskRescreenEnqueued(BaseModel):
 
 # ── Redis helper (optional — falls back to in-memory log) ────────────────────
 
+
 def _enqueue_redis(job_id: str, job_payload: dict) -> bool:  # type: ignore[type-arg]
     """
     Enqueue re-screen job to Redis list.
@@ -76,6 +78,7 @@ def _enqueue_redis(job_id: str, job_payload: dict) -> bool:  # type: ignore[type
         return False
     try:
         import redis as redis_lib
+
         r = redis_lib.from_url(redis_url, decode_responses=True)
         r.lpush(REDIS_QUEUE_KEY, json.dumps(job_payload))
         logger.info("Re-screen job %s enqueued to Redis", job_id[:8])
@@ -86,6 +89,7 @@ def _enqueue_redis(job_id: str, job_payload: dict) -> bool:  # type: ignore[type
 
 
 # ── Endpoint ──────────────────────────────────────────────────────────────────
+
 
 @router.post(
     "/rescreen/high-risk",
@@ -118,7 +122,7 @@ def rescreen_high_risk(
             detail="Invalid internal token",
         )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     job_id = str(uuid.uuid4())
 
     job_payload = {

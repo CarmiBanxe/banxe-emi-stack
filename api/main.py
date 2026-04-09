@@ -19,6 +19,7 @@ FCA compliance:
   - Amounts always Decimal / string, never float (I-05)
   - No PII in logs (I-09)
 """
+
 from __future__ import annotations
 
 import logging
@@ -89,9 +90,7 @@ async def request_id_middleware(request: Request, call_next):  # type: ignore[re
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     request_id = request.headers.get("X-Request-ID", "unknown")
-    logger.error(
-        "Unhandled exception request_id=%s type=%s", request_id, type(exc).__name__
-    )
+    logger.error("Unhandled exception request_id=%s type=%s", request_id, type(exc).__name__)
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal server error", "request_id": request_id},
@@ -109,6 +108,8 @@ app.include_router(fraud.router, prefix="/v1")
 app.include_router(consumer_duty.router, prefix="/v1")
 app.include_router(hitl.router, prefix="/v1")
 app.include_router(reporting.router, prefix="/v1")
-app.include_router(watchman_webhook.router)          # POST /webhooks/watchman (IL-068)
-app.include_router(mlro_notifications.router)        # POST /internal/notifications/mlro (IL-068)
-app.include_router(sanctions_rescreen.router)        # POST /compliance/sanctions/rescreen/high-risk (IL-068)
+app.include_router(watchman_webhook.router)  # POST /webhooks/watchman (IL-068)
+app.include_router(mlro_notifications.router)  # POST /internal/notifications/mlro (IL-068)
+app.include_router(
+    sanctions_rescreen.router
+)  # POST /compliance/sanctions/rescreen/high-risk (IL-068)

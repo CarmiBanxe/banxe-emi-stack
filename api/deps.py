@@ -6,6 +6,7 @@ Provides service instances via FastAPI Depends().
 In sandbox/test mode: InMemory adapters.
 In production: real adapters selected via env vars.
 """
+
 from __future__ import annotations
 
 import os

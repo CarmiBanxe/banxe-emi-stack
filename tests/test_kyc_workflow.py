@@ -2,6 +2,7 @@
 test_kyc_workflow.py — Tests for MockKYCWorkflow / Ballerine KYC (S5-13)
 FCA MLR 2017 §18-33 | banxe-emi-stack
 """
+
 from __future__ import annotations
 
 from decimal import Decimal

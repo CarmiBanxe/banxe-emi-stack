@@ -12,6 +12,7 @@ FCA CASS 15.12 / PS25/12:
 Threshold: BREACH_DAYS = 3 (configurable via env)
 Amount threshold: BREACH_AMOUNT_GBP = 10.00 (£10 minimum reportable)
 """
+
 from __future__ import annotations
 
 import logging
@@ -19,7 +20,7 @@ import os
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from typing import List, Optional, Protocol
+from typing import Protocol
 
 import httpx
 
@@ -33,6 +34,7 @@ N8N_WEBHOOK_URL = os.environ.get("N8N_WEBHOOK_URL", "")
 @dataclass(frozen=True)
 class BreachRecord:
     """One breach detected by BreachDetector."""
+
     account_id: str
     account_type: str
     currency: str
@@ -58,7 +60,7 @@ class BreachClientProtocol(Protocol):
         """Insert a breach record into safeguarding_breaches."""
         ...
 
-    def get_latest_discrepancy(self, account_id: str, as_of: date) -> Optional[dict]:
+    def get_latest_discrepancy(self, account_id: str, as_of: date) -> dict | None:
         """Return the most recent DISCREPANCY row for account."""
         ...
 
@@ -93,7 +95,7 @@ class BreachDetector:
         self,
         results: list,
         recon_date: date,
-    ) -> List[BreachRecord]:
+    ) -> list[BreachRecord]:
         """
         Main entry point — call after ReconciliationEngine.reconcile().
 
@@ -104,7 +106,7 @@ class BreachDetector:
         Returns:
             List of BreachRecord written to ClickHouse (may be empty)
         """
-        breaches: List[BreachRecord] = []
+        breaches: list[BreachRecord] = []
 
         for result in results:
             if result.status != "DISCREPANCY":
@@ -114,7 +116,9 @@ class BreachDetector:
             if discrepancy_abs < self._amount_threshold:
                 logger.debug(
                     "Discrepancy £%s for %s below threshold £%s — skipping breach",
-                    discrepancy_abs, result.account_id, self._amount_threshold,
+                    discrepancy_abs,
+                    result.account_id,
+                    self._amount_threshold,
                 )
                 continue
 
@@ -124,7 +128,9 @@ class BreachDetector:
             if streak < self._breach_days:
                 logger.info(
                     "DISCREPANCY streak %d days for %s — below %d day threshold",
-                    streak, result.account_id, self._breach_days,
+                    streak,
+                    result.account_id,
+                    self._breach_days,
                 )
                 continue
 
@@ -143,8 +149,10 @@ class BreachDetector:
             logger.warning(
                 "CASS 15 BREACH: account=%s type=%s discrepancy=%s days=%d — "
                 "FCA notification required within 1 business day",
-                breach.account_id, breach.account_type,
-                breach.discrepancy, breach.days_outstanding,
+                breach.account_id,
+                breach.account_type,
+                breach.discrepancy,
+                breach.days_outstanding,
             )
             _fire_fca_alert(breach)
 
@@ -158,7 +166,9 @@ def _fire_fca_alert(breach: BreachRecord) -> None:
     This webhook triggers Slack → Compliance officer → FCA RegData submission.
     """
     if not N8N_WEBHOOK_URL:
-        logger.warning("N8N_WEBHOOK_URL not set — FCA breach alert NOT sent for %s", breach.account_id)
+        logger.warning(
+            "N8N_WEBHOOK_URL not set — FCA breach alert NOT sent for %s", breach.account_id
+        )
         return
 
     payload = {
@@ -178,9 +188,12 @@ def _fire_fca_alert(breach: BreachRecord) -> None:
     try:
         response = httpx.post(N8N_WEBHOOK_URL, json=payload, timeout=10.0)
         response.raise_for_status()
-        logger.info("FCA breach alert sent for %s (n8n HTTP %s)", breach.account_id, response.status_code)
+        logger.info(
+            "FCA breach alert sent for %s (n8n HTTP %s)", breach.account_id, response.status_code
+        )
     except Exception as exc:
         logger.error(
             "FCA breach alert FAILED for %s: %s — manual notification required",
-            breach.account_id, exc,
+            breach.account_id,
+            exc,
         )

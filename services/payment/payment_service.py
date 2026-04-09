@@ -26,14 +26,14 @@ Factory (build_payment_service()):
     "mock"   → MockPaymentAdapter  (default, works without API key)
     "modulr" → ModulrPaymentAdapter (requires MODULR_API_KEY)
 """
+
 from __future__ import annotations
 
 import logging
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Optional
 
 from services.payment.payment_port import (
     BankAccount,
@@ -47,10 +47,13 @@ from services.payment.payment_port import (
 
 logger = logging.getLogger(__name__)
 
+
 # Lazy import to avoid circular dependency — event_bus imported only when used
 def _get_event_bus_types():
     from services.events.event_bus import BanxeEventType, DomainEvent, InMemoryEventBus
+
     return BanxeEventType, DomainEvent, InMemoryEventBus
+
 
 PAYMENT_ADAPTER = os.environ.get("PAYMENT_ADAPTER", "mock")
 N8N_WEBHOOK_URL = os.environ.get("N8N_WEBHOOK_URL", "")
@@ -84,9 +87,9 @@ class PaymentService:
     def __init__(
         self,
         rail: PaymentRailPort,
-        ch_client,          # ClickHouseClientProtocol (from clickhouse_client.py)
-        ledger_port=None,   # LedgerPortProtocol — optional, for Midaz debit
-        event_bus=None,     # EventBusPort — optional, for domain event emission (S17-11)
+        ch_client,  # ClickHouseClientProtocol (from clickhouse_client.py)
+        ledger_port=None,  # LedgerPortProtocol — optional, for Midaz debit
+        event_bus=None,  # EventBusPort — optional, for domain event emission (S17-11)
     ) -> None:
         self._rail = rail
         self._ch = ch_client
@@ -100,7 +103,7 @@ class PaymentService:
         amount: Decimal,
         beneficiary: BankAccount,
         reference: str,
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ) -> PaymentResult:
         """
         Send a GBP Faster Payment (UK domestic, near-instant).
@@ -125,7 +128,7 @@ class PaymentService:
         amount: Decimal,
         beneficiary: BankAccount,
         reference: str,
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ) -> PaymentResult:
         """
         Send EUR SEPA Credit Transfer (D+1, business days).
@@ -148,7 +151,7 @@ class PaymentService:
         amount: Decimal,
         beneficiary: BankAccount,
         reference: str,
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ) -> PaymentResult:
         """
         Send EUR SEPA Instant Credit Transfer (<10 seconds, 24/7).
@@ -192,7 +195,7 @@ class PaymentService:
             creditor_account=creditor,
             reference=reference[:35],
             end_to_end_id=end_to_end_id,
-            requested_at=datetime.now(timezone.utc),
+            requested_at=datetime.now(UTC),
             metadata=metadata,
         )
 
@@ -200,7 +203,10 @@ class PaymentService:
         """Submit payment to rail and write audit trail."""
         logger.info(
             "PaymentService._submit: rail=%s amount=%s%s key=%s",
-            intent.rail, intent.amount, intent.currency, intent.idempotency_key,
+            intent.rail,
+            intent.amount,
+            intent.currency,
+            intent.idempotency_key,
         )
         try:
             result = self._rail.submit_payment(intent)
@@ -213,7 +219,7 @@ class PaymentService:
                 rail=intent.rail,
                 amount=intent.amount,
                 currency=intent.currency,
-                submitted_at=datetime.now(timezone.utc),
+                submitted_at=datetime.now(UTC),
                 error_code="SUBMISSION_ERROR",
                 error_message=str(exc)[:200],
             )
@@ -289,6 +295,7 @@ class PaymentService:
             return
         try:
             import httpx
+
             httpx.post(
                 N8N_WEBHOOK_URL,
                 json={
@@ -323,6 +330,7 @@ class PaymentService:
 
 # ── Factory ───────────────────────────────────────────────────────────────────
 
+
 def build_payment_service(ch_client=None, ledger_port=None) -> PaymentService:
     """
     Build PaymentService with the correct rail adapter based on PAYMENT_ADAPTER env var.
@@ -336,15 +344,20 @@ def build_payment_service(ch_client=None, ledger_port=None) -> PaymentService:
 
     if adapter_name == "modulr":
         from services.payment.modulr_client import ModulrPaymentAdapter
+
         rail = ModulrPaymentAdapter()
         logger.info("PaymentService: using ModulrPaymentAdapter")
     else:
         from services.payment.mock_payment_adapter import MockPaymentAdapter
+
         rail = MockPaymentAdapter()
-        logger.info("PaymentService: using MockPaymentAdapter (set PAYMENT_ADAPTER=modulr for production)")
+        logger.info(
+            "PaymentService: using MockPaymentAdapter (set PAYMENT_ADAPTER=modulr for production)"
+        )
 
     if ch_client is None:
         from services.recon.clickhouse_client import ClickHouseReconClient
+
         ch_client = ClickHouseReconClient()
 
     return PaymentService(rail=rail, ch_client=ch_client, ledger_port=ledger_port)

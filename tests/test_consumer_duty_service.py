@@ -7,9 +7,10 @@ Coverage:
   - API: POST vulnerability, GET vulnerability, POST fair-value,
          POST outcomes, POST report
 """
+
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -25,8 +26,8 @@ from services.consumer_duty.consumer_duty_port import (
 )
 from services.consumer_duty.consumer_duty_service import ConsumerDutyService
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def svc():
@@ -45,6 +46,7 @@ def client():
 
 
 # ── Unit: Vulnerability ───────────────────────────────────────────────────────
+
 
 def test_assess_vulnerability_single_flag(svc):
     result = svc.assess_vulnerability(
@@ -108,13 +110,12 @@ def test_vulnerability_assessed_at_is_set(svc):
 
 
 def test_vulnerability_notes_preserved(svc):
-    result = svc.assess_vulnerability(
-        "cust-008", [], notes="Customer called in distress"
-    )
+    result = svc.assess_vulnerability("cust-008", [], notes="Customer called in distress")
     assert result.notes == "Customer called in distress"
 
 
 # ── Unit: Fair Value ──────────────────────────────────────────────────────────
+
 
 def test_fair_value_emi_account_individual_calculated(svc):
     """
@@ -137,9 +138,7 @@ def test_fair_value_emi_account_company(svc):
     """
     result = svc.assess_fair_value("EMI_ACCOUNT", "COMPANY")
     assert result.annual_fee_estimate > 0
-    assert result.verdict in (
-        FairValueVerdict.FAIR, FairValueVerdict.REVIEW_REQUIRED
-    )
+    assert result.verdict in (FairValueVerdict.FAIR, FairValueVerdict.REVIEW_REQUIRED)
 
 
 def test_fair_value_benefit_score_populated(svc):
@@ -163,6 +162,7 @@ def test_fair_value_assessed_at_set(svc):
 
 
 # ── Unit: Outcome recording ───────────────────────────────────────────────────
+
 
 def test_record_outcome_good(svc):
     result = svc.record_outcome(
@@ -201,6 +201,7 @@ def test_record_multiple_outcomes_all_stored(svc):
 
 # ── Unit: Report generation ───────────────────────────────────────────────────
 
+
 def test_generate_report_empty_period(svc):
     report = svc.generate_report(
         period_start=date(2026, 1, 1),
@@ -237,16 +238,14 @@ def test_generate_report_vulnerable_pct(svc):
 
 
 def test_generate_report_good_outcome_pct(svc):
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     # 3 GOOD, 1 POOR → 75% good
     for _ in range(3):
         svc.record_outcome(
-            "cust-x", ConsumerDutyOutcome.CONSUMER_SUPPORT,
-            OutcomeRating.GOOD, "SUPPORT"
+            "cust-x", ConsumerDutyOutcome.CONSUMER_SUPPORT, OutcomeRating.GOOD, "SUPPORT"
         )
     svc.record_outcome(
-        "cust-y", ConsumerDutyOutcome.CONSUMER_UNDERSTANDING,
-        OutcomeRating.POOR, "KYC"
+        "cust-y", ConsumerDutyOutcome.CONSUMER_UNDERSTANDING, OutcomeRating.POOR, "KYC"
     )
 
     report = svc.generate_report(
@@ -281,12 +280,16 @@ def test_generate_report_complaints_fields_preserved(svc):
 
 # ── API tests ─────────────────────────────────────────────────────────────────
 
+
 def test_api_assess_vulnerability(client):
-    resp = client.post("/v1/consumer-duty/vulnerability", json={
-        "customer_id": "cust-api-001",
-        "flags": ["FINANCIAL_DIFFICULTY"],
-        "assessed_by": "operator-1",
-    })
+    resp = client.post(
+        "/v1/consumer-duty/vulnerability",
+        json={
+            "customer_id": "cust-api-001",
+            "flags": ["FINANCIAL_DIFFICULTY"],
+            "assessed_by": "operator-1",
+        },
+    )
     assert resp.status_code == 201
     data = resp.json()
     assert data["is_vulnerable"] is True
@@ -295,19 +298,25 @@ def test_api_assess_vulnerability(client):
 
 
 def test_api_assess_vulnerability_no_flags(client):
-    resp = client.post("/v1/consumer-duty/vulnerability", json={
-        "customer_id": "cust-api-002",
-        "flags": [],
-    })
+    resp = client.post(
+        "/v1/consumer-duty/vulnerability",
+        json={
+            "customer_id": "cust-api-002",
+            "flags": [],
+        },
+    )
     assert resp.status_code == 201
     assert resp.json()["is_vulnerable"] is False
 
 
 def test_api_get_vulnerability_exists(client):
-    client.post("/v1/consumer-duty/vulnerability", json={
-        "customer_id": "cust-api-003",
-        "flags": ["MENTAL_HEALTH"],
-    })
+    client.post(
+        "/v1/consumer-duty/vulnerability",
+        json={
+            "customer_id": "cust-api-003",
+            "flags": ["MENTAL_HEALTH"],
+        },
+    )
     resp = client.get("/v1/consumer-duty/vulnerability/cust-api-003")
     assert resp.status_code == 200
     data = resp.json()
@@ -341,13 +350,16 @@ def test_api_fair_value_unknown_product(client):
 
 
 def test_api_record_outcome(client):
-    resp = client.post("/v1/consumer-duty/outcomes", json={
-        "customer_id": "cust-api-010",
-        "outcome": "CONSUMER_SUPPORT",
-        "rating": "GOOD",
-        "interaction_type": "SUPPORT",
-        "notes": "First-call resolution",
-    })
+    resp = client.post(
+        "/v1/consumer-duty/outcomes",
+        json={
+            "customer_id": "cust-api-010",
+            "outcome": "CONSUMER_SUPPORT",
+            "rating": "GOOD",
+            "interaction_type": "SUPPORT",
+            "notes": "First-call resolution",
+        },
+    )
     assert resp.status_code == 201
     data = resp.json()
     assert data["record_id"] is not None
@@ -356,23 +368,29 @@ def test_api_record_outcome(client):
 
 
 def test_api_record_outcome_invalid_interaction_type(client):
-    resp = client.post("/v1/consumer-duty/outcomes", json={
-        "customer_id": "cust-api-011",
-        "outcome": "CONSUMER_SUPPORT",
-        "rating": "GOOD",
-        "interaction_type": "INVALID_TYPE",
-    })
+    resp = client.post(
+        "/v1/consumer-duty/outcomes",
+        json={
+            "customer_id": "cust-api-011",
+            "outcome": "CONSUMER_SUPPORT",
+            "rating": "GOOD",
+            "interaction_type": "INVALID_TYPE",
+        },
+    )
     assert resp.status_code == 422
 
 
 def test_api_generate_report(client):
-    resp = client.post("/v1/consumer-duty/report", json={
-        "period_start": "2026-01-01",
-        "period_end": "2026-03-31",
-        "total_customers": 500,
-        "complaints_count": 8,
-        "avg_complaint_resolution_days": 12.0,
-    })
+    resp = client.post(
+        "/v1/consumer-duty/report",
+        json={
+            "period_start": "2026-01-01",
+            "period_end": "2026-03-31",
+            "total_customers": 500,
+            "complaints_count": 8,
+            "avg_complaint_resolution_days": 12.0,
+        },
+    )
     assert resp.status_code == 200
     data = resp.json()
     assert data["total_customers"] == 500
@@ -382,9 +400,12 @@ def test_api_generate_report(client):
 
 
 def test_api_report_period_end_before_start_is_422(client):
-    resp = client.post("/v1/consumer-duty/report", json={
-        "period_start": "2026-06-01",
-        "period_end": "2026-01-01",   # Before start — invalid
-        "total_customers": 100,
-    })
+    resp = client.post(
+        "/v1/consumer-duty/report",
+        json={
+            "period_start": "2026-06-01",
+            "period_end": "2026-01-01",  # Before start — invalid
+            "total_customers": 100,
+        },
+    )
     assert resp.status_code == 422

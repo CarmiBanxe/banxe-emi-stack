@@ -19,42 +19,46 @@ FCA requirements:
   - EUR SEPA CT: SEPA Credit Transfer (EUR cross-border, D+1)
   - EUR SEPA Instant: SEPA Instant Credit Transfer (EUR, <10s, 24/7)
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Optional, Protocol
-
+from typing import Protocol
 
 # ── Enumerations ──────────────────────────────────────────────────────────────
 
+
 class PaymentRail(str, Enum):
     """Supported payment rails."""
-    FPS = "FPS"                   # UK Faster Payments (GBP, near-instant)
-    SEPA_CT = "SEPA_CT"           # SEPA Credit Transfer (EUR, D+1)
-    SEPA_INSTANT = "SEPA_INSTANT" # SEPA Instant Credit Transfer (EUR, <10s)
-    BACS = "BACS"                 # BACS Direct Credit (GBP, D+3, bulk)
-    CHAPS = "CHAPS"               # CHAPS (GBP, same-day, high-value)
+
+    FPS = "FPS"  # UK Faster Payments (GBP, near-instant)
+    SEPA_CT = "SEPA_CT"  # SEPA Credit Transfer (EUR, D+1)
+    SEPA_INSTANT = "SEPA_INSTANT"  # SEPA Instant Credit Transfer (EUR, <10s)
+    BACS = "BACS"  # BACS Direct Credit (GBP, D+3, bulk)
+    CHAPS = "CHAPS"  # CHAPS (GBP, same-day, high-value)
 
 
 class PaymentStatus(str, Enum):
     """Lifecycle states of a payment."""
-    PENDING = "PENDING"         # Submitted to rail, awaiting confirmation
-    PROCESSING = "PROCESSING"   # Rail accepted, processing
-    COMPLETED = "COMPLETED"     # Funds delivered, irrevocable
-    FAILED = "FAILED"           # Rejected by rail (insufficient funds, invalid IBAN, etc.)
-    RETURNED = "RETURNED"       # Completed but returned by beneficiary bank
-    CANCELLED = "CANCELLED"     # Cancelled before processing
+
+    PENDING = "PENDING"  # Submitted to rail, awaiting confirmation
+    PROCESSING = "PROCESSING"  # Rail accepted, processing
+    COMPLETED = "COMPLETED"  # Funds delivered, irrevocable
+    FAILED = "FAILED"  # Rejected by rail (insufficient funds, invalid IBAN, etc.)
+    RETURNED = "RETURNED"  # Completed but returned by beneficiary bank
+    CANCELLED = "CANCELLED"  # Cancelled before processing
 
 
 class PaymentDirection(str, Enum):
     OUTBOUND = "OUTBOUND"  # Banxe EMI → external account
-    INBOUND = "INBOUND"    # External account → Banxe EMI
+    INBOUND = "INBOUND"  # External account → Banxe EMI
 
 
 # ── Domain dataclasses ────────────────────────────────────────────────────────
+
 
 @dataclass(frozen=True)
 class BankAccount:
@@ -64,13 +68,14 @@ class BankAccount:
     EU: iban required for SEPA.
     bic is optional but recommended for SEPA CT.
     """
+
     account_holder_name: str
-    iban: Optional[str] = None
-    bic: Optional[str] = None
-    sort_code: Optional[str] = None        # UK: "20-20-15" or "202015"
-    account_number: Optional[str] = None   # UK: 8-digit account number
-    bank_name: Optional[str] = None
-    country_code: Optional[str] = None     # ISO-3166-1 alpha-2
+    iban: str | None = None
+    bic: str | None = None
+    sort_code: str | None = None  # UK: "20-20-15" or "202015"
+    account_number: str | None = None  # UK: 8-digit account number
+    bank_name: str | None = None
+    country_code: str | None = None  # ISO-3166-1 alpha-2
 
     def is_uk_account(self) -> bool:
         return bool(self.sort_code and self.account_number)
@@ -88,15 +93,16 @@ class PaymentIntent:
     FCA note: idempotency_key MUST be stored and reused for retries.
     Sending the same idempotency_key twice must return the SAME result.
     """
-    idempotency_key: str          # UUID4 — unique per payment attempt
+
+    idempotency_key: str  # UUID4 — unique per payment attempt
     rail: PaymentRail
     direction: PaymentDirection
-    amount: Decimal               # Major currency unit (e.g. £100.00) — NEVER float
-    currency: str                 # ISO-4217 (GBP, EUR)
-    debtor_account: BankAccount   # Source account (Banxe safeguarding/operational)
-    creditor_account: BankAccount # Destination account
-    reference: str                # Payment reference (max 18 chars for FPS)
-    end_to_end_id: str            # ISO 20022 end-to-end identifier
+    amount: Decimal  # Major currency unit (e.g. £100.00) — NEVER float
+    currency: str  # ISO-4217 (GBP, EUR)
+    debtor_account: BankAccount  # Source account (Banxe safeguarding/operational)
+    creditor_account: BankAccount  # Destination account
+    reference: str  # Payment reference (max 18 chars for FPS)
+    end_to_end_id: str  # ISO 20022 end-to-end identifier
     requested_at: datetime
     metadata: dict = field(default_factory=dict)
 
@@ -120,25 +126,27 @@ class PaymentResult:
     Result returned by PaymentRailPort after submitting a payment.
     Contains the provider's reference for audit trail and status tracking.
     """
-    idempotency_key: str          # Mirrors PaymentIntent.idempotency_key
-    provider_payment_id: str      # Modulr / ClearBank payment ID
+
+    idempotency_key: str  # Mirrors PaymentIntent.idempotency_key
+    provider_payment_id: str  # Modulr / ClearBank payment ID
     status: PaymentStatus
     rail: PaymentRail
     amount: Decimal
     currency: str
     submitted_at: datetime
-    error_code: Optional[str] = None
-    error_message: Optional[str] = None
-    estimated_settlement: Optional[datetime] = None
+    error_code: str | None = None
+    error_message: str | None = None
+    estimated_settlement: datetime | None = None
 
 
 @dataclass(frozen=True)
 class PaymentStatusUpdate:
     """Webhook payload: status change notification from payment provider."""
+
     provider_payment_id: str
-    idempotency_key: Optional[str]
+    idempotency_key: str | None
     new_status: PaymentStatus
-    previous_status: Optional[PaymentStatus]
+    previous_status: PaymentStatus | None
     rail: PaymentRail
     amount: Decimal
     currency: str
@@ -147,6 +155,7 @@ class PaymentStatusUpdate:
 
 
 # ── Port (interface) ──────────────────────────────────────────────────────────
+
 
 class PaymentRailPort(Protocol):
     """

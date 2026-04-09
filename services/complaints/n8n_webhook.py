@@ -11,22 +11,22 @@ daily for breach detection.
 
 CTX-03 AMBER — public-facing endpoint, validates input strictly
 """
+
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import List
+from datetime import UTC, datetime
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from services.config import CLICKHOUSE_HOST, CLICKHOUSE_PORT, CLICKHOUSE_DB
 from services.complaints.complaint_service import (
-    ComplaintService,
     ClickHouseComplaintRepository,
+    ComplaintService,
     SLABreach,
     SLAWarning,
 )
+from services.config import CLICKHOUSE_DB, CLICKHOUSE_HOST, CLICKHOUSE_PORT
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +39,12 @@ app = FastAPI(
 
 # ─── Request / Response models ────────────────────────────────────────────────
 
+
 class ComplaintRequest(BaseModel):
     customer_id: str = Field(..., min_length=1, max_length=128)
-    category: str = Field(..., pattern="^(PAYMENT|ACCOUNT|CHARGES|SERVICE|FRAUD|DATA_PRIVACY|OTHER)$")
+    category: str = Field(
+        ..., pattern="^(PAYMENT|ACCOUNT|CHARGES|SERVICE|FRAUD|DATA_PRIVACY|OTHER)$"
+    )
     description: str = Field(..., min_length=10, max_length=2000)
     channel: str = Field(default="API", pattern="^(TELEGRAM|EMAIL|PHONE|WEB|API)$")
     created_by: str = Field(default="system", max_length=64)
@@ -56,8 +59,8 @@ class ComplaintResponse(BaseModel):
 class SLACheckResponse(BaseModel):
     breaches: int
     warnings: int
-    breach_ids: List[str]
-    warning_ids: List[str]
+    breach_ids: list[str]
+    warning_ids: list[str]
 
 
 class ResolveRequest(BaseModel):
@@ -72,9 +75,11 @@ class FosEscalateRequest(BaseModel):
 
 # ─── Service factory ──────────────────────────────────────────────────────────
 
+
 def _get_service() -> ComplaintService:
     try:
         from clickhouse_driver import Client
+
         ch = Client(
             host=CLICKHOUSE_HOST,
             port=CLICKHOUSE_PORT,
@@ -87,6 +92,7 @@ def _get_service() -> ComplaintService:
 
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
+
 
 @app.post("/complaints/new", response_model=ComplaintResponse, status_code=201)
 def create_complaint(req: ComplaintRequest):
@@ -103,7 +109,8 @@ def create_complaint(req: ComplaintRequest):
         created_by=req.created_by,
     )
     from datetime import timedelta
-    sla_deadline = datetime.now(timezone.utc) + timedelta(days=56)
+
+    sla_deadline = datetime.now(UTC) + timedelta(days=56)
     return ComplaintResponse(
         complaint_id=complaint_id,
         sla_deadline=sla_deadline.date().isoformat(),
@@ -118,8 +125,8 @@ def sla_check():
     Returns SLA breaches (overdue) and warnings (within 7 days of deadline).
     """
     svc = _get_service()
-    breaches: List[SLABreach] = svc.check_sla_breaches()
-    warnings: List[SLAWarning] = svc.check_sla_warnings()
+    breaches: list[SLABreach] = svc.check_sla_breaches()
+    warnings: list[SLAWarning] = svc.check_sla_warnings()
     return SLACheckResponse(
         breaches=len(breaches),
         warnings=len(warnings),

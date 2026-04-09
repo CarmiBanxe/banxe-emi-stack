@@ -2,6 +2,7 @@
 tests/test_api_payments.py — Payment API endpoint tests
 IL-046 | banxe-emi-stack
 """
+
 import uuid
 
 import pytest

@@ -4,6 +4,7 @@ IL-046 | banxe-emi-stack
 
 Tests run in sandbox mode (MIDAZ_BASE_URL not set → mock data).
 """
+
 from fastapi.testclient import TestClient
 
 from api.main import app

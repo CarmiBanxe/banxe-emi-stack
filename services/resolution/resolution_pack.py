@@ -21,6 +21,7 @@ FCA rules:
   - CASS 10A.3.2R: must include client money statement and records
   - MLR 2017: records must be retained 5 years (I-08)
 """
+
 from __future__ import annotations
 
 import csv
@@ -28,21 +29,22 @@ import io
 import json
 import zipfile
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Optional, Protocol
-
+from typing import Protocol
 
 # ── Domain types ──────────────────────────────────────────────────────────────
+
 
 @dataclass
 class ClientMoneyPosition:
     """Single customer's safeguarded balance at resolution point."""
+
     customer_id: str
     currency: str
     balance: Decimal
     last_updated: datetime
-    account_id: Optional[str] = None
+    account_id: str | None = None
 
 
 @dataclass
@@ -51,13 +53,14 @@ class ResolutionPack:
     CASS 10A resolution pack snapshot.
     Generated on demand; must be retrievable within 48h.
     """
+
     generated_at: datetime
     as_of_date: datetime
     total_client_money: Decimal
     currency: str
     positions: list[ClientMoneyPosition]
-    outstanding_payments: list[dict]       # payment records pending settlement
-    reconciliation_summary: dict           # last recon result
+    outstanding_payments: list[dict]  # payment records pending settlement
+    reconciliation_summary: dict  # last recon result
     audit_events_count: int
     pack_version: str = "1.0"
     fca_rule: str = "CASS 10A.3.1R"
@@ -79,6 +82,7 @@ class ResolutionPack:
 
 # ── Repository protocol (testable without ClickHouse) ─────────────────────────
 
+
 class ResolutionDataRepository(Protocol):
     def get_client_money_positions(self, as_of: datetime) -> list[ClientMoneyPosition]: ...
     def get_outstanding_payments(self, as_of: datetime) -> list[dict]: ...
@@ -87,6 +91,7 @@ class ResolutionDataRepository(Protocol):
 
 
 # ── In-memory repository for tests / dry-run ──────────────────────────────────
+
 
 class InMemoryResolutionRepository:
     """Deterministic stub — no ClickHouse required."""
@@ -118,6 +123,7 @@ class InMemoryResolutionRepository:
 
 # ── ClickHouse repository (pragma: no cover — requires live CH) ────────────────
 
+
 class ClickHouseResolutionRepository:  # pragma: no cover
     """
     Production repository — queries ClickHouse banxe database.
@@ -126,7 +132,9 @@ class ClickHouseResolutionRepository:  # pragma: no cover
 
     def __init__(self) -> None:
         import os
+
         import clickhouse_driver  # type: ignore[import]
+
         self._client = clickhouse_driver.Client(
             host=os.environ.get("CLICKHOUSE_HOST", "localhost"),
             port=int(os.environ.get("CLICKHOUSE_PORT", "9000")),
@@ -150,8 +158,10 @@ class ClickHouseResolutionRepository:  # pragma: no cover
         )
         return [
             ClientMoneyPosition(
-                customer_id=r[0], currency=r[1],
-                balance=Decimal(str(r[2])), last_updated=r[3],
+                customer_id=r[0],
+                currency=r[1],
+                balance=Decimal(str(r[2])),
+                last_updated=r[3],
             )
             for r in rows
         ]
@@ -168,8 +178,14 @@ class ClickHouseResolutionRepository:  # pragma: no cover
             {"as_of": as_of},
         )
         return [
-            {"payment_id": r[0], "customer_id": r[1], "amount": str(r[2]),
-             "currency": r[3], "status": r[4], "created_at": r[5].isoformat()}
+            {
+                "payment_id": r[0],
+                "customer_id": r[1],
+                "amount": str(r[2]),
+                "currency": r[3],
+                "status": r[4],
+                "created_at": r[5].isoformat(),
+            }
             for r in rows
         ]
 
@@ -189,8 +205,10 @@ class ClickHouseResolutionRepository:  # pragma: no cover
             return {"status": "NO_RECON_ON_RECORD", "shortfall": "0"}
         r = rows[0]
         return {
-            "status": r[0], "midaz_balance": str(r[1]),
-            "bank_balance": str(r[2]), "shortfall": str(r[3]),
+            "status": r[0],
+            "midaz_balance": str(r[1]),
+            "bank_balance": str(r[2]),
+            "shortfall": str(r[3]),
             "last_recon_at": r[4].isoformat(),
         }
 
@@ -204,6 +222,7 @@ class ClickHouseResolutionRepository:  # pragma: no cover
 
 # ── Pack builder ───────────────────────────────────────────────────────────────
 
+
 class ResolutionPackBuilder:
     """
     Builds CASS 10A resolution pack from repository data.
@@ -216,8 +235,8 @@ class ResolutionPackBuilder:
 
     def build(self, as_of: datetime | None = None) -> ResolutionPack:
         """Build resolution pack snapshot. as_of defaults to now (UTC)."""
-        as_of = as_of or datetime.now(timezone.utc)
-        generated_at = datetime.now(timezone.utc)
+        as_of = as_of or datetime.now(UTC)
+        generated_at = datetime.now(UTC)
 
         positions = self._repo.get_client_money_positions(as_of)
         outstanding = self._repo.get_outstanding_payments(as_of)
@@ -257,13 +276,15 @@ class ResolutionPackBuilder:
             )
             writer.writeheader()
             for p in pack.positions:
-                writer.writerow({
-                    "customer_id": p.customer_id,
-                    "currency": p.currency,
-                    "balance": str(p.balance),
-                    "last_updated": p.last_updated.isoformat(),
-                    "account_id": p.account_id or "",
-                })
+                writer.writerow(
+                    {
+                        "customer_id": p.customer_id,
+                        "currency": p.currency,
+                        "balance": str(p.balance),
+                        "last_updated": p.last_updated.isoformat(),
+                        "account_id": p.account_id or "",
+                    }
+                )
             zf.writestr("positions.csv", pos_buf.getvalue())
 
             # 3. Outstanding payments JSON

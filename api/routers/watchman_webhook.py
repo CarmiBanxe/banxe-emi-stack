@@ -14,12 +14,13 @@ FCA basis: MLR 2017 Reg.28(1) — sanctions screening must reflect current lists
            I-24: all webhook events logged (append-only audit trail).
            I-09: no PII in server logs — only event_type and list_name.
 """
+
 from __future__ import annotations
 
 import logging
 import os
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal
 
 from fastapi import APIRouter, Header, HTTPException, Request, status
 from pydantic import BaseModel
@@ -42,21 +43,23 @@ _processor = WebhookProcessor(
 
 # ── Request / Response models ─────────────────────────────────────────────────
 
+
 class WatchmanWebhookPayload(BaseModel):
     type: Literal["list_updated", "search_notification", "health"]
-    list: Optional[str] = None
+    list: str | None = None
     timestamp: datetime
-    details: Optional[dict] = None  # type: ignore[type-arg]
+    details: dict | None = None  # type: ignore[type-arg]
 
 
 class WatchmanWebhookResponse(BaseModel):
     status: str
     event_type: str
-    list_name: Optional[str] = None
+    list_name: str | None = None
     n8n_triggered: bool
 
 
 # ── n8n trigger (fire-and-forget) ─────────────────────────────────────────────
+
 
 def _trigger_n8n_watchman_update(payload: WatchmanWebhookPayload) -> bool:
     """
@@ -68,6 +71,7 @@ def _trigger_n8n_watchman_update(payload: WatchmanWebhookPayload) -> bool:
     webhook_path = "/webhook/watchman-list-update"
     try:
         import httpx
+
         body = {
             "event_type": payload.type,
             "list_name": payload.list,
@@ -90,6 +94,7 @@ def _trigger_n8n_watchman_update(payload: WatchmanWebhookPayload) -> bool:
 
 
 # ── Webhook endpoint ──────────────────────────────────────────────────────────
+
 
 @router.post(
     "/watchman",

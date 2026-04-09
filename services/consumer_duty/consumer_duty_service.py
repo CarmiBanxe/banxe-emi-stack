@@ -13,13 +13,13 @@ Services provided:
 Fee benchmarks used in fair_value assessment are UK EMI industry averages
 (sourced from PSR Market Review 2024, Which? Payment Accounts 2024).
 """
+
 from __future__ import annotations
 
 import logging
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
-from typing import Optional
 
 from services.consumer_duty.consumer_duty_port import (
     ConsumerDutyOutcome,
@@ -39,15 +39,15 @@ logger = logging.getLogger(__name__)
 # ── Vulnerability classification ───────────────────────────────────────────────
 
 _FLAG_TO_CATEGORY: dict[VulnerabilityFlag, VulnerabilityCategory] = {
-    VulnerabilityFlag.FINANCIAL_DIFFICULTY:    VulnerabilityCategory.RESILIENCE,
-    VulnerabilityFlag.LOW_FINANCIAL_LITERACY:  VulnerabilityCategory.CAPABILITY,
-    VulnerabilityFlag.MENTAL_HEALTH:           VulnerabilityCategory.HEALTH,
-    VulnerabilityFlag.PHYSICAL_DISABILITY:     VulnerabilityCategory.HEALTH,
-    VulnerabilityFlag.ELDERLY_ISOLATED:        VulnerabilityCategory.CAPABILITY,
-    VulnerabilityFlag.BEREAVEMENT:             VulnerabilityCategory.LIFE_EVENTS,
-    VulnerabilityFlag.RELATIONSHIP_BREAKDOWN:  VulnerabilityCategory.LIFE_EVENTS,
-    VulnerabilityFlag.DOMESTIC_ABUSE:          VulnerabilityCategory.LIFE_EVENTS,
-    VulnerabilityFlag.RECENT_JOB_LOSS:         VulnerabilityCategory.RESILIENCE,
+    VulnerabilityFlag.FINANCIAL_DIFFICULTY: VulnerabilityCategory.RESILIENCE,
+    VulnerabilityFlag.LOW_FINANCIAL_LITERACY: VulnerabilityCategory.CAPABILITY,
+    VulnerabilityFlag.MENTAL_HEALTH: VulnerabilityCategory.HEALTH,
+    VulnerabilityFlag.PHYSICAL_DISABILITY: VulnerabilityCategory.HEALTH,
+    VulnerabilityFlag.ELDERLY_ISOLATED: VulnerabilityCategory.CAPABILITY,
+    VulnerabilityFlag.BEREAVEMENT: VulnerabilityCategory.LIFE_EVENTS,
+    VulnerabilityFlag.RELATIONSHIP_BREAKDOWN: VulnerabilityCategory.LIFE_EVENTS,
+    VulnerabilityFlag.DOMESTIC_ABUSE: VulnerabilityCategory.LIFE_EVENTS,
+    VulnerabilityFlag.RECENT_JOB_LOSS: VulnerabilityCategory.RESILIENCE,
 }
 
 # Support actions recommended per flag (FCA FG21/1 §4 — practical guidance)
@@ -102,15 +102,15 @@ _FLAG_SUPPORT_ACTIONS: dict[VulnerabilityFlag, list[str]] = {
 # ── Fair value benchmarks (UK EMI industry, 2024) ─────────────────────────────
 
 # PSR Market Review 2024: average UK EMI annual fee burden for retail
-_BENCHMARK_ANNUAL_FEE_INDIVIDUAL = Decimal("24.00")   # £24/yr = £2/mo average
-_BENCHMARK_ANNUAL_FEE_COMPANY = Decimal("120.00")     # £120/yr typical B2B
+_BENCHMARK_ANNUAL_FEE_INDIVIDUAL = Decimal("24.00")  # £24/yr = £2/mo average
+_BENCHMARK_ANNUAL_FEE_COMPANY = Decimal("120.00")  # £120/yr typical B2B
 
 # Banxe estimated annual usage for fair value calc:
 #   INDIVIDUAL: 50 FPS txs + 20 BACS + 5 FX + 10 SEPA_CT
 #   COMPANY:    200 FPS txs + 50 BACS + 20 FX + 50 SEPA_CT
 _ANNUAL_USAGE: dict[str, dict[str, int]] = {
     "INDIVIDUAL": {"FPS": 50, "BACS": 20, "FX": 5, "SEPA_CT": 10},
-    "COMPANY":    {"FPS": 200, "BACS": 50, "FX": 20, "SEPA_CT": 50},
+    "COMPANY": {"FPS": 200, "BACS": 50, "FX": 20, "SEPA_CT": 50},
 }
 
 # Product benefit scores (0-100 composite):
@@ -125,22 +125,22 @@ _PRODUCT_BENEFIT_SCORES: dict[str, int] = {
 _AVG_TX_AMOUNTS: dict[str, Decimal] = {
     "FPS": Decimal("500.00"),
     "BACS": Decimal("300.00"),
-    "FX": Decimal("2000.00"),      # Larger FX transactions typical
+    "FX": Decimal("2000.00"),  # Larger FX transactions typical
     "SEPA_CT": Decimal("800.00"),
 }
 
 # Hardcoded Banxe fee schedule (mirrors banxe_config.yaml — avoids YAML dep here)
 _BANXE_FEES: dict[str, dict[str, dict]] = {
     "EMI_ACCOUNT": {
-        "FPS":     {"flat": Decimal("0.20"), "pct": Decimal("0")},
-        "BACS":    {"flat": Decimal("0.10"), "pct": Decimal("0")},
-        "FX":      {"flat": Decimal("0.00"), "pct": Decimal("0.0025"), "min": Decimal("1.00")},
+        "FPS": {"flat": Decimal("0.20"), "pct": Decimal("0")},
+        "BACS": {"flat": Decimal("0.10"), "pct": Decimal("0")},
+        "FX": {"flat": Decimal("0.00"), "pct": Decimal("0.0025"), "min": Decimal("1.00")},
         "SEPA_CT": {"flat": Decimal("0.50"), "pct": Decimal("0")},
     },
     "BUSINESS_ACCOUNT": {
-        "FPS":     {"flat": Decimal("0.20"), "pct": Decimal("0")},
-        "BACS":    {"flat": Decimal("0.10"), "pct": Decimal("0")},
-        "FX":      {"flat": Decimal("0.00"), "pct": Decimal("0.0025"), "min": Decimal("1.00")},
+        "FPS": {"flat": Decimal("0.20"), "pct": Decimal("0")},
+        "BACS": {"flat": Decimal("0.10"), "pct": Decimal("0")},
+        "FX": {"flat": Decimal("0.00"), "pct": Decimal("0.0025"), "min": Decimal("1.00")},
         "SEPA_CT": {"flat": Decimal("0.50"), "pct": Decimal("0")},
     },
 }
@@ -156,6 +156,7 @@ def _calc_fee(product_id: str, tx_type: str, amount: Decimal) -> Decimal:
 
 
 # ── Service ────────────────────────────────────────────────────────────────────
+
 
 class ConsumerDutyService:
     """
@@ -203,20 +204,20 @@ class ConsumerDutyService:
             categories=categories,
             support_actions=support_actions,
             is_vulnerable=len(flags) > 0,
-            assessed_at=datetime.now(timezone.utc),
+            assessed_at=datetime.now(UTC),
             assessed_by=assessed_by,
             notes=notes,
         )
         self._vulnerabilities[customer_id] = assessment
         logger.info(
             "Vulnerability assessed: customer=%s flags=%s vulnerable=%s",
-            customer_id, [f.value for f in flags], assessment.is_vulnerable,
+            customer_id,
+            [f.value for f in flags],
+            assessment.is_vulnerable,
         )
         return assessment
 
-    def get_vulnerability(
-        self, customer_id: str
-    ) -> Optional[VulnerabilityAssessment]:
+    def get_vulnerability(self, customer_id: str) -> VulnerabilityAssessment | None:
         """Retrieve latest vulnerability assessment for a customer."""
         return self._vulnerabilities.get(customer_id)
 
@@ -292,11 +293,14 @@ class ConsumerDutyService:
             benefit_score=benefit_score,
             verdict=verdict,
             rationale=rationale,
-            assessed_at=datetime.now(timezone.utc),
+            assessed_at=datetime.now(UTC),
         )
         logger.info(
             "FairValue assessed: product=%s entity=%s fee=£%s verdict=%s",
-            product_id, entity_type, annual_fee, verdict.value,
+            product_id,
+            entity_type,
+            annual_fee,
+            verdict.value,
         )
         return assessment
 
@@ -325,7 +329,9 @@ class ConsumerDutyService:
         self._outcome_records.append(record)
         logger.debug(
             "Outcome recorded: customer=%s outcome=%s rating=%s",
-            customer_id, outcome.value, rating.value,
+            customer_id,
+            outcome.value,
+            rating.value,
         )
         return record
 
@@ -349,22 +355,18 @@ class ConsumerDutyService:
         """
         # Filter records to period
         period_records = [
-            r for r in self._outcome_records
-            if period_start <= r.recorded_at.date() <= period_end
+            r for r in self._outcome_records if period_start <= r.recorded_at.date() <= period_end
         ]
 
         # Build outcome ratings matrix
         outcome_ratings: dict[str, dict[str, int]] = {
-            o.value: {r.value: 0 for r in OutcomeRating}
-            for o in ConsumerDutyOutcome
+            o.value: {r.value: 0 for r in OutcomeRating} for o in ConsumerDutyOutcome
         }
         for record in period_records:
             outcome_ratings[record.outcome.value][record.rating.value] += 1
 
         # Count unique vulnerable customers in the period
-        vulnerable_count = sum(
-            1 for a in self._vulnerabilities.values() if a.is_vulnerable
-        )
+        vulnerable_count = sum(1 for a in self._vulnerabilities.values() if a.is_vulnerable)
 
         # Fair value assessments for all known products
         fair_value_assessments = []
@@ -376,7 +378,7 @@ class ConsumerDutyService:
         report = ConsumerDutyReport(
             period_start=period_start,
             period_end=period_end,
-            generated_at=datetime.now(timezone.utc),
+            generated_at=datetime.now(UTC),
             total_customers=total_customers,
             vulnerable_customers=vulnerable_count,
             outcome_ratings=outcome_ratings,
@@ -387,7 +389,10 @@ class ConsumerDutyService:
         logger.info(
             "ConsumerDuty report generated: period=%s→%s customers=%d "
             "vulnerable=%d good_outcomes=%.1f%%",
-            period_start, period_end, total_customers,
-            vulnerable_count, report.overall_good_outcome_pct,
+            period_start,
+            period_end,
+            total_customers,
+            vulnerable_count,
+            report.overall_good_outcome_pct,
         )
         return report

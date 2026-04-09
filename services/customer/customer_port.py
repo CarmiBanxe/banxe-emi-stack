@@ -4,30 +4,32 @@ S17-01: Dual Entity Model (Individual / Company + UBO Registry)
 S17-09: Customer Lifecycle State Machine
 FCA: UK GDPR Art.5, FCA COBS 9A, MLR 2017 record-keeping
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Optional, Protocol
-
+from typing import Protocol
 
 # ── Entity type ────────────────────────────────────────────────────────────────
 
+
 class EntityType(str, Enum):
-    INDIVIDUAL = "INDIVIDUAL"   # Natural person
-    COMPANY = "COMPANY"         # Legal entity (KYB required)
+    INDIVIDUAL = "INDIVIDUAL"  # Natural person
+    COMPANY = "COMPANY"  # Legal entity (KYB required)
 
 
 # ── Lifecycle states (S17-09) ──────────────────────────────────────────────────
 
+
 class LifecycleState(str, Enum):
-    ONBOARDING = "ONBOARDING"   # KYC in progress
-    ACTIVE = "ACTIVE"           # Full access
-    DORMANT = "DORMANT"         # >12 months inactive (MLR 2017 monitoring)
-    OFFBOARDED = "OFFBOARDED"   # Account closed; records retained 5yr
-    DECEASED = "DECEASED"       # Death notification received
+    ONBOARDING = "ONBOARDING"  # KYC in progress
+    ACTIVE = "ACTIVE"  # Full access
+    DORMANT = "DORMANT"  # >12 months inactive (MLR 2017 monitoring)
+    OFFBOARDED = "OFFBOARDED"  # Account closed; records retained 5yr
+    DECEASED = "DECEASED"  # Death notification received
 
     # Valid transitions: ONBOARDING→ACTIVE, ACTIVE→DORMANT, DORMANT→ACTIVE,
     # ACTIVE|DORMANT→OFFBOARDED, ACTIVE|DORMANT→DECEASED
@@ -35,8 +37,16 @@ class LifecycleState(str, Enum):
     def can_transition_to(self, target: LifecycleState) -> bool:
         _ALLOWED = {
             LifecycleState.ONBOARDING: {LifecycleState.ACTIVE, LifecycleState.OFFBOARDED},
-            LifecycleState.ACTIVE: {LifecycleState.DORMANT, LifecycleState.OFFBOARDED, LifecycleState.DECEASED},
-            LifecycleState.DORMANT: {LifecycleState.ACTIVE, LifecycleState.OFFBOARDED, LifecycleState.DECEASED},
+            LifecycleState.ACTIVE: {
+                LifecycleState.DORMANT,
+                LifecycleState.OFFBOARDED,
+                LifecycleState.DECEASED,
+            },
+            LifecycleState.DORMANT: {
+                LifecycleState.ACTIVE,
+                LifecycleState.OFFBOARDED,
+                LifecycleState.DECEASED,
+            },
             LifecycleState.OFFBOARDED: set(),
             LifecycleState.DECEASED: set(),
         }
@@ -44,6 +54,7 @@ class LifecycleState(str, Enum):
 
 
 # ── Risk level ─────────────────────────────────────────────────────────────────
+
 
 class RiskLevel(str, Enum):
     LOW = "low"
@@ -55,29 +66,33 @@ class RiskLevel(str, Enum):
 
 # ── UBO / Director registry (S17-10, KYB) ─────────────────────────────────────
 
+
 @dataclass
 class UBORecord:
     """Ultimate Beneficial Owner or Director — MLR 2017 §19."""
+
     full_name: str
-    role: str                        # "director" | "shareholder" | "ubo"
-    ownership_pct: Optional[Decimal] = None
-    nationality: Optional[str] = None
-    date_of_birth: Optional[date] = None
+    role: str  # "director" | "shareholder" | "ubo"
+    ownership_pct: Decimal | None = None
+    nationality: str | None = None
+    date_of_birth: date | None = None
     kyc_verified: bool = False
 
 
 # ── Address ────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class Address:
     line1: str
     city: str
-    country: str                     # ISO-3166-1 alpha-2
-    postcode: Optional[str] = None
-    line2: Optional[str] = None
+    country: str  # ISO-3166-1 alpha-2
+    postcode: str | None = None
+    line2: str | None = None
 
 
 # ── Customer profiles ──────────────────────────────────────────────────────────
+
 
 @dataclass
 class IndividualProfile:
@@ -85,25 +100,26 @@ class IndividualProfile:
     Natural person (UK GDPR Art.5, MLR 2017 §18).
     Extended to full Geniusto v5 ABS Customer DTO (IL-036).
     """
+
     first_name: str
     last_name: str
     date_of_birth: date
-    nationality: str                            # ISO-3166-1 alpha-2
-    address: Address                            # Registration address
+    nationality: str  # ISO-3166-1 alpha-2
+    address: Address  # Registration address
     # v5 extended fields
-    title: Optional[str] = None                 # Mr / Ms / Dr / Prof
-    middle_name: Optional[str] = None
-    email: Optional[str] = None
-    phone: Optional[str] = None                 # E.164 format
-    preferred_language: str = "EN"              # EN / RU / FR
-    correspondence_address: Optional[Address] = None  # if different from address
+    title: str | None = None  # Mr / Ms / Dr / Prof
+    middle_name: str | None = None
+    email: str | None = None
+    phone: str | None = None  # E.164 format
+    preferred_language: str = "EN"  # EN / RU / FR
+    correspondence_address: Address | None = None  # if different from address
     # Compliance flags (FATCA / CRS / AML)
-    pep: bool = False                           # Politically Exposed Person
+    pep: bool = False  # Politically Exposed Person
     sanctions_hit: bool = False
-    fatca_us_person: bool = False               # FATCA: US person flag
+    fatca_us_person: bool = False  # FATCA: US person flag
     crs_tax_residencies: list[str] = field(default_factory=list)  # ISO country codes
     # Admin
-    notes: Optional[str] = None
+    notes: str | None = None
 
     @property
     def full_name(self) -> str:
@@ -117,18 +133,19 @@ class CompanyProfile:
     Legal entity (MLR 2017 §19, Companies House KYB).
     Extended to full Geniusto v5 ABS Legal Entity DTO (IL-036).
     """
+
     company_name: str
-    registration_number: str                    # Companies House number
+    registration_number: str  # Companies House number
     country_of_incorporation: str
     registered_address: Address
     # v5 extended fields
-    company_type: Optional[str] = None          # Ltd / PLC / LLP / LTD Partnership
-    industry: Optional[str] = None             # SIC code or description
-    tax_id: Optional[str] = None               # TIN (HMRC UTR)
-    date_of_registration: Optional[date] = None
-    correspondence_address: Optional[Address] = None
-    email: Optional[str] = None
-    phone: Optional[str] = None
+    company_type: str | None = None  # Ltd / PLC / LLP / LTD Partnership
+    industry: str | None = None  # SIC code or description
+    tax_id: str | None = None  # TIN (HMRC UTR)
+    date_of_registration: date | None = None
+    correspondence_address: Address | None = None
+    email: str | None = None
+    phone: str | None = None
     preferred_language: str = "EN"
     # KYB
     ubo_registry: list[UBORecord] = field(default_factory=list)
@@ -136,6 +153,7 @@ class CompanyProfile:
 
 
 # ── Main customer entity ───────────────────────────────────────────────────────
+
 
 @dataclass
 class CustomerProfile:
@@ -147,17 +165,18 @@ class CustomerProfile:
     - FCA COBS 9A: suitability record-keeping
     - MLR 2017: AML record-keeping (5yr post offboarding)
     """
+
     customer_id: str
     entity_type: EntityType
-    kyc_status: str                  # KYCStatus string (avoid circular import)
+    kyc_status: str  # KYCStatus string (avoid circular import)
     risk_level: RiskLevel
     lifecycle_state: LifecycleState
     created_at: datetime
     updated_at: datetime
 
     # Exactly one of these is set based on entity_type
-    individual: Optional[IndividualProfile] = None
-    company: Optional[CompanyProfile] = None
+    individual: IndividualProfile | None = None
+    company: CompanyProfile | None = None
 
     # Linked service IDs
     agreement_ids: list[str] = field(default_factory=list)
@@ -180,11 +199,12 @@ class CustomerProfile:
 
 # ── Request / Result DTOs ──────────────────────────────────────────────────────
 
+
 @dataclass
 class CreateCustomerRequest:
     entity_type: EntityType
-    individual: Optional[IndividualProfile] = None
-    company: Optional[CompanyProfile] = None
+    individual: IndividualProfile | None = None
+    company: CompanyProfile | None = None
     risk_level: RiskLevel = RiskLevel.LOW
 
 
@@ -207,11 +227,14 @@ class CustomerManagementError(Exception):
 
 # ── Port Protocol ──────────────────────────────────────────────────────────────
 
+
 class CustomerManagementPort(Protocol):
     def create_customer(self, req: CreateCustomerRequest) -> CustomerProfile: ...
     def get_customer(self, customer_id: str) -> CustomerProfile: ...
     def update_risk_level(self, customer_id: str, risk_level: RiskLevel) -> CustomerProfile: ...
     def transition_lifecycle(self, req: LifecycleTransitionRequest) -> CustomerProfile: ...
     def add_ubo(self, customer_id: str, ubo: UBORecord) -> CustomerProfile: ...
-    def list_customers(self, lifecycle_state: Optional[LifecycleState] = None) -> list[CustomerProfile]: ...
+    def list_customers(
+        self, lifecycle_state: LifecycleState | None = None
+    ) -> list[CustomerProfile]: ...
     def link_agreement(self, customer_id: str, agreement_id: str) -> None: ...

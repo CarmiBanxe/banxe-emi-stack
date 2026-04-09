@@ -9,6 +9,7 @@ In sandbox: returns mock data (Midaz env vars not required).
 In production: proxies to Midaz CBS via services/ledger/midaz_client.py.
 FCA CASS 7.15: balances must be fetched in real-time, never cached >60s.
 """
+
 from __future__ import annotations
 
 import os
@@ -43,12 +44,16 @@ _MOCK_ACCOUNTS = [
 
 _MOCK_BALANCES: dict[str, dict] = {
     "acc-operational-001": {
-        "available": "4700.00", "total": "4750.00",
-        "on_hold": "50.00", "currency": "GBP",
+        "available": "4700.00",
+        "total": "4750.00",
+        "on_hold": "50.00",
+        "currency": "GBP",
     },
     "acc-client-funds-001": {
-        "available": "125000.00", "total": "125000.00",
-        "on_hold": "0.00", "currency": "GBP",
+        "available": "125000.00",
+        "total": "125000.00",
+        "on_hold": "0.00",
+        "currency": "GBP",
     },
 }
 
@@ -73,6 +78,7 @@ async def list_accounts() -> AccountListResponse:
         return AccountListResponse(accounts=accounts, total=len(accounts))
 
     from services.ledger import midaz_client  # pragma: no cover
+
     raw = await midaz_client.list_accounts()  # pragma: no cover
     accounts = [  # pragma: no cover
         AccountResponse(
@@ -116,6 +122,7 @@ async def get_balance(account_id: str) -> AccountBalanceResponse:
         )
 
     from services.ledger import midaz_client  # pragma: no cover
+
     balance = await midaz_client.get_balance(account_id)  # pragma: no cover
     if balance is None:  # pragma: no cover
         raise HTTPException(status_code=404, detail=f"Account {account_id} not found")

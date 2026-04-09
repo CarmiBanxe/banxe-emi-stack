@@ -2,6 +2,7 @@
 test_aml_thresholds.py — AML threshold sets: INDIVIDUAL vs COMPANY
 MLR 2017 | POCA 2002 | Geniusto v5 dual-entity rules
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -21,8 +22,13 @@ class TestThresholdValues:
         assert COMPANY_THRESHOLDS.edd_trigger == Decimal("50000")
 
     def test_company_limits_higher_than_individual(self):
-        assert COMPANY_THRESHOLDS.velocity_daily_amount > INDIVIDUAL_THRESHOLDS.velocity_daily_amount
-        assert COMPANY_THRESHOLDS.velocity_monthly_amount > INDIVIDUAL_THRESHOLDS.velocity_monthly_amount
+        assert (
+            COMPANY_THRESHOLDS.velocity_daily_amount > INDIVIDUAL_THRESHOLDS.velocity_daily_amount
+        )
+        assert (
+            COMPANY_THRESHOLDS.velocity_monthly_amount
+            > INDIVIDUAL_THRESHOLDS.velocity_monthly_amount
+        )
 
     def test_individual_sar_auto_50k(self):
         assert INDIVIDUAL_THRESHOLDS.sar_auto_single == Decimal("50000")
@@ -86,42 +92,28 @@ class TestSARRequired:
 class TestVelocityBreach:
     def test_individual_daily_amount_breach(self):
         # £25k limit
-        assert INDIVIDUAL_THRESHOLDS.is_velocity_daily_breach(
-            Decimal("25000"), 1
-        )
+        assert INDIVIDUAL_THRESHOLDS.is_velocity_daily_breach(Decimal("25000"), 1)
 
     def test_individual_daily_count_breach(self):
         # 10 tx limit
-        assert INDIVIDUAL_THRESHOLDS.is_velocity_daily_breach(
-            Decimal("1000"), 10
-        )
+        assert INDIVIDUAL_THRESHOLDS.is_velocity_daily_breach(Decimal("1000"), 10)
 
     def test_individual_daily_no_breach(self):
-        assert not INDIVIDUAL_THRESHOLDS.is_velocity_daily_breach(
-            Decimal("5000"), 3
-        )
+        assert not INDIVIDUAL_THRESHOLDS.is_velocity_daily_breach(Decimal("5000"), 3)
 
     def test_company_daily_higher_limit(self):
         # £500k limit — £25k should NOT breach for company
-        assert not COMPANY_THRESHOLDS.is_velocity_daily_breach(
-            Decimal("25000"), 3
-        )
+        assert not COMPANY_THRESHOLDS.is_velocity_daily_breach(Decimal("25000"), 3)
 
     def test_company_daily_breach(self):
-        assert COMPANY_THRESHOLDS.is_velocity_daily_breach(
-            Decimal("500000"), 1
-        )
+        assert COMPANY_THRESHOLDS.is_velocity_daily_breach(Decimal("500000"), 1)
 
     def test_individual_monthly_breach(self):
-        assert INDIVIDUAL_THRESHOLDS.is_velocity_monthly_breach(
-            Decimal("100000"), 10
-        )
+        assert INDIVIDUAL_THRESHOLDS.is_velocity_monthly_breach(Decimal("100000"), 10)
 
     def test_company_monthly_no_breach_at_individual_threshold(self):
         # Company monthly limit = £2M
-        assert not COMPANY_THRESHOLDS.is_velocity_monthly_breach(
-            Decimal("100000"), 10
-        )
+        assert not COMPANY_THRESHOLDS.is_velocity_monthly_breach(Decimal("100000"), 10)
 
 
 class TestStructuringSignal:
@@ -148,6 +140,7 @@ class TestFraudAdapterEntityAware:
 
     def _make_request(self, amount: str, entity_type: str):
         from services.fraud.fraud_port import FraudScoringRequest
+
         return FraudScoringRequest(
             transaction_id="tx-test",
             customer_id="cust-001",
@@ -162,6 +155,7 @@ class TestFraudAdapterEntityAware:
 
     def test_individual_15k_scores_high(self):
         from services.fraud.mock_fraud_adapter import MockFraudAdapter
+
         adapter = MockFraudAdapter()
         result = adapter.score(self._make_request("15000", "INDIVIDUAL"))
         # £15k ≥ £10k EDD threshold for individual → score 50 → MEDIUM
@@ -170,6 +164,7 @@ class TestFraudAdapterEntityAware:
 
     def test_company_15k_does_not_trigger_edd(self):
         from services.fraud.mock_fraud_adapter import MockFraudAdapter
+
         adapter = MockFraudAdapter()
         result = adapter.score(self._make_request("15000", "COMPANY"))
         # £15k < £50k EDD threshold for company → no EDD factor
@@ -177,6 +172,7 @@ class TestFraudAdapterEntityAware:
 
     def test_company_55k_triggers_edd(self):
         from services.fraud.mock_fraud_adapter import MockFraudAdapter
+
         adapter = MockFraudAdapter()
         result = adapter.score(self._make_request("55000", "COMPANY"))
         # £55k ≥ £50k EDD for company
@@ -184,6 +180,7 @@ class TestFraudAdapterEntityAware:
 
     def test_entity_type_in_factor_label(self):
         from services.fraud.mock_fraud_adapter import MockFraudAdapter
+
         adapter = MockFraudAdapter()
         result = adapter.score(self._make_request("15000", "INDIVIDUAL"))
         assert any("INDIVIDUAL" in f for f in result.factors)

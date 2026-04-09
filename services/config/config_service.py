@@ -11,13 +11,13 @@ Implementations:
 Factory:
   get_config_store()  — env-driven: CONFIG_STORE=yaml (default) | postgres
 """
+
 from __future__ import annotations
 
 import logging
 import os
 from decimal import Decimal
 from pathlib import Path
-from typing import Optional
 
 from services.config.config_port import (
     ConfigPort,
@@ -33,6 +33,7 @@ _DEFAULT_YAML = Path(__file__).parent.parent.parent / "config" / "banxe_config.y
 
 # ── YAML config store (primary) ────────────────────────────────────────────────
 
+
 class YAMLConfigStore:
     """
     Loads product/fee/limit config from YAML.
@@ -46,7 +47,7 @@ class YAMLConfigStore:
         limits = store.get_limits("EMI_ACCOUNT", "INDIVIDUAL")
     """
 
-    def __init__(self, yaml_path: Optional[Path] = None) -> None:
+    def __init__(self, yaml_path: Path | None = None) -> None:
         self._path = yaml_path or _DEFAULT_YAML
         self._products: dict[str, ProductConfig] = {}
         self.reload()
@@ -105,19 +106,19 @@ class YAMLConfigStore:
         self._products = products
         logger.info("ConfigStore loaded %d products from %s", len(products), self._path)
 
-    def get_product(self, product_id: str) -> Optional[ProductConfig]:
+    def get_product(self, product_id: str) -> ProductConfig | None:
         return self._products.get(product_id)
 
     def list_products(self) -> list[ProductConfig]:
         return list(self._products.values())
 
-    def get_fee(self, product_id: str, tx_type: str) -> Optional[FeeSchedule]:
+    def get_fee(self, product_id: str, tx_type: str) -> FeeSchedule | None:
         product = self._products.get(product_id)
         if product is None:
             return None
         return product.get_fee(tx_type)
 
-    def get_limits(self, product_id: str, entity_type: str) -> Optional[PaymentLimits]:
+    def get_limits(self, product_id: str, entity_type: str) -> PaymentLimits | None:
         product = self._products.get(product_id)
         if product is None:
             return None
@@ -125,6 +126,7 @@ class YAMLConfigStore:
 
 
 # ── In-memory config store (tests) ────────────────────────────────────────────
+
 
 class InMemoryConfigStore:
     """
@@ -134,24 +136,22 @@ class InMemoryConfigStore:
         store = InMemoryConfigStore([product_config_obj, ...])
     """
 
-    def __init__(self, products: Optional[list[ProductConfig]] = None) -> None:
-        self._products: dict[str, ProductConfig] = {
-            p.product_id: p for p in (products or [])
-        }
+    def __init__(self, products: list[ProductConfig] | None = None) -> None:
+        self._products: dict[str, ProductConfig] = {p.product_id: p for p in (products or [])}
 
-    def get_product(self, product_id: str) -> Optional[ProductConfig]:
+    def get_product(self, product_id: str) -> ProductConfig | None:
         return self._products.get(product_id)
 
     def list_products(self) -> list[ProductConfig]:
         return list(self._products.values())
 
-    def get_fee(self, product_id: str, tx_type: str) -> Optional[FeeSchedule]:
+    def get_fee(self, product_id: str, tx_type: str) -> FeeSchedule | None:
         product = self._products.get(product_id)
         if product is None:
             return None
         return product.get_fee(tx_type)
 
-    def get_limits(self, product_id: str, entity_type: str) -> Optional[PaymentLimits]:
+    def get_limits(self, product_id: str, entity_type: str) -> PaymentLimits | None:
         product = self._products.get(product_id)
         if product is None:
             return None
@@ -162,6 +162,7 @@ class InMemoryConfigStore:
 
 
 # ── PostgreSQL config store (stub — production) ───────────────────────────────
+
 
 class PostgreSQLConfigStore:
     """
@@ -175,10 +176,10 @@ class PostgreSQLConfigStore:
                 background thread (triggered by banxe.config_version INSERT).
     """
 
-    def __init__(self, dsn: Optional[str] = None) -> None:
+    def __init__(self, dsn: str | None = None) -> None:
         self._dsn = dsn or os.environ.get("POSTGRES_DSN", "")
         if not self._dsn:
-            raise EnvironmentError(
+            raise OSError(
                 "POSTGRES_DSN not set. "
                 "Example: postgresql://banxe:password@localhost:5432/banxe_compliance"
             )
@@ -224,7 +225,9 @@ class PostgreSQLConfigStore:
                             flat_fee=Decimal(str(r["flat_fee"])),
                             percentage=Decimal(str(r["percentage"])),
                             min_fee=Decimal(str(r["min_fee"])),
-                            max_fee=Decimal(str(r["max_fee"])) if r["max_fee"] is not None else None,
+                            max_fee=Decimal(str(r["max_fee"]))
+                            if r["max_fee"] is not None
+                            else None,
                             currency=r["currency"],
                         )
                         for r in cur.fetchall()
@@ -253,11 +256,13 @@ class PostgreSQLConfigStore:
 
                     def _fallback_limits(entity_type: str) -> PaymentLimits:
                         return PaymentLimits(
-                            product_id=product_id, entity_type=entity_type,
+                            product_id=product_id,
+                            entity_type=entity_type,
                             single_tx_max=Decimal("999999999"),
                             daily_max=Decimal("999999999"),
                             monthly_max=Decimal("999999999"),
-                            daily_tx_count=9999, monthly_tx_count=99999,
+                            daily_tx_count=9999,
+                            monthly_tx_count=99999,
                         )
 
                     products[product_id] = ProductConfig(
@@ -268,9 +273,7 @@ class PostgreSQLConfigStore:
                         individual_limits=limits_by_entity.get(
                             "INDIVIDUAL", _fallback_limits("INDIVIDUAL")
                         ),
-                        company_limits=limits_by_entity.get(
-                            "COMPANY", _fallback_limits("COMPANY")
-                        ),
+                        company_limits=limits_by_entity.get("COMPANY", _fallback_limits("COMPANY")),
                         active=bool(row["active"]),
                     )
 
@@ -279,22 +282,23 @@ class PostgreSQLConfigStore:
         finally:
             conn.close()
 
-    def get_product(self, product_id: str) -> Optional[ProductConfig]:
+    def get_product(self, product_id: str) -> ProductConfig | None:
         return self._products.get(product_id)
 
     def list_products(self) -> list[ProductConfig]:
         return list(self._products.values())
 
-    def get_fee(self, product_id: str, tx_type: str) -> Optional[FeeSchedule]:
+    def get_fee(self, product_id: str, tx_type: str) -> FeeSchedule | None:
         p = self._products.get(product_id)
         return p.get_fee(tx_type) if p else None
 
-    def get_limits(self, product_id: str, entity_type: str) -> Optional[PaymentLimits]:
+    def get_limits(self, product_id: str, entity_type: str) -> PaymentLimits | None:
         p = self._products.get(product_id)
         return p.get_limits(entity_type) if p else None
 
 
 # ── Factory ───────────────────────────────────────────────────────────────────
+
 
 def get_config_store() -> ConfigPort:
     """Factory: CONFIG_STORE=yaml (default) | postgres."""

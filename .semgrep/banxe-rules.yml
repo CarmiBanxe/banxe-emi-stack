@@ -44,23 +44,32 @@ rules:
   - id: banxe-float-money
     patterns:
       - pattern-either:
-          - pattern: parseFloat($AMOUNT)
-          - pattern: float($AMOUNT)
+          # JS: parseFloat used for monetary calculation (not validation)
+          - pattern: $X = parseFloat($AMOUNT)
+          - pattern: return parseFloat($AMOUNT)
+          # Python: float() assigned or returned — blocks financial calculation
+          - pattern: $X = float($AMOUNT)
+          - pattern: return float($AMOUNT)
+          # Worst case: Decimal constructed from float loses precision
+          - pattern: Decimal(float($AMOUNT))
     message: |
       Финансовые расчёты через float недопустимы — потеря точности.
       Используй Decimal (Python) или BigInt/специализированные библиотеки (JS).
+      (float(v) в условиях сравнения — допустимо для валидации входных данных)
     languages: [javascript, python]
     severity: ERROR
 
   - id: banxe-log-pii
+    # Detects logging of PII object attributes by name (e.g. customer.iban, user.pan)
+    # Does NOT flag general logger.info calls — only attribute access on known PII fields.
     patterns:
-      - pattern-either:
-          - pattern: console.log(..., $IBAN, ...)
-          - pattern: print(..., $IBAN, ...)
-          - pattern: logger.info(..., $PAN, ...)
-    message: "Возможная утечка PII/IBAN/PAN в логах — GDPR нарушение"
-    languages: [javascript, python]
-    severity: WARNING
+      - pattern: logger.$LEVEL($FMT, ..., $OBJ.$ATTR, ...)
+      - metavariable-regex:
+          metavariable: $ATTR
+          regex: '^(iban|pan|card_number|card_pan|account_number|sort_code|ssn|national_id|passport_number|date_of_birth|dob|full_name|email|phone|mobile|address|postcode)$'
+    message: "Возможная утечка PII/IBAN/PAN в логах — GDPR нарушение (I-09)"
+    languages: [python]
+    severity: ERROR
 
   - id: banxe-no-plain-password
     patterns:

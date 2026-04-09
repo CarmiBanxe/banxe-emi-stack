@@ -1,0 +1,33 @@
+# .pre-commit-config.yaml — Banxe EMI Stack pre-commit hooks
+# IL-068 | banxe-emi-stack
+# Install: pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: Ruff lint
+        entry: ruff check --fix
+        language: system
+        types: [python]
+
+      - id: ruff-format
+        name: Ruff format
+        entry: ruff format --check
+        language: system
+        types: [python]
+
+      - id: semgrep-banxe
+        name: Semgrep banxe rules
+        entry: bash -c "cd /home/mmber/banxe-emi-stack && semgrep --config .semgrep/banxe-rules.yml --error --quiet"
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: pytest-fast
+        name: Pytest (all tests, fast)
+        entry: bash -c "cd /home/mmber/banxe-emi-stack && python3 -m pytest tests/ -x -q --timeout=30 --no-cov"
+        language: system
+        pass_filenames: false
+        always_run: true

@@ -3,12 +3,13 @@ agreement_service.py — Agreement Service (In-Memory + DocuSign stub)
 S17-02: T&C generation per product + e-sig + version history
 FCA COBS 6, eIDAS Reg.910/2014
 """
+
 from __future__ import annotations
 
 import hashlib
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from .agreement_port import (
     Agreement,
@@ -63,6 +64,7 @@ def _content_hash(product_type: ProductType, version: str) -> str:
 
 # ── In-memory service ──────────────────────────────────────────────────────────
 
+
 class InMemoryAgreementService:
     """
     In-memory Agreement service for tests + development.
@@ -73,7 +75,7 @@ class InMemoryAgreementService:
         self._agreements: dict[str, Agreement] = {}
 
     def _now(self) -> datetime:
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
 
     def create_agreement(self, req: CreateAgreementRequest) -> Agreement:
         now = self._now()
@@ -94,7 +96,10 @@ class InMemoryAgreementService:
         self._agreements[agreement_id] = agreement
         logger.info(
             "Agreement created: %s (customer=%s, product=%s, v=%s)",
-            agreement_id, req.customer_id, req.product_type, version,
+            agreement_id,
+            req.customer_id,
+            req.product_type,
+            version,
         )
         return agreement
 
@@ -132,7 +137,10 @@ class InMemoryAgreementService:
 
         logger.info(
             "Agreement signed: %s (customer=%s, provider=%s, envelope=%s)",
-            req.agreement_id, req.customer_id, req.signature_provider, req.docusign_envelope_id,
+            req.agreement_id,
+            req.customer_id,
+            req.signature_provider,
+            req.docusign_envelope_id,
         )
         return agreement
 
@@ -154,7 +162,10 @@ class InMemoryAgreementService:
 
         logger.info(
             "Agreement superseded: %s v%s → v%s (by %s)",
-            agreement_id, old_version, new_version, operator_id,
+            agreement_id,
+            old_version,
+            new_version,
+            operator_id,
         )
         return agreement
 
@@ -167,12 +178,13 @@ class InMemoryAgreementService:
             version=version,
             product_type=product_type,
             content_hash=_content_hash(product_type, version),
-            effective_date=datetime(2026, 4, 1, tzinfo=timezone.utc),
+            effective_date=datetime(2026, 4, 1, tzinfo=UTC),
             is_current=True,
         )
 
 
 # ── DocuSign stub ──────────────────────────────────────────────────────────────
+
 
 class DocuSignStub:  # pragma: no cover
     """
@@ -188,6 +200,7 @@ class DocuSignStub:  # pragma: no cover
 
 
 # ── Factory ────────────────────────────────────────────────────────────────────
+
 
 def get_agreement_service() -> InMemoryAgreementService:
     return InMemoryAgreementService()

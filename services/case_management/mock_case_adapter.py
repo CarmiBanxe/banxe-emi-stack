@@ -4,12 +4,12 @@ IL-059 | EU AI Act Art.14 | banxe-emi-stack
 
 Used for development and tests when Marble is not available.
 """
+
 from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, timezone
-from typing import Dict
+from datetime import UTC, datetime
 
 from services.case_management.case_port import (
     CaseOutcome,
@@ -29,8 +29,8 @@ class MockCaseAdapter:
     """
 
     def __init__(self) -> None:
-        self._cases: Dict[str, CaseResult] = {}
-        self._reference_index: Dict[str, str] = {}  # case_reference → case_id
+        self._cases: dict[str, CaseResult] = {}
+        self._reference_index: dict[str, str] = {}  # case_reference → case_id
 
     def create_case(self, request: CaseRequest) -> CaseResult:
         # Idempotency: return existing if already created
@@ -38,7 +38,8 @@ class MockCaseAdapter:
             existing_id = self._reference_index[request.case_reference]
             logger.info(
                 "MockCaseAdapter.create_case: idempotent hit ref=%s → case_id=%s",
-                request.case_reference, existing_id,
+                request.case_reference,
+                existing_id,
             )
             return self._cases[existing_id]
 
@@ -48,7 +49,7 @@ class MockCaseAdapter:
             case_reference=request.case_reference,
             status=CaseStatus.OPEN,
             provider="mock",
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             url=f"http://localhost:5002/cases/{case_id}",
         )
         self._cases[case_id] = result
@@ -56,7 +57,10 @@ class MockCaseAdapter:
 
         logger.info(
             "MockCaseAdapter.create_case: ref=%s type=%s priority=%s → %s",
-            request.case_reference, request.case_type, request.priority, case_id,
+            request.case_reference,
+            request.case_type,
+            request.priority,
+            case_id,
         )
         return result
 
@@ -67,7 +71,7 @@ class MockCaseAdapter:
                 case_reference="",
                 status=CaseStatus.CLOSED,
                 provider="mock",
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
                 url=None,
             )
         return self._cases[case_id]
@@ -95,7 +99,9 @@ class MockCaseAdapter:
         self._cases[case_id] = resolved
         logger.info(
             "MockCaseAdapter.resolve_case: case_id=%s outcome=%s notes=%s",
-            case_id, outcome, notes[:100] if notes else "",
+            case_id,
+            outcome,
+            notes[:100] if notes else "",
         )
         return resolved
 

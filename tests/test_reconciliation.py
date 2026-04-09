@@ -14,20 +14,21 @@ Run:
     pip install pytest httpx
     pytest tests/test_reconciliation.py -v
 """
+
 from __future__ import annotations
 
-import tempfile
 import csv
+import tempfile
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
-from typing import Optional
-
 
 # ── Stubs ─────────────────────────────────────────────────────────────────────
 
+
 class StubLedger:
     """Synchronous stub — returns preset balances by account_id."""
+
     def __init__(self, balances: dict):
         self._b = balances
 
@@ -37,10 +38,11 @@ class StubLedger:
 
 class InMemoryCH:
     """Captures INSERT calls for assertion in tests."""
+
     def __init__(self):
         self._events = []
 
-    def execute(self, query: str, params: Optional[dict] = None) -> None:
+    def execute(self, query: str, params: dict | None = None) -> None:
         self._events.append(params or {})
 
     @property
@@ -50,6 +52,7 @@ class InMemoryCH:
 
 class StubFetcher:
     """Returns preset external balances."""
+
     def __init__(self, balances: list):
         self._balances = balances
 
@@ -59,15 +62,14 @@ class StubFetcher:
 
 # ── Import under test ─────────────────────────────────────────────────────────
 
-from services.recon.reconciliation_engine import (  # noqa: E402
-    ReconciliationEngine,
-    ORG_ID,
-    LEDGER_ID,
-)
-from services.recon.statement_fetcher import StatementFetcher, StatementBalance  # noqa: E402
 from services.ledger.midaz_adapter import StubLedgerAdapter  # noqa: E402
 from services.recon.clickhouse_client import InMemoryReconClient  # noqa: E402
-
+from services.recon.reconciliation_engine import (  # noqa: E402
+    LEDGER_ID,
+    ORG_ID,
+    ReconciliationEngine,
+)
+from services.recon.statement_fetcher import StatementBalance, StatementFetcher  # noqa: E402
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -105,8 +107,8 @@ def make_ext_balance(account_id: str, balance: str) -> StatementBalance:
 
 # ── Tests: ReconciliationEngine ───────────────────────────────────────────────
 
-class TestReconciliationEngine:
 
+class TestReconciliationEngine:
     def test_both_accounts_matched(self):
         """Internal and external balances within threshold → MATCHED."""
         engine, ch = make_engine(
@@ -200,8 +202,8 @@ class TestReconciliationEngine:
 
 # ── Tests: StubLedgerAdapter ──────────────────────────────────────────────────
 
-class TestStubLedgerAdapter:
 
+class TestStubLedgerAdapter:
     def test_returns_preset_balance(self):
         adapter = StubLedgerAdapter({OPERATIONAL_ID: Decimal("99999.00")})
         result = adapter.get_balance("org", "ledger", OPERATIONAL_ID)
@@ -215,8 +217,8 @@ class TestStubLedgerAdapter:
 
 # ── Tests: InMemoryReconClient ────────────────────────────────────────────────
 
-class TestInMemoryReconClient:
 
+class TestInMemoryReconClient:
     def test_captures_events(self):
         ch = InMemoryReconClient()
         ch.execute("INSERT INTO ...", {"status": "MATCHED", "discrepancy": 0.0})
@@ -234,24 +236,32 @@ class TestInMemoryReconClient:
 
 # ── Tests: StatementFetcher ───────────────────────────────────────────────────
 
-class TestStatementFetcher:
 
+class TestStatementFetcher:
     def test_csv_parse_returns_balances(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             csv_path = Path(tmpdir) / "stmt_20260407.csv"
             with csv_path.open("w", newline="") as f:
                 writer = csv.DictWriter(
                     f,
-                    fieldnames=["account_id", "currency", "balance", "statement_date", "source_file"],
+                    fieldnames=[
+                        "account_id",
+                        "currency",
+                        "balance",
+                        "statement_date",
+                        "source_file",
+                    ],
                 )
                 writer.writeheader()
-                writer.writerow({
-                    "account_id": OPERATIONAL_ID,
-                    "currency": "GBP",
-                    "balance": "125000.00",
-                    "statement_date": "2026-04-07",
-                    "source_file": "stmt_20260407.csv",
-                })
+                writer.writerow(
+                    {
+                        "account_id": OPERATIONAL_ID,
+                        "currency": "GBP",
+                        "balance": "125000.00",
+                        "statement_date": "2026-04-07",
+                        "source_file": "stmt_20260407.csv",
+                    }
+                )
 
             fetcher = StatementFetcher(statement_dir=tmpdir)
             balances = fetcher._fetch_csv(date(2026, 4, 7))
@@ -270,6 +280,7 @@ class TestStatementFetcher:
 
 # ── Tests: midaz_reconciliation dry-run ──────────────────────────────────────
 
+
 class TestDryRunPipeline:
     """
     Smoke test for run_daily_recon() in dry-run mode.
@@ -280,13 +291,16 @@ class TestDryRunPipeline:
         """dry_run=True → returns summary dict, no ClickHouse writes."""
         # Patch MidazLedgerAdapter to use stub
         from services.ledger import midaz_adapter
+
         monkeypatch.setattr(
             midaz_adapter,
             "MidazLedgerAdapter",
-            lambda: StubLedgerAdapter({
-                OPERATIONAL_ID: Decimal("125000.00"),
-                CLIENT_FUNDS_ID: Decimal("480000.00"),
-            }),
+            lambda: StubLedgerAdapter(
+                {
+                    OPERATIONAL_ID: Decimal("125000.00"),
+                    CLIENT_FUNDS_ID: Decimal("480000.00"),
+                }
+            ),
         )
 
         # Set required env vars
@@ -296,6 +310,7 @@ class TestDryRunPipeline:
         monkeypatch.setenv("STATEMENT_DIR", "/tmp/banxe_test_statements")
 
         from services.recon.midaz_reconciliation import run_daily_recon
+
         summary = run_daily_recon(recon_date=TEST_DATE, dry_run=True)
 
         assert "recon_date" in summary

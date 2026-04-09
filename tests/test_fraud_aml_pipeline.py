@@ -8,6 +8,7 @@ Coverage:
   - All BLOCK / HOLD / APPROVE paths
   - Integration: API POST /v1/fraud/assess
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -25,8 +26,8 @@ from services.fraud.fraud_aml_pipeline import (
 )
 from services.fraud.mock_fraud_adapter import MockFraudAdapter
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _pipeline() -> FraudAMLPipeline:
     """Fresh pipeline for each test — isolated velocity state."""
@@ -59,6 +60,7 @@ def _req(**kwargs) -> PipelineRequest:
 
 # ── Unit: APPROVE paths ───────────────────────────────────────────────────────
 
+
 def test_approve_low_risk_normal_transaction():
     result = _pipeline().assess(_req())
     assert result.decision == PipelineDecision.APPROVE
@@ -70,16 +72,19 @@ def test_approve_low_risk_normal_transaction():
 
 def test_approve_medium_risk_no_aml_flags():
     """MEDIUM fraud (score 40-69) without AML flags → APPROVE."""
-    result = _pipeline().assess(_req(
-        amount=Decimal("2000.00"),
-        first_transaction_to_payee=False,
-    ))
+    result = _pipeline().assess(
+        _req(
+            amount=Decimal("2000.00"),
+            first_transaction_to_payee=False,
+        )
+    )
     # MockFraudAdapter: £2000 known payee = MEDIUM (score=40), no HOLD
     assert result.decision == PipelineDecision.APPROVE
     assert result.fraud_risk.value == "MEDIUM"
 
 
 # ── Unit: BLOCK paths ─────────────────────────────────────────────────────────
+
 
 def test_block_fraud_critical_blocked_country():
     result = _pipeline().assess(_req(destination_country="RU"))
@@ -106,10 +111,12 @@ def test_block_sanctions_hit():
 
 def test_block_beats_hold_when_both_present():
     """Fraud CRITICAL + EDD → decision is BLOCK, not HOLD."""
-    result = _pipeline().assess(_req(
-        destination_country="RU",    # CRITICAL
-        amount=Decimal("15000.00"),  # Also EDD
-    ))
+    result = _pipeline().assess(
+        _req(
+            destination_country="RU",  # CRITICAL
+            amount=Decimal("15000.00"),  # Also EDD
+        )
+    )
     assert result.decision == PipelineDecision.BLOCK
 
 
@@ -117,20 +124,21 @@ def test_block_all_sanctioned_countries():
     """Every Category A country should trigger BLOCK via fraud scoring."""
     for country in ["RU", "BY", "IR", "KP", "CU", "MM", "AF", "VE"]:
         result = _pipeline().assess(_req(destination_country=country))
-        assert result.decision == PipelineDecision.BLOCK, (
-            f"Expected BLOCK for {country}"
-        )
+        assert result.decision == PipelineDecision.BLOCK, f"Expected BLOCK for {country}"
 
 
 # ── Unit: HOLD paths ──────────────────────────────────────────────────────────
 
+
 def test_hold_fraud_high_risk():
     """Fraud HIGH (score 70-84) → HOLD, not BLOCK."""
     # £10,000 + first_to_payee = score 70 (HIGH)
-    result = _pipeline().assess(_req(
-        amount=Decimal("10000.00"),
-        first_transaction_to_payee=True,
-    ))
+    result = _pipeline().assess(
+        _req(
+            amount=Decimal("10000.00"),
+            first_transaction_to_payee=True,
+        )
+    )
     assert result.decision == PipelineDecision.HOLD
     assert result.fraud_risk.value == "HIGH"
     assert result.requires_hitl is True
@@ -140,12 +148,14 @@ def test_hold_fraud_high_risk():
 
 def test_hold_app_scam_investment():
     """APP scam signal (PSR APP 2024) → HOLD."""
-    result = _pipeline().assess(_req(
-        amount=Decimal("15000.00"),
-        first_transaction_to_payee=True,
-        amount_unusual=True,
-        entity_type="INDIVIDUAL",
-    ))
+    result = _pipeline().assess(
+        _req(
+            amount=Decimal("15000.00"),
+            first_transaction_to_payee=True,
+            amount_unusual=True,
+            entity_type="INDIVIDUAL",
+        )
+    )
     assert result.decision in (PipelineDecision.HOLD, PipelineDecision.BLOCK)
     # APP scam indicator should be set
     assert result.app_scam_indicator.value != "NONE"
@@ -153,10 +163,12 @@ def test_hold_app_scam_investment():
 
 def test_hold_edd_required_individual():
     """INDIVIDUAL £10,000 → EDD required → HOLD."""
-    result = _pipeline().assess(_req(
-        amount=Decimal("10000.00"),
-        first_transaction_to_payee=False,  # Keep fraud LOW
-    ))
+    result = _pipeline().assess(
+        _req(
+            amount=Decimal("10000.00"),
+            first_transaction_to_payee=False,  # Keep fraud LOW
+        )
+    )
     # Fraud: £10k known payee = HIGH (score=50), holds for review
     assert result.aml_edd_required is True
     assert result.decision in (PipelineDecision.HOLD, PipelineDecision.BLOCK)
@@ -180,10 +192,12 @@ def test_hold_velocity_daily_breach():
     for _ in range(3):
         tracker.record("cust-vel", Decimal("8000.00"))
 
-    result = pipeline.assess(_req(
-        customer_id="cust-vel",
-        amount=Decimal("2000.00"),    # total: £26,000 → breach
-    ))
+    result = pipeline.assess(
+        _req(
+            customer_id="cust-vel",
+            amount=Decimal("2000.00"),  # total: £26,000 → breach
+        )
+    )
     assert result.aml_velocity_daily_breach is True
     assert result.decision in (PipelineDecision.HOLD, PipelineDecision.BLOCK)
 
@@ -198,47 +212,57 @@ def test_hold_structuring_signal():
     tracker.record("cust-struct", Decimal("3000.00"))
     tracker.record("cust-struct", Decimal("3000.00"))
 
-    result = pipeline.assess(_req(
-        customer_id="cust-struct",
-        amount=Decimal("3500.00"),  # 3rd tx → 3 txs, £9,500 total
-    ))
+    result = pipeline.assess(
+        _req(
+            customer_id="cust-struct",
+            amount=Decimal("3500.00"),  # 3rd tx → 3 txs, £9,500 total
+        )
+    )
     assert result.aml_structuring_signal is True
     assert result.decision in (PipelineDecision.HOLD, PipelineDecision.BLOCK)
 
 
 # ── Unit: Dual-entity thresholds ──────────────────────────────────────────────
 
+
 def test_company_30k_below_edd_threshold():
     """COMPANY: EDD trigger = £50,000 → £30,000 has no EDD flag."""
-    result = _pipeline().assess(_req(
-        entity_type="COMPANY",
-        amount=Decimal("30000.00"),
-        first_transaction_to_payee=False,
-    ))
+    result = _pipeline().assess(
+        _req(
+            entity_type="COMPANY",
+            amount=Decimal("30000.00"),
+            first_transaction_to_payee=False,
+        )
+    )
     assert result.aml_edd_required is False
 
 
 def test_individual_10k_triggers_edd():
     """INDIVIDUAL: EDD trigger = £10,000 → exact threshold triggers EDD."""
-    result = _pipeline().assess(_req(
-        entity_type="INDIVIDUAL",
-        amount=Decimal("10000.00"),
-        first_transaction_to_payee=False,
-    ))
+    result = _pipeline().assess(
+        _req(
+            entity_type="INDIVIDUAL",
+            amount=Decimal("10000.00"),
+            first_transaction_to_payee=False,
+        )
+    )
     assert result.aml_edd_required is True
 
 
 def test_company_50k_triggers_edd():
     """COMPANY: EDD trigger = £50,000 → exact threshold triggers EDD."""
-    result = _pipeline().assess(_req(
-        entity_type="COMPANY",
-        amount=Decimal("50000.00"),
-        first_transaction_to_payee=False,
-    ))
+    result = _pipeline().assess(
+        _req(
+            entity_type="COMPANY",
+            amount=Decimal("50000.00"),
+            first_transaction_to_payee=False,
+        )
+    )
     assert result.aml_edd_required is True
 
 
 # ── Unit: Result metadata ─────────────────────────────────────────────────────
+
 
 def test_result_assessed_at_is_set():
     result = _pipeline().assess(_req())
@@ -251,10 +275,12 @@ def test_result_fraud_latency_positive():
 
 
 def test_result_contains_fraud_factors_on_risk():
-    result = _pipeline().assess(_req(
-        amount=Decimal("10000.00"),
-        first_transaction_to_payee=True,
-    ))
+    result = _pipeline().assess(
+        _req(
+            amount=Decimal("10000.00"),
+            first_transaction_to_payee=True,
+        )
+    )
     assert len(result.fraud_factors) > 0
 
 
@@ -264,6 +290,7 @@ def test_result_contains_aml_reasons_on_flags():
 
 
 # ── API tests ─────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def client():
@@ -305,10 +332,13 @@ def test_api_assess_approve(client):
 
 
 def test_api_assess_block_sanctions(client):
-    resp = client.post("/v1/fraud/assess", json=_payload(
-        is_sanctions_hit=True,
-        amount="500.00",
-    ))
+    resp = client.post(
+        "/v1/fraud/assess",
+        json=_payload(
+            is_sanctions_hit=True,
+            amount="500.00",
+        ),
+    )
     assert resp.status_code == 200
     data = resp.json()
     assert data["decision"] == "BLOCK"
@@ -316,10 +346,13 @@ def test_api_assess_block_sanctions(client):
 
 
 def test_api_assess_hold_edd(client):
-    resp = client.post("/v1/fraud/assess", json=_payload(
-        amount="10000.00",
-        first_transaction_to_payee=False,
-    ))
+    resp = client.post(
+        "/v1/fraud/assess",
+        json=_payload(
+            amount="10000.00",
+            first_transaction_to_payee=False,
+        ),
+    )
     assert resp.status_code == 200
     data = resp.json()
     assert data["aml_edd_required"] is True
@@ -346,9 +379,17 @@ def test_api_assess_response_contains_all_fields(client):
     assert resp.status_code == 200
     data = resp.json()
     required_fields = [
-        "decision", "fraud_risk", "fraud_score", "app_scam_indicator",
-        "fraud_factors", "aml_edd_required", "aml_sanctions_block",
-        "block_reasons", "hold_reasons", "requires_hitl", "assessed_at",
+        "decision",
+        "fraud_risk",
+        "fraud_score",
+        "app_scam_indicator",
+        "fraud_factors",
+        "aml_edd_required",
+        "aml_sanctions_block",
+        "block_reasons",
+        "hold_reasons",
+        "requires_hitl",
+        "assessed_at",
     ]
     for f in required_fields:
         assert f in data, f"Missing field: {f}"

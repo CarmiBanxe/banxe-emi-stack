@@ -9,16 +9,15 @@ Phase 2 (adorsys PSD2 gateway): CAMT.053 XML parsing via python-iso20022
 This module wraps the external bankstatementparser library and normalises
 its output into StatementBalance dataclasses for use by ReconciliationEngine.
 """
+
 from __future__ import annotations
 
 import os
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
-from typing import List
 
 from services.recon.statement_fetcher import StatementBalance
-
 
 # Account IBAN → internal Midaz UUID mapping (ADR-013)
 IBAN_TO_ACCOUNT_ID: dict[str, str] = {
@@ -32,7 +31,7 @@ IBAN_TO_ACCOUNT_ID: dict[str, str] = {
 }
 
 
-def parse_camt053(xml_path: Path) -> List[StatementBalance]:
+def parse_camt053(xml_path: Path) -> list[StatementBalance]:
     """
     Parse a CAMT.053 XML file and return per-account closing balances.
 
@@ -48,7 +47,7 @@ def parse_camt053(xml_path: Path) -> List[StatementBalance]:
     parser = CamtParser(str(xml_path))
     statements = parser.parse()
 
-    balances: List[StatementBalance] = []
+    balances: list[StatementBalance] = []
     for stmt in statements:
         iban = getattr(stmt, "iban", "") or ""
         account_id = IBAN_TO_ACCOUNT_ID.get(iban)
@@ -73,7 +72,7 @@ def parse_camt053(xml_path: Path) -> List[StatementBalance]:
     return balances
 
 
-def parse_mt940(mt940_path: Path) -> List[StatementBalance]:
+def parse_mt940(mt940_path: Path) -> list[StatementBalance]:
     """
     Parse an MT940 SWIFT file (legacy Barclays format).
 
@@ -88,7 +87,7 @@ def parse_mt940(mt940_path: Path) -> List[StatementBalance]:
     with mt940_path.open("rb") as f:
         transactions.parse(f.read())
 
-    balances: List[StatementBalance] = []
+    balances: list[StatementBalance] = []
     if transactions.data:
         account_id_str = str(transactions.data.get("account_identification", ""))
         account_id = IBAN_TO_ACCOUNT_ID.get(account_id_str, "")
@@ -110,6 +109,7 @@ def parse_mt940(mt940_path: Path) -> List[StatementBalance]:
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
+
 
 def _decimal_from_amount(amount) -> Decimal:
     """Convert library amount type to Decimal (never float — I-28)."""

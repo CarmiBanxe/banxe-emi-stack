@@ -37,15 +37,15 @@ FCA compliance:
 NOTE: record() (velocity update) must be called by the payment service
 AFTER rail submission succeeds, NOT here. This pipeline only assesses.
 """
+
 from __future__ import annotations
 
 import logging
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Optional
 
 from services.aml.tx_monitor import TxMonitorRequest, TxMonitorService
 from services.fraud.fraud_port import (
@@ -60,28 +60,30 @@ logger = logging.getLogger(__name__)
 
 # ── Pipeline request / result ──────────────────────────────────────────────────
 
+
 @dataclass(frozen=True)
 class PipelineRequest:
     """
     Single transaction submitted to the Fraud + AML pipeline.
     Built by payment service before rail submission.
     """
+
     transaction_id: str
     customer_id: str
-    entity_type: str                     # "INDIVIDUAL" | "COMPANY"
-    amount: Decimal                      # GBP-equivalent amount
+    entity_type: str  # "INDIVIDUAL" | "COMPANY"
+    amount: Decimal  # GBP-equivalent amount
     currency: str
-    destination_account: str             # IBAN or account number
-    destination_sort_code: str           # UK sort code (empty for SEPA)
-    destination_country: str             # ISO-3166-1 alpha-2
-    payment_rail: str                    # FPS / SEPA_CT / SEPA_INSTANT / BACS
-    device_id: Optional[str] = None
-    customer_ip: Optional[str] = None
-    session_id: Optional[str] = None
+    destination_account: str  # IBAN or account number
+    destination_sort_code: str  # UK sort code (empty for SEPA)
+    destination_country: str  # ISO-3166-1 alpha-2
+    payment_rail: str  # FPS / SEPA_CT / SEPA_INSTANT / BACS
+    device_id: str | None = None
+    customer_ip: str | None = None
+    session_id: str | None = None
     first_transaction_to_payee: bool = True
     amount_unusual: bool = False
     is_pep: bool = False
-    is_sanctions_hit: bool = False       # Pre-screened via sanctions service
+    is_sanctions_hit: bool = False  # Pre-screened via sanctions service
     is_fx: bool = False
 
 
@@ -92,6 +94,7 @@ class PipelineDecision(str, Enum):
     HOLD  = payment must not proceed until HITL review clears it.
     APPROVE = payment may proceed to rail submission.
     """
+
     APPROVE = "APPROVE"
     HOLD = "HOLD"
     BLOCK = "BLOCK"
@@ -107,6 +110,7 @@ class PipelineResult:
       if result.decision == PipelineDecision.HOLD  → queue for HITL
       if result.decision == PipelineDecision.APPROVE → proceed
     """
+
     transaction_id: str
     customer_id: str
     decision: PipelineDecision
@@ -133,9 +137,7 @@ class PipelineResult:
 
     # ── Meta ────────────────────────────────────────────────────────────────
     requires_hitl: bool
-    assessed_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    assessed_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     @property
     def approved(self) -> bool:
@@ -143,6 +145,7 @@ class PipelineResult:
 
 
 # ── Orchestrator ───────────────────────────────────────────────────────────────
+
 
 class FraudAMLPipeline:
     """
@@ -220,50 +223,33 @@ class FraudAMLPipeline:
         # BLOCK conditions (non-negotiable)
         if fraud_result.block:
             block_reasons.append(
-                f"Fraud CRITICAL (score={fraud_result.score}): "
-                + "; ".join(fraud_result.factors)
+                f"Fraud CRITICAL (score={fraud_result.score}): " + "; ".join(fraud_result.factors)
             )
         if aml_result.sanctions_block:
-            block_reasons.append(
-                "Sanctions hard block (I-06): "
-                + "; ".join(aml_result.reasons)
-            )
+            block_reasons.append("Sanctions hard block (I-06): " + "; ".join(aml_result.reasons))
 
         # HOLD conditions (HITL required before proceeding)
         if fraud_result.hold_for_review and not fraud_result.block:
             # HIGH risk (70-84) — hold but not outright block
             hold_reasons.append(
-                f"Fraud HIGH (score={fraud_result.score}): "
-                + "; ".join(fraud_result.factors)
+                f"Fraud HIGH (score={fraud_result.score}): " + "; ".join(fraud_result.factors)
             )
         if fraud_result.app_scam_indicator != AppScamIndicator.NONE:
             hold_reasons.append(
-                f"APP scam signal (PSR APP 2024): "
-                f"{fraud_result.app_scam_indicator.value}"
+                f"APP scam signal (PSR APP 2024): {fraud_result.app_scam_indicator.value}"
             )
         if aml_result.sar_required:
-            hold_reasons.extend(
-                r for r in aml_result.reasons if "SAR" in r
-            )
+            hold_reasons.extend(r for r in aml_result.reasons if "SAR" in r)
             if not any("SAR" in r for r in aml_result.reasons):
                 hold_reasons.append("SAR consideration required (MLRO review)")
         if aml_result.edd_required:
-            hold_reasons.extend(
-                r for r in aml_result.reasons
-                if "EDD" in r or "edd" in r.lower()
-            )
+            hold_reasons.extend(r for r in aml_result.reasons if "EDD" in r or "edd" in r.lower())
         if aml_result.velocity_daily_breach:
-            hold_reasons.extend(
-                r for r in aml_result.reasons if "Daily velocity" in r
-            )
+            hold_reasons.extend(r for r in aml_result.reasons if "Daily velocity" in r)
         if aml_result.velocity_monthly_breach:
-            hold_reasons.extend(
-                r for r in aml_result.reasons if "Monthly velocity" in r
-            )
+            hold_reasons.extend(r for r in aml_result.reasons if "Monthly velocity" in r)
         if aml_result.structuring_signal:
-            hold_reasons.extend(
-                r for r in aml_result.reasons if "structuring" in r.lower()
-            )
+            hold_reasons.extend(r for r in aml_result.reasons if "structuring" in r.lower())
 
         # Final decision (BLOCK > HOLD > APPROVE)
         if block_reasons:

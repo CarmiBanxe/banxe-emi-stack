@@ -2,6 +2,7 @@
 tests/test_notification_service.py — NotificationService + MockAdapter unit tests
 IL-047 | S17-03 | banxe-emi-stack
 """
+
 import pytest
 
 from services.events.event_bus import BanxeEventType, DomainEvent, InMemoryEventBus
@@ -57,6 +58,7 @@ def _make_request(
 
 
 # ── MockNotificationAdapter ───────────────────────────────────────────────────
+
 
 def test_send_returns_sent_status(adapter):
     req = _make_request()
@@ -154,6 +156,7 @@ def test_reset_clears_all(adapter):
 
 # ── NotificationService ───────────────────────────────────────────────────────
 
+
 def test_service_send_success(svc, adapter):
     req = _make_request()
     result = svc.send(req)
@@ -193,7 +196,13 @@ def test_kyc_approved_event_triggers_notification(svc, adapter, bus):
 def test_render_body_payment_sent(svc):
     body = svc.render_body(
         NotificationType.PAYMENT_SENT,
-        {"amount": "50.00", "currency": "£", "creditor_name": "Bob", "rail": "FPS", "reference": "REF-1"},
+        {
+            "amount": "50.00",
+            "currency": "£",
+            "creditor_name": "Bob",
+            "rail": "FPS",
+            "reference": "REF-1",
+        },
     )
     assert "50.00" in body
     assert "Bob" in body

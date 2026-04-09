@@ -3,6 +3,7 @@ test_agreement_service.py — Agreement service tests
 S17-02: T&C generation + e-signature + version history
 FCA COBS 6, eIDAS Reg.910/2014
 """
+
 from __future__ import annotations
 
 import pytest
@@ -38,6 +39,7 @@ def created_agreement(svc, emoney_req):
 
 # ── Create ─────────────────────────────────────────────────────────────────────
 
+
 class TestCreateAgreement:
     def test_returns_agreement(self, svc, emoney_req):
         agr = svc.create_agreement(emoney_req)
@@ -57,38 +59,47 @@ class TestCreateAgreement:
 
     @pytest.mark.parametrize("product", list(ProductType))
     def test_all_product_types(self, svc, product):
-        agr = svc.create_agreement(CreateAgreementRequest(
-            customer_id="cust-001",
-            product_type=product,
-        ))
+        agr = svc.create_agreement(
+            CreateAgreementRequest(
+                customer_id="cust-001",
+                product_type=product,
+            )
+        )
         assert agr.product_type == product
 
 
 # ── Sign ───────────────────────────────────────────────────────────────────────
 
+
 class TestSignAgreement:
     def test_sign_sets_active(self, svc, created_agreement):
-        agr = svc.record_signature(SignAgreementRequest(
-            agreement_id=created_agreement.agreement_id,
-            customer_id=created_agreement.customer_id,
-            docusign_envelope_id="env-abc123",
-        ))
+        agr = svc.record_signature(
+            SignAgreementRequest(
+                agreement_id=created_agreement.agreement_id,
+                customer_id=created_agreement.customer_id,
+                docusign_envelope_id="env-abc123",
+            )
+        )
         assert agr.status == AgreementStatus.ACTIVE
         assert agr.signature_status == SignatureStatus.SIGNED
 
     def test_sign_records_envelope_id(self, svc, created_agreement):
-        agr = svc.record_signature(SignAgreementRequest(
-            agreement_id=created_agreement.agreement_id,
-            customer_id=created_agreement.customer_id,
-            docusign_envelope_id="env-xyz999",
-        ))
+        agr = svc.record_signature(
+            SignAgreementRequest(
+                agreement_id=created_agreement.agreement_id,
+                customer_id=created_agreement.customer_id,
+                docusign_envelope_id="env-xyz999",
+            )
+        )
         assert agr.docusign_envelope_id == "env-xyz999"
 
     def test_sign_records_timestamp(self, svc, created_agreement):
-        agr = svc.record_signature(SignAgreementRequest(
-            agreement_id=created_agreement.agreement_id,
-            customer_id=created_agreement.customer_id,
-        ))
+        agr = svc.record_signature(
+            SignAgreementRequest(
+                agreement_id=created_agreement.agreement_id,
+                customer_id=created_agreement.customer_id,
+            )
+        )
         assert agr.signed_at is not None
 
     def test_double_sign_raises(self, svc, created_agreement):
@@ -102,20 +113,25 @@ class TestSignAgreement:
 
     def test_wrong_customer_raises(self, svc, created_agreement):
         with pytest.raises(AgreementError, match="WRONG_CUSTOMER"):
-            svc.record_signature(SignAgreementRequest(
-                agreement_id=created_agreement.agreement_id,
-                customer_id="cust-wrong",
-            ))
+            svc.record_signature(
+                SignAgreementRequest(
+                    agreement_id=created_agreement.agreement_id,
+                    customer_id="cust-wrong",
+                )
+            )
 
     def test_not_found_raises(self, svc):
         with pytest.raises(AgreementError, match="NOT_FOUND"):
-            svc.record_signature(SignAgreementRequest(
-                agreement_id="agr-does-not-exist",
-                customer_id="cust-001",
-            ))
+            svc.record_signature(
+                SignAgreementRequest(
+                    agreement_id="agr-does-not-exist",
+                    customer_id="cust-001",
+                )
+            )
 
 
 # ── Supersede / versioning ─────────────────────────────────────────────────────
+
 
 class TestSupersede:
     def test_supersede_adds_version(self, svc, created_agreement):
@@ -139,6 +155,7 @@ class TestSupersede:
 
 
 # ── List + terms versions ──────────────────────────────────────────────────────
+
 
 class TestListAndVersions:
     def test_list_customer_agreements(self, svc):

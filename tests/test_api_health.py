@@ -2,6 +2,7 @@
 tests/test_api_health.py — API health endpoint tests
 IL-046 | banxe-emi-stack
 """
+
 from fastapi.testclient import TestClient
 
 from api.main import app

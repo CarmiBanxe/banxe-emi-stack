@@ -2,12 +2,13 @@
 test_resolution_pack.py — Tests for CASS 10A Resolution Pack Builder (S6-14)
 FCA CASS 10A.3.1R | banxe-emi-stack
 """
+
 from __future__ import annotations
 
+import io
 import json
 import zipfile
-import io
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -24,7 +25,7 @@ def _make_position(cid: str, balance: str, currency: str = "GBP") -> ClientMoney
         customer_id=cid,
         currency=currency,
         balance=Decimal(balance),
-        last_updated=datetime.now(timezone.utc),
+        last_updated=datetime.now(UTC),
     )
 
 
@@ -42,9 +43,14 @@ def repo(positions):
     return InMemoryResolutionRepository(
         positions=positions,
         outstanding=[
-            {"payment_id": "pay-001", "customer_id": "cust-001",
-             "amount": "500.00", "currency": "GBP",
-             "status": "PENDING", "created_at": "2026-04-08T10:00:00Z"},
+            {
+                "payment_id": "pay-001",
+                "customer_id": "cust-001",
+                "amount": "500.00",
+                "currency": "GBP",
+                "status": "PENDING",
+                "created_at": "2026-04-08T10:00:00Z",
+            },
         ],
         recon={"status": "MATCHED", "shortfall": "0", "midaz_balance": "15250.50"},
         audit_count=4200,
@@ -166,6 +172,7 @@ class TestSlaCompliance:
     def test_build_is_fast(self, builder):
         """CASS 10A.3.1R: pack must be retrievable within 48h — on-demand generation."""
         import time
+
         t0 = time.monotonic()
         builder.build()
         elapsed_s = time.monotonic() - t0

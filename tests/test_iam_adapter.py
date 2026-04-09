@@ -2,6 +2,7 @@
 test_iam_adapter.py — Tests for MockIAMAdapter / IAMPort (FA-14 Keycloak)
 FCA SM&CR SYSC 4.7 | banxe-emi-stack
 """
+
 from __future__ import annotations
 
 import pytest
@@ -144,5 +145,6 @@ class TestFactory:
         monkeypatch.delenv("KEYCLOAK_URL", raising=False)
         monkeypatch.delenv("KEYCLOAK_CLIENT_ID", raising=False)
         from services.iam.mock_iam_adapter import KeycloakAdapter
+
         with pytest.raises(EnvironmentError, match="KEYCLOAK_URL"):
             KeycloakAdapter()

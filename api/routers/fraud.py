@@ -10,6 +10,7 @@ FCA compliance:
   - I-06: sanctions hard block
   - I-05: amounts as decimal strings, never float
 """
+
 from __future__ import annotations
 
 from decimal import Decimal

@@ -9,9 +9,10 @@ Coverage:
     payload builder, response parser, health
   - Factory: get_case_adapter()
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
@@ -26,10 +27,10 @@ from services.case_management.case_port import (
 )
 from services.case_management.mock_case_adapter import MockCaseAdapter
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def _req(**kwargs) -> CaseRequest:
     defaults = dict(
@@ -60,6 +61,7 @@ def _mock_http_response(status_code: int, json_data: dict) -> MagicMock:
 def _marble(client: MagicMock | None = None):
     """Create MarbleAdapter with direct params, swap _client."""
     from services.case_management.marble_adapter import MarbleAdapter
+
     adapter = MarbleAdapter(
         base_url="http://marble-test:5002",
         api_key="test-api-key",
@@ -91,6 +93,7 @@ def _marble_case_json(
 # TestCasePortEnums
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestCasePortEnums:
     def test_case_type_values(self):
         assert CaseType.SAR.value == "SAR"
@@ -121,6 +124,7 @@ class TestCasePortEnums:
 # ─────────────────────────────────────────────────────────────────────────────
 # TestMockCaseAdapter
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestMockCaseAdapter:
     def test_create_case_returns_open(self):
@@ -205,10 +209,12 @@ class TestMockCaseAdapter:
     def test_all_case_types_accepted(self):
         adapter = MockCaseAdapter()
         for case_type in CaseType:
-            result = adapter.create_case(_req(
-                case_reference=f"ref-{case_type.value}",
-                case_type=case_type,
-            ))
+            result = adapter.create_case(
+                _req(
+                    case_reference=f"ref-{case_type.value}",
+                    case_type=case_type,
+                )
+            )
             assert result.status == CaseStatus.OPEN
 
     def test_case_with_no_amount(self):
@@ -226,6 +232,7 @@ class TestMockCaseAdapter:
 # TestMarbleAdapterInit
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestMarbleAdapterInit:
     def test_direct_params_ok(self):
         adapter = _marble()
@@ -235,21 +242,25 @@ class TestMarbleAdapterInit:
 
     def test_missing_url_raises(self):
         from services.case_management.marble_adapter import MarbleAdapter
+
         with pytest.raises(EnvironmentError, match="MARBLE_URL"):
             MarbleAdapter(base_url="", api_key="key", inbox_id="inbox")
 
     def test_missing_api_key_raises(self):
         from services.case_management.marble_adapter import MarbleAdapter
+
         with pytest.raises(EnvironmentError, match="MARBLE_API_KEY"):
             MarbleAdapter(base_url="http://marble:5002", api_key="", inbox_id="inbox")
 
     def test_missing_inbox_id_raises(self):
         from services.case_management.marble_adapter import MarbleAdapter
+
         with pytest.raises(EnvironmentError, match="MARBLE_INBOX_ID"):
             MarbleAdapter(base_url="http://marble:5002", api_key="key", inbox_id="")
 
     def test_trailing_slash_stripped(self):
         from services.case_management.marble_adapter import MarbleAdapter
+
         adapter = MarbleAdapter(
             base_url="http://marble:5002/",
             api_key="key",
@@ -259,7 +270,9 @@ class TestMarbleAdapterInit:
 
     def test_httpx_not_installed_raises(self):
         import sys
+
         from services.case_management.marble_adapter import MarbleAdapter
+
         with patch.dict(sys.modules, {"httpx": None}):
             with pytest.raises(RuntimeError, match="httpx not installed"):
                 MarbleAdapter(
@@ -272,6 +285,7 @@ class TestMarbleAdapterInit:
 # ─────────────────────────────────────────────────────────────────────────────
 # TestMarbleCreateCase
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestMarbleCreateCase:
     def test_success_returns_open_case(self):
@@ -350,6 +364,7 @@ class TestMarbleCreateCase:
 
     def test_timeout_returns_stub(self):
         import httpx
+
         client = MagicMock()
         client.post.side_effect = httpx.TimeoutException("timeout")
         adapter = _marble(client)
@@ -363,6 +378,7 @@ class TestMarbleCreateCase:
 # ─────────────────────────────────────────────────────────────────────────────
 # TestMarbleGetCase
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestMarbleGetCase:
     def test_success_returns_case(self):
@@ -397,6 +413,7 @@ class TestMarbleGetCase:
 
     def test_timeout_returns_stub(self):
         import httpx
+
         client = MagicMock()
         client.get.side_effect = httpx.TimeoutException("timeout")
         adapter = _marble(client)
@@ -408,6 +425,7 @@ class TestMarbleGetCase:
 # ─────────────────────────────────────────────────────────────────────────────
 # TestMarbleResolveCase
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestMarbleResolveCase:
     def test_success_resolved_approved(self):
@@ -469,6 +487,7 @@ class TestMarbleResolveCase:
 
     def test_timeout_returns_stub(self):
         import httpx
+
         client = MagicMock()
         client.patch.side_effect = httpx.TimeoutException("timeout")
         adapter = _marble(client)
@@ -481,6 +500,7 @@ class TestMarbleResolveCase:
 # TestMarbleParseResponse
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestMarbleParseResponse:
     def _parse(self, data: dict, ref: str = "tx-001"):
         return _marble()._parse_case(data, ref)
@@ -490,19 +510,32 @@ class TestMarbleParseResponse:
         assert result.status == CaseStatus.OPEN
 
     def test_investigating_status_mapped(self):
-        result = self._parse({"id": "c1", "status": "investigating", "createdAt": "2026-01-01T00:00:00Z"})
+        result = self._parse(
+            {"id": "c1", "status": "investigating", "createdAt": "2026-01-01T00:00:00Z"}
+        )
         assert result.status == CaseStatus.INVESTIGATING
 
     def test_resolved_status_mapped(self):
-        result = self._parse({"id": "c1", "status": "resolved", "createdAt": "2026-01-01T00:00:00Z"})
+        result = self._parse(
+            {"id": "c1", "status": "resolved", "createdAt": "2026-01-01T00:00:00Z"}
+        )
         assert result.status == CaseStatus.RESOLVED
 
     def test_unknown_status_defaults_to_open(self):
-        result = self._parse({"id": "c1", "status": "unknown_state", "createdAt": "2026-01-01T00:00:00Z"})
+        result = self._parse(
+            {"id": "c1", "status": "unknown_state", "createdAt": "2026-01-01T00:00:00Z"}
+        )
         assert result.status == CaseStatus.OPEN
 
     def test_outcome_approved_mapped(self):
-        result = self._parse({"id": "c1", "status": "resolved", "outcome": "approved", "createdAt": "2026-01-01T00:00:00Z"})
+        result = self._parse(
+            {
+                "id": "c1",
+                "status": "resolved",
+                "outcome": "approved",
+                "createdAt": "2026-01-01T00:00:00Z",
+            }
+        )
         assert result.outcome == CaseOutcome.APPROVED
 
     def test_no_outcome_maps_to_none(self):
@@ -510,26 +543,31 @@ class TestMarbleParseResponse:
         assert result.outcome is None
 
     def test_banxe_reference_from_metadata(self):
-        result = self._parse({
-            "id": "c1",
-            "status": "open",
-            "createdAt": "2026-01-01T00:00:00Z",
-            "metadata": {"banxe_reference": "tx-from-meta"},
-        })
+        result = self._parse(
+            {
+                "id": "c1",
+                "status": "open",
+                "createdAt": "2026-01-01T00:00:00Z",
+                "metadata": {"banxe_reference": "tx-from-meta"},
+            }
+        )
         assert result.case_reference == "tx-from-meta"
 
     def test_bad_created_at_defaults_to_now(self):
         result = self._parse({"id": "c1", "status": "open", "createdAt": "not-a-date"})
         # Should not raise; created_at is close to now
-        diff = abs((result.created_at - datetime.now(timezone.utc)).total_seconds())
+        diff = abs((result.created_at - datetime.now(UTC)).total_seconds())
         assert diff < 5
 
     def test_assigned_to_extracted(self):
-        result = self._parse({
-            "id": "c1", "status": "open",
-            "createdAt": "2026-01-01T00:00:00Z",
-            "assignee": {"email": "mlro@banxe.com"},
-        })
+        result = self._parse(
+            {
+                "id": "c1",
+                "status": "open",
+                "createdAt": "2026-01-01T00:00:00Z",
+                "assignee": {"email": "mlro@banxe.com"},
+            }
+        )
         assert result.assigned_to == "mlro@banxe.com"
 
     def test_provider_is_marble(self):
@@ -540,6 +578,7 @@ class TestMarbleParseResponse:
 # ─────────────────────────────────────────────────────────────────────────────
 # TestMarbleHealth
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestMarbleHealth:
     def test_health_true_on_200(self):
@@ -559,6 +598,7 @@ class TestMarbleHealth:
 
     def test_health_false_on_network_error(self):
         import httpx
+
         client = MagicMock()
         client.get.side_effect = httpx.ConnectError("refused")
         assert _marble(client).health() is False
@@ -568,16 +608,20 @@ class TestMarbleHealth:
 # TestCaseFactory
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestCaseFactory:
     def test_default_returns_mock(self):
         from services.case_management.case_factory import get_case_adapter
+
         with patch.dict("os.environ", {"CASE_ADAPTER": "mock"}):
             adapter = get_case_adapter()
         assert isinstance(adapter, MockCaseAdapter)
 
     def test_no_env_returns_mock(self):
-        from services.case_management.case_factory import get_case_adapter
         import os
+
+        from services.case_management.case_factory import get_case_adapter
+
         original = os.environ.pop("CASE_ADAPTER", None)
         try:
             adapter = get_case_adapter()
@@ -588,12 +632,16 @@ class TestCaseFactory:
 
     def test_marble_case_requires_env_vars(self):
         from services.case_management.case_factory import get_case_adapter
-        with patch.dict("os.environ", {
-            "CASE_ADAPTER": "marble",
-            "MARBLE_URL": "",
-            "MARBLE_API_KEY": "",
-            "MARBLE_INBOX_ID": "",
-        }):
+
+        with patch.dict(
+            "os.environ",
+            {
+                "CASE_ADAPTER": "marble",
+                "MARBLE_URL": "",
+                "MARBLE_API_KEY": "",
+                "MARBLE_INBOX_ID": "",
+            },
+        ):
             with pytest.raises(EnvironmentError):
                 get_case_adapter()
 
@@ -601,6 +649,7 @@ class TestCaseFactory:
 # ─────────────────────────────────────────────────────────────────────────────
 # TestI27HumanOversight
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestI27HumanOversight:
     """
@@ -612,10 +661,12 @@ class TestI27HumanOversight:
         """create_case must return OPEN — never auto-resolved."""
         adapter = MockCaseAdapter()
         for case_type in CaseType:
-            result = adapter.create_case(_req(
-                case_reference=f"ref-{case_type.value}",
-                case_type=case_type,
-            ))
+            result = adapter.create_case(
+                _req(
+                    case_reference=f"ref-{case_type.value}",
+                    case_type=case_type,
+                )
+            )
             assert result.status == CaseStatus.OPEN, (
                 f"Case {case_type} was auto-resolved — violates EU AI Act Art.14"
             )

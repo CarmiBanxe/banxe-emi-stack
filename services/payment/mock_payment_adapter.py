@@ -23,14 +23,14 @@ MockAdapter behaviour:
   - Thread-safe: stores all submitted payments in-memory dict
   - Idempotent: same idempotency_key → same result
 """
+
 from __future__ import annotations
 
 import logging
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Dict
 
 from services.payment.payment_port import (
     PaymentIntent,
@@ -42,7 +42,9 @@ from services.payment.payment_port import (
 logger = logging.getLogger(__name__)
 
 # Configurable: set MOCK_PAYMENT_FAILURE_RATE=0.1 to simulate 10% failure rate
-_FAILURE_RATE: float = float(os.environ.get("MOCK_PAYMENT_FAILURE_RATE", "0"))  # i-05-ok: probability 0.0-1.0, not a monetary amount
+_FAILURE_RATE: float = float(  # nosemgrep: banxe-float-money
+    os.environ.get("MOCK_PAYMENT_FAILURE_RATE", "0")
+)  # probability 0.0–1.0, not a monetary amount — I-05 does not apply
 
 # Rails that settle instantly in mock mode
 _INSTANT_RAILS = {PaymentRail.FPS, PaymentRail.SEPA_INSTANT}
@@ -62,7 +64,7 @@ class MockPaymentAdapter:
     """
 
     def __init__(self, failure_rate: float = _FAILURE_RATE) -> None:
-        self._payments: Dict[str, PaymentResult] = {}   # idempotency_key → result
+        self._payments: dict[str, PaymentResult] = {}  # idempotency_key → result
         self._failure_rate = failure_rate
         self._call_count = 0
         logger.info(
@@ -100,7 +102,7 @@ class MockPaymentAdapter:
                 rail=intent.rail,
                 amount=intent.amount,
                 currency=intent.currency,
-                submitted_at=datetime.now(timezone.utc),
+                submitted_at=datetime.now(UTC),
                 error_code="INSUFFICIENT_FUNDS",
                 error_message="Mock simulated failure (MOCK_PAYMENT_FAILURE_RATE)",
             )
@@ -113,7 +115,7 @@ class MockPaymentAdapter:
                 rail=intent.rail,
                 amount=intent.amount,
                 currency=intent.currency,
-                submitted_at=datetime.now(timezone.utc),
+                submitted_at=datetime.now(UTC),
             )
         else:
             # SEPA CT, BACS → PROCESSING (settlement later)
@@ -124,15 +126,18 @@ class MockPaymentAdapter:
                 rail=intent.rail,
                 amount=intent.amount,
                 currency=intent.currency,
-                submitted_at=datetime.now(timezone.utc),
+                submitted_at=datetime.now(UTC),
             )
 
         self._payments[intent.idempotency_key] = result
 
         logger.info(
             "MockAdapter.submit_payment: rail=%s amount=%s%s status=%s id=%s",
-            intent.rail, intent.amount, intent.currency,
-            result.status, provider_id,
+            intent.rail,
+            intent.amount,
+            intent.currency,
+            result.status,
+            provider_id,
         )
         return result
 
@@ -148,7 +153,7 @@ class MockPaymentAdapter:
             rail=PaymentRail.FPS,
             amount=Decimal("0"),
             currency="GBP",
-            submitted_at=datetime.now(timezone.utc),
+            submitted_at=datetime.now(UTC),
             error_code="NOT_FOUND",
             error_message=f"Mock: payment {provider_payment_id} not found",
         )

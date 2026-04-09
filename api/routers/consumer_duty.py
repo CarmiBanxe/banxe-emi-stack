@@ -8,6 +8,7 @@ POST /v1/consumer-duty/fair-value              — fair value assessment (COBS 6
 POST /v1/consumer-duty/outcomes                — record outcome observation (PS22/9)
 POST /v1/consumer-duty/report                  — generate board report (PS22/9 §10)
 """
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -35,6 +36,7 @@ def _get_consumer_duty_service() -> ConsumerDutyService:
 
 
 # ── Vulnerability ──────────────────────────────────────────────────────────────
+
 
 @router.post(
     "/consumer-duty/vulnerability",
@@ -101,6 +103,7 @@ def get_vulnerability(customer_id: str) -> VulnerabilityGetResponse:
 
 # ── Fair value ─────────────────────────────────────────────────────────────────
 
+
 @router.post(
     "/consumer-duty/fair-value",
     response_model=FairValueAssessResponse,
@@ -134,6 +137,7 @@ def assess_fair_value(
 
 # ── Outcome recording ──────────────────────────────────────────────────────────
 
+
 @router.post(
     "/consumer-duty/outcomes",
     response_model=OutcomeRecordResponse,
@@ -165,6 +169,7 @@ def record_outcome(body: RecordOutcomeRequest) -> OutcomeRecordResponse:
 
 
 # ── Board report ───────────────────────────────────────────────────────────────
+
 
 @router.post(
     "/consumer-duty/report",

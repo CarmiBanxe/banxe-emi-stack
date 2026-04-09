@@ -1,0 +1,33 @@
+# pyproject.toml — Banxe EMI Stack Python project configuration
+# IL-068 | banxe-emi-stack
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "--cov=services --cov=api --cov-report=term-missing --cov-fail-under=80 -q"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["services", "api"]
+omit = ["tests/*", "*/__pycache__/*", "*/migrations/*"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
+ignore = ["E501", "UP042"]  # UP042: StrEnum migration deferred (existing str+Enum pattern)

@@ -10,9 +10,10 @@ Coverage:
   - Integration: RedisVelocityTracker → TxMonitorService (daily breach,
     monthly breach, structuring detection)
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import MagicMock
 
@@ -25,8 +26,8 @@ from services.aml.redis_velocity_tracker import (
 )
 from services.aml.tx_monitor import TxMonitorRequest, TxMonitorService
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def redis_client():
@@ -40,6 +41,7 @@ def tracker(redis_client):
 
 
 # ── 1. Basic record + get_daily ───────────────────────────────────────────────
+
 
 def test_record_and_get_daily(tracker):
     tracker.record("cust-001", Decimal("500.00"))
@@ -65,6 +67,7 @@ def test_multiple_records_accumulate_daily(tracker):
 
 # ── 2. Time-window exclusion ──────────────────────────────────────────────────
 
+
 def test_get_daily_excludes_old_records(redis_client):
     """Records older than 24 hours must not appear in get_daily()."""
     tracker = RedisVelocityTracker(redis_client)
@@ -72,7 +75,7 @@ def test_get_daily_excludes_old_records(redis_client):
     key = f"banxe:velocity:{customer_id}"
 
     # Manually insert an old record (25 hours ago) directly into the sorted set
-    old_ts = (datetime.now(timezone.utc) - timedelta(hours=25)).timestamp()
+    old_ts = (datetime.now(UTC) - timedelta(hours=25)).timestamp()
     redis_client.zadd(key, {f"old-uuid:{Decimal('9000')}": old_ts})
 
     # Record a recent transaction
@@ -91,7 +94,7 @@ def test_get_monthly_includes_recent_29_days(redis_client):
     key = f"banxe:velocity:{customer_id}"
 
     # 29 days ago — within monthly window
-    ts_29d = (datetime.now(timezone.utc) - timedelta(days=29)).timestamp()
+    ts_29d = (datetime.now(UTC) - timedelta(days=29)).timestamp()
     redis_client.zadd(key, {f"old-uuid:{Decimal('5000')}": ts_29d})
     tracker.record(customer_id, Decimal("1000.00"))
 
@@ -106,7 +109,7 @@ def test_get_monthly_excludes_31_day_old(redis_client):
     customer_id = "cust-004"
     key = f"banxe:velocity:{customer_id}"
 
-    old_ts = (datetime.now(timezone.utc) - timedelta(days=31)).timestamp()
+    old_ts = (datetime.now(UTC) - timedelta(days=31)).timestamp()
     redis_client.zadd(key, {f"old-uuid:{Decimal('50000')}": old_ts})
 
     tracker.record(customer_id, Decimal("200.00"))
@@ -126,6 +129,7 @@ def test_get_recent_window_custom_hours(tracker):
 
 # ── 3. Multi-customer isolation ───────────────────────────────────────────────
 
+
 def test_multiple_customers_are_isolated(tracker):
     tracker.record("cust-A", Decimal("10000.00"))
     tracker.record("cust-B", Decimal("500.00"))
@@ -138,6 +142,7 @@ def test_multiple_customers_are_isolated(tracker):
 
 
 # ── 4. Decimal precision ──────────────────────────────────────────────────────
+
 
 def test_large_amount_decimal_precision(tracker):
     """£99,999.99 round-trips correctly through Redis member string."""
@@ -164,6 +169,7 @@ def test_high_precision_amounts_sum(tracker):
 
 # ── 5. Custom key prefix ──────────────────────────────────────────────────────
 
+
 def test_custom_key_prefix(redis_client):
     tracker = RedisVelocityTracker(redis_client, key_prefix="test:vel")
     tracker.record("cust-prefix", Decimal("100.00"))
@@ -174,6 +180,7 @@ def test_custom_key_prefix(redis_client):
 
 
 # ── 6. TTL and reset ──────────────────────────────────────────────────────────
+
 
 def test_ttl_set_after_record(redis_client):
     tracker = RedisVelocityTracker(redis_client, ttl_seconds=86400)
@@ -198,6 +205,7 @@ def test_reset_nonexistent_customer_is_noop(tracker):
 
 # ── 7. Health check ───────────────────────────────────────────────────────────
 
+
 def test_health_returns_true_when_redis_up(tracker):
     assert tracker.health() is True
 
@@ -210,6 +218,7 @@ def test_health_returns_false_when_redis_down():
 
 
 # ── 8. Error propagation ──────────────────────────────────────────────────────
+
 
 def test_record_raises_on_redis_failure():
     bad_redis = MagicMock()
@@ -229,6 +238,7 @@ def test_query_raises_on_redis_failure():
 
 # ── 9. Integration with TxMonitorService ─────────────────────────────────────
 
+
 def test_integrates_tx_monitor_daily_breach(redis_client):
     """
     INDIVIDUAL: daily limit = £25,000 / 10 txs.
@@ -241,13 +251,15 @@ def test_integrates_tx_monitor_daily_breach(redis_client):
     for _ in range(3):
         tracker.record("cust-daily", Decimal("8000.00"))
 
-    result = monitor.evaluate(TxMonitorRequest(
-        transaction_id="tx-daily-001",
-        customer_id="cust-daily",
-        entity_type="INDIVIDUAL",
-        amount=Decimal("2000.00"),
-        currency="GBP",
-    ))
+    result = monitor.evaluate(
+        TxMonitorRequest(
+            transaction_id="tx-daily-001",
+            customer_id="cust-daily",
+            entity_type="INDIVIDUAL",
+            amount=Decimal("2000.00"),
+            currency="GBP",
+        )
+    )
     assert result.velocity_daily_breach is True
 
 
@@ -262,13 +274,15 @@ def test_integrates_tx_monitor_monthly_breach(redis_client):
     for _ in range(98):
         tracker.record("cust-monthly", Decimal("1000.00"))
 
-    result = monitor.evaluate(TxMonitorRequest(
-        transaction_id="tx-monthly-001",
-        customer_id="cust-monthly",
-        entity_type="INDIVIDUAL",
-        amount=Decimal("3000.00"),
-        currency="GBP",
-    ))
+    result = monitor.evaluate(
+        TxMonitorRequest(
+            transaction_id="tx-monthly-001",
+            customer_id="cust-monthly",
+            entity_type="INDIVIDUAL",
+            amount=Decimal("3000.00"),
+            currency="GBP",
+        )
+    )
     assert result.velocity_monthly_breach is True
 
 
@@ -285,11 +299,13 @@ def test_integrates_tx_monitor_structuring(redis_client):
     tracker.record("cust-struct", Decimal("3000.00"))
 
     # 3rd tx (£3,500) pushes count to 3 and total to £9,500 → structuring signal
-    result = monitor.evaluate(TxMonitorRequest(
-        transaction_id="tx-struct-003",
-        customer_id="cust-struct",
-        entity_type="INDIVIDUAL",
-        amount=Decimal("3500.00"),
-        currency="GBP",
-    ))
+    result = monitor.evaluate(
+        TxMonitorRequest(
+            transaction_id="tx-struct-003",
+            customer_id="cust-struct",
+            entity_type="INDIVIDUAL",
+            amount=Decimal("3500.00"),
+            currency="GBP",
+        )
+    )
     assert result.structuring_signal is True

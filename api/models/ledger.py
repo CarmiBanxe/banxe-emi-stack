@@ -4,9 +4,8 @@ IL-046 | banxe-emi-stack
 
 Wraps Midaz CBS responses. Amounts as strings (I-05).
 """
-from __future__ import annotations
 
-from typing import Optional
+from __future__ import annotations
 
 from pydantic import BaseModel
 
@@ -16,7 +15,7 @@ class AccountBalanceResponse(BaseModel):
     available: str
     total: str
     currency: str
-    on_hold: Optional[str] = None
+    on_hold: str | None = None
 
 
 class AccountResponse(BaseModel):

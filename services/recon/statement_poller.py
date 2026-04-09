@@ -8,13 +8,13 @@ writes XML files to STATEMENT_DIR for bankstatement_parser.py to consume.
 Phase 0: sandbox (aspsp-mock) — no real bank credentials needed.
 Phase 1: real bank (Barclays/HSBC PSD2) — requires AISP registration + eIDAS cert.
 """
+
 from __future__ import annotations
 
 import logging
 import os
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Optional
 
 import httpx
 
@@ -29,7 +29,7 @@ OPERATIONAL_IBAN = os.environ.get("SAFEGUARDING_OPERATIONAL_IBAN", "")
 CLIENT_FUNDS_IBAN = os.environ.get("SAFEGUARDING_CLIENT_FUNDS_IBAN", "")
 
 
-def poll_statements(recon_date: Optional[date] = None) -> list[Path]:
+def poll_statements(recon_date: date | None = None) -> list[Path]:
     """
     Fetch CAMT.053 statements for all safeguarding accounts from adorsys gateway.
 
@@ -58,7 +58,7 @@ def poll_statements(recon_date: Optional[date] = None) -> list[Path]:
     return written
 
 
-def _fetch_camt053(iban: str, recon_date: date) -> Optional[Path]:
+def _fetch_camt053(iban: str, recon_date: date) -> Path | None:
     """
     Call adorsys open-banking-gateway AIS endpoint and retrieve CAMT.053.
 
@@ -101,7 +101,9 @@ def _fetch_camt053(iban: str, recon_date: date) -> Optional[Path]:
     except httpx.HTTPStatusError as exc:
         logger.error(
             "adorsys gateway HTTP %s for IBAN %s: %s",
-            exc.response.status_code, iban, exc.response.text[:200],
+            exc.response.status_code,
+            iban,
+            exc.response.text[:200],
         )
     except httpx.RequestError as exc:
         logger.error("adorsys gateway connection error for IBAN %s: %s", iban, exc)
@@ -109,7 +111,7 @@ def _fetch_camt053(iban: str, recon_date: date) -> Optional[Path]:
     return None
 
 
-def _resolve_account_id(iban: str) -> Optional[str]:
+def _resolve_account_id(iban: str) -> str | None:
     """
     GET /v1/accounts → find account-id matching IBAN.
     Returns the adorsys internal account UUID.
@@ -133,9 +135,7 @@ def _resolve_account_id(iban: str) -> Optional[str]:
 def health_check() -> bool:
     """Return True if adorsys gateway is reachable."""
     try:
-        resp = httpx.get(
-            f"{ADORSYS_PSD2_URL}/actuator/health", timeout=5.0
-        )
+        resp = httpx.get(f"{ADORSYS_PSD2_URL}/actuator/health", timeout=5.0)
         return resp.status_code == 200
     except Exception:
         return False

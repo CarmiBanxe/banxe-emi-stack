@@ -3,15 +3,15 @@ customer_service.py — Customer Management Service (In-Memory + ClickHouse stub
 S17-01: Dual Entity Model | S17-09: Lifecycle State Machine
 FCA: UK GDPR Art.5, FCA COBS 9A, MLR 2017
 """
+
 from __future__ import annotations
 
 import dataclasses
 import json
 import logging
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
-from typing import Optional
 
 from .customer_port import (
     Address,
@@ -58,6 +58,7 @@ def _check_blocked(req: CreateCustomerRequest) -> None:
 
 # ── In-memory implementation ───────────────────────────────────────────────────
 
+
 class InMemoryCustomerService:
     """
     In-memory CustomerManagement service for tests + development.
@@ -71,7 +72,7 @@ class InMemoryCustomerService:
         self._store: dict[str, CustomerProfile] = {}
 
     def _now(self) -> datetime:
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
 
     def create_customer(self, req: CreateCustomerRequest) -> CustomerProfile:
         # Validate entity type consistency
@@ -146,7 +147,11 @@ class InMemoryCustomerService:
         }
         logger.info(
             "Lifecycle transition: %s %s → %s (by %s, reason: %s)",
-            req.customer_id, old_state, req.target_state, req.operator_id, req.reason,
+            req.customer_id,
+            old_state,
+            req.target_state,
+            req.operator_id,
+            req.reason,
         )
         return profile
 
@@ -158,13 +163,17 @@ class InMemoryCustomerService:
                 message=f"UBO registry only applies to COMPANY entities (customer: {customer_id})",
             )
         if profile.company is None:
-            raise CustomerManagementError(code="NO_COMPANY_PROFILE", message="Company profile missing")
+            raise CustomerManagementError(
+                code="NO_COMPANY_PROFILE", message="Company profile missing"
+            )
         profile.company.ubo_registry.append(ubo)
         profile.updated_at = self._now()
-        logger.info("UBO added: %s → %s (%s)", customer_id, ubo.full_name, ubo.role)
+        logger.info("UBO added: customer=%s role=%s", customer_id, ubo.role)  # I-09: no PII in logs
         return profile
 
-    def list_customers(self, lifecycle_state: Optional[LifecycleState] = None) -> list[CustomerProfile]:
+    def list_customers(
+        self, lifecycle_state: LifecycleState | None = None
+    ) -> list[CustomerProfile]:
         customers = list(self._store.values())
         if lifecycle_state is not None:
             customers = [c for c in customers if c.lifecycle_state == lifecycle_state]
@@ -179,6 +188,7 @@ class InMemoryCustomerService:
 
 
 # ── Serialisation helpers (shared by ClickHouseCustomerService) ───────────────
+
 
 def _json_default(obj: object) -> object:
     """Custom JSON encoder for CustomerProfile fields."""
@@ -196,24 +206,32 @@ def _profile_to_json(profile: CustomerProfile) -> str:
 def _profile_from_dict(d: dict) -> CustomerProfile:
     """Reconstruct a CustomerProfile from a JSON-decoded dict."""
 
-    def _addr(a: Optional[dict]) -> Optional[Address]:
+    def _addr(a: dict | None) -> Address | None:
         if not a:
             return None
         return Address(
-            line1=a["line1"], city=a["city"], country=a["country"],
-            postcode=a.get("postcode"), line2=a.get("line2"),
+            line1=a["line1"],
+            city=a["city"],
+            country=a["country"],
+            postcode=a.get("postcode"),
+            line2=a.get("line2"),
         )
 
     def _ubo(u: dict) -> UBORecord:
         return UBORecord(
-            full_name=u["full_name"], role=u["role"],
-            ownership_pct=Decimal(str(u["ownership_pct"])) if u.get("ownership_pct") is not None else None,
+            full_name=u["full_name"],
+            role=u["role"],
+            ownership_pct=Decimal(str(u["ownership_pct"]))
+            if u.get("ownership_pct") is not None
+            else None,
             nationality=u.get("nationality"),
-            date_of_birth=date.fromisoformat(u["date_of_birth"]) if u.get("date_of_birth") else None,
+            date_of_birth=date.fromisoformat(u["date_of_birth"])
+            if u.get("date_of_birth")
+            else None,
             kyc_verified=bool(u.get("kyc_verified", False)),
         )
 
-    individual: Optional[IndividualProfile] = None
+    individual: IndividualProfile | None = None
     if d.get("individual"):
         ind = d["individual"]
         individual = IndividualProfile(
@@ -235,7 +253,7 @@ def _profile_from_dict(d: dict) -> CustomerProfile:
             notes=ind.get("notes"),
         )
 
-    company: Optional[CompanyProfile] = None
+    company: CompanyProfile | None = None
     if d.get("company"):
         comp = d["company"]
         company = CompanyProfile(
@@ -246,7 +264,9 @@ def _profile_from_dict(d: dict) -> CustomerProfile:
             company_type=comp.get("company_type"),
             industry=comp.get("industry"),
             tax_id=comp.get("tax_id"),
-            date_of_registration=date.fromisoformat(comp["date_of_registration"]) if comp.get("date_of_registration") else None,
+            date_of_registration=date.fromisoformat(comp["date_of_registration"])
+            if comp.get("date_of_registration")
+            else None,
             correspondence_address=_addr(comp.get("correspondence_address")),
             email=comp.get("email"),
             phone=comp.get("phone"),
@@ -272,6 +292,7 @@ def _profile_from_dict(d: dict) -> CustomerProfile:
 
 
 # ── ClickHouse-backed implementation (production) ─────────────────────────────
+
 
 class ClickHouseCustomerService:
     """
@@ -301,8 +322,10 @@ class ClickHouseCustomerService:
             CLICKHOUSE_PORT,
             CLICKHOUSE_USER,
         )
+
         try:
             import clickhouse_driver  # type: ignore[import]
+
             self._client = clickhouse_driver.Client(
                 host=host or CLICKHOUSE_HOST,
                 port=port or CLICKHOUSE_PORT,
@@ -311,7 +334,9 @@ class ClickHouseCustomerService:
                 password=password or CLICKHOUSE_PASSWORD,
             )
         except ImportError as exc:
-            raise RuntimeError("clickhouse-driver not installed: pip install clickhouse-driver") from exc
+            raise RuntimeError(
+                "clickhouse-driver not installed: pip install clickhouse-driver"
+            ) from exc
 
     # ── Internal ──────────────────────────────────────────────────────────────
 
@@ -324,25 +349,26 @@ class ClickHouseCustomerService:
              created_at, updated_at, profile_json, agreement_ids, account_ids)
             VALUES
             """,
-            [{
-                "customer_id": profile.customer_id,
-                "entity_type": profile.entity_type.value,
-                "kyc_status": profile.kyc_status,
-                "risk_level": profile.risk_level.value,
-                "lifecycle_state": profile.lifecycle_state.value,
-                "created_at": profile.created_at,
-                "updated_at": profile.updated_at,
-                "profile_json": _profile_to_json(profile),
-                "agreement_ids": profile.agreement_ids,
-                "account_ids": profile.account_ids,
-            }],
+            [
+                {
+                    "customer_id": profile.customer_id,
+                    "entity_type": profile.entity_type.value,
+                    "kyc_status": profile.kyc_status,
+                    "risk_level": profile.risk_level.value,
+                    "lifecycle_state": profile.lifecycle_state.value,
+                    "created_at": profile.created_at,
+                    "updated_at": profile.updated_at,
+                    "profile_json": _profile_to_json(profile),
+                    "agreement_ids": profile.agreement_ids,
+                    "account_ids": profile.account_ids,
+                }
+            ],
         )
 
-    def _load(self, customer_id: str) -> Optional[CustomerProfile]:
+    def _load(self, customer_id: str) -> CustomerProfile | None:
         """SELECT FINAL and deserialise the latest version of a customer."""
         rows, col_types = self._client.execute(
-            "SELECT profile_json FROM banxe.customers FINAL "
-            "WHERE customer_id = %(cid)s LIMIT 1",
+            "SELECT profile_json FROM banxe.customers FINAL WHERE customer_id = %(cid)s LIMIT 1",
             {"cid": customer_id},
             with_column_types=True,
         )
@@ -363,11 +389,13 @@ class ClickHouseCustomerService:
 
     def create_customer(self, req: CreateCustomerRequest) -> CustomerProfile:
         if req.entity_type == EntityType.INDIVIDUAL and req.individual is None:
-            raise CustomerManagementError(code="MISSING_PROFILE", message="IndividualProfile required")
+            raise CustomerManagementError(
+                code="MISSING_PROFILE", message="IndividualProfile required"
+            )
         if req.entity_type == EntityType.COMPANY and req.company is None:
             raise CustomerManagementError(code="MISSING_PROFILE", message="CompanyProfile required")
         _check_blocked(req)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         profile = CustomerProfile(
             customer_id=f"cust-{uuid.uuid4().hex[:12]}",
             entity_type=req.entity_type,
@@ -389,7 +417,7 @@ class ClickHouseCustomerService:
     def update_risk_level(self, customer_id: str, risk_level: RiskLevel) -> CustomerProfile:
         profile = self._get_or_raise(customer_id)
         profile.risk_level = risk_level
-        profile.updated_at = datetime.now(timezone.utc)
+        profile.updated_at = datetime.now(UTC)
         self._persist(profile)
         logger.info("CH risk updated: %s → %s", customer_id, risk_level)
         return profile
@@ -403,10 +431,12 @@ class ClickHouseCustomerService:
             )
         old_state = profile.lifecycle_state
         profile.lifecycle_state = req.target_state
-        profile.updated_at = datetime.now(timezone.utc)
+        profile.updated_at = datetime.now(UTC)
         profile.metadata["last_transition"] = {
-            "from": old_state, "to": req.target_state,
-            "reason": req.reason, "operator_id": req.operator_id,
+            "from": old_state,
+            "to": req.target_state,
+            "reason": req.reason,
+            "operator_id": req.operator_id,
             "at": profile.updated_at.isoformat(),
         }
         self._persist(profile)
@@ -417,19 +447,21 @@ class ClickHouseCustomerService:
         profile = self._get_or_raise(customer_id)
         if profile.entity_type != EntityType.COMPANY or profile.company is None:
             raise CustomerManagementError(
-                code="NOT_COMPANY", message="UBO registry only applies to COMPANY entities",
+                code="NOT_COMPANY",
+                message="UBO registry only applies to COMPANY entities",
             )
         profile.company.ubo_registry.append(ubo)
-        profile.updated_at = datetime.now(timezone.utc)
+        profile.updated_at = datetime.now(UTC)
         self._persist(profile)
-        logger.info("CH UBO added: %s → %s", customer_id, ubo.full_name)
+        logger.info("CH UBO added: customer=%s", customer_id)  # I-09: no PII in logs
         return profile
 
-    def list_customers(self, lifecycle_state: Optional[LifecycleState] = None) -> list[CustomerProfile]:
+    def list_customers(
+        self, lifecycle_state: LifecycleState | None = None
+    ) -> list[CustomerProfile]:
         if lifecycle_state is not None:
             rows, _ = self._client.execute(
-                "SELECT profile_json FROM banxe.customers FINAL "
-                "WHERE lifecycle_state = %(ls)s",
+                "SELECT profile_json FROM banxe.customers FINAL WHERE lifecycle_state = %(ls)s",
                 {"ls": lifecycle_state.value},
                 with_column_types=True,
             )
@@ -444,15 +476,17 @@ class ClickHouseCustomerService:
         profile = self._get_or_raise(customer_id)
         if agreement_id not in profile.agreement_ids:
             profile.agreement_ids.append(agreement_id)
-            profile.updated_at = datetime.now(timezone.utc)
+            profile.updated_at = datetime.now(UTC)
             self._persist(profile)
             logger.info("CH agreement linked: %s → %s", customer_id, agreement_id)
 
 
 # ── Factory ────────────────────────────────────────────────────────────────────
 
+
 def get_customer_service() -> InMemoryCustomerService | ClickHouseCustomerService:
     import os
+
     backend = os.environ.get("CUSTOMER_BACKEND", "memory")
     if backend == "clickhouse":
         return ClickHouseCustomerService()

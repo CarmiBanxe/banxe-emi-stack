@@ -28,11 +28,11 @@ Security:
   - Request body is read raw BEFORE JSON parsing (signature is over raw bytes)
   - IP allowlist: Modulr IP ranges (configure in nginx / firewall)
 """
+
 from __future__ import annotations
 
 import logging
 import os
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -59,9 +59,11 @@ def create_webhook_router(ch_client=None):
 
     if ch_client is None:
         from services.recon.clickhouse_client import ClickHouseReconClient
+
         ch_client = ClickHouseReconClient()
 
     from services.payment.modulr_client import ModulrPaymentAdapter
+
     adapter = ModulrPaymentAdapter()
 
     router = APIRouter(prefix="/webhooks", tags=["webhooks"])
@@ -69,7 +71,7 @@ def create_webhook_router(ch_client=None):
     @router.post("/modulr/payment", status_code=status.HTTP_200_OK)
     async def modulr_payment_webhook(
         request: Request,
-        x_mod_signature: Optional[str] = Header(None, alias="X-Mod-Signature"),
+        x_mod_signature: str | None = Header(None, alias="X-Mod-Signature"),
     ):
         """
         Receive Modulr payment status update webhook.
@@ -101,6 +103,7 @@ def create_webhook_router(ch_client=None):
         # ── 2. Parse payload ──────────────────────────────────────────────────
         try:
             import json
+
             payload = json.loads(raw_body)
         except Exception as exc:
             logger.error("Modulr webhook: JSON parse failed: %s", exc)
@@ -153,6 +156,7 @@ def create_webhook_router(ch_client=None):
 
         # ── 5. Alert on FAILED / RETURNED ────────────────────────────────────
         from services.payment.payment_port import PaymentStatus
+
         if update.new_status in (PaymentStatus.FAILED, PaymentStatus.RETURNED):
             logger.warning(
                 "Payment %s: %s (id=%s amount=%s%s)",
@@ -181,6 +185,7 @@ def _fire_alert(update) -> None:
         return
     try:
         import httpx
+
         httpx.post(
             n8n_url,
             json={

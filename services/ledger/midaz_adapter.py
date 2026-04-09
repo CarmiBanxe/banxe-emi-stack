@@ -19,13 +19,13 @@ Usage:
     adapter = MidazLedgerAdapter()
     balance = adapter.get_balance(org_id, ledger_id, account_id)
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
 import os
 from decimal import Decimal
-from typing import Optional
 
 import httpx
 
@@ -80,15 +80,16 @@ class MidazLedgerAdapter:
         except Exception as exc:
             logger.error(
                 "MidazLedgerAdapter.get_balance failed: org=%s ledger=%s account=%s error=%s",
-                org_id, ledger_id, account_id, exc,
+                org_id,
+                ledger_id,
+                account_id,
+                exc,
             )
             return Decimal("0")
 
     # ── internal async implementation ────────────────────────────────────────
 
-    async def _fetch_balance(
-        self, org_id: str, ledger_id: str, account_id: str
-    ) -> Decimal:
+    async def _fetch_balance(self, org_id: str, ledger_id: str, account_id: str) -> Decimal:
         url = (
             f"{self._base_url}/v1/organizations/{org_id}"
             f"/ledgers/{ledger_id}/accounts/{account_id}/balances"
@@ -116,8 +117,7 @@ class MidazLedgerAdapter:
                 return Decimal(str(available_pence)) / Decimal("100")
 
         logger.warning(
-            "MidazLedgerAdapter: no GBP balance found for account=%s. "
-            "Response items: %s",
+            "MidazLedgerAdapter: no GBP balance found for account=%s. Response items: %s",
             account_id,
             [i.get("assetCode") for i in items],
         )
@@ -133,7 +133,7 @@ class StubLedgerAdapter:
         balance = adapter.get_balance(org, ledger, "acct-id")  # → 5000.00
     """
 
-    def __init__(self, balances: Optional[dict] = None) -> None:
+    def __init__(self, balances: dict | None = None) -> None:
         self._balances: dict[str, Decimal] = balances or {}
 
     def get_balance(self, org_id: str, ledger_id: str, account_id: str) -> Decimal:

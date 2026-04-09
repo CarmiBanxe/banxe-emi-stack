@@ -20,14 +20,15 @@ FCA basis: JMLSG 3.10 — MLRO must receive timely information for oversight.
            I-24: append-only audit trail.
            I-09: no PII in server logs.
 """
+
 from __future__ import annotations
 
 import logging
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Literal, Optional
+from typing import Literal
 
 from fastapi import APIRouter, Header, HTTPException, status
 from pydantic import BaseModel
@@ -39,6 +40,7 @@ router = APIRouter(prefix="/internal/notifications", tags=["Internal / MLRO"])
 
 # ── Models ────────────────────────────────────────────────────────────────────
 
+
 class MLROChannel(str, Enum):
     AML_ALERTS = "mlro_aml_alerts"
     SANCTIONS = "mlro_sanctions"
@@ -48,7 +50,7 @@ class MLROChannel(str, Enum):
 class MLRONotification(BaseModel):
     channel: MLROChannel
     message: str
-    source: Optional[str] = None
+    source: str | None = None
     severity: Literal["info", "warning", "critical"] = "info"
 
 
@@ -70,18 +72,20 @@ def _audit_log_notification(
     channel: MLROChannel,
     message: str,
     severity: str,
-    source: Optional[str],
+    source: str | None,
     logged_at: datetime,
 ) -> None:
     """Append notification to audit log (I-24). Prod: write to ClickHouse."""
-    _NOTIFICATION_LOG.append({
-        "notification_id": notification_id,
-        "channel": channel.value,
-        "message": message,
-        "severity": severity,
-        "source": source or "",
-        "logged_at": logged_at.isoformat(),
-    })
+    _NOTIFICATION_LOG.append(
+        {
+            "notification_id": notification_id,
+            "channel": channel.value,
+            "message": message,
+            "severity": severity,
+            "source": source or "",
+            "logged_at": logged_at.isoformat(),
+        }
+    )
 
 
 def get_notification_log() -> list[dict]:  # type: ignore[type-arg]
@@ -95,6 +99,7 @@ def clear_notification_log() -> None:
 
 
 # ── Endpoint ──────────────────────────────────────────────────────────────────
+
 
 @router.post(
     "/mlro",
@@ -127,7 +132,7 @@ def notify_mlro(
         )
 
     notification_id = str(uuid.uuid4())
-    logged_at = datetime.now(timezone.utc)
+    logged_at = datetime.now(UTC)
 
     # Audit log (I-24: append-only)
     _audit_log_notification(

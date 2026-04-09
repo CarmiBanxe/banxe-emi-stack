@@ -2,10 +2,10 @@
 test_complaint_service.py — Unit tests for ComplaintService
 IL-022 | FCA Consumer Duty DISP | banxe-emi-stack
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -13,8 +13,8 @@ from services.complaints.complaint_service import (
     ComplaintService,
 )
 
-
 # ─── In-memory stub ───────────────────────────────────────────────────────────
+
 
 class InMemoryComplaintRepo:
     """Test double — no ClickHouse required."""
@@ -23,26 +23,36 @@ class InMemoryComplaintRepo:
         self.complaints: dict = {}
         self.events: list = []
 
-    def insert_complaint(self, complaint_id: str, customer_id: str,
-                         category: str, description: str,
-                         sla_deadline: datetime, channel: str = "API",
-                         created_by: str = "system") -> None:
+    def insert_complaint(
+        self,
+        complaint_id: str,
+        customer_id: str,
+        category: str,
+        description: str,
+        sla_deadline: datetime,
+        channel: str = "API",
+        created_by: str = "system",
+    ) -> None:
         self.complaints[complaint_id] = {
             "id": complaint_id,
             "customer_id": customer_id,
             "category": category,
             "description": description,
             "status": "OPEN",
-            "created_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
             "sla_deadline": sla_deadline,
             "resolved_at": None,
             "resolution_summary": "",
             "assigned_to": "",
         }
 
-    def update_status(self, complaint_id: str, new_status: str,
-                      resolved_at: Optional[datetime] = None,
-                      resolution_summary: str = "") -> None:
+    def update_status(
+        self,
+        complaint_id: str,
+        new_status: str,
+        resolved_at: datetime | None = None,
+        resolution_summary: str = "",
+    ) -> None:
         if complaint_id in self.complaints:
             self.complaints[complaint_id]["status"] = new_status
             if resolved_at:
@@ -50,64 +60,77 @@ class InMemoryComplaintRepo:
             if resolution_summary:
                 self.complaints[complaint_id]["resolution_summary"] = resolution_summary
 
-    def insert_event(self, complaint_id: str, event_type: str,
-                     old_status: str = "", new_status: str = "",
-                     note: str = "", actor: str = "system") -> None:
-        self.events.append({
-            "complaint_id": complaint_id,
-            "event_type": event_type,
-            "old_status": old_status,
-            "new_status": new_status,
-            "note": note,
-            "actor": actor,
-        })
+    def insert_event(
+        self,
+        complaint_id: str,
+        event_type: str,
+        old_status: str = "",
+        new_status: str = "",
+        note: str = "",
+        actor: str = "system",
+    ) -> None:
+        self.events.append(
+            {
+                "complaint_id": complaint_id,
+                "event_type": event_type,
+                "old_status": old_status,
+                "new_status": new_status,
+                "note": note,
+                "actor": actor,
+            }
+        )
 
-    def get_sla_breaches(self) -> List[dict]:
-        now = datetime.now(timezone.utc)
+    def get_sla_breaches(self) -> list[dict]:
+        now = datetime.now(UTC)
         result = []
         for c in self.complaints.values():
             if c["status"] not in ("RESOLVED", "FOS_ESCALATED"):
                 dl = c["sla_deadline"]
                 if dl.tzinfo is None:
-                    dl = dl.replace(tzinfo=timezone.utc)
+                    dl = dl.replace(tzinfo=UTC)
                 if dl < now:
                     days_overdue = (now - dl).days
-                    result.append({
-                        "complaint_id": c["id"],
-                        "customer_id": c["customer_id"],
-                        "category": c["category"],
-                        "created_at": c["created_at"],
-                        "sla_deadline": dl,
-                        "days_overdue": days_overdue,
-                    })
+                    result.append(
+                        {
+                            "complaint_id": c["id"],
+                            "customer_id": c["customer_id"],
+                            "category": c["category"],
+                            "created_at": c["created_at"],
+                            "sla_deadline": dl,
+                            "days_overdue": days_overdue,
+                        }
+                    )
         return result
 
-    def get_sla_warnings(self) -> List[dict]:
-        now = datetime.now(timezone.utc)
+    def get_sla_warnings(self) -> list[dict]:
+        now = datetime.now(UTC)
         warning_cutoff = now + timedelta(days=7)
         result = []
         for c in self.complaints.values():
             if c["status"] not in ("RESOLVED", "FOS_ESCALATED"):
                 dl = c["sla_deadline"]
                 if dl.tzinfo is None:
-                    dl = dl.replace(tzinfo=timezone.utc)
+                    dl = dl.replace(tzinfo=UTC)
                 if now <= dl <= warning_cutoff:
                     days_remaining = (dl - now).days
-                    result.append({
-                        "complaint_id": c["id"],
-                        "customer_id": c["customer_id"],
-                        "category": c["category"],
-                        "created_at": c["created_at"],
-                        "sla_deadline": dl,
-                        "days_remaining": days_remaining,
-                    })
+                    result.append(
+                        {
+                            "complaint_id": c["id"],
+                            "customer_id": c["customer_id"],
+                            "category": c["category"],
+                            "created_at": c["created_at"],
+                            "sla_deadline": dl,
+                            "days_remaining": days_remaining,
+                        }
+                    )
         return result
 
-    def get_complaint(self, complaint_id: str) -> Optional[dict]:
+    def get_complaint(self, complaint_id: str) -> dict | None:
         return self.complaints.get(complaint_id)
 
 
 # ─── Fixtures ─────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def repo():
@@ -120,6 +143,7 @@ def svc(repo):
 
 
 # ─── Tests ────────────────────────────────────────────────────────────────────
+
 
 class TestOpenComplaint:
     def test_returns_complaint_id(self, svc, repo):
@@ -167,8 +191,9 @@ class TestResolveComplaint:
     def test_resolved_event_appended(self, svc, repo):
         cid = svc.open_complaint("cust-011", "PAYMENT", "Double charge", "EMAIL")
         svc.resolve_complaint(cid, "Refund issued", actor="mlro-001")
-        resolved_events = [e for e in repo.events
-                           if e["event_type"] == "RESOLVED" and e["complaint_id"] == cid]
+        resolved_events = [
+            e for e in repo.events if e["event_type"] == "RESOLVED" and e["complaint_id"] == cid
+        ]
         assert len(resolved_events) == 1
         assert resolved_events[0]["actor"] == "mlro-001"
         assert resolved_events[0]["new_status"] == "RESOLVED"
@@ -192,9 +217,7 @@ class TestSLABreachDetection:
     def test_detects_overdue_complaint(self, svc, repo):
         cid = svc.open_complaint("cust-021", "CHARGES", "Fee dispute", "API")
         # Backdate the SLA deadline to yesterday
-        repo.complaints[cid]["sla_deadline"] = (
-            datetime.now(timezone.utc) - timedelta(days=1)
-        )
+        repo.complaints[cid]["sla_deadline"] = datetime.now(UTC) - timedelta(days=1)
         breaches = svc.check_sla_breaches()
         assert len(breaches) == 1
         assert breaches[0].complaint_id == cid
@@ -202,21 +225,18 @@ class TestSLABreachDetection:
 
     def test_resolved_complaint_not_counted_as_breach(self, svc, repo):
         cid = svc.open_complaint("cust-022", "PAYMENT", "Delayed transfer", "API")
-        repo.complaints[cid]["sla_deadline"] = (
-            datetime.now(timezone.utc) - timedelta(days=2)
-        )
+        repo.complaints[cid]["sla_deadline"] = datetime.now(UTC) - timedelta(days=2)
         svc.resolve_complaint(cid, "Transfer processed")
         breaches = svc.check_sla_breaches()
         assert all(b.complaint_id != cid for b in breaches)
 
     def test_breach_event_written_to_audit_trail(self, svc, repo):
         cid = svc.open_complaint("cust-023", "FRAUD", "Disputed charge", "WEB")
-        repo.complaints[cid]["sla_deadline"] = (
-            datetime.now(timezone.utc) - timedelta(days=3)
-        )
+        repo.complaints[cid]["sla_deadline"] = datetime.now(UTC) - timedelta(days=3)
         svc.check_sla_breaches()
-        breach_events = [e for e in repo.events
-                         if e["event_type"] == "SLA_BREACHED" and e["complaint_id"] == cid]
+        breach_events = [
+            e for e in repo.events if e["event_type"] == "SLA_BREACHED" and e["complaint_id"] == cid
+        ]
         assert len(breach_events) == 1
 
 
@@ -229,9 +249,7 @@ class TestSLAWarnings:
     def test_detects_warning_within_7_days(self, svc, repo):
         cid = svc.open_complaint("cust-031", "ACCOUNT", "Wrong balance", "API")
         # Set deadline 3 days from now
-        repo.complaints[cid]["sla_deadline"] = (
-            datetime.now(timezone.utc) + timedelta(days=3)
-        )
+        repo.complaints[cid]["sla_deadline"] = datetime.now(UTC) + timedelta(days=3)
         warnings = svc.check_sla_warnings()
         assert len(warnings) == 1
         assert warnings[0].complaint_id == cid
@@ -239,12 +257,11 @@ class TestSLAWarnings:
 
     def test_warning_event_written_to_audit_trail(self, svc, repo):
         cid = svc.open_complaint("cust-032", "CHARGES", "Interest calculation", "EMAIL")
-        repo.complaints[cid]["sla_deadline"] = (
-            datetime.now(timezone.utc) + timedelta(days=5)
-        )
+        repo.complaints[cid]["sla_deadline"] = datetime.now(UTC) + timedelta(days=5)
         svc.check_sla_warnings()
-        warning_events = [e for e in repo.events
-                          if e["event_type"] == "SLA_WARNING" and e["complaint_id"] == cid]
+        warning_events = [
+            e for e in repo.events if e["event_type"] == "SLA_WARNING" and e["complaint_id"] == cid
+        ]
         assert len(warning_events) == 1
 
 
@@ -258,17 +275,18 @@ class TestFosEscalation:
     def test_fos_event_written_to_audit_trail(self, svc, repo):
         cid = svc.open_complaint("cust-041", "FRAUD", "Identity theft", "PHONE")
         svc.escalate_to_fos(cid, fos_reference="FOS-2026-002", actor="cco-001")
-        fos_events = [e for e in repo.events
-                      if e["event_type"] == "FOS_ESCALATED" and e["complaint_id"] == cid]
+        fos_events = [
+            e
+            for e in repo.events
+            if e["event_type"] == "FOS_ESCALATED" and e["complaint_id"] == cid
+        ]
         assert len(fos_events) == 1
         assert fos_events[0]["actor"] == "cco-001"
         assert "FOS-2026-002" in fos_events[0]["note"]
 
     def test_fos_not_counted_in_sla_breaches(self, svc, repo):
         cid = svc.open_complaint("cust-042", "ACCOUNT", "Account blocked", "API")
-        repo.complaints[cid]["sla_deadline"] = (
-            datetime.now(timezone.utc) - timedelta(days=5)
-        )
+        repo.complaints[cid]["sla_deadline"] = datetime.now(UTC) - timedelta(days=5)
         svc.escalate_to_fos(cid)
         breaches = svc.check_sla_breaches()
         assert all(b.complaint_id != cid for b in breaches)
@@ -277,10 +295,10 @@ class TestFosEscalation:
         """OPENED → SLA_WARNING → SLA_BREACHED → FOS_ESCALATED all in trail."""
         cid = svc.open_complaint("cust-043", "CHARGES", "Fee refund", "WEB")
         # Trigger warning
-        repo.complaints[cid]["sla_deadline"] = datetime.now(timezone.utc) + timedelta(days=2)
+        repo.complaints[cid]["sla_deadline"] = datetime.now(UTC) + timedelta(days=2)
         svc.check_sla_warnings()
         # Breach
-        repo.complaints[cid]["sla_deadline"] = datetime.now(timezone.utc) - timedelta(days=1)
+        repo.complaints[cid]["sla_deadline"] = datetime.now(UTC) - timedelta(days=1)
         svc.check_sla_breaches()
         # FOS
         svc.escalate_to_fos(cid, fos_reference="FOS-2026-003")

@@ -2,6 +2,7 @@
 tests/test_api_notifications.py — Notifications API endpoint tests
 IL-047 | S17-03 | banxe-emi-stack
 """
+
 import pytest
 from fastapi.testclient import TestClient
 

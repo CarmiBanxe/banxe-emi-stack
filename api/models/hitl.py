@@ -2,25 +2,26 @@
 api/models/hitl.py — Pydantic v2 schemas for HITL Review Queue API
 IL-051 | Phase 2 #10 | banxe-emi-stack
 """
+
 from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
 
 from pydantic import BaseModel, field_validator
 
 from services.hitl.hitl_port import CaseStatus, DecisionOutcome, ReviewReason
 
-
 # ── Request schemas ───────────────────────────────────────────────────────────
+
 
 class EnqueueCaseRequest(BaseModel):
     """Manually enqueue a HOLD case (used when calling outside pipeline)."""
+
     transaction_id: str
     customer_id: str
     entity_type: str = "INDIVIDUAL"
-    amount: str                          # Decimal string (I-05)
+    amount: str  # Decimal string (I-05)
     currency: str = "GBP"
     reasons: list[ReviewReason]
     fraud_score: int
@@ -38,8 +39,9 @@ class EnqueueCaseRequest(BaseModel):
 
 class DecideRequest(BaseModel):
     """Operator decision on a HOLD case."""
+
     outcome: DecisionOutcome
-    decided_by: str                       # operator_id
+    decided_by: str  # operator_id
     notes: str = ""
 
     @field_validator("decided_by")
@@ -51,6 +53,7 @@ class DecideRequest(BaseModel):
 
 
 # ── Response schemas ──────────────────────────────────────────────────────────
+
 
 class ReviewCaseResponse(BaseModel):
     case_id: str
@@ -69,10 +72,10 @@ class ReviewCaseResponse(BaseModel):
     expires_at: datetime
     hours_remaining: float
     is_sar_case: bool
-    assigned_to: Optional[str]
-    decided_at: Optional[datetime]
-    decision: Optional[DecisionOutcome]
-    decision_by: Optional[str]
+    assigned_to: str | None
+    decided_at: datetime | None
+    decision: DecisionOutcome | None
+    decision_by: str | None
     decision_notes: str
 
     model_config = {"from_attributes": True}

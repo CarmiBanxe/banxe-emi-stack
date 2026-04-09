@@ -11,6 +11,7 @@ Tests cover:
   - FraudScoringPort protocol satisfied
   - get_fraud_adapter() factory
 """
+
 from __future__ import annotations
 
 import time
@@ -92,26 +93,32 @@ class TestHighRisk:
         assert result.block is False
 
     def test_first_payee_unusual_amount(self, adapter):
-        result = adapter.score(_req(
-            amount=Decimal("10000"),
-            first_transaction_to_payee=True,
-            amount_unusual=True,
-        ))
+        result = adapter.score(
+            _req(
+                amount=Decimal("10000"),
+                first_transaction_to_payee=True,
+                amount_unusual=True,
+            )
+        )
         assert result.risk in (FraudRisk.HIGH, FraudRisk.CRITICAL)
         assert result.hold_for_review is True
 
     def test_high_risk_country(self, adapter):
-        result = adapter.score(_req(
-            amount=Decimal("5000"),
-            destination_country="NG",  # not in high-risk list but not blocked
-        ))
+        result = adapter.score(
+            _req(
+                amount=Decimal("5000"),
+                destination_country="NG",  # not in high-risk list but not blocked
+            )
+        )
         assert result.risk == FraudRisk.MEDIUM  # 5k + not-first + not-unusual
 
     def test_fatf_country_raises_score(self, adapter):
-        result = adapter.score(_req(
-            amount=Decimal("5000"),
-            destination_country="SY",  # FATF greylist
-        ))
+        result = adapter.score(
+            _req(
+                amount=Decimal("5000"),
+                destination_country="SY",  # FATF greylist
+            )
+        )
         assert result.score >= 35  # 15 (amount) + 20 (country)
 
 
@@ -139,19 +146,23 @@ class TestCriticalRisk:
 
 class TestAppScamDetection:
     def test_investment_scam_signal(self, adapter):
-        result = adapter.score(_req(
-            amount=Decimal("15000"),
-            first_transaction_to_payee=True,
-            amount_unusual=True,
-        ))
+        result = adapter.score(
+            _req(
+                amount=Decimal("15000"),
+                first_transaction_to_payee=True,
+                amount_unusual=True,
+            )
+        )
         assert result.app_scam_indicator == AppScamIndicator.INVESTMENT_SCAM
 
     def test_no_scam_normal_payee(self, adapter):
-        result = adapter.score(_req(
-            amount=Decimal("500"),
-            first_transaction_to_payee=False,
-            amount_unusual=False,
-        ))
+        result = adapter.score(
+            _req(
+                amount=Decimal("500"),
+                first_transaction_to_payee=False,
+                amount_unusual=False,
+            )
+        )
         assert result.app_scam_indicator == AppScamIndicator.NONE
 
     def test_first_payee_no_unusual_no_scam_signal(self, adapter):

@@ -6,6 +6,7 @@ POST /v1/notifications/send           — send notification (operator/internal)
 GET  /v1/notifications/{id}/status    — get delivery status by notification_id
 GET  /v1/notifications/preview        — preview rendered notification body
 """
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -47,15 +48,17 @@ def send_notification(
     Operator-only endpoint — requires at least one recipient field.
     FCA COBS 2.2: content derived from approved templates.
     """
-    if not any([
-        body.recipient_email,
-        body.recipient_phone,
-        body.recipient_telegram_id,
-    ]):
+    if not any(
+        [
+            body.recipient_email,
+            body.recipient_phone,
+            body.recipient_telegram_id,
+        ]
+    ):
         raise HTTPException(
             status_code=422,
             detail="At least one recipient field required "
-                   "(recipient_email, recipient_phone, or recipient_telegram_id)",
+            "(recipient_email, recipient_phone, or recipient_telegram_id)",
         )
 
     svc = _get_notification_service()
@@ -130,6 +133,7 @@ def preview_notification(
     Useful for compliance review (FCA COBS 2.2 approval workflow).
     """
     from services.notifications.notification_port import NotificationType
+
     try:
         notif_type = NotificationType(notification_type)
     except ValueError:

@@ -2,6 +2,7 @@
 tests/test_sar_service.py — SARService unit tests + Reporting API tests
 IL-052 | Phase 3 #13 | POCA 2002 s.330 | banxe-emi-stack
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -20,8 +21,8 @@ from services.aml.sar_service import (
 )
 from services.reporting.regdata_return import MockFIN060Generator, RegDataReturnService
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture()
 def svc() -> SARService:
@@ -65,6 +66,7 @@ def client() -> TestClient:
 # ─────────────────────────────────────────────────────────────────────────────
 # SARService unit tests
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestFileSAR:
     def test_creates_draft(self, svc: SARService) -> None:
@@ -147,16 +149,12 @@ class TestApproveSAR:
         assert approved.mlro_notes == "Clear ML indicators"
         assert approved.mlro_reviewed_at is not None
 
-    def test_cannot_approve_non_draft(
-        self, svc: SARService, draft_sar: SARReport
-    ) -> None:
+    def test_cannot_approve_non_draft(self, svc: SARService, draft_sar: SARReport) -> None:
         svc.approve_sar(sar_id=draft_sar.sar_id, mlro_id="mlro-001")
         with pytest.raises(SARServiceError, match="can only approve DRAFT"):
             svc.approve_sar(sar_id=draft_sar.sar_id, mlro_id="mlro-002")
 
-    def test_approve_sets_is_submittable(
-        self, svc: SARService, draft_sar: SARReport
-    ) -> None:
+    def test_approve_sets_is_submittable(self, svc: SARService, draft_sar: SARReport) -> None:
         svc.approve_sar(sar_id=draft_sar.sar_id, mlro_id="mlro-001")
         sar = svc.get_sar(draft_sar.sar_id)
         assert sar is not None
@@ -168,9 +166,7 @@ class TestApproveSAR:
 
 
 class TestWithdrawSAR:
-    def test_withdraw_draft(
-        self, svc: SARService, draft_sar: SARReport
-    ) -> None:
+    def test_withdraw_draft(self, svc: SARService, draft_sar: SARReport) -> None:
         withdrawn = svc.withdraw_sar(
             sar_id=draft_sar.sar_id,
             mlro_id="mlro-001",
@@ -179,9 +175,7 @@ class TestWithdrawSAR:
         assert withdrawn.status == SARStatus.WITHDRAWN
         assert withdrawn.mlro_notes == "Investigation concluded — not suspicious"
 
-    def test_withdraw_mlro_approved(
-        self, svc: SARService, draft_sar: SARReport
-    ) -> None:
+    def test_withdraw_mlro_approved(self, svc: SARService, draft_sar: SARReport) -> None:
         svc.approve_sar(sar_id=draft_sar.sar_id, mlro_id="mlro-001")
         withdrawn = svc.withdraw_sar(
             sar_id=draft_sar.sar_id,
@@ -190,9 +184,7 @@ class TestWithdrawSAR:
         )
         assert withdrawn.status == SARStatus.WITHDRAWN
 
-    def test_cannot_withdraw_submitted(
-        self, svc: SARService, draft_sar: SARReport
-    ) -> None:
+    def test_cannot_withdraw_submitted(self, svc: SARService, draft_sar: SARReport) -> None:
         svc.approve_sar(sar_id=draft_sar.sar_id, mlro_id="mlro-001")
         svc.submit_sar(sar_id=draft_sar.sar_id)
         with pytest.raises(SARServiceError, match="cannot withdraw"):
@@ -204,9 +196,7 @@ class TestWithdrawSAR:
 
 
 class TestSubmitSAR:
-    def test_submit_approved_sar(
-        self, svc: SARService, draft_sar: SARReport
-    ) -> None:
+    def test_submit_approved_sar(self, svc: SARService, draft_sar: SARReport) -> None:
         svc.approve_sar(sar_id=draft_sar.sar_id, mlro_id="mlro-001")
         submitted = svc.submit_sar(sar_id=draft_sar.sar_id)
         assert submitted.status == SARStatus.SUBMITTED
@@ -214,15 +204,11 @@ class TestSubmitSAR:
         assert submitted.nca_reference.startswith("SAR-")
         assert submitted.submitted_at is not None
 
-    def test_cannot_submit_draft(
-        self, svc: SARService, draft_sar: SARReport
-    ) -> None:
+    def test_cannot_submit_draft(self, svc: SARService, draft_sar: SARReport) -> None:
         with pytest.raises(SARServiceError, match="must be MLRO_APPROVED"):
             svc.submit_sar(sar_id=draft_sar.sar_id)
 
-    def test_nca_reference_format(
-        self, svc: SARService, draft_sar: SARReport
-    ) -> None:
+    def test_nca_reference_format(self, svc: SARService, draft_sar: SARReport) -> None:
         svc.approve_sar(sar_id=draft_sar.sar_id, mlro_id="mlro-001")
         submitted = svc.submit_sar(sar_id=draft_sar.sar_id)
         # Format: SAR-YYYYMM-{8 hex chars uppercase}
@@ -231,9 +217,7 @@ class TestSubmitSAR:
         assert parts[0] == "SAR"
         assert len(parts[1]) == 6  # YYYYMM
 
-    def test_is_submittable_false_after_submit(
-        self, svc: SARService, draft_sar: SARReport
-    ) -> None:
+    def test_is_submittable_false_after_submit(self, svc: SARService, draft_sar: SARReport) -> None:
         svc.approve_sar(sar_id=draft_sar.sar_id, mlro_id="mlro-001")
         submitted = svc.submit_sar(sar_id=draft_sar.sar_id)
         assert submitted.is_submittable is False
@@ -331,14 +315,18 @@ class TestListAndStats:
 # Reporting API tests
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestSARAPI:
     def test_file_sar_201(self, client: TestClient) -> None:
-        res = client.post("/v1/reporting/sar", json={
-            "transaction_id": "tx-api-1",
-            "customer_id": "cust-api-1",
-            "amount": "12500",
-            "sar_reasons": ["VELOCITY_BREACH"],
-        })
+        res = client.post(
+            "/v1/reporting/sar",
+            json={
+                "transaction_id": "tx-api-1",
+                "customer_id": "cust-api-1",
+                "amount": "12500",
+                "sar_reasons": ["VELOCITY_BREACH"],
+            },
+        )
         assert res.status_code == 201
         data = res.json()
         assert data["status"] == "DRAFT"
@@ -346,12 +334,15 @@ class TestSARAPI:
         assert data["requires_mlro_action"] is True
 
     def test_file_sar_missing_reason_422(self, client: TestClient) -> None:
-        res = client.post("/v1/reporting/sar", json={
-            "transaction_id": "tx-api-2",
-            "customer_id": "cust-api-2",
-            "amount": "1000",
-            "sar_reasons": [],
-        })
+        res = client.post(
+            "/v1/reporting/sar",
+            json={
+                "transaction_id": "tx-api-2",
+                "customer_id": "cust-api-2",
+                "amount": "1000",
+                "sar_reasons": [],
+            },
+        )
         assert res.status_code == 422
 
     def test_get_sar_404(self, client: TestClient) -> None:
@@ -359,51 +350,66 @@ class TestSARAPI:
         assert res.status_code == 404
 
     def test_get_sar_found(self, client: TestClient) -> None:
-        created = client.post("/v1/reporting/sar", json={
-            "transaction_id": "tx-api-3",
-            "customer_id": "cust-api-3",
-            "amount": "5000",
-            "sar_reasons": ["STRUCTURING"],
-        })
+        created = client.post(
+            "/v1/reporting/sar",
+            json={
+                "transaction_id": "tx-api-3",
+                "customer_id": "cust-api-3",
+                "amount": "5000",
+                "sar_reasons": ["STRUCTURING"],
+            },
+        )
         sar_id = created.json()["sar_id"]
         res = client.get(f"/v1/reporting/sar/{sar_id}")
         assert res.status_code == 200
         assert res.json()["sar_id"] == sar_id
 
     def test_approve_sar(self, client: TestClient) -> None:
-        created = client.post("/v1/reporting/sar", json={
-            "transaction_id": "tx-api-4",
-            "customer_id": "cust-api-4",
-            "amount": "20000",
-            "sar_reasons": ["HIGH_RISK_JURISDICTION"],
-        })
+        created = client.post(
+            "/v1/reporting/sar",
+            json={
+                "transaction_id": "tx-api-4",
+                "customer_id": "cust-api-4",
+                "amount": "20000",
+                "sar_reasons": ["HIGH_RISK_JURISDICTION"],
+            },
+        )
         sar_id = created.json()["sar_id"]
-        res = client.post(f"/v1/reporting/sar/{sar_id}/approve", json={
-            "mlro_id": "mlro-001",
-            "notes": "Confirmed ML risk",
-        })
+        res = client.post(
+            f"/v1/reporting/sar/{sar_id}/approve",
+            json={
+                "mlro_id": "mlro-001",
+                "notes": "Confirmed ML risk",
+            },
+        )
         assert res.status_code == 200
         assert res.json()["status"] == "MLRO_APPROVED"
 
     def test_approve_twice_409(self, client: TestClient) -> None:
-        created = client.post("/v1/reporting/sar", json={
-            "transaction_id": "tx-api-5",
-            "customer_id": "cust-api-5",
-            "amount": "8000",
-            "sar_reasons": ["OTHER"],
-        })
+        created = client.post(
+            "/v1/reporting/sar",
+            json={
+                "transaction_id": "tx-api-5",
+                "customer_id": "cust-api-5",
+                "amount": "8000",
+                "sar_reasons": ["OTHER"],
+            },
+        )
         sar_id = created.json()["sar_id"]
         client.post(f"/v1/reporting/sar/{sar_id}/approve", json={"mlro_id": "mlro-001"})
         res = client.post(f"/v1/reporting/sar/{sar_id}/approve", json={"mlro_id": "mlro-002"})
         assert res.status_code == 409
 
     def test_submit_sar(self, client: TestClient) -> None:
-        created = client.post("/v1/reporting/sar", json={
-            "transaction_id": "tx-api-6",
-            "customer_id": "cust-api-6",
-            "amount": "30000",
-            "sar_reasons": ["VELOCITY_BREACH", "STRUCTURING"],
-        })
+        created = client.post(
+            "/v1/reporting/sar",
+            json={
+                "transaction_id": "tx-api-6",
+                "customer_id": "cust-api-6",
+                "amount": "30000",
+                "sar_reasons": ["VELOCITY_BREACH", "STRUCTURING"],
+            },
+        )
         sar_id = created.json()["sar_id"]
         client.post(f"/v1/reporting/sar/{sar_id}/approve", json={"mlro_id": "mlro-001"})
         res = client.post(f"/v1/reporting/sar/{sar_id}/submit")
@@ -413,58 +419,79 @@ class TestSARAPI:
         assert data["nca_reference"].startswith("SAR-")
 
     def test_submit_draft_409(self, client: TestClient) -> None:
-        created = client.post("/v1/reporting/sar", json={
-            "transaction_id": "tx-api-7",
-            "customer_id": "cust-api-7",
-            "amount": "5000",
-            "sar_reasons": ["OTHER"],
-        })
+        created = client.post(
+            "/v1/reporting/sar",
+            json={
+                "transaction_id": "tx-api-7",
+                "customer_id": "cust-api-7",
+                "amount": "5000",
+                "sar_reasons": ["OTHER"],
+            },
+        )
         sar_id = created.json()["sar_id"]
         res = client.post(f"/v1/reporting/sar/{sar_id}/submit")
         assert res.status_code == 409
 
     def test_withdraw_sar(self, client: TestClient) -> None:
-        created = client.post("/v1/reporting/sar", json={
-            "transaction_id": "tx-api-8",
-            "customer_id": "cust-api-8",
-            "amount": "7000",
-            "sar_reasons": ["UNUSUAL_PATTERN"],
-        })
+        created = client.post(
+            "/v1/reporting/sar",
+            json={
+                "transaction_id": "tx-api-8",
+                "customer_id": "cust-api-8",
+                "amount": "7000",
+                "sar_reasons": ["UNUSUAL_PATTERN"],
+            },
+        )
         sar_id = created.json()["sar_id"]
-        res = client.post(f"/v1/reporting/sar/{sar_id}/withdraw", json={
-            "mlro_id": "mlro-001",
-            "reason": "Review found no ML indicators",
-        })
+        res = client.post(
+            f"/v1/reporting/sar/{sar_id}/withdraw",
+            json={
+                "mlro_id": "mlro-001",
+                "reason": "Review found no ML indicators",
+            },
+        )
         assert res.status_code == 200
         assert res.json()["status"] == "WITHDRAWN"
 
     def test_withdraw_missing_reason_422(self, client: TestClient) -> None:
-        created = client.post("/v1/reporting/sar", json={
-            "transaction_id": "tx-api-9",
-            "customer_id": "cust-api-9",
-            "amount": "7000",
-            "sar_reasons": ["UNUSUAL_PATTERN"],
-        })
+        created = client.post(
+            "/v1/reporting/sar",
+            json={
+                "transaction_id": "tx-api-9",
+                "customer_id": "cust-api-9",
+                "amount": "7000",
+                "sar_reasons": ["UNUSUAL_PATTERN"],
+            },
+        )
         sar_id = created.json()["sar_id"]
-        res = client.post(f"/v1/reporting/sar/{sar_id}/withdraw", json={
-            "mlro_id": "mlro-001",
-            "reason": "   ",  # blank — must be rejected by validator
-        })
+        res = client.post(
+            f"/v1/reporting/sar/{sar_id}/withdraw",
+            json={
+                "mlro_id": "mlro-001",
+                "reason": "   ",  # blank — must be rejected by validator
+            },
+        )
         assert res.status_code == 422
 
     def test_list_sars(self, client: TestClient) -> None:
-        client.post("/v1/reporting/sar", json={
-            "transaction_id": "tx-list-1",
-            "customer_id": "cust-list-1",
-            "amount": "5000",
-            "sar_reasons": ["OTHER"],
-        })
-        client.post("/v1/reporting/sar", json={
-            "transaction_id": "tx-list-2",
-            "customer_id": "cust-list-2",
-            "amount": "6000",
-            "sar_reasons": ["STRUCTURING"],
-        })
+        client.post(
+            "/v1/reporting/sar",
+            json={
+                "transaction_id": "tx-list-1",
+                "customer_id": "cust-list-1",
+                "amount": "5000",
+                "sar_reasons": ["OTHER"],
+            },
+        )
+        client.post(
+            "/v1/reporting/sar",
+            json={
+                "transaction_id": "tx-list-2",
+                "customer_id": "cust-list-2",
+                "amount": "6000",
+                "sar_reasons": ["STRUCTURING"],
+            },
+        )
         res = client.get("/v1/reporting/sar")
         assert res.status_code == 200
         assert res.json()["total"] == 2
@@ -479,12 +506,15 @@ class TestSARAPI:
 
 class TestFIN060API:
     def test_generate_fin060_201(self, client: TestClient) -> None:
-        res = client.post("/v1/reporting/fin060/generate", json={
-            "period_start": "2026-03-01",
-            "period_end": "2026-03-31",
-            "avg_daily_client_funds": "850000.00",
-            "peak_client_funds": "1200000.00",
-        })
+        res = client.post(
+            "/v1/reporting/fin060/generate",
+            json={
+                "period_start": "2026-03-01",
+                "period_end": "2026-03-31",
+                "avg_daily_client_funds": "850000.00",
+                "peak_client_funds": "1200000.00",
+            },
+        )
         assert res.status_code == 201
         data = res.json()
         assert data["period_start"] == "2026-03-01"
@@ -492,21 +522,27 @@ class TestFIN060API:
         assert "deadline" in data
 
     def test_generate_fin060_period_validation(self, client: TestClient) -> None:
-        res = client.post("/v1/reporting/fin060/generate", json={
-            "period_start": "2026-03-31",
-            "period_end": "2026-03-01",  # end before start
-            "avg_daily_client_funds": "500000",
-            "peak_client_funds": "700000",
-        })
+        res = client.post(
+            "/v1/reporting/fin060/generate",
+            json={
+                "period_start": "2026-03-31",
+                "period_end": "2026-03-01",  # end before start
+                "avg_daily_client_funds": "500000",
+                "peak_client_funds": "700000",
+            },
+        )
         assert res.status_code == 422
 
     def test_submit_fin060(self, client: TestClient) -> None:
-        res = client.post("/v1/reporting/fin060/submit", json={
-            "period_start": "2026-03-01",
-            "period_end": "2026-03-31",
-            "avg_daily_client_funds": "850000.00",
-            "peak_client_funds": "1200000.00",
-        })
+        res = client.post(
+            "/v1/reporting/fin060/submit",
+            json={
+                "period_start": "2026-03-01",
+                "period_end": "2026-03-31",
+                "avg_daily_client_funds": "850000.00",
+                "peak_client_funds": "1200000.00",
+            },
+        )
         assert res.status_code == 200
         data = res.json()
         # Stub always succeeds with SUBMITTED status

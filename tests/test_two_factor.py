@@ -2,6 +2,7 @@
 test_two_factor.py — Lightweight 2FA (TOTP + backup codes) tests
 S17-04: 2FA/MFA — RFC 6238 TOTP, PSR 2017 Reg.71 (SCA)
 """
+
 from __future__ import annotations
 
 import pytest
@@ -31,6 +32,7 @@ def active_svc(svc, setup):
 
 # ── Setup ──────────────────────────────────────────────────────────────────────
 
+
 class TestSetup:
     def test_returns_setup(self, svc):
         setup = svc.setup_totp("cust-001")
@@ -38,6 +40,7 @@ class TestSetup:
 
     def test_secret_is_base32(self, svc):
         import base64
+
         setup = svc.setup_totp("cust-001")
         # pyotp secrets are valid base32
         base64.b32decode(setup.secret)
@@ -63,6 +66,7 @@ class TestSetup:
 
 
 # ── TOTP verification ──────────────────────────────────────────────────────────
+
 
 class TestVerifyTOTP:
     def test_valid_otp_accepted(self, active_svc):
@@ -99,6 +103,7 @@ class TestVerifyTOTP:
 
 # ── Backup codes ───────────────────────────────────────────────────────────────
 
+
 class TestBackupCodes:
     def test_backup_code_accepted(self, active_svc):
         svc, setup = active_svc
@@ -132,6 +137,7 @@ class TestBackupCodes:
 
 # ── Revoke ────────────────────────────────────────────────────────────────────
 
+
 class TestRevoke:
     def test_revoke_disables_totp(self, active_svc):
         svc, setup = active_svc
@@ -150,12 +156,15 @@ class TestRevoke:
 
 # ── Customer DTO extension (IL-036) ───────────────────────────────────────────
 
+
 class TestCustomerDTOExtended:
     """Smoke tests for extended IndividualProfile fields (IL-036)."""
 
     def test_individual_full_name_with_title(self):
         from datetime import date
+
         from services.customer.customer_port import Address, IndividualProfile
+
         profile = IndividualProfile(
             first_name="Alice",
             last_name="Smith",
@@ -169,7 +178,9 @@ class TestCustomerDTOExtended:
 
     def test_individual_fatca_crs_defaults(self):
         from datetime import date
+
         from services.customer.customer_port import Address, IndividualProfile
+
         profile = IndividualProfile(
             first_name="Bob",
             last_name="Jones",
@@ -183,7 +194,9 @@ class TestCustomerDTOExtended:
 
     def test_company_extended_fields(self):
         from datetime import date
+
         from services.customer.customer_port import Address, CompanyProfile
+
         company = CompanyProfile(
             company_name="Acme Ltd",
             registration_number="12345678",

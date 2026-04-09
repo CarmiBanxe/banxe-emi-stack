@@ -5,23 +5,23 @@ IL-046 | banxe-emi-stack
 All monetary amounts are strings to preserve decimal precision (I-05).
 Never use float for financial values.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
 from services.payment.payment_port import PaymentDirection, PaymentRail, PaymentStatus
 
-
 # ── Request schemas ───────────────────────────────────────────────────────────
 
+
 class BankAccountRequest(BaseModel):
-    iban: Optional[str] = None
-    sort_code: Optional[str] = None
-    account_number: Optional[str] = None
-    bic: Optional[str] = None
+    iban: str | None = None
+    sort_code: str | None = None
+    account_number: str | None = None
+    bic: str | None = None
     holder_name: str
 
 
@@ -39,6 +39,7 @@ class InitiatePaymentRequest(BaseModel):
     @classmethod
     def validate_decimal_string(cls, v: str) -> str:
         import re
+
         if not re.match(r"^\d+(\.\d{1,2})?$", v):
             raise ValueError("amount must be a decimal string like '100.00'")
         if float(v) <= 0:
@@ -53,16 +54,17 @@ class InitiatePaymentRequest(BaseModel):
 
 # ── Response schemas ──────────────────────────────────────────────────────────
 
+
 class PaymentResponse(BaseModel):
     payment_id: str
-    provider_payment_id: Optional[str] = None
+    provider_payment_id: str | None = None
     rail: PaymentRail
     status: PaymentStatus
     amount: str
     currency: str
     direction: PaymentDirection
     reference: str
-    failure_reason: Optional[str] = None
+    failure_reason: str | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

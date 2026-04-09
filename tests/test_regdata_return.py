@@ -2,6 +2,7 @@
 test_regdata_return.py — Tests for FCA RegData Monthly Return Service (S6-12)
 FCA CASS 15 / PS25/12 | banxe-emi-stack
 """
+
 from __future__ import annotations
 
 from datetime import date
@@ -33,6 +34,7 @@ class TestPreviousMonthPeriod:
 
     def test_end_is_last_of_month(self):
         import calendar
+
         start, end = _previous_month_period()
         expected_last = calendar.monthrange(start.year, start.month)[1]
         assert end.day == expected_last

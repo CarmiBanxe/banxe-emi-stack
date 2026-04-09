@@ -11,10 +11,11 @@ FCA compliance:
   - Amounts as Decimal strings (I-05, never float)
   - All payment events logged to ClickHouse in production (I-24)
 """
+
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -92,7 +93,7 @@ def initiate_payment(
             creditor_account=creditor,
             reference=body.reference,
             end_to_end_id=str(uuid.uuid4()),
-            requested_at=datetime.now(timezone.utc),
+            requested_at=datetime.now(UTC),
             metadata={"customer_id": body.customer_id},
         )
     except (ValueError, TypeError) as e:
@@ -125,7 +126,5 @@ def get_payment(
 ) -> PaymentResponse:
     result = svc.get_payment_status(idempotency_key)
     if result.status.value == "NOT_FOUND":
-        raise HTTPException(
-            status_code=404, detail=f"Payment {idempotency_key} not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Payment {idempotency_key} not found")
     return _result_to_response(result)

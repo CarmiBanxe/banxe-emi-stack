@@ -16,11 +16,11 @@ Endpoints:
   POST /v1/reporting/sar/{sar_id}/submit   — submit MLRO-approved SAR to NCA
   POST /v1/reporting/sar/{sar_id}/withdraw — MLRO withdraws SAR
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
 from functools import lru_cache
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 
@@ -42,6 +42,7 @@ router = APIRouter(tags=["Compliance Reporting"])
 
 # ── Service factories (overridable in tests via dependency_overrides) ──────────
 
+
 @lru_cache(maxsize=1)
 def _get_sar_service() -> SARService:
     return SARService()
@@ -53,6 +54,7 @@ def _get_regdata_service() -> RegDataReturnService:
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _sar_to_response(sar) -> SARResponse:  # type: ignore[no-untyped-def]
     return SARResponse(
@@ -80,6 +82,7 @@ def _sar_to_response(sar) -> SARResponse:  # type: ignore[no-untyped-def]
 
 
 # ── FIN060 ────────────────────────────────────────────────────────────────────
+
 
 @router.post(
     "/reporting/fin060/generate",
@@ -152,6 +155,7 @@ def submit_fin060(body: FIN060GenerateRequest) -> FIN060Response:
 
 # ── SAR ───────────────────────────────────────────────────────────────────────
 
+
 @router.post(
     "/reporting/sar",
     response_model=SARResponse,
@@ -184,7 +188,7 @@ def file_sar(body: FileSARRequest) -> SARResponse:
     response_model=SARListResponse,
     summary="List SARs",
 )
-def list_sars(status: Optional[SARStatus] = None) -> SARListResponse:
+def list_sars(status: SARStatus | None = None) -> SARListResponse:
     """
     List all SARs, optionally filtered by status.
     GDPR: restricted to MLRO and compliance roles (enforced at auth layer).

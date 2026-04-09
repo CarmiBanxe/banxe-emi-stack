@@ -4,6 +4,7 @@ IL-068 | AML/Compliance block | banxe-emi-stack
 
 Tests: secret validation, health ping, list_updated event, n8n trigger failure.
 """
+
 from __future__ import annotations
 
 import os
@@ -42,6 +43,7 @@ def set_watchman_secret(monkeypatch):
     yield
     # clear processor secret cache so it re-reads env each test
     from api.routers.watchman_webhook import _processor
+
     _processor._secrets["watchman"] = os.environ.get("WATCHMAN_WEBHOOK_SECRET", "")
 
 
@@ -70,6 +72,7 @@ class TestWatchmanWebhookSecurity:
         """If WATCHMAN_WEBHOOK_SECRET is unset, endpoint accepts any secret."""
         monkeypatch.delenv("WATCHMAN_WEBHOOK_SECRET", raising=False)
         from api.routers.watchman_webhook import _processor
+
         _processor._secrets["watchman"] = ""
         resp = client.post("/webhooks/watchman", json=_LIST_UPDATED)
         assert resp.status_code == 202

@@ -2,11 +2,13 @@
 test_config_service.py — Config-as-Data: YAMLConfigStore + fee/limit calculations
 Geniusto v5 Pattern #6 | FCA: COBS 6, PSR 2017 Reg.67
 """
+
 from __future__ import annotations
 
-import pytest
 from decimal import Decimal
 from pathlib import Path
+
+import pytest
 
 from services.config.config_port import FeeSchedule, PaymentLimits, ProductConfig
 from services.config.config_service import InMemoryConfigStore, YAMLConfigStore
@@ -17,6 +19,7 @@ YAML_PATH = Path(__file__).parent.parent / "config" / "banxe_config.yaml"
 
 
 # ── YAML store — loading ───────────────────────────────────────────────────────
+
 
 class TestYAMLConfigStore:
     @pytest.fixture
@@ -50,6 +53,7 @@ class TestYAMLConfigStore:
 
 
 # ── Fee schedules ──────────────────────────────────────────────────────────────
+
 
 class TestFeeSchedules:
     @pytest.fixture
@@ -105,6 +109,7 @@ class TestFeeSchedules:
 
 
 # ── Payment limits ─────────────────────────────────────────────────────────────
+
 
 class TestPaymentLimits:
     @pytest.fixture
@@ -168,6 +173,7 @@ class TestPaymentLimits:
 
 # ── InMemoryConfigStore ────────────────────────────────────────────────────────
 
+
 class TestInMemoryConfigStore:
     def _make_product(self) -> ProductConfig:
         fee = FeeSchedule(
@@ -219,47 +225,68 @@ class TestInMemoryConfigStore:
 
 # ── FeeSchedule.calculate edge cases ──────────────────────────────────────────
 
+
 class TestFeeCalculate:
     def test_flat_fee(self):
         fee = FeeSchedule(
-            product_id="P", tx_type="FPS", fee_type="FLAT",
-            flat_fee=Decimal("0.20"), percentage=Decimal("0"),
-            min_fee=Decimal("0.20"), max_fee=None,
+            product_id="P",
+            tx_type="FPS",
+            fee_type="FLAT",
+            flat_fee=Decimal("0.20"),
+            percentage=Decimal("0"),
+            min_fee=Decimal("0.20"),
+            max_fee=None,
         )
         assert fee.calculate(Decimal("1000")) == Decimal("0.20")
 
     def test_percentage_with_min(self):
         fee = FeeSchedule(
-            product_id="P", tx_type="FX", fee_type="PERCENTAGE",
-            flat_fee=Decimal("0"), percentage=Decimal("0.001"),  # 0.1%
-            min_fee=Decimal("2.00"), max_fee=None,
+            product_id="P",
+            tx_type="FX",
+            fee_type="PERCENTAGE",
+            flat_fee=Decimal("0"),
+            percentage=Decimal("0.001"),  # 0.1%
+            min_fee=Decimal("2.00"),
+            max_fee=None,
         )
         # 0.1% of £50 = £0.05 → raised to min £2.00
         assert fee.calculate(Decimal("50")) == Decimal("2.00")
 
     def test_percentage_above_min(self):
         fee = FeeSchedule(
-            product_id="P", tx_type="FX", fee_type="PERCENTAGE",
-            flat_fee=Decimal("0"), percentage=Decimal("0.001"),
-            min_fee=Decimal("2.00"), max_fee=None,
+            product_id="P",
+            tx_type="FX",
+            fee_type="PERCENTAGE",
+            flat_fee=Decimal("0"),
+            percentage=Decimal("0.001"),
+            min_fee=Decimal("2.00"),
+            max_fee=None,
         )
         # 0.1% of £5,000 = £5.00 → above min
         assert fee.calculate(Decimal("5000")) == Decimal("5.00")
 
     def test_max_fee_cap(self):
         fee = FeeSchedule(
-            product_id="P", tx_type="FX", fee_type="PERCENTAGE",
-            flat_fee=Decimal("0"), percentage=Decimal("0.01"),  # 1%
-            min_fee=Decimal("1.00"), max_fee=Decimal("100.00"),
+            product_id="P",
+            tx_type="FX",
+            fee_type="PERCENTAGE",
+            flat_fee=Decimal("0"),
+            percentage=Decimal("0.01"),  # 1%
+            min_fee=Decimal("1.00"),
+            max_fee=Decimal("100.00"),
         )
         # 1% of £50,000 = £500 → capped at £100
         assert fee.calculate(Decimal("50000")) == Decimal("100.00")
 
     def test_mixed_fee(self):
         fee = FeeSchedule(
-            product_id="P", tx_type="SEPA", fee_type="MIXED",
-            flat_fee=Decimal("0.50"), percentage=Decimal("0.001"),  # 0.1%
-            min_fee=Decimal("0.50"), max_fee=None,
+            product_id="P",
+            tx_type="SEPA",
+            fee_type="MIXED",
+            flat_fee=Decimal("0.50"),
+            percentage=Decimal("0.001"),  # 0.1%
+            min_fee=Decimal("0.50"),
+            max_fee=None,
         )
         # 0.50 + 0.1% of £1000 = £0.50 + £1.00 = £1.50
         assert fee.calculate(Decimal("1000")) == Decimal("1.50")

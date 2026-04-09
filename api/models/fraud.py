@@ -4,11 +4,11 @@ IL-049 | S9-05 | banxe-emi-stack
 
 POST /v1/fraud/assess — pre-payment fraud + AML gate
 """
+
 from __future__ import annotations
 
 import re
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, field_validator
 
@@ -20,18 +20,19 @@ class FraudAssessRequest(BaseModel):
     Request to assess a transaction through Fraud + AML pipeline.
     All fields reflect the payment intent before rail submission.
     """
+
     transaction_id: str
     customer_id: str
-    entity_type: str = "INDIVIDUAL"      # INDIVIDUAL | COMPANY
-    amount: str                          # Decimal string — I-05 (no float)
+    entity_type: str = "INDIVIDUAL"  # INDIVIDUAL | COMPANY
+    amount: str  # Decimal string — I-05 (no float)
     currency: str = "GBP"
     destination_account: str
     destination_sort_code: str = ""
-    destination_country: str             # ISO-3166-1 alpha-2
-    payment_rail: str = "FPS"            # FPS | SEPA_CT | SEPA_INSTANT | BACS
-    device_id: Optional[str] = None
-    customer_ip: Optional[str] = None
-    session_id: Optional[str] = None
+    destination_country: str  # ISO-3166-1 alpha-2
+    payment_rail: str = "FPS"  # FPS | SEPA_CT | SEPA_INSTANT | BACS
+    device_id: str | None = None
+    customer_ip: str | None = None
+    session_id: str | None = None
     first_transaction_to_payee: bool = True
     amount_unusual: bool = False
     is_pep: bool = False
@@ -71,12 +72,13 @@ class FraudAssessResponse(BaseModel):
       HOLD    → queue for HITL review (do NOT submit)
       BLOCK   → reject immediately (do NOT submit)
     """
+
     transaction_id: str
     customer_id: str
-    decision: str                        # APPROVE | HOLD | BLOCK
+    decision: str  # APPROVE | HOLD | BLOCK
 
     # Fraud findings
-    fraud_risk: str                      # LOW | MEDIUM | HIGH | CRITICAL
+    fraud_risk: str  # LOW | MEDIUM | HIGH | CRITICAL
     fraud_score: int
     app_scam_indicator: str
     fraud_factors: list[str]

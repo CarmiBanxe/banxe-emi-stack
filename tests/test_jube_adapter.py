@@ -6,10 +6,11 @@ banxe-emi-stack
 All HTTP calls are mocked by replacing adapter._client after construction.
 httpx IS installed — construct JubeAdapter with direct params, then swap _client.
 """
+
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
@@ -22,10 +23,10 @@ from services.fraud.fraud_port import (
 )
 from services.fraud.jube_adapter import JubeAdapter
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def _mock_response(status_code: int, json_data: dict | list | str = "") -> MagicMock:
     resp = MagicMock()
@@ -74,13 +75,14 @@ def _req(**kwargs) -> FraudScoringRequest:
 
 
 def _auth_response(token: str = "jwt-token", hours: int = 1) -> MagicMock:
-    expiry = (datetime.now(timezone.utc) + timedelta(hours=hours)).isoformat()
+    expiry = (datetime.now(UTC) + timedelta(hours=hours)).isoformat()
     return _mock_response(200, {"token": token, "tokenExpiryTime": expiry})
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # TestJubeAdapterInit
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestJubeAdapterInit:
     def test_direct_params_ok(self):
@@ -93,6 +95,7 @@ class TestJubeAdapterInit:
     def test_missing_base_url_raises(self):
         with patch.dict("os.environ", {}, clear=False):
             import os
+
             original = os.environ.pop("JUBE_URL", None)
             try:
                 with pytest.raises(EnvironmentError, match="JUBE_URL"):
@@ -135,6 +138,7 @@ class TestJubeAdapterInit:
 
     def test_httpx_not_installed_raises(self):
         import sys
+
         with patch.dict(sys.modules, {"httpx": None}):
             with pytest.raises(RuntimeError, match="httpx not installed"):
                 JubeAdapter(
@@ -148,6 +152,7 @@ class TestJubeAdapterInit:
 # ─────────────────────────────────────────────────────────────────────────────
 # TestAuthenticate
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestAuthenticate:
     def test_success_stores_jwt(self):
@@ -200,21 +205,25 @@ class TestAuthenticate:
     def test_expiry_fallback_on_bad_iso(self):
         """If tokenExpiryTime is malformed, falls back to now + 1 hour."""
         client = MagicMock()
-        client.post.return_value = _mock_response(200, {"token": "tok", "tokenExpiryTime": "not-a-date"})
+        client.post.return_value = _mock_response(
+            200, {"token": "tok", "tokenExpiryTime": "not-a-date"}
+        )
         adapter = _adapter(client)
 
         adapter._authenticate()
 
         assert adapter._jwt_expires_at is not None
         # Should be roughly now + 1 hour
-        diff = adapter._jwt_expires_at - datetime.now(timezone.utc)
+        diff = adapter._jwt_expires_at - datetime.now(UTC)
         assert timedelta(minutes=50) < diff < timedelta(hours=2)
 
     def test_token_key_alias_Token(self):
         """Jube may use PascalCase 'Token' key."""
         client = MagicMock()
-        expiry = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
-        client.post.return_value = _mock_response(200, {"Token": "pascal-token", "TokenExpiryTime": expiry})
+        expiry = (datetime.now(UTC) + timedelta(hours=1)).isoformat()
+        client.post.return_value = _mock_response(
+            200, {"Token": "pascal-token", "TokenExpiryTime": expiry}
+        )
         adapter = _adapter(client)
 
         token = adapter._authenticate()
@@ -224,6 +233,7 @@ class TestAuthenticate:
 # ─────────────────────────────────────────────────────────────────────────────
 # TestGetJwt
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestGetJwt:
     def test_fetches_new_jwt_when_none(self):
@@ -239,7 +249,7 @@ class TestGetJwt:
         client = MagicMock()
         adapter = _adapter(client)
         adapter._jwt = "cached-token"
-        adapter._jwt_expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+        adapter._jwt_expires_at = datetime.now(UTC) + timedelta(hours=1)
 
         token = adapter._get_jwt()
         assert token == "cached-token"
@@ -251,7 +261,7 @@ class TestGetJwt:
         client.post.return_value = _auth_response("new-token")
         adapter = _adapter(client)
         adapter._jwt = "old-token"
-        adapter._jwt_expires_at = datetime.now(timezone.utc) + timedelta(seconds=30)
+        adapter._jwt_expires_at = datetime.now(UTC) + timedelta(seconds=30)
 
         token = adapter._get_jwt()
         assert token == "new-token"
@@ -262,7 +272,7 @@ class TestGetJwt:
         client.post.return_value = _auth_response("refreshed")
         adapter = _adapter(client)
         adapter._jwt = "old"
-        adapter._jwt_expires_at = datetime.now(timezone.utc) - timedelta(hours=1)
+        adapter._jwt_expires_at = datetime.now(UTC) - timedelta(hours=1)
 
         token = adapter._get_jwt()
         assert token == "refreshed"
@@ -271,6 +281,7 @@ class TestGetJwt:
 # ─────────────────────────────────────────────────────────────────────────────
 # TestBuildPayload
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestBuildPayload:
     def test_amount_is_string(self):
@@ -288,10 +299,20 @@ class TestBuildPayload:
         payload = adapter._build_payload(_req())
 
         required = {
-            "TransactionId", "CustomerId", "TransactionAmount", "Currency",
-            "DestinationAccount", "DestinationSortCode", "DestinationCountry",
-            "PaymentRail", "EntityType", "FirstTransactionToPayee",
-            "AmountUnusual", "CustomerIp", "CustomerDeviceId", "SessionId",
+            "TransactionId",
+            "CustomerId",
+            "TransactionAmount",
+            "Currency",
+            "DestinationAccount",
+            "DestinationSortCode",
+            "DestinationCountry",
+            "PaymentRail",
+            "EntityType",
+            "FirstTransactionToPayee",
+            "AmountUnusual",
+            "CustomerIp",
+            "CustomerDeviceId",
+            "SessionId",
         }
         assert required.issubset(payload.keys())
 
@@ -309,6 +330,7 @@ class TestBuildPayload:
 # ─────────────────────────────────────────────────────────────────────────────
 # TestParseResponse
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestParseResponse:
     def _parse(self, data: dict, latency: float = 10.0):
@@ -371,19 +393,23 @@ class TestParseResponse:
     def test_audit_guid_logged(self, caplog):
         """I-24: entityAnalysisModelInstanceEntryGuid must be logged."""
         with caplog.at_level(logging.INFO, logger="services.fraud.jube_adapter"):
-            self._parse({
-                "responseElevation": 20,
-                "EntityAnalysisModelInstanceEntryGuid": "audit-guid-1234",
-            })
+            self._parse(
+                {
+                    "responseElevation": 20,
+                    "EntityAnalysisModelInstanceEntryGuid": "audit-guid-1234",
+                }
+            )
         assert "audit-guid-1234" in caplog.text
 
     def test_factors_extracted_from_bool_rules(self):
-        result = self._parse({
-            "responseElevation": 80,
-            "NewDevice": True,
-            "HighRiskCountry": True,
-            "SomeNumericField": 42,
-        })
+        result = self._parse(
+            {
+                "responseElevation": 80,
+                "NewDevice": True,
+                "HighRiskCountry": True,
+                "SomeNumericField": 42,
+            }
+        )
         assert "NewDevice" in result.factors
         assert "HighRiskCountry" in result.factors
         assert "SomeNumericField" not in result.factors
@@ -400,6 +426,7 @@ class TestParseResponse:
 # ─────────────────────────────────────────────────────────────────────────────
 # TestDetectAppScam
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestDetectAppScam:
     def _detect(self, normalised: dict) -> AppScamIndicator:
@@ -446,13 +473,14 @@ class TestDetectAppScam:
 # TestScore — full flow
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestScore:
     def _adapter_with_auth(self) -> tuple[JubeAdapter, MagicMock]:
         """Adapter with pre-loaded JWT (skip auth in tests)."""
         client = MagicMock()
         adapter = _adapter(client)
         adapter._jwt = "valid-jwt"
-        adapter._jwt_expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+        adapter._jwt_expires_at = datetime.now(UTC) + timedelta(hours=1)
         return adapter, client
 
     def test_low_risk_score(self):
@@ -494,10 +522,11 @@ class TestScore:
 
     def test_timeout_fallback_returns_medium_hold(self):
         import httpx
+
         client = MagicMock()
         adapter = _adapter(client)
         adapter._jwt = "valid-jwt"
-        adapter._jwt_expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+        adapter._jwt_expires_at = datetime.now(UTC) + timedelta(hours=1)
         client.post.side_effect = httpx.TimeoutException("timeout")
 
         result = adapter.score(_req())
@@ -528,8 +557,8 @@ class TestScore:
         # First invoke call returns 401, auth returns new token, second invoke succeeds
         client.post.side_effect = [
             _mock_response(401, {}),  # first invoke → 401
-            auth_resp,                 # _authenticate() → new JWT
-            invoke_resp,               # second invoke → success
+            auth_resp,  # _authenticate() → new JWT
+            invoke_resp,  # second invoke → success
         ]
 
         result = adapter.score(_req())
@@ -548,6 +577,7 @@ class TestScore:
 # ─────────────────────────────────────────────────────────────────────────────
 # TestFallbacks
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestFallbacks:
     def test_timeout_fallback_structure(self):
@@ -578,6 +608,7 @@ class TestFallbacks:
 # TestHealth
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestHealth:
     def test_health_true_when_auth_succeeds(self):
         client = MagicMock()
@@ -595,6 +626,7 @@ class TestHealth:
 
     def test_health_false_on_network_error(self):
         import httpx
+
         client = MagicMock()
         client.post.side_effect = httpx.ConnectError("refused")
         adapter = _adapter(client)
@@ -605,6 +637,7 @@ class TestHealth:
 # ─────────────────────────────────────────────────────────────────────────────
 # TestScoreThresholdBoundaries
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestScoreThresholdBoundaries:
     """Verify exact threshold boundaries match spec (I-057)."""

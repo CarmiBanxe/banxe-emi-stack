@@ -3,6 +3,7 @@ test_webhook_router.py — Centralised Webhook Router tests
 S17-03 (partial): Unified inbound webhook handler with HMAC + audit
 Pattern: Geniusto v5 webHookService / Handler incoming GCP
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -18,8 +19,8 @@ from services.webhooks.webhook_router import (
     WebhookStatus,
 )
 
-
 # ── Helpers ────────────────────────────────────────────────────────────────────
+
 
 def _modulr_body(event_type: str = "PAYMENT_COMPLETED") -> bytes:
     return json.dumps({"eventType": event_type, "paymentId": "pay-001"}).encode()
@@ -56,6 +57,7 @@ def store():
 
 # ── Modulr webhooks ────────────────────────────────────────────────────────────
 
+
 class TestModulrWebhook:
     def test_valid_signature_verified(self, processor):
         body = _modulr_body()
@@ -86,6 +88,7 @@ class TestModulrWebhook:
 
 # ── Sumsub webhooks ────────────────────────────────────────────────────────────
 
+
 class TestSumsubWebhook:
     def test_valid_signature_verified(self, processor):
         body = _sumsub_body()
@@ -102,6 +105,7 @@ class TestSumsubWebhook:
 
 # ── n8n internal webhooks ──────────────────────────────────────────────────────
 
+
 class TestN8nWebhook:
     def test_n8n_trusted_without_sig(self, processor):
         body = json.dumps({"event": "sla_breach", "complaint_id": "c-001"}).encode()
@@ -112,6 +116,7 @@ class TestN8nWebhook:
 
 # ── Unknown provider ───────────────────────────────────────────────────────────
 
+
 class TestUnknownProvider:
     def test_unknown_provider_rejected(self, processor):
         body = b'{"event": "test"}'
@@ -121,6 +126,7 @@ class TestUnknownProvider:
 
 
 # ── Audit trail (I-24) ─────────────────────────────────────────────────────────
+
 
 class TestAuditTrail:
     def test_all_webhooks_stored(self, processor):
@@ -163,6 +169,7 @@ class TestAuditTrail:
 
 # ── Handlers ───────────────────────────────────────────────────────────────────
 
+
 class TestHandlers:
     def test_handler_called_on_valid(self, processor):
         received = []
@@ -182,6 +189,7 @@ class TestHandlers:
     def test_failing_handler_recorded(self, processor):
         def bad_handler(ev):
             raise RuntimeError("handler error")
+
         processor.register_handler(WebhookProvider.MODULR, bad_handler)
         body = _modulr_body()
         sig = _modulr_sig(body, MODULR_SECRET)
@@ -191,6 +199,7 @@ class TestHandlers:
 
 
 # ── Replay ────────────────────────────────────────────────────────────────────
+
 
 class TestReplay:
     def test_replay_returns_event(self, processor):

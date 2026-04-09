@@ -22,13 +22,13 @@ State machine transitions:
   MLRO_REVIEW → REJECTED             (mlro reject)
   Any → EXPIRED                      (TTL elapsed)
 """
+
 from __future__ import annotations
 
 import logging as _logging
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Optional
 
 from services.kyc.kyc_port import (
     KYCStatus,
@@ -47,9 +47,29 @@ _BLOCKED_COUNTRIES = {"RU", "BY", "IR", "KP", "CU", "MM", "AF", "VE"}
 
 # I-03 — high-risk jurisdictions (FATF greylist) → EDD required
 _HIGH_RISK_COUNTRIES = {
-    "SY", "IQ", "LB", "YE", "HT", "ML", "DZ", "AO", "BO", "VG",
-    "CM", "CI", "CD", "KE", "LA", "MC", "NA", "NP", "SS", "TT",
-    "VU", "BG", "VN",
+    "SY",
+    "IQ",
+    "LB",
+    "YE",
+    "HT",
+    "ML",
+    "DZ",
+    "AO",
+    "BO",
+    "VG",
+    "CM",
+    "CI",
+    "CD",
+    "KE",
+    "LA",
+    "MC",
+    "NA",
+    "NP",
+    "SS",
+    "TT",
+    "VU",
+    "BG",
+    "VN",
 }
 
 # I-04 — EDD threshold
@@ -66,7 +86,7 @@ class MockKYCWorkflow:
         self._workflows: dict[str, KYCWorkflowResult] = {}
 
     def _now(self) -> datetime:
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
 
     def create_workflow(self, request: KYCWorkflowRequest) -> KYCWorkflowResult:
         """Create new KYC workflow and run initial risk check."""
@@ -84,8 +104,10 @@ class MockKYCWorkflow:
         )
 
         # Hard-block check (I-02)
-        if request.nationality in _BLOCKED_COUNTRIES or \
-                request.country_of_residence in _BLOCKED_COUNTRIES:
+        if (
+            request.nationality in _BLOCKED_COUNTRIES
+            or request.country_of_residence in _BLOCKED_COUNTRIES
+        ):
             result.status = KYCStatus.REJECTED
             result.rejection_reason = RejectionReason.HIGH_RISK_JURISDICTION
             result.risk_score = 100
@@ -100,8 +122,10 @@ class MockKYCWorkflow:
         edd_triggers = []
         if request.is_pep:
             edd_triggers.append("PEP status")
-        if request.nationality in _HIGH_RISK_COUNTRIES or \
-                request.country_of_residence in _HIGH_RISK_COUNTRIES:
+        if (
+            request.nationality in _HIGH_RISK_COUNTRIES
+            or request.country_of_residence in _HIGH_RISK_COUNTRIES
+        ):
             edd_triggers.append(
                 f"High-risk jurisdiction: {request.nationality or request.country_of_residence}"
             )
@@ -117,7 +141,7 @@ class MockKYCWorkflow:
         self._workflows[workflow_id] = result
         return result
 
-    def get_workflow(self, workflow_id: str) -> Optional[KYCWorkflowResult]:
+    def get_workflow(self, workflow_id: str) -> KYCWorkflowResult | None:
         result = self._workflows.get(workflow_id)
         if result is None:
             return None
@@ -205,29 +229,29 @@ _bl_logger = _logging.getLogger(__name__)
 
 _BALLERINE_STATUS_MAP: dict[str, KYCStatus] = {
     # Workflow runtime states
-    "created":            KYCStatus.PENDING,
-    "active":             KYCStatus.DOCUMENT_REVIEW,
-    "pending":            KYCStatus.PENDING,
-    "document_review":    KYCStatus.DOCUMENT_REVIEW,
-    "risk_assessment":    KYCStatus.RISK_ASSESSMENT,
-    "edd_required":       KYCStatus.EDD_REQUIRED,
-    "manual_review":      KYCStatus.MLRO_REVIEW,
-    "mlro_review":        KYCStatus.MLRO_REVIEW,
-    "approved":           KYCStatus.APPROVED,
-    "completed":          KYCStatus.APPROVED,   # check result field below
-    "rejected":           KYCStatus.REJECTED,
-    "failed":             KYCStatus.REJECTED,
-    "expired":            KYCStatus.EXPIRED,
+    "created": KYCStatus.PENDING,
+    "active": KYCStatus.DOCUMENT_REVIEW,
+    "pending": KYCStatus.PENDING,
+    "document_review": KYCStatus.DOCUMENT_REVIEW,
+    "risk_assessment": KYCStatus.RISK_ASSESSMENT,
+    "edd_required": KYCStatus.EDD_REQUIRED,
+    "manual_review": KYCStatus.MLRO_REVIEW,
+    "mlro_review": KYCStatus.MLRO_REVIEW,
+    "approved": KYCStatus.APPROVED,
+    "completed": KYCStatus.APPROVED,  # check result field below
+    "rejected": KYCStatus.REJECTED,
+    "failed": KYCStatus.REJECTED,
+    "expired": KYCStatus.EXPIRED,
 }
 
 _REJECTION_REASON_MAP: dict[str, RejectionReason] = {
-    "SANCTIONS_HIT":          RejectionReason.SANCTIONS_HIT,
-    "DOCUMENT_FRAUD":         RejectionReason.DOCUMENT_FRAUD,
+    "SANCTIONS_HIT": RejectionReason.SANCTIONS_HIT,
+    "DOCUMENT_FRAUD": RejectionReason.DOCUMENT_FRAUD,
     "HIGH_RISK_JURISDICTION": RejectionReason.HIGH_RISK_JURISDICTION,
-    "PEP_NO_EDD":             RejectionReason.PEP_NO_EDD,
-    "RISK_SCORE_TOO_HIGH":    RejectionReason.RISK_SCORE_TOO_HIGH,
-    "INCOMPLETE_DOCUMENTS":   RejectionReason.INCOMPLETE_DOCUMENTS,
-    "AML_PATTERN":            RejectionReason.AML_PATTERN,
+    "PEP_NO_EDD": RejectionReason.PEP_NO_EDD,
+    "RISK_SCORE_TOO_HIGH": RejectionReason.RISK_SCORE_TOO_HIGH,
+    "INCOMPLETE_DOCUMENTS": RejectionReason.INCOMPLETE_DOCUMENTS,
+    "AML_PATTERN": RejectionReason.AML_PATTERN,
 }
 
 
@@ -251,13 +275,14 @@ class BallerineAdapter:
 
     def __init__(
         self,
-        base_url: Optional[str] = None,
-        api_token: Optional[str] = None,
-        kyc_definition_id: Optional[str] = None,
-        kyb_definition_id: Optional[str] = None,
+        base_url: str | None = None,
+        api_token: str | None = None,
+        kyc_definition_id: str | None = None,
+        kyb_definition_id: str | None = None,
         timeout: int = 30,
     ) -> None:
         import os
+
         try:
             import httpx  # type: ignore[import]
         except ImportError:
@@ -265,17 +290,15 @@ class BallerineAdapter:
 
         self._base_url = (base_url or os.environ.get("BALLERINE_URL", "")).rstrip("/")
         if not self._base_url:
-            raise EnvironmentError(
+            raise OSError(
                 "BALLERINE_URL not set. "
                 "Deploy Ballerine: docker compose -f infra/ballerine/docker-compose.yml up"
             )
-        self._kyc_def_id = (
-            kyc_definition_id
-            or os.environ.get("BALLERINE_KYC_DEFINITION_ID", "banxe-individual-kyc-v1")
+        self._kyc_def_id = kyc_definition_id or os.environ.get(
+            "BALLERINE_KYC_DEFINITION_ID", "banxe-individual-kyc-v1"
         )
-        self._kyb_def_id = (
-            kyb_definition_id
-            or os.environ.get("BALLERINE_KYB_DEFINITION_ID", "banxe-business-kyb-v1")
+        self._kyb_def_id = kyb_definition_id or os.environ.get(
+            "BALLERINE_KYB_DEFINITION_ID", "banxe-business-kyb-v1"
         )
         headers = {"Content-Type": "application/json"}
         token = api_token or os.environ.get("BALLERINE_API_TOKEN", "")
@@ -291,7 +314,6 @@ class BallerineAdapter:
 
     def _parse_workflow(self, data: dict) -> KYCWorkflowResult:
         """Map Ballerine workflow runtime JSON → KYCWorkflowResult."""
-        from datetime import timezone
         raw_status = data.get("status", "").lower()
         # If completed, check result context for approved/rejected
         if raw_status == "completed":
@@ -304,19 +326,19 @@ class BallerineAdapter:
 
         ctx = data.get("context", {})
         rejection_raw = ctx.get("rejectionReason") or ctx.get("rejection_reason")
-        rejection: Optional[RejectionReason] = None
+        rejection: RejectionReason | None = None
         if rejection_raw:
             rejection = _REJECTION_REASON_MAP.get(str(rejection_raw).upper())
 
-        edd_required = status in (
-            KYCStatus.EDD_REQUIRED, KYCStatus.MLRO_REVIEW
-        ) or bool(ctx.get("eddRequired", False))
+        edd_required = status in (KYCStatus.EDD_REQUIRED, KYCStatus.MLRO_REVIEW) or bool(
+            ctx.get("eddRequired", False)
+        )
 
         created_at_raw = data.get("createdAt") or data.get("created_at", "")
         updated_at_raw = data.get("updatedAt") or data.get("updated_at", "")
         expires_at_raw = data.get("expiresAt") or data.get("expires_at", "")
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         def _parse_dt(raw: str) -> datetime:
             if not raw:
@@ -345,9 +367,12 @@ class BallerineAdapter:
             kyc_type=kyc_type,
             created_at=_parse_dt(created_at_raw),
             updated_at=_parse_dt(updated_at_raw),
-            expires_at=_parse_dt(expires_at_raw) if expires_at_raw else (
+            expires_at=_parse_dt(expires_at_raw)
+            if expires_at_raw
+            else (
                 _parse_dt(created_at_raw) + timedelta(days=_WORKFLOW_TTL_DAYS)
-                if created_at_raw else now
+                if created_at_raw
+                else now
             ),
             edd_required=edd_required,
             rejection_reason=rejection,
@@ -359,8 +384,7 @@ class BallerineAdapter:
     def _raise_for_status(self, response: object, action: str) -> dict:
         if response.is_error:
             raise RuntimeError(
-                f"Ballerine API error [{action}]: "
-                f"{response.status_code} — {response.text[:200]}"
+                f"Ballerine API error [{action}]: {response.status_code} — {response.text[:200]}"
             )
         return response.json()
 
@@ -398,8 +422,7 @@ class BallerineAdapter:
 
         # 2. Run workflow
         definition_id = (
-            self._kyc_def_id if request.kyc_type == KYCType.INDIVIDUAL
-            else self._kyb_def_id
+            self._kyc_def_id if request.kyc_type == KYCType.INDIVIDUAL else self._kyb_def_id
         )
         wf_payload = {
             "workflowDefinitionId": definition_id,
@@ -416,11 +439,13 @@ class BallerineAdapter:
         result.customer_id = request.customer_id
         _bl_logger.info(
             "Ballerine workflow created: %s → %s (customer=%s)",
-            result.workflow_id, result.status, request.customer_id,
+            result.workflow_id,
+            result.status,
+            request.customer_id,
         )
         return result
 
-    def get_workflow(self, workflow_id: str) -> Optional[KYCWorkflowResult]:
+    def get_workflow(self, workflow_id: str) -> KYCWorkflowResult | None:
         """GET /api/v1/workflows/{id} — returns None if not found."""
         resp = self._client.get(f"/api/v1/workflows/{workflow_id}")
         if resp.status_code == 404:
@@ -437,14 +462,14 @@ class BallerineAdapter:
             "name": "DOCUMENTS_SUBMITTED",
             "payload": {"documentIds": document_ids},
         }
-        resp = self._client.patch(
-            f"/api/v1/workflows/{workflow_id}/event", json=payload
-        )
+        resp = self._client.patch(f"/api/v1/workflows/{workflow_id}/event", json=payload)
         data = self._raise_for_status(resp, "submit_documents")
         result = self._parse_workflow(data)
         _bl_logger.info(
             "Ballerine docs submitted: workflow=%s docs=%s status=%s",
-            workflow_id, document_ids, result.status,
+            workflow_id,
+            document_ids,
+            result.status,
         )
         return result
 
@@ -458,15 +483,15 @@ class BallerineAdapter:
             "name": "MANUAL_REVIEW_APPROVE",
             "payload": {"mlroUserId": mlro_user_id},
         }
-        resp = self._client.patch(
-            f"/api/v1/workflows/{workflow_id}/event", json=payload
-        )
+        resp = self._client.patch(f"/api/v1/workflows/{workflow_id}/event", json=payload)
         data = self._raise_for_status(resp, "approve_edd")
         result = self._parse_workflow(data)
         result.mlro_sign_off = True
         _bl_logger.warning(
             "Ballerine EDD approved: workflow=%s by_mlro=%s status=%s",
-            workflow_id, mlro_user_id, result.status,
+            workflow_id,
+            mlro_user_id,
+            result.status,
         )
         return result
 
@@ -479,15 +504,14 @@ class BallerineAdapter:
             "name": "MANUAL_REVIEW_REJECT",
             "payload": {"rejectionReason": reason.value},
         }
-        resp = self._client.patch(
-            f"/api/v1/workflows/{workflow_id}/event", json=payload
-        )
+        resp = self._client.patch(f"/api/v1/workflows/{workflow_id}/event", json=payload)
         data = self._raise_for_status(resp, "reject_workflow")
         result = self._parse_workflow(data)
         result.rejection_reason = reason
         _bl_logger.warning(
             "Ballerine workflow rejected: workflow=%s reason=%s",
-            workflow_id, reason.value,
+            workflow_id,
+            reason.value,
         )
         return result
 
@@ -504,6 +528,7 @@ class BallerineAdapter:
 def get_kyc_adapter() -> KYCWorkflowPort:
     """Factory: KYC_ADAPTER=mock (default) | ballerine."""
     import os
+
     adapter = os.environ.get("KYC_ADAPTER", "mock").lower()
     if adapter == "ballerine":
         return BallerineAdapter()

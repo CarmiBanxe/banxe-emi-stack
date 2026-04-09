@@ -3,6 +3,7 @@ test_statement_service.py — Account Statement Service tests
 S17-07: Monthly client PDF/CSV statement
 FCA PS7/24 | CASS 15
 """
+
 from __future__ import annotations
 
 from datetime import date
@@ -16,8 +17,8 @@ from services.statements.statement_service import (
     TransactionLine,
 )
 
-
 # ── Fixtures ───────────────────────────────────────────────────────────────────
+
 
 def _tx(
     tx_date: date,
@@ -74,6 +75,7 @@ def march_stmt(svc):
 
 # ── Statement generation ───────────────────────────────────────────────────────
 
+
 class TestStatementGeneration:
     def test_statement_id_assigned(self, march_stmt):
         assert march_stmt.statement_id.startswith("stmt-")
@@ -107,6 +109,7 @@ class TestStatementGeneration:
 
 # ── Period filtering ───────────────────────────────────────────────────────────
 
+
 class TestPeriodFilter:
     def test_only_march_transactions(self, svc):
         stmt = svc.generate("cust-001", "acc-001", "GBP", date(2026, 3, 10), date(2026, 3, 15))
@@ -120,6 +123,7 @@ class TestPeriodFilter:
 
 
 # ── CSV export ─────────────────────────────────────────────────────────────────
+
 
 class TestCSVExport:
     def test_csv_is_bytes(self, march_stmt):
@@ -144,19 +148,31 @@ class TestCSVExport:
 
     def test_csv_debit_credit_columns(self, march_stmt):
         csv_text = march_stmt.to_csv().decode()
-        assert "500.00" in csv_text    # debit
-        assert "3000.00" in csv_text   # credit
+        assert "500.00" in csv_text  # debit
+        assert "3000.00" in csv_text  # credit
 
 
 # ── JSON / dict export ─────────────────────────────────────────────────────────
 
+
 class TestDictExport:
     def test_to_dict_keys(self, march_stmt):
         d = march_stmt.to_dict()
-        for key in ["statement_id", "customer_id", "account_id", "currency",
-                    "period_start", "period_end", "opening_balance",
-                    "closing_balance", "total_debits", "total_credits",
-                    "transaction_count", "net_movement", "generated_at"]:
+        for key in [
+            "statement_id",
+            "customer_id",
+            "account_id",
+            "currency",
+            "period_start",
+            "period_end",
+            "opening_balance",
+            "closing_balance",
+            "total_debits",
+            "total_credits",
+            "transaction_count",
+            "net_movement",
+            "generated_at",
+        ]:
             assert key in d
 
     def test_amounts_are_strings(self, march_stmt):
@@ -170,6 +186,7 @@ class TestDictExport:
 
 
 # ── Transaction line ───────────────────────────────────────────────────────────
+
 
 class TestTransactionLine:
     def test_amount_credit_positive(self):

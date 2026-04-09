@@ -6,13 +6,14 @@ FCA CASS 7.15: daily internal (Midaz) vs external (bank statement) reconciliatio
 Architecture: D-RECON-DESIGN.md (commit 98ca7d7)
 CTX-06 AMBER — calls LedgerPort only, never Midaz HTTP directly.
 """
+
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from typing import List, Optional, Protocol
+from typing import Protocol
 
 logger = logging.getLogger(__name__)
 
@@ -22,36 +23,39 @@ _DEFAULT_THRESHOLD = Decimal("1.00")
 
 # Safeguarding account IDs (ADR-013 Block J Phase 1)
 SAFEGUARDING_ACCOUNTS = {
-    "019d6332-f274-709a-b3a7-983bc8745886": "operational",    # asset
-    "019d6332-da7f-752f-b9fd-fa1c6fc777ec": "client_funds",   # liability
+    "019d6332-f274-709a-b3a7-983bc8745886": "operational",  # asset
+    "019d6332-da7f-752f-b9fd-fa1c6fc777ec": "client_funds",  # liability
 }
-ORG_ID    = "019d6301-32d7-70a1-bc77-0a05379ee510"
+ORG_ID = "019d6301-32d7-70a1-bc77-0a05379ee510"
 LEDGER_ID = "019d632f-519e-7865-8a30-3c33991bba9c"
 
 
 @dataclass(frozen=True)
 class ReconResult:
     """Result for one account on one reconciliation date."""
+
     recon_date: date
     account_id: str
-    account_type: str        # 'operational' | 'client_funds'
+    account_type: str  # 'operational' | 'client_funds'
     currency: str
     internal_balance: Decimal
     external_balance: Decimal
-    discrepancy: Decimal     # external - internal (positive = bank has more)
-    status: str              # 'MATCHED' | 'DISCREPANCY' | 'PENDING'
+    discrepancy: Decimal  # external - internal (positive = bank has more)
+    status: str  # 'MATCHED' | 'DISCREPANCY' | 'PENDING'
     source_file: str
     alert_sent: bool = False
 
 
 class LedgerPortProtocol(Protocol):
     """Minimal protocol for dependency injection (avoids circular import)."""
+
     def get_balance(self, org_id: str, ledger_id: str, account_id: str) -> Decimal: ...
 
 
 class ClickHouseClientProtocol(Protocol):
     """Minimal CH client protocol for injection."""
-    def execute(self, query: str, params: Optional[dict] = None) -> None: ...
+
+    def execute(self, query: str, params: dict | None = None) -> None: ...
 
 
 class ReconciliationEngine:
@@ -68,7 +72,7 @@ class ReconciliationEngine:
         self,
         ledger_port: LedgerPortProtocol,
         ch_client: ClickHouseClientProtocol,
-        statement_fetcher: "StatementFetcherProtocol",
+        statement_fetcher: StatementFetcherProtocol,
         threshold: Decimal = _DEFAULT_THRESHOLD,
         org_id: str = ORG_ID,
         ledger_id: str = LEDGER_ID,
@@ -82,7 +86,7 @@ class ReconciliationEngine:
 
     # ── public API ────────────────────────────────────────────────────────────
 
-    def reconcile(self, recon_date: date) -> List[ReconResult]:
+    def reconcile(self, recon_date: date) -> list[ReconResult]:
         """
         Run daily reconciliation for all safeguarding accounts.
         1. Pull internal balances from Midaz via LedgerPort.
@@ -93,17 +97,17 @@ class ReconciliationEngine:
         external = self._fetcher.fetch(recon_date)
         ext_map = {b.account_id: b for b in external}
 
-        results: List[ReconResult] = []
+        results: list[ReconResult] = []
         for account_id, account_type in SAFEGUARDING_ACCOUNTS.items():
-            result = self._reconcile_account(
-                recon_date, account_id, account_type, ext_map
-            )
+            result = self._reconcile_account(recon_date, account_id, account_type, ext_map)
             results.append(result)
             self._write_to_clickhouse(result)
             if result.status == "DISCREPANCY":
                 logger.warning(
                     "CASS 7.15 DISCREPANCY: account=%s type=%s delta=%s",
-                    account_id, account_type, result.discrepancy,
+                    account_id,
+                    account_type,
+                    result.discrepancy,
                 )
 
         return results
@@ -191,4 +195,5 @@ class ReconciliationEngine:
 
 class StatementFetcherProtocol(Protocol):
     """Protocol for StatementFetcher (avoids circular import in engine)."""
+
     def fetch(self, recon_date: date) -> list: ...

@@ -35,11 +35,12 @@ Required environment variables:
   MARBLE_INBOX_ID  — Default MLRO inbox GUID (created in Marble admin UI)
   MARBLE_TIMEOUT_MS — HTTP timeout ms (default: 5000)
 """
+
 from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from services.case_management.case_port import (
     CaseOutcome,
@@ -94,6 +95,7 @@ class MarbleAdapter:
     ) -> None:
         try:
             import importlib.util
+
             if importlib.util.find_spec("httpx") is None:
                 raise ImportError
         except ImportError:
@@ -101,7 +103,7 @@ class MarbleAdapter:
 
         self._base_url = (base_url or os.environ.get("MARBLE_URL", "")).rstrip("/")
         if not self._base_url:
-            raise EnvironmentError(
+            raise OSError(
                 "MARBLE_URL not set. "
                 "Marble is deployed on GMKtec at http://gmktec:5002. "
                 "Set MARBLE_URL=http://gmktec:5002 in .env"
@@ -109,7 +111,7 @@ class MarbleAdapter:
 
         self._api_key = api_key or os.environ.get("MARBLE_API_KEY", "")
         if not self._api_key:
-            raise EnvironmentError(
+            raise OSError(
                 "MARBLE_API_KEY not set. "
                 "Create an API key in the Marble admin UI (http://gmktec:5002), "
                 "then set MARBLE_API_KEY in .env"
@@ -117,7 +119,7 @@ class MarbleAdapter:
 
         self._inbox_id = inbox_id or os.environ.get("MARBLE_INBOX_ID", "")
         if not self._inbox_id:
-            raise EnvironmentError(
+            raise OSError(
                 "MARBLE_INBOX_ID not set. "
                 "Create an inbox in the Marble admin UI (http://gmktec:5002), "
                 "then copy its ID to MARBLE_INBOX_ID in .env"
@@ -127,6 +129,7 @@ class MarbleAdapter:
         self._timeout_s = _timeout_ms / 1000.0
 
         import httpx as _httpx
+
         self._httpx = _httpx
         self._client = _httpx.Client(
             base_url=self._base_url,
@@ -160,7 +163,9 @@ class MarbleAdapter:
         if resp.is_error:
             logger.error(
                 "Marble create_case error: ref=%s status=%d body=%s",
-                request.case_reference, resp.status_code, resp.text[:200],
+                request.case_reference,
+                resp.status_code,
+                resp.text[:200],
             )
             return self._stub_result(request.case_reference, "marble_error")
 
@@ -168,7 +173,9 @@ class MarbleAdapter:
         result = self._parse_case(data, request.case_reference)
         logger.info(
             "Marble case created: ref=%s case_id=%s status=%s",
-            request.case_reference, result.case_id, result.status,
+            request.case_reference,
+            result.case_id,
+            result.status,
         )
         return result
 
@@ -183,7 +190,8 @@ class MarbleAdapter:
         if resp.is_error:
             logger.error(
                 "Marble get_case error: case_id=%s status=%d",
-                case_id, resp.status_code,
+                case_id,
+                resp.status_code,
             )
             return self._stub_result(case_id, "marble_error")
 
@@ -208,9 +216,7 @@ class MarbleAdapter:
             payload["comment"] = notes
 
         try:
-            resp = self._client.patch(
-                f"{_MARBLE_CASES_PATH}/{case_id}", json=payload
-            )
+            resp = self._client.patch(f"{_MARBLE_CASES_PATH}/{case_id}", json=payload)
         except self._httpx.TimeoutException:
             logger.error("Marble timeout resolving case_id=%s", case_id)
             return self._stub_result(case_id, "marble_timeout")
@@ -218,14 +224,17 @@ class MarbleAdapter:
         if resp.is_error:
             logger.error(
                 "Marble resolve_case error: case_id=%s status=%d body=%s",
-                case_id, resp.status_code, resp.text[:200],
+                case_id,
+                resp.status_code,
+                resp.text[:200],
             )
             return self._stub_result(case_id, "marble_error")
 
         result = self._parse_case(resp.json(), case_id)
         logger.info(
             "Marble case resolved: case_id=%s outcome=%s",
-            case_id, outcome,
+            case_id,
+            outcome,
         )
         return result
 
@@ -249,9 +258,7 @@ class MarbleAdapter:
         if request.risk_score is not None:
             description_parts.append(f"Risk score: {request.risk_score}/100")
         if request.amount is not None:
-            description_parts.append(
-                f"Amount: {request.amount} {request.currency or ''}"
-            )
+            description_parts.append(f"Amount: {request.amount} {request.currency or ''}")
 
         return {
             "name": f"[{request.case_type.value}] {request.case_reference}",
@@ -285,18 +292,14 @@ class MarbleAdapter:
 
         metadata = data.get("metadata") or {}
         case_reference = (
-            metadata.get("banxe_reference")
-            or data.get("name", "")
-            or fallback_reference
+            metadata.get("banxe_reference") or data.get("name", "") or fallback_reference
         )
 
         created_at_raw = data.get("createdAt") or data.get("created_at") or ""
         try:
-            created_at = datetime.fromisoformat(
-                created_at_raw.replace("Z", "+00:00")
-            )
+            created_at = datetime.fromisoformat(created_at_raw.replace("Z", "+00:00"))
         except (ValueError, AttributeError):
-            created_at = datetime.now(timezone.utc)
+            created_at = datetime.now(UTC)
 
         assigned_to = (
             data.get("assignedTo")
@@ -304,9 +307,7 @@ class MarbleAdapter:
             or (data.get("assignee") or {}).get("email")
         )
 
-        marble_url = data.get("url") or (
-            f"{self._base_url}/cases/{case_id}" if case_id else None
-        )
+        marble_url = data.get("url") or (f"{self._base_url}/cases/{case_id}" if case_id else None)
 
         return CaseResult(
             case_id=str(case_id),
@@ -328,6 +329,6 @@ class MarbleAdapter:
             case_reference=reference,
             status=CaseStatus.OPEN,
             provider=f"marble_{reason}",
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             url=None,
         )

@@ -12,14 +12,15 @@ Service). Audit trail of all state transitions is mandatory (DISP 1.10).
 Architecture: IL-022, ClickHouse complaints + complaint_events tables
 CTX-03 AMBER — writes to ClickHouse, triggers n8n webhook
 """
+
 from __future__ import annotations
 
 import logging
 import os
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from typing import List, Optional, Protocol
+from datetime import UTC, datetime, timedelta
+from typing import Protocol
 
 import httpx
 
@@ -36,6 +37,7 @@ TELEGRAM_MLRO_CHAT_ID = os.environ.get("TELEGRAM_MLRO_CHAT_ID", "")
 
 # ─── Data classes ──────────────────────────────────────────────────────────────
 
+
 @dataclass(frozen=True)
 class Complaint:
     id: str
@@ -45,7 +47,7 @@ class Complaint:
     status: str
     created_at: datetime
     sla_deadline: datetime
-    resolved_at: Optional[datetime]
+    resolved_at: datetime | None
     resolution_summary: str
     assigned_to: str
 
@@ -53,6 +55,7 @@ class Complaint:
 @dataclass(frozen=True)
 class SLABreach:
     """A complaint that has exceeded its 8-week SLA."""
+
     complaint_id: str
     customer_id: str
     category: str
@@ -64,6 +67,7 @@ class SLABreach:
 @dataclass(frozen=True)
 class SLAWarning:
     """A complaint approaching its SLA deadline (within 7 days)."""
+
     complaint_id: str
     customer_id: str
     sla_deadline: datetime
@@ -72,28 +76,46 @@ class SLAWarning:
 
 # ─── Protocol (testable without ClickHouse) ───────────────────────────────────
 
+
 class ComplaintRepository(Protocol):
-    def insert_complaint(self, complaint_id: str, customer_id: str,
-                         category: str, description: str,
-                         sla_deadline: datetime, channel: str,
-                         created_by: str) -> None: ...
+    def insert_complaint(
+        self,
+        complaint_id: str,
+        customer_id: str,
+        category: str,
+        description: str,
+        sla_deadline: datetime,
+        channel: str,
+        created_by: str,
+    ) -> None: ...
 
-    def update_status(self, complaint_id: str, new_status: str,
-                      resolved_at: Optional[datetime],
-                      resolution_summary: str) -> None: ...
+    def update_status(
+        self,
+        complaint_id: str,
+        new_status: str,
+        resolved_at: datetime | None,
+        resolution_summary: str,
+    ) -> None: ...
 
-    def insert_event(self, complaint_id: str, event_type: str,
-                     old_status: str, new_status: str,
-                     note: str, actor: str) -> None: ...
+    def insert_event(
+        self,
+        complaint_id: str,
+        event_type: str,
+        old_status: str,
+        new_status: str,
+        note: str,
+        actor: str,
+    ) -> None: ...
 
-    def get_sla_breaches(self) -> List[dict]: ...
+    def get_sla_breaches(self) -> list[dict]: ...
 
-    def get_sla_warnings(self) -> List[dict]: ...
+    def get_sla_warnings(self) -> list[dict]: ...
 
-    def get_complaint(self, complaint_id: str) -> Optional[dict]: ...
+    def get_complaint(self, complaint_id: str) -> dict | None: ...
 
 
 # ─── ClickHouse implementation ────────────────────────────────────────────────
+
 
 class ClickHouseComplaintRepository:  # pragma: no cover
     """
@@ -105,10 +127,16 @@ class ClickHouseComplaintRepository:  # pragma: no cover
     def __init__(self, ch_client):
         self._ch = ch_client
 
-    def insert_complaint(self, complaint_id: str, customer_id: str,
-                         category: str, description: str,
-                         sla_deadline: datetime, channel: str = "API",
-                         created_by: str = "system") -> None:
+    def insert_complaint(
+        self,
+        complaint_id: str,
+        customer_id: str,
+        category: str,
+        description: str,
+        sla_deadline: datetime,
+        channel: str = "API",
+        created_by: str = "system",
+    ) -> None:
         self._ch.execute(
             """
             INSERT INTO banxe.complaints
@@ -116,22 +144,28 @@ class ClickHouseComplaintRepository:  # pragma: no cover
                created_at, sla_deadline, channel, created_by)
             VALUES
             """,
-            [{
-                "id": complaint_id,
-                "customer_id": customer_id,
-                "category": category,
-                "description": description,
-                "status": "OPEN",
-                "created_at": datetime.now(timezone.utc),
-                "sla_deadline": sla_deadline,
-                "channel": channel,
-                "created_by": created_by,
-            }]
+            [
+                {
+                    "id": complaint_id,
+                    "customer_id": customer_id,
+                    "category": category,
+                    "description": description,
+                    "status": "OPEN",
+                    "created_at": datetime.now(UTC),
+                    "sla_deadline": sla_deadline,
+                    "channel": channel,
+                    "created_by": created_by,
+                }
+            ],
         )
 
-    def update_status(self, complaint_id: str, new_status: str,
-                      resolved_at: Optional[datetime] = None,
-                      resolution_summary: str = "") -> None:
+    def update_status(
+        self,
+        complaint_id: str,
+        new_status: str,
+        resolved_at: datetime | None = None,
+        resolution_summary: str = "",
+    ) -> None:
         # ClickHouse: UPDATE via ALTER TABLE UPDATE (MergeTree mutation)
         set_clause = f"status = '{new_status}'"
         if resolution_summary:
@@ -140,30 +174,37 @@ class ClickHouseComplaintRepository:  # pragma: no cover
             ts = resolved_at.strftime("%Y-%m-%d %H:%M:%S")
             set_clause += f", resolved_at = '{ts}'"
         self._ch.execute(
-            f"ALTER TABLE banxe.complaints UPDATE {set_clause} "
-            f"WHERE id = '{complaint_id}'"
+            f"ALTER TABLE banxe.complaints UPDATE {set_clause} WHERE id = '{complaint_id}'"
         )
 
-    def insert_event(self, complaint_id: str, event_type: str,
-                     old_status: str = "", new_status: str = "",
-                     note: str = "", actor: str = "system") -> None:
+    def insert_event(
+        self,
+        complaint_id: str,
+        event_type: str,
+        old_status: str = "",
+        new_status: str = "",
+        note: str = "",
+        actor: str = "system",
+    ) -> None:
         self._ch.execute(
             """
             INSERT INTO banxe.complaint_events
               (complaint_id, event_type, old_status, new_status, note, actor)
             VALUES
             """,
-            [{
-                "complaint_id": complaint_id,
-                "event_type": event_type,
-                "old_status": old_status,
-                "new_status": new_status,
-                "note": note,
-                "actor": actor,
-            }]
+            [
+                {
+                    "complaint_id": complaint_id,
+                    "event_type": event_type,
+                    "old_status": old_status,
+                    "new_status": new_status,
+                    "note": note,
+                    "actor": actor,
+                }
+            ],
         )
 
-    def get_sla_breaches(self) -> List[dict]:
+    def get_sla_breaches(self) -> list[dict]:
         rows = self._ch.execute(
             """
             SELECT id, customer_id, category, created_at, sla_deadline,
@@ -176,15 +217,18 @@ class ClickHouseComplaintRepository:  # pragma: no cover
         )
         return [
             {
-                "complaint_id": str(r[0]), "customer_id": r[1],
-                "category": r[2], "created_at": r[3],
-                "sla_deadline": r[4], "days_overdue": r[5],
+                "complaint_id": str(r[0]),
+                "customer_id": r[1],
+                "category": r[2],
+                "created_at": r[3],
+                "sla_deadline": r[4],
+                "days_overdue": r[5],
             }
             for r in rows
         ]
 
-    def get_sla_warnings(self) -> List[dict]:
-        warning_cutoff = datetime.now(timezone.utc) + timedelta(days=SLA_WARNING_DAYS)
+    def get_sla_warnings(self) -> list[dict]:
+        warning_cutoff = datetime.now(UTC) + timedelta(days=SLA_WARNING_DAYS)
         rows = self._ch.execute(
             """
             SELECT id, customer_id, category, created_at, sla_deadline,
@@ -195,36 +239,46 @@ class ClickHouseComplaintRepository:  # pragma: no cover
               AND sla_deadline <= %(cutoff)s
             ORDER BY sla_deadline ASC
             """,
-            {"cutoff": warning_cutoff}
+            {"cutoff": warning_cutoff},
         )
         return [
             {
-                "complaint_id": str(r[0]), "customer_id": r[1],
-                "category": r[2], "created_at": r[3],
-                "sla_deadline": r[4], "days_remaining": r[5],
+                "complaint_id": str(r[0]),
+                "customer_id": r[1],
+                "category": r[2],
+                "created_at": r[3],
+                "sla_deadline": r[4],
+                "days_remaining": r[5],
             }
             for r in rows
         ]
 
-    def get_complaint(self, complaint_id: str) -> Optional[dict]:
+    def get_complaint(self, complaint_id: str) -> dict | None:
         rows = self._ch.execute(
             "SELECT id, customer_id, category, description, status, "
             "created_at, sla_deadline, resolved_at, resolution_summary, assigned_to "
             "FROM banxe.complaints WHERE id = %(id)s LIMIT 1",
-            {"id": complaint_id}
+            {"id": complaint_id},
         )
         if not rows:
             return None
         r = rows[0]
         return {
-            "id": str(r[0]), "customer_id": r[1], "category": r[2],
-            "description": r[3], "status": r[4], "created_at": r[5],
-            "sla_deadline": r[6], "resolved_at": r[7],
-            "resolution_summary": r[8], "assigned_to": r[9],
+            "id": str(r[0]),
+            "customer_id": r[1],
+            "category": r[2],
+            "description": r[3],
+            "status": r[4],
+            "created_at": r[5],
+            "sla_deadline": r[6],
+            "resolved_at": r[7],
+            "resolution_summary": r[8],
+            "assigned_to": r[9],
         }
 
 
 # ─── ComplaintService ─────────────────────────────────────────────────────────
+
 
 class ComplaintService:
     """
@@ -237,16 +291,21 @@ class ComplaintService:
     def __init__(self, repo: ComplaintRepository):
         self._repo = repo
 
-    def open_complaint(self, customer_id: str, category: str,
-                       description: str, channel: str = "API",
-                       created_by: str = "system") -> str:
+    def open_complaint(
+        self,
+        customer_id: str,
+        category: str,
+        description: str,
+        channel: str = "API",
+        created_by: str = "system",
+    ) -> str:
         """
         Create a new complaint. Returns complaint_id (UUID string).
         Automatically sets SLA deadline to +56 days (DISP 1.4.1R).
         Appends OPENED event to audit trail.
         """
         complaint_id = str(uuid.uuid4())
-        sla_deadline = datetime.now(timezone.utc) + timedelta(days=SLA_DAYS)
+        sla_deadline = datetime.now(UTC) + timedelta(days=SLA_DAYS)
 
         self._repo.insert_complaint(
             complaint_id=complaint_id,
@@ -263,22 +322,30 @@ class ComplaintService:
             note=f"Complaint received via {channel}. SLA deadline: {sla_deadline.date()}",
             actor=created_by,
         )
-        logger.info("Complaint opened: id=%s customer=%s sla=%s",
-                    complaint_id, customer_id, sla_deadline.date())
-        _fire_n8n_alert("complaint_opened", {
-            "complaint_id": complaint_id,
-            "customer_id": customer_id,
-            "category": category,
-            "sla_deadline": sla_deadline.isoformat(),
-        })
+        logger.info(
+            "Complaint opened: id=%s customer=%s sla=%s",
+            complaint_id,
+            customer_id,
+            sla_deadline.date(),
+        )
+        _fire_n8n_alert(
+            "complaint_opened",
+            {
+                "complaint_id": complaint_id,
+                "customer_id": customer_id,
+                "category": category,
+                "sla_deadline": sla_deadline.isoformat(),
+            },
+        )
         return complaint_id
 
-    def resolve_complaint(self, complaint_id: str, resolution_summary: str,
-                          actor: str = "system") -> None:
+    def resolve_complaint(
+        self, complaint_id: str, resolution_summary: str, actor: str = "system"
+    ) -> None:
         """
         Mark complaint as RESOLVED. Appends audit event.
         """
-        resolved_at = datetime.now(timezone.utc)
+        resolved_at = datetime.now(UTC)
         row = self._repo.get_complaint(complaint_id)
         old_status = row["status"] if row else "OPEN"
 
@@ -298,7 +365,7 @@ class ComplaintService:
         )
         logger.info("Complaint resolved: id=%s", complaint_id)
 
-    def check_sla_breaches(self) -> List[SLABreach]:
+    def check_sla_breaches(self) -> list[SLABreach]:
         """
         Return all complaints past their 8-week SLA deadline.
         Called by n8n cron daily. Each breach fires an MLRO alert.
@@ -326,7 +393,7 @@ class ComplaintService:
                 )
         return breaches
 
-    def check_sla_warnings(self) -> List[SLAWarning]:
+    def check_sla_warnings(self) -> list[SLAWarning]:
         """
         Return complaints within SLA_WARNING_DAYS of their deadline.
         Called by n8n cron daily.
@@ -351,8 +418,9 @@ class ComplaintService:
                 )
         return warnings
 
-    def escalate_to_fos(self, complaint_id: str, fos_reference: str = "",
-                        actor: str = "system") -> None:
+    def escalate_to_fos(
+        self, complaint_id: str, fos_reference: str = "", actor: str = "system"
+    ) -> None:
         """
         Escalate complaint to Financial Ombudsman Service.
         Sets status = FOS_ESCALATED. Customer must be notified of FOS right.
@@ -374,15 +442,19 @@ class ComplaintService:
             note=f"FOS escalation triggered. Ref: {fos_reference or 'pending'}",
             actor=actor,
         )
-        _fire_n8n_alert("fos_escalation", {
-            "complaint_id": complaint_id,
-            "fos_reference": fos_reference,
-            "actor": actor,
-        })
+        _fire_n8n_alert(
+            "fos_escalation",
+            {
+                "complaint_id": complaint_id,
+                "fos_reference": fos_reference,
+                "actor": actor,
+            },
+        )
         logger.warning("Complaint escalated to FOS: id=%s ref=%s", complaint_id, fos_reference)
 
 
 # ─── n8n alert helper ─────────────────────────────────────────────────────────
+
 
 def _fire_n8n_alert(event_type: str, payload: dict) -> None:
     """Fire n8n webhook. Non-blocking — failure is logged, never raised."""

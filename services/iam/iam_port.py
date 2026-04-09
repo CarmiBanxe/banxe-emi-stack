@@ -25,30 +25,33 @@ Roles (aligned with FCA SM&CR):
 
 FCA SM&CR references: SYSC 4.7, FIT 1.3, SUP 10C
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Optional, Protocol
+from typing import Protocol
 
 
 class BanxeRole(str, Enum):
     """Banxe EMI role hierarchy (FCA SM&CR aligned)."""
+
     CEO = "CEO"
-    MLRO = "MLRO"        # SMF17 — Money Laundering Reporting Officer
-    CCO = "CCO"          # Chief Compliance Officer
+    MLRO = "MLRO"  # SMF17 — Money Laundering Reporting Officer
+    CCO = "CCO"  # Chief Compliance Officer
     OPERATOR = "OPERATOR"
-    AGENT = "AGENT"      # AI agent identity
+    AGENT = "AGENT"  # AI agent identity
     AUDITOR = "AUDITOR"
     READONLY = "READONLY"
 
 
 class Permission(str, Enum):
     """Granular permissions mapped to FCA obligations."""
+
     # AML / SAR
-    FILE_SAR = "FILE_SAR"              # MLRO only (POCA 2002)
-    APPROVE_EDD = "APPROVE_EDD"        # MLRO only
+    FILE_SAR = "FILE_SAR"  # MLRO only (POCA 2002)
+    APPROVE_EDD = "APPROVE_EDD"  # MLRO only
     VIEW_AML_QUEUE = "VIEW_AML_QUEUE"  # CCO, MLRO
     # Payments
     APPROVE_PAYMENT = "APPROVE_PAYMENT"
@@ -68,45 +71,71 @@ class Permission(str, Enum):
 # Role → permissions mapping (canonical, read-only)
 ROLE_PERMISSIONS: dict[BanxeRole, frozenset[Permission]] = {
     BanxeRole.CEO: frozenset(Permission),  # all permissions
-    BanxeRole.MLRO: frozenset({
-        Permission.FILE_SAR, Permission.APPROVE_EDD,
-        Permission.VIEW_AML_QUEUE, Permission.HOLD_PAYMENT,
-        Permission.REJECT_PAYMENT, Permission.CHANGE_WATCHMAN_THRESHOLD,
-        Permission.VIEW_CUSTOMER_PII, Permission.VIEW_AUDIT_TRAIL,
-        Permission.APPROVE_COMPLAINT, Permission.VIEW_COMPLIANCE_REPORTS,
-        Permission.SUBMIT_REGDATA,
-    }),
-    BanxeRole.CCO: frozenset({
-        Permission.VIEW_AML_QUEUE, Permission.HOLD_PAYMENT,
-        Permission.VIEW_CUSTOMER_PII, Permission.VIEW_AUDIT_TRAIL,
-        Permission.APPROVE_COMPLAINT, Permission.VIEW_COMPLIANCE_REPORTS,
-    }),
-    BanxeRole.OPERATOR: frozenset({
-        Permission.APPROVE_PAYMENT, Permission.HOLD_PAYMENT,
-        Permission.REJECT_PAYMENT, Permission.VIEW_CUSTOMER_PII,
-    }),
-    BanxeRole.AGENT: frozenset({
-        Permission.VIEW_AML_QUEUE, Permission.HOLD_PAYMENT,
-        Permission.REJECT_PAYMENT, Permission.VIEW_AUDIT_TRAIL,
-    }),
-    BanxeRole.AUDITOR: frozenset({
-        Permission.VIEW_AUDIT_TRAIL, Permission.VIEW_COMPLIANCE_REPORTS,
-    }),
-    BanxeRole.READONLY: frozenset({
-        Permission.VIEW_COMPLIANCE_REPORTS,
-    }),
+    BanxeRole.MLRO: frozenset(
+        {
+            Permission.FILE_SAR,
+            Permission.APPROVE_EDD,
+            Permission.VIEW_AML_QUEUE,
+            Permission.HOLD_PAYMENT,
+            Permission.REJECT_PAYMENT,
+            Permission.CHANGE_WATCHMAN_THRESHOLD,
+            Permission.VIEW_CUSTOMER_PII,
+            Permission.VIEW_AUDIT_TRAIL,
+            Permission.APPROVE_COMPLAINT,
+            Permission.VIEW_COMPLIANCE_REPORTS,
+            Permission.SUBMIT_REGDATA,
+        }
+    ),
+    BanxeRole.CCO: frozenset(
+        {
+            Permission.VIEW_AML_QUEUE,
+            Permission.HOLD_PAYMENT,
+            Permission.VIEW_CUSTOMER_PII,
+            Permission.VIEW_AUDIT_TRAIL,
+            Permission.APPROVE_COMPLAINT,
+            Permission.VIEW_COMPLIANCE_REPORTS,
+        }
+    ),
+    BanxeRole.OPERATOR: frozenset(
+        {
+            Permission.APPROVE_PAYMENT,
+            Permission.HOLD_PAYMENT,
+            Permission.REJECT_PAYMENT,
+            Permission.VIEW_CUSTOMER_PII,
+        }
+    ),
+    BanxeRole.AGENT: frozenset(
+        {
+            Permission.VIEW_AML_QUEUE,
+            Permission.HOLD_PAYMENT,
+            Permission.REJECT_PAYMENT,
+            Permission.VIEW_AUDIT_TRAIL,
+        }
+    ),
+    BanxeRole.AUDITOR: frozenset(
+        {
+            Permission.VIEW_AUDIT_TRAIL,
+            Permission.VIEW_COMPLIANCE_REPORTS,
+        }
+    ),
+    BanxeRole.READONLY: frozenset(
+        {
+            Permission.VIEW_COMPLIANCE_REPORTS,
+        }
+    ),
 }
 
 
 @dataclass(frozen=True)
 class UserIdentity:
     """Authenticated user/agent identity."""
-    subject: str           # Keycloak sub claim (UUID)
+
+    subject: str  # Keycloak sub claim (UUID)
     username: str
     email: str
     roles: frozenset[BanxeRole]
     mfa_verified: bool = False
-    token_expiry: Optional[datetime] = None
+    token_expiry: datetime | None = None
 
     def has_permission(self, perm: Permission) -> bool:
         return any(perm in ROLE_PERMISSIONS.get(r, frozenset()) for r in self.roles)
@@ -118,12 +147,13 @@ class UserIdentity:
     def is_token_valid(self) -> bool:
         if self.token_expiry is None:
             return True
-        return datetime.now(timezone.utc) < self.token_expiry
+        return datetime.now(UTC) < self.token_expiry
 
 
 @dataclass
 class AuthToken:
     """Opaque auth token returned after successful authentication."""
+
     access_token: str
     expires_at: datetime
     subject: str
@@ -132,7 +162,8 @@ class AuthToken:
 
 class IAMPort(Protocol):
     """Hexagonal port for IAM / RBAC."""
-    def authenticate(self, username: str, password: str) -> Optional[AuthToken]: ...
-    def validate_token(self, token: str) -> Optional[UserIdentity]: ...
+
+    def authenticate(self, username: str, password: str) -> AuthToken | None: ...
+    def validate_token(self, token: str) -> UserIdentity | None: ...
     def authorize(self, identity: UserIdentity, permission: Permission) -> bool: ...
     def health(self) -> bool: ...

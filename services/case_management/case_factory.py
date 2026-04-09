@@ -5,6 +5,7 @@ IL-059 | banxe-emi-stack
 CASE_ADAPTER=mock    → MockCaseAdapter (default)
 CASE_ADAPTER=marble  → MarbleAdapter (self-hosted GMKtec :5002)
 """
+
 from __future__ import annotations
 
 import os
@@ -22,6 +23,8 @@ def get_case_adapter() -> CaseManagementPort:
     adapter_name = os.environ.get("CASE_ADAPTER", "mock").lower()
     if adapter_name == "marble":
         from services.case_management.marble_adapter import MarbleAdapter
+
         return MarbleAdapter()
     from services.case_management.mock_case_adapter import MockCaseAdapter
+
     return MockCaseAdapter()

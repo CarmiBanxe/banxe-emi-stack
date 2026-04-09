@@ -2,6 +2,7 @@
 test_event_bus.py — Event Bus tests
 S17-11: Async inter-department domain events
 """
+
 from __future__ import annotations
 
 import pytest
@@ -38,6 +39,7 @@ def _kyc_event() -> DomainEvent:
 
 # ── Event creation ─────────────────────────────────────────────────────────────
 
+
 class TestDomainEvent:
     def test_event_id_assigned(self):
         e = _payment_event()
@@ -49,6 +51,7 @@ class TestDomainEvent:
 
     def test_to_json_roundtrip(self):
         import json
+
         e = _payment_event()
         data = json.loads(e.to_json())
         assert data["event_type"] == BanxeEventType.PAYMENT_COMPLETED.value
@@ -66,6 +69,7 @@ class TestDomainEvent:
 
 
 # ── Publish + subscribe ────────────────────────────────────────────────────────
+
 
 class TestInMemoryEventBus:
     def test_publish_stores_event(self, bus):
@@ -127,6 +131,7 @@ class TestInMemoryEventBus:
 
 
 # ── All event types defined ────────────────────────────────────────────────────
+
 
 class TestEventTypes:
     def test_payment_event_types(self):

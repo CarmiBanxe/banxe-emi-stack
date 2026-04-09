@@ -3,6 +3,7 @@ test_customer_service.py — CustomerManagement service tests
 S17-01 (dual entity) + S17-09 (lifecycle state machine)
 FCA: UK GDPR Art.5, FCA COBS 9A, MLR 2017
 """
+
 from __future__ import annotations
 
 from datetime import date
@@ -23,8 +24,8 @@ from services.customer.customer_port import (
 )
 from services.customer.customer_service import InMemoryCustomerService
 
-
 # ── Fixtures ───────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def svc():
@@ -75,6 +76,7 @@ def created_company(svc, company_req):
 
 # ── Create customer ────────────────────────────────────────────────────────────
 
+
 class TestCreateIndividual:
     def test_returns_profile(self, svc, individual_req):
         profile = svc.create_customer(individual_req)
@@ -117,6 +119,7 @@ class TestCreateCompany:
 
 # ── Blocked jurisdictions (I-02) ───────────────────────────────────────────────
 
+
 @pytest.mark.parametrize("nationality", ["RU", "BY", "IR", "KP", "CU", "MM"])
 class TestBlockedNationality:
     def test_blocked_nationality_raises(self, nationality, svc):
@@ -153,6 +156,7 @@ class TestBlockedAddressCountry:
 
 # ── Lifecycle state machine (S17-09) ───────────────────────────────────────────
 
+
 class TestLifecycleTransitions:
     def test_onboarding_to_active(self, svc, created_individual):
         req = LifecycleTransitionRequest(
@@ -166,63 +170,99 @@ class TestLifecycleTransitions:
         assert profile.is_active
 
     def test_active_to_dormant(self, svc, created_individual):
-        svc.transition_lifecycle(LifecycleTransitionRequest(
-            customer_id=created_individual.customer_id,
-            target_state=LifecycleState.ACTIVE,
-            reason="KYC approved", operator_id="op",
-        ))
-        svc.transition_lifecycle(LifecycleTransitionRequest(
-            customer_id=created_individual.customer_id,
-            target_state=LifecycleState.DORMANT,
-            reason=">12 months inactive", operator_id="cron",
-        ))
+        svc.transition_lifecycle(
+            LifecycleTransitionRequest(
+                customer_id=created_individual.customer_id,
+                target_state=LifecycleState.ACTIVE,
+                reason="KYC approved",
+                operator_id="op",
+            )
+        )
+        svc.transition_lifecycle(
+            LifecycleTransitionRequest(
+                customer_id=created_individual.customer_id,
+                target_state=LifecycleState.DORMANT,
+                reason=">12 months inactive",
+                operator_id="cron",
+            )
+        )
         profile = svc.get_customer(created_individual.customer_id)
         assert profile.lifecycle_state == LifecycleState.DORMANT
 
     def test_dormant_back_to_active(self, svc, created_individual):
         cid = created_individual.customer_id
         for state, reason in [
-            (LifecycleState.ACTIVE, "KYC"), (LifecycleState.DORMANT, "inactive"),
+            (LifecycleState.ACTIVE, "KYC"),
+            (LifecycleState.DORMANT, "inactive"),
         ]:
-            svc.transition_lifecycle(LifecycleTransitionRequest(
-                customer_id=cid, target_state=state, reason=reason, operator_id="op",
-            ))
-        profile = svc.transition_lifecycle(LifecycleTransitionRequest(
-            customer_id=cid, target_state=LifecycleState.ACTIVE,
-            reason="Customer reactivated", operator_id="support",
-        ))
+            svc.transition_lifecycle(
+                LifecycleTransitionRequest(
+                    customer_id=cid,
+                    target_state=state,
+                    reason=reason,
+                    operator_id="op",
+                )
+            )
+        profile = svc.transition_lifecycle(
+            LifecycleTransitionRequest(
+                customer_id=cid,
+                target_state=LifecycleState.ACTIVE,
+                reason="Customer reactivated",
+                operator_id="support",
+            )
+        )
         assert profile.lifecycle_state == LifecycleState.ACTIVE
 
     def test_invalid_transition_raises(self, svc, created_individual):
         # ONBOARDING → DECEASED is not allowed
         with pytest.raises(CustomerManagementError, match="INVALID_TRANSITION"):
-            svc.transition_lifecycle(LifecycleTransitionRequest(
-                customer_id=created_individual.customer_id,
-                target_state=LifecycleState.DECEASED,
-                reason="error", operator_id="op",
-            ))
+            svc.transition_lifecycle(
+                LifecycleTransitionRequest(
+                    customer_id=created_individual.customer_id,
+                    target_state=LifecycleState.DECEASED,
+                    reason="error",
+                    operator_id="op",
+                )
+            )
 
     def test_offboarded_no_transitions(self, svc, created_individual):
         cid = created_individual.customer_id
-        svc.transition_lifecycle(LifecycleTransitionRequest(
-            customer_id=cid, target_state=LifecycleState.ACTIVE, reason="ok", operator_id="op",
-        ))
-        svc.transition_lifecycle(LifecycleTransitionRequest(
-            customer_id=cid, target_state=LifecycleState.OFFBOARDED,
-            reason="account closure", operator_id="op",
-        ))
+        svc.transition_lifecycle(
+            LifecycleTransitionRequest(
+                customer_id=cid,
+                target_state=LifecycleState.ACTIVE,
+                reason="ok",
+                operator_id="op",
+            )
+        )
+        svc.transition_lifecycle(
+            LifecycleTransitionRequest(
+                customer_id=cid,
+                target_state=LifecycleState.OFFBOARDED,
+                reason="account closure",
+                operator_id="op",
+            )
+        )
         with pytest.raises(CustomerManagementError, match="INVALID_TRANSITION"):
-            svc.transition_lifecycle(LifecycleTransitionRequest(
-                customer_id=cid, target_state=LifecycleState.ACTIVE,
-                reason="re-open", operator_id="op",
-            ))
+            svc.transition_lifecycle(
+                LifecycleTransitionRequest(
+                    customer_id=cid,
+                    target_state=LifecycleState.ACTIVE,
+                    reason="re-open",
+                    operator_id="op",
+                )
+            )
 
     def test_transition_records_metadata(self, svc, created_individual):
         cid = created_individual.customer_id
-        svc.transition_lifecycle(LifecycleTransitionRequest(
-            customer_id=cid, target_state=LifecycleState.ACTIVE,
-            reason="KYC approved", operator_id="kyc-agent",
-        ))
+        svc.transition_lifecycle(
+            LifecycleTransitionRequest(
+                customer_id=cid,
+                target_state=LifecycleState.ACTIVE,
+                reason="KYC approved",
+                operator_id="kyc-agent",
+            )
+        )
         profile = svc.get_customer(cid)
         meta = profile.metadata["last_transition"]
         assert meta["reason"] == "KYC approved"
@@ -230,6 +270,7 @@ class TestLifecycleTransitions:
 
 
 # ── Risk level ─────────────────────────────────────────────────────────────────
+
 
 class TestRiskLevel:
     def test_update_risk_level(self, svc, created_individual):
@@ -243,9 +284,12 @@ class TestRiskLevel:
 
 # ── UBO registry (S17-10, KYB) ────────────────────────────────────────────────
 
+
 class TestUBORegistry:
     def test_add_ubo_to_company(self, svc, created_company):
-        ubo = UBORecord(full_name="Bob Owner", role="ubo", ownership_pct=__import__("decimal").Decimal("51.0"))
+        ubo = UBORecord(
+            full_name="Bob Owner", role="ubo", ownership_pct=__import__("decimal").Decimal("51.0")
+        )
         profile = svc.add_ubo(created_company.customer_id, ubo)
         assert len(profile.company.ubo_registry) == 1
         assert profile.company.ubo_registry[0].full_name == "Bob Owner"
@@ -257,6 +301,7 @@ class TestUBORegistry:
 
     def test_multiple_ubos(self, svc, created_company):
         from decimal import Decimal
+
         svc.add_ubo(created_company.customer_id, UBORecord("Alice", "director", Decimal("30")))
         svc.add_ubo(created_company.customer_id, UBORecord("Bob", "ubo", Decimal("70")))
         profile = svc.get_customer(created_company.customer_id)
@@ -264,6 +309,7 @@ class TestUBORegistry:
 
 
 # ── Listing + agreement linking ────────────────────────────────────────────────
+
 
 class TestListAndLink:
     def test_list_all(self, svc, individual_req, company_req):
@@ -274,10 +320,14 @@ class TestListAndLink:
     def test_list_by_state(self, svc, individual_req, company_req):
         c1 = svc.create_customer(individual_req)
         svc.create_customer(company_req)
-        svc.transition_lifecycle(LifecycleTransitionRequest(
-            customer_id=c1.customer_id, target_state=LifecycleState.ACTIVE,
-            reason="approved", operator_id="op",
-        ))
+        svc.transition_lifecycle(
+            LifecycleTransitionRequest(
+                customer_id=c1.customer_id,
+                target_state=LifecycleState.ACTIVE,
+                reason="approved",
+                operator_id="op",
+            )
+        )
         active = svc.list_customers(LifecycleState.ACTIVE)
         onboarding = svc.list_customers(LifecycleState.ONBOARDING)
         assert len(active) == 1

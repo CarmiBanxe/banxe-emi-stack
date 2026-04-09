@@ -21,16 +21,17 @@ Coverage areas:
 """
 
 import pytest
+
 from services.hitl.org_roles import (
+    GATE_REGISTRY,
     HITLGate,
     HITLTrigger,
     OrgRole,
     OrgRoleChecker,
-    GATE_REGISTRY,
 )
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def checker() -> OrgRoleChecker:
@@ -38,6 +39,7 @@ def checker() -> OrgRoleChecker:
 
 
 # ── 1. Registry completeness ──────────────────────────────────────────────────
+
 
 class TestRegistryCompleteness:
     def test_all_17_triggers_registered(self, checker: OrgRoleChecker) -> None:
@@ -73,6 +75,7 @@ class TestRegistryCompleteness:
 
 
 # ── 2. HITL-001: SAR Filing (MLRO-only, non-delegable) ───────────────────────
+
 
 class TestSARFiling:
     def test_mlro_can_approve_sar(self, checker: OrgRoleChecker) -> None:
@@ -110,6 +113,7 @@ class TestSARFiling:
 
 # ── 3. HITL-002: EDD Sign-off (MLRO or Compliance Officer) ───────────────────
 
+
 class TestEDDSignOff:
     def test_mlro_satisfies_edd(self, checker: OrgRoleChecker) -> None:
         assert checker.check(HITLTrigger.EDD_REQUIRED, {OrgRole.MLRO}).approved
@@ -128,6 +132,7 @@ class TestEDDSignOff:
 
 
 # ── 4. HITL-003: Sanctions AUTO-BLOCK ────────────────────────────────────────
+
 
 class TestSanctionsAutoBlock:
     def test_sanctions_block_is_auto_allowed(self, checker: OrgRoleChecker) -> None:
@@ -149,11 +154,10 @@ class TestSanctionsAutoBlock:
 
 # ── 5. HITL-004: Sanctions Reversal (MLRO + CEO, both required) ──────────────
 
+
 class TestSanctionsReversal:
     def test_mlro_and_ceo_can_reverse(self, checker: OrgRoleChecker) -> None:
-        result = checker.check(
-            HITLTrigger.SANCTIONS_REVERSAL_REQUEST, {OrgRole.MLRO, OrgRole.CEO}
-        )
+        result = checker.check(HITLTrigger.SANCTIONS_REVERSAL_REQUEST, {OrgRole.MLRO, OrgRole.CEO})
         assert result.approved is True
 
     def test_mlro_alone_cannot_reverse_sanctions(self, checker: OrgRoleChecker) -> None:
@@ -172,6 +176,7 @@ class TestSanctionsReversal:
 
 # ── 6. HITL-005: Customer BLOCK (AML) — MLRO only ────────────────────────────
 
+
 class TestCustomerBlockAML:
     def test_mlro_can_block_customer(self, checker: OrgRoleChecker) -> None:
         assert checker.check(HITLTrigger.AML_CUSTOMER_BLOCK, {OrgRole.MLRO}).approved
@@ -187,6 +192,7 @@ class TestCustomerBlockAML:
 
 # ── 7. HITL-006: KYC Rejection ────────────────────────────────────────────────
 
+
 class TestKYCRejection:
     def test_mlro_can_reject_kyc(self, checker: OrgRoleChecker) -> None:
         assert checker.check(HITLTrigger.KYC_HIGH_RISK_REJECTION, {OrgRole.MLRO}).approved
@@ -197,18 +203,15 @@ class TestKYCRejection:
         ).approved
 
     def test_operator_cannot_reject_kyc_high_risk(self, checker: OrgRoleChecker) -> None:
-        assert not checker.check(
-            HITLTrigger.KYC_HIGH_RISK_REJECTION, {OrgRole.OPERATOR}
-        ).approved
+        assert not checker.check(HITLTrigger.KYC_HIGH_RISK_REJECTION, {OrgRole.OPERATOR}).approved
 
 
 # ── 8. HITL-007: PEP Onboarding (MLRO + CEO both required) ───────────────────
 
+
 class TestPEPOnboarding:
     def test_mlro_and_ceo_can_onboard_pep(self, checker: OrgRoleChecker) -> None:
-        assert checker.check(
-            HITLTrigger.PEP_ONBOARDING, {OrgRole.MLRO, OrgRole.CEO}
-        ).approved
+        assert checker.check(HITLTrigger.PEP_ONBOARDING, {OrgRole.MLRO, OrgRole.CEO}).approved
 
     def test_mlro_alone_cannot_onboard_pep(self, checker: OrgRoleChecker) -> None:
         result = checker.check(HITLTrigger.PEP_ONBOARDING, {OrgRole.MLRO})
@@ -226,6 +229,7 @@ class TestPEPOnboarding:
 
 # ── 9. HITL-008: SAR Retraction (MLRO + CEO) ─────────────────────────────────
 
+
 class TestSARRetraction:
     def test_mlro_and_ceo_can_retract_sar(self, checker: OrgRoleChecker) -> None:
         assert checker.check(
@@ -233,15 +237,14 @@ class TestSARRetraction:
         ).approved
 
     def test_mlro_alone_cannot_retract_sar(self, checker: OrgRoleChecker) -> None:
-        assert not checker.check(
-            HITLTrigger.SAR_RETRACTION_REQUEST, {OrgRole.MLRO}
-        ).approved
+        assert not checker.check(HITLTrigger.SAR_RETRACTION_REQUEST, {OrgRole.MLRO}).approved
 
     def test_sar_retraction_sla_is_4_hours(self, checker: OrgRoleChecker) -> None:
         assert checker.get_gate(HITLTrigger.SAR_RETRACTION_REQUEST).sla_hours == 4
 
 
 # ── 10. HITL-009: Transaction HOLD (Fraud HIGH) ───────────────────────────────
+
 
 class TestTransactionHoldFraud:
     def test_mlro_can_decide_fraud_hold(self, checker: OrgRoleChecker) -> None:
@@ -260,6 +263,7 @@ class TestTransactionHoldFraud:
 
 # ── 11. HITL-010: FCA RegData Submission (CFO only) ──────────────────────────
 
+
 class TestFCARegData:
     def test_cfo_can_submit_regdata(self, checker: OrgRoleChecker) -> None:
         assert checker.check(HITLTrigger.FCA_REGDATA_SUBMISSION, {OrgRole.CFO}).approved
@@ -275,6 +279,7 @@ class TestFCARegData:
 
 
 # ── 12. HITL-011: Safeguarding Shortfall (CFO + MLRO both) ───────────────────
+
 
 class TestSafeguardingShortfall:
     def test_cfo_and_mlro_can_respond(self, checker: OrgRoleChecker) -> None:
@@ -301,11 +306,10 @@ class TestSafeguardingShortfall:
 
 # ── 13. HITL-012: AML Threshold Change (CRO + CEO) ───────────────────────────
 
+
 class TestAMLThresholdChange:
     def test_cro_and_ceo_can_change_thresholds(self, checker: OrgRoleChecker) -> None:
-        assert checker.check(
-            HITLTrigger.AML_THRESHOLD_CHANGE, {OrgRole.CRO, OrgRole.CEO}
-        ).approved
+        assert checker.check(HITLTrigger.AML_THRESHOLD_CHANGE, {OrgRole.CRO, OrgRole.CEO}).approved
 
     def test_cro_alone_cannot_change_thresholds(self, checker: OrgRoleChecker) -> None:
         assert not checker.check(HITLTrigger.AML_THRESHOLD_CHANGE, {OrgRole.CRO}).approved
@@ -323,6 +327,7 @@ class TestAMLThresholdChange:
 
 # ── 14. HITL-013: Production Deploy (CTO) ────────────────────────────────────
 
+
 class TestProductionDeploy:
     def test_cto_can_approve_deploy(self, checker: OrgRoleChecker) -> None:
         assert checker.check(HITLTrigger.PRODUCTION_DEPLOY, {OrgRole.CTO}).approved
@@ -336,11 +341,10 @@ class TestProductionDeploy:
 
 # ── 15. HITL-014: AI Model Update (CRO + CTO) ────────────────────────────────
 
+
 class TestAIModelUpdate:
     def test_cro_and_cto_can_update_model(self, checker: OrgRoleChecker) -> None:
-        assert checker.check(
-            HITLTrigger.AI_MODEL_UPDATE, {OrgRole.CRO, OrgRole.CTO}
-        ).approved
+        assert checker.check(HITLTrigger.AI_MODEL_UPDATE, {OrgRole.CRO, OrgRole.CTO}).approved
 
     def test_cto_alone_cannot_update_ai_model(self, checker: OrgRoleChecker) -> None:
         result = checker.check(HITLTrigger.AI_MODEL_UPDATE, {OrgRole.CTO})
@@ -356,6 +360,7 @@ class TestAIModelUpdate:
 
 
 # ── 16. HITL-015: Security Incident CRITICAL (CTO + CEO) ─────────────────────
+
 
 class TestSecurityIncidentCritical:
     def test_cto_and_ceo_can_respond(self, checker: OrgRoleChecker) -> None:
@@ -374,6 +379,7 @@ class TestSecurityIncidentCritical:
 
 # ── 17. HITL-016: Large Transaction >£50k (COO or CFO) ───────────────────────
 
+
 class TestLargeTransaction:
     def test_coo_can_approve_large_tx(self, checker: OrgRoleChecker) -> None:
         assert checker.check(HITLTrigger.LARGE_TRANSACTION, {OrgRole.COO}).approved
@@ -390,6 +396,7 @@ class TestLargeTransaction:
 
 # ── 18. HITL-017: New Product Launch (CEO) ───────────────────────────────────
 
+
 class TestNewProductLaunch:
     def test_ceo_can_approve_product_launch(self, checker: OrgRoleChecker) -> None:
         assert checker.check(HITLTrigger.NEW_PRODUCT_LAUNCH, {OrgRole.CEO}).approved
@@ -402,6 +409,7 @@ class TestNewProductLaunch:
 
 
 # ── 19. ApprovalResult message generation ────────────────────────────────────
+
 
 class TestApprovalResultMessages:
     def test_approved_message_contains_gate_id(self, checker: OrgRoleChecker) -> None:
@@ -424,12 +432,13 @@ class TestApprovalResultMessages:
 
 # ── 20. Utility methods ───────────────────────────────────────────────────────
 
+
 class TestUtilityMethods:
     def test_gates_for_mlro_includes_sar_and_edd(self, checker: OrgRoleChecker) -> None:
         gates = checker.gates_for_role(OrgRole.MLRO)
         gate_ids = [g.gate_id for g in gates]
-        assert "HITL-001" in gate_ids   # SAR
-        assert "HITL-002" in gate_ids   # EDD
+        assert "HITL-001" in gate_ids  # SAR
+        assert "HITL-002" in gate_ids  # EDD
 
     def test_gates_for_operator_is_only_fraud_hold(self, checker: OrgRoleChecker) -> None:
         gates = checker.gates_for_role(OrgRole.OPERATOR)
@@ -474,6 +483,7 @@ class TestUtilityMethods:
 
 
 # ── 21. Edge cases — empty/superfluous roles ──────────────────────────────────
+
 
 class TestEdgeCases:
     def test_extra_roles_dont_block_approval(self, checker: OrgRoleChecker) -> None:

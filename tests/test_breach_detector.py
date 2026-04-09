@@ -11,6 +11,7 @@ Covers:
   - Multiple accounts: only qualifying ones escalated
   - InMemoryReconClient.breaches property
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -18,8 +19,8 @@ from datetime import date
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
-
 # ── minimal ReconResult stub (mirrors reconciliation_engine.ReconResult) ──────
+
 
 @dataclass(frozen=True)
 class _ReconResult:
@@ -37,11 +38,12 @@ class _ReconResult:
 
 # ── InMemoryBreachClient stub ─────────────────────────────────────────────────
 
+
 class InMemoryBreachClient:
     """Minimal stub implementing BreachClientProtocol for tests."""
 
     def __init__(self, streak_map: dict | None = None) -> None:
-        self._streak_map = streak_map or {}   # account_id → streak count
+        self._streak_map = streak_map or {}  # account_id → streak count
         self.breaches_written: list = []
         self.latest_disc: dict = {}
 
@@ -61,14 +63,16 @@ from services.recon.breach_detector import BreachDetector, BreachRecord  # noqa:
 
 
 class TestBreachDetectorNoBreachCases:
-
     def test_no_breach_when_streak_below_threshold(self):
         """DISCREPANCY for 2 days (< 3) → no breach written."""
         ch = InMemoryBreachClient(streak_map={"acct-1": 2})
         detector = BreachDetector(ch, breach_days=3)
         result = _ReconResult(
-            account_id="acct-1", account_type="operational",
-            currency="GBP", discrepancy=Decimal("500.00"), status="DISCREPANCY",
+            account_id="acct-1",
+            account_type="operational",
+            currency="GBP",
+            discrepancy=Decimal("500.00"),
+            status="DISCREPANCY",
         )
         breaches = detector.check_and_escalate([result], date(2026, 4, 7))
         assert breaches == []
@@ -79,8 +83,11 @@ class TestBreachDetectorNoBreachCases:
         ch = InMemoryBreachClient(streak_map={"acct-1": 10})
         detector = BreachDetector(ch, breach_days=3)
         result = _ReconResult(
-            account_id="acct-1", account_type="operational",
-            currency="GBP", discrepancy=Decimal("0"), status="MATCHED",
+            account_id="acct-1",
+            account_type="operational",
+            currency="GBP",
+            discrepancy=Decimal("0"),
+            status="MATCHED",
         )
         breaches = detector.check_and_escalate([result], date(2026, 4, 7))
         assert breaches == []
@@ -88,12 +95,13 @@ class TestBreachDetectorNoBreachCases:
     def test_no_breach_when_discrepancy_below_amount_threshold(self):
         """Streak = 5 days but £5 < £10 threshold → no breach."""
         ch = InMemoryBreachClient(streak_map={"acct-1": 5})
-        detector = BreachDetector(
-            ch, breach_days=3, amount_threshold=Decimal("10.00")
-        )
+        detector = BreachDetector(ch, breach_days=3, amount_threshold=Decimal("10.00"))
         result = _ReconResult(
-            account_id="acct-1", account_type="operational",
-            currency="GBP", discrepancy=Decimal("5.00"), status="DISCREPANCY",
+            account_id="acct-1",
+            account_type="operational",
+            currency="GBP",
+            discrepancy=Decimal("5.00"),
+            status="DISCREPANCY",
         )
         breaches = detector.check_and_escalate([result], date(2026, 4, 7))
         assert breaches == []
@@ -103,19 +111,24 @@ class TestBreachDetectorNoBreachCases:
         ch = InMemoryBreachClient(streak_map={"acct-1": 10})
         detector = BreachDetector(ch, breach_days=3)
         result = _ReconResult(
-            account_id="acct-1", account_type="operational",
-            currency="GBP", discrepancy=Decimal("0"), status="PENDING",
+            account_id="acct-1",
+            account_type="operational",
+            currency="GBP",
+            discrepancy=Decimal("0"),
+            status="PENDING",
         )
         breaches = detector.check_and_escalate([result], date(2026, 4, 7))
         assert breaches == []
 
 
 class TestBreachDetectorBreachTriggered:
-
     def _make_discrepancy(self, account_id="acct-1", amount="500.00"):
         return _ReconResult(
-            account_id=account_id, account_type="client_funds",
-            currency="GBP", discrepancy=Decimal(amount), status="DISCREPANCY",
+            account_id=account_id,
+            account_type="client_funds",
+            currency="GBP",
+            discrepancy=Decimal(amount),
+            status="DISCREPANCY",
         )
 
     def test_breach_written_when_streak_meets_threshold(self):
@@ -125,9 +138,7 @@ class TestBreachDetectorBreachTriggered:
         with patch("services.recon.breach_detector.httpx.post") as mock_post:
             mock_post.return_value = MagicMock(status_code=200)
             mock_post.return_value.raise_for_status = MagicMock()
-            breaches = detector.check_and_escalate(
-                [self._make_discrepancy()], date(2026, 4, 7)
-            )
+            breaches = detector.check_and_escalate([self._make_discrepancy()], date(2026, 4, 7))
         assert len(breaches) == 1
         assert len(ch.breaches_written) == 1
 
@@ -172,7 +183,9 @@ class TestBreachDetectorBreachTriggered:
             mock_post.return_value = MagicMock(status_code=200)
             mock_post.return_value.raise_for_status = MagicMock()
             import importlib
+
             import services.recon.breach_detector as bd
+
             importlib.reload(bd)
             detector = bd.BreachDetector(ch, breach_days=3, amount_threshold=Decimal("10.00"))
             detector.check_and_escalate([self._make_discrepancy()], date(2026, 4, 7))
@@ -193,8 +206,14 @@ class TestBreachDetectorBreachTriggered:
         monkeypatch.setenv("N8N_WEBHOOK_URL", "http://localhost:5678/webhook/test")
         ch = InMemoryBreachClient(streak_map={"acct-1": 3})
         import httpx as _httpx
-        with patch("services.recon.breach_detector.httpx.post", side_effect=_httpx.ConnectError("refused")):
-            with patch("services.recon.breach_detector.N8N_WEBHOOK_URL", "http://localhost:5678/webhook/test"):
+
+        with patch(
+            "services.recon.breach_detector.httpx.post", side_effect=_httpx.ConnectError("refused")
+        ):
+            with patch(
+                "services.recon.breach_detector.N8N_WEBHOOK_URL",
+                "http://localhost:5678/webhook/test",
+            ):
                 detector = BreachDetector(ch, breach_days=3, amount_threshold=Decimal("10.00"))
                 breaches = detector.check_and_escalate([self._make_discrepancy()], date(2026, 4, 7))
         # breach still written even though n8n failed
@@ -203,19 +222,24 @@ class TestBreachDetectorBreachTriggered:
 
 
 class TestInMemoryReconClientBreaches:
-
     def test_breaches_property_empty_initially(self):
         from services.recon.clickhouse_client import InMemoryReconClient
+
         ch = InMemoryReconClient()
         assert ch.breaches == []
 
     def test_write_breach_captured(self):
         from services.recon.clickhouse_client import InMemoryReconClient
+
         ch = InMemoryReconClient()
         breach = BreachRecord(
-            account_id="acct-1", account_type="operational",
-            currency="GBP", discrepancy=Decimal("200.00"),
-            days_outstanding=3, first_seen=date(2026, 4, 5), latest_date=date(2026, 4, 7),
+            account_id="acct-1",
+            account_type="operational",
+            currency="GBP",
+            discrepancy=Decimal("200.00"),
+            days_outstanding=3,
+            first_seen=date(2026, 4, 5),
+            latest_date=date(2026, 4, 7),
         )
         ch.write_breach(breach)
         assert len(ch.breaches) == 1

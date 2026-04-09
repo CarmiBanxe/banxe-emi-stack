@@ -23,6 +23,7 @@ Sardine.ai API reference:
   - SLA: < 100ms (enforced via timeout)
   - Response: risk level + score + rule_ids + APP_fraud_signal
 """
+
 from __future__ import annotations
 
 import logging
@@ -53,7 +54,7 @@ class SardineFraudAdapter:
         self._client_id = os.environ.get("SARDINE_CLIENT_ID", "")
         self._secret_key = os.environ.get("SARDINE_SECRET_KEY", "")
         if not self._client_id or not self._secret_key:
-            raise EnvironmentError(
+            raise OSError(
                 "SARDINE_CLIENT_ID and SARDINE_SECRET_KEY must be set. "
                 "Contact sales@sardine.ai to provision keys. "
                 "Use FRAUD_ADAPTER=mock for sandbox mode."
@@ -83,9 +84,12 @@ def get_fraud_adapter() -> FraudScoringPort:
     adapter_name = os.environ.get("FRAUD_ADAPTER", "mock").lower()
     if adapter_name == "jube":
         from services.fraud.jube_adapter import JubeAdapter
+
         return JubeAdapter()
     if adapter_name == "sardine":
         from services.fraud.sardine_adapter import SardineFraudAdapter  # noqa
+
         return SardineFraudAdapter()
     from services.fraud.mock_fraud_adapter import MockFraudAdapter
+
     return MockFraudAdapter()

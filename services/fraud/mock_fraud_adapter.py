@@ -23,6 +23,7 @@ Score logic (deterministic — no randomness, purely rule-based):
 APP scam detection (PSR APP 2024):
   - Heuristic based on amount + first_to_payee + country patterns
 """
+
 from __future__ import annotations
 
 import logging
@@ -41,9 +42,29 @@ logger = logging.getLogger(__name__)
 
 # High-risk destination countries (overlap with AML Category B — FATF greylist)
 _HIGH_RISK_COUNTRIES = {
-    "SY", "IQ", "LB", "YE", "HT", "ML", "DZ", "AO", "BO", "VG",
-    "CM", "CI", "CD", "KE", "LA", "MC", "NA", "NP", "SS", "TT",
-    "VU", "BG", "VN",
+    "SY",
+    "IQ",
+    "LB",
+    "YE",
+    "HT",
+    "ML",
+    "DZ",
+    "AO",
+    "BO",
+    "VG",
+    "CM",
+    "CI",
+    "CD",
+    "KE",
+    "LA",
+    "MC",
+    "NA",
+    "NP",
+    "SS",
+    "TT",
+    "VU",
+    "BG",
+    "VN",
 }
 
 # Hard-block countries (AML Category A — OFAC / UK HMT)
@@ -80,7 +101,10 @@ class MockFraudAdapter:
         )
         logger.debug(
             "MockFraud scored %s → %s (score=%d, latency=%.1fms)",
-            request.transaction_id, risk.value, score, latency_ms,
+            request.transaction_id,
+            risk.value,
+            score,
+            latency_ms,
         )
         return result
 

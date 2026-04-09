@@ -12,13 +12,13 @@ Key invariants enforced here:
   I-04: EDD + HITL mandatory — cases cannot be silently dropped.
   EU AI Act Art.14: every AI HOLD decision is traceable to a human decision.
 """
+
 from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from typing import Optional
 
 from services.hitl.hitl_port import (
     CaseStatus,
@@ -47,7 +47,7 @@ class HITLService:
 
     def __init__(self) -> None:
         self._cases: dict[str, ReviewCase] = {}
-        self._corpus: list[dict] = []          # feedback corpus (I-27)
+        self._corpus: list[dict] = []  # feedback corpus (I-27)
 
     # ── Enqueue ───────────────────────────────────────────────────────────────
 
@@ -69,7 +69,7 @@ class HITLService:
         SLA is set automatically: 4h for SAR, 24h for all other reasons.
         """
         case_id = str(uuid.uuid4())
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         sla_h = ReviewCase.sla_hours(reasons)
         expires_at = now + timedelta(hours=sla_h)
 
@@ -91,18 +91,21 @@ class HITLService:
         )
         self._cases[case_id] = case
         logger.info(
-            "HITL enqueued: case=%s tx=%s customer=%s amount=£%s "
-            "reasons=%s sla=%dh",
-            case_id, transaction_id, customer_id, amount,
-            [r.value for r in reasons], sla_h,
+            "HITL enqueued: case=%s tx=%s customer=%s amount=£%s reasons=%s sla=%dh",
+            case_id,
+            transaction_id,
+            customer_id,
+            amount,
+            [r.value for r in reasons],
+            sla_h,
         )
         return case
 
     @classmethod
     def from_pipeline_result(
         cls_or_self,
-        pipeline_result,   # type: ignore[no-untyped-def]
-        service: "HITLService",
+        pipeline_result,  # type: ignore[no-untyped-def]
+        service: HITLService,
     ) -> ReviewCase:
         """
         Convenience builder: create a ReviewCase from a FraudAMLPipeline result.
@@ -135,8 +138,8 @@ class HITLService:
         return service.enqueue(
             transaction_id=pipeline_result.transaction_id,
             customer_id=pipeline_result.customer_id,
-            entity_type="INDIVIDUAL",         # pipeline doesn't carry entity_type
-            amount=Decimal("0"),              # pipeline doesn't carry amount directly
+            entity_type="INDIVIDUAL",  # pipeline doesn't carry entity_type
+            amount=Decimal("0"),  # pipeline doesn't carry amount directly
             currency="GBP",
             reasons=reasons,
             fraud_score=pipeline_result.fraud_score,
@@ -147,12 +150,10 @@ class HITLService:
 
     # ── Read ──────────────────────────────────────────────────────────────────
 
-    def get_case(self, case_id: str) -> Optional[ReviewCase]:
+    def get_case(self, case_id: str) -> ReviewCase | None:
         return self._cases.get(case_id)
 
-    def list_queue(
-        self, status: Optional[CaseStatus] = None
-    ) -> list[ReviewCase]:
+    def list_queue(self, status: CaseStatus | None = None) -> list[ReviewCase]:
         """
         List cases, optionally filtered by status.
         Expired PENDING cases are auto-marked as EXPIRED on read.
@@ -189,17 +190,15 @@ class HITLService:
         if case is None:
             raise HITLCaseError(f"Case {case_id} not found")
         if case.status != CaseStatus.PENDING:
-            raise HITLCaseError(
-                f"Case {case_id} is already {case.status.value} — cannot re-decide"
-            )
+            raise HITLCaseError(f"Case {case_id} is already {case.status.value} — cannot re-decide")
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Update case (dataclass is not frozen — mutate in place)
         case.status = {
-            DecisionOutcome.APPROVE:   CaseStatus.APPROVED,
-            DecisionOutcome.REJECT:    CaseStatus.REJECTED,
-            DecisionOutcome.ESCALATE:  CaseStatus.ESCALATED,
+            DecisionOutcome.APPROVE: CaseStatus.APPROVED,
+            DecisionOutcome.REJECT: CaseStatus.REJECTED,
+            DecisionOutcome.ESCALATE: CaseStatus.ESCALATED,
         }[outcome]
         case.decision = outcome
         case.decided_at = now
@@ -223,7 +222,10 @@ class HITLService:
 
         logger.info(
             "HITL decision: case=%s tx=%s outcome=%s by=%s",
-            case_id, case.transaction_id, outcome.value, decided_by,
+            case_id,
+            case.transaction_id,
+            outcome.value,
+            decided_by,
         )
         return case
 
@@ -239,17 +241,14 @@ class HITLService:
             by_status[c.status] += 1
 
         decided = [
-            c for c in cases
-            if c.decided_at and c.status in (
-                CaseStatus.APPROVED, CaseStatus.REJECTED, CaseStatus.ESCALATED
-            )
+            c
+            for c in cases
+            if c.decided_at
+            and c.status in (CaseStatus.APPROVED, CaseStatus.REJECTED, CaseStatus.ESCALATED)
         ]
         avg_resolution = 0.0
         if decided:
-            total_h = sum(
-                (c.decided_at - c.created_at).total_seconds() / 3600
-                for c in decided
-            )
+            total_h = sum((c.decided_at - c.created_at).total_seconds() / 3600 for c in decided)
             avg_resolution = round(total_h / len(decided), 2)
 
         approved = by_status[CaseStatus.APPROVED]
@@ -262,9 +261,7 @@ class HITLService:
         oldest_h = 0.0
         if pending:
             oldest = min(c.created_at for c in pending)
-            oldest_h = round(
-                (datetime.now(timezone.utc) - oldest).total_seconds() / 3600, 2
-            )
+            oldest_h = round((datetime.now(UTC) - oldest).total_seconds() / 3600, 2)
 
         return HITLStats(
             total_cases=len(cases),
@@ -294,12 +291,13 @@ class HITLService:
 
     def _expire_stale_cases(self) -> None:
         """Mark PENDING cases past their SLA as EXPIRED."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         for case in self._cases.values():
             if case.status == CaseStatus.PENDING and now > case.expires_at:
                 case.status = CaseStatus.EXPIRED
                 logger.warning(
                     "HITL SLA EXPIRED: case=%s tx=%s sla_breach=%.1fh",
-                    case.case_id, case.transaction_id,
+                    case.case_id,
+                    case.transaction_id,
                     (now - case.expires_at).total_seconds() / 3600,
                 )

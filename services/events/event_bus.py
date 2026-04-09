@@ -13,27 +13,30 @@ Banxe has 10 departments that need to communicate asynchronously:
 RabbitMQ is already deployed on GMKtec (Midaz :3003/:3004).
 This module adds a Banxe-domain event layer on top.
 """
+
 from __future__ import annotations
 
 import json
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Callable, Optional, Protocol
+from typing import Any, Protocol
 
 logger = logging.getLogger(__name__)
 
 
 # ── Event types ────────────────────────────────────────────────────────────────
 
+
 class BanxeEventType(str, Enum):
     # Payment Operations
     PAYMENT_INITIATED = "payment.initiated"
     PAYMENT_COMPLETED = "payment.completed"
     PAYMENT_FAILED = "payment.failed"
-    PAYMENT_FROZEN = "payment.frozen"        # AML freeze
+    PAYMENT_FROZEN = "payment.frozen"  # AML freeze
 
     # KYC / Customer
     KYC_APPROVED = "kyc.approved"
@@ -65,19 +68,21 @@ class BanxeEventType(str, Enum):
 
 # ── Base event ─────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class DomainEvent:
     """
     Immutable domain event — all cross-department messages use this shape.
     Stored in ClickHouse banxe.domain_events for FCA audit trail.
     """
+
     event_id: str
     event_type: BanxeEventType
-    source_service: str          # "payment_service", "kyc_service", etc.
+    source_service: str  # "payment_service", "kyc_service", etc.
     payload: dict[str, Any]
     occurred_at: datetime
-    correlation_id: Optional[str] = None    # Links related events (e.g. payment flow)
-    customer_id: Optional[str] = None
+    correlation_id: str | None = None  # Links related events (e.g. payment flow)
+    customer_id: str | None = None
 
     def to_json(self) -> str:
         d = asdict(self)
@@ -91,15 +96,15 @@ class DomainEvent:
         event_type: BanxeEventType,
         source_service: str,
         payload: dict[str, Any],
-        customer_id: Optional[str] = None,
-        correlation_id: Optional[str] = None,
+        customer_id: str | None = None,
+        correlation_id: str | None = None,
     ) -> DomainEvent:
         return cls(
             event_id=str(uuid.uuid4()),
             event_type=event_type,
             source_service=source_service,
             payload=payload,
-            occurred_at=datetime.now(timezone.utc),
+            occurred_at=datetime.now(UTC),
             customer_id=customer_id,
             correlation_id=correlation_id,
         )
@@ -112,12 +117,14 @@ EventHandler = Callable[[DomainEvent], None]
 
 # ── Port Protocol ──────────────────────────────────────────────────────────────
 
+
 class EventBusPort(Protocol):
     def publish(self, event: DomainEvent) -> None: ...
     def subscribe(self, event_type: BanxeEventType, handler: EventHandler) -> None: ...
 
 
 # ── In-memory event bus ────────────────────────────────────────────────────────
+
 
 class InMemoryEventBus:
     """
@@ -137,7 +144,9 @@ class InMemoryEventBus:
         self._published.append(event)
         logger.info(
             "Event published: %s [%s] customer=%s",
-            event.event_type, event.event_id[:8], event.customer_id,
+            event.event_type,
+            event.event_id[:8],
+            event.customer_id,
         )
         for handler in self._handlers.get(event.event_type, []):
             try:
@@ -145,7 +154,9 @@ class InMemoryEventBus:
             except Exception as exc:
                 logger.error(
                     "Handler %s failed for event %s: %s",
-                    handler.__name__, event.event_id, exc,
+                    handler.__name__,
+                    event.event_id,
+                    exc,
                 )
 
     @property
@@ -162,6 +173,7 @@ class InMemoryEventBus:
 
 # ── RabbitMQ event bus (production) ───────────────────────────────────────────
 
+
 class RabbitMQEventBus:  # pragma: no cover
     """
     Production event bus — publishes to RabbitMQ (banxe-events exchange).
@@ -172,11 +184,12 @@ class RabbitMQEventBus:  # pragma: no cover
     Exchange: banxe-events (topic)
     """
 
-    def __init__(self, rabbitmq_url: Optional[str] = None) -> None:
+    def __init__(self, rabbitmq_url: str | None = None) -> None:
         import os
+
         self._url = rabbitmq_url or os.environ.get("RABBITMQ_URL", "")
         if not self._url:
-            raise EnvironmentError(
+            raise OSError(
                 "RABBITMQ_URL not set. Set to amqp://user:pass@gmktec:5672/ "
                 "to use RabbitMQ event bus."
             )
@@ -200,7 +213,7 @@ class RabbitMQEventBus:  # pragma: no cover
             routing_key=event.event_type.value,
             body=event.to_json().encode(),
             properties=pika.BasicProperties(
-                delivery_mode=2,        # persistent
+                delivery_mode=2,  # persistent
                 content_type="application/json",
                 message_id=event.event_id,
             ),
@@ -260,9 +273,7 @@ class RabbitMQEventBus:  # pragma: no cover
                     handler(event)
                     ch.basic_ack(delivery_tag=method.delivery_tag)
                 except Exception as exc:
-                    logger.error(
-                        "RabbitMQ handler %s failed: %s", handler.__name__, exc
-                    )
+                    logger.error("RabbitMQ handler %s failed: %s", handler.__name__, exc)
                     ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
             channel.basic_qos(prefetch_count=1)
@@ -280,8 +291,10 @@ class RabbitMQEventBus:  # pragma: no cover
 
 # ── Factory ────────────────────────────────────────────────────────────────────
 
+
 def get_event_bus() -> InMemoryEventBus | RabbitMQEventBus:
     import os
+
     backend = os.environ.get("EVENT_BUS_BACKEND", "memory")
     if backend == "rabbitmq":
         return RabbitMQEventBus()

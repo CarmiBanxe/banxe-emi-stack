@@ -5,6 +5,7 @@ FCA MLR 2017 §18 CDD requirement: KYC workflow integration.
 All HTTP calls are mocked by replacing adapter._client after construction.
 httpx IS installed, so we construct the adapter normally then swap the client.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -21,10 +22,10 @@ from services.kyc.kyc_port import (
 )
 from services.kyc.mock_kyc_workflow import BallerineAdapter
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Mock httpx helpers
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def _mock_response(status_code: int, json_data: dict) -> MagicMock:
     """Build a fake httpx.Response."""
@@ -80,6 +81,7 @@ def _adapter(client: MagicMock | None = None) -> BallerineAdapter:
 # Fixtures
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture()
 def kyc_request() -> KYCWorkflowRequest:
     return KYCWorkflowRequest(
@@ -98,6 +100,7 @@ def kyc_request() -> KYCWorkflowRequest:
 # ─────────────────────────────────────────────────────────────────────────────
 # Tests: create_workflow
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestCreateWorkflow:
     def test_create_workflow_returns_result(self, kyc_request: KYCWorkflowRequest) -> None:
@@ -131,6 +134,7 @@ class TestCreateWorkflow:
 # Tests: get_workflow
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestGetWorkflow:
     def test_get_workflow_returns_result(self) -> None:
         client = MagicMock()
@@ -157,20 +161,17 @@ class TestGetWorkflow:
 # Tests: submit_documents
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestSubmitDocuments:
     def test_submit_documents_returns_result(self) -> None:
         client = MagicMock()
-        client.patch.return_value = _mock_response(
-            200, _make_wf_json("wf-001", "document_review")
-        )
+        client.patch.return_value = _mock_response(200, _make_wf_json("wf-001", "document_review"))
         result = _adapter(client).submit_documents("wf-001", ["doc-01", "doc-02"])
         assert result.status == KYCStatus.DOCUMENT_REVIEW
 
     def test_submit_documents_sends_event(self) -> None:
         client = MagicMock()
-        client.patch.return_value = _mock_response(
-            200, _make_wf_json("wf-001", "risk_assessment")
-        )
+        client.patch.return_value = _mock_response(200, _make_wf_json("wf-001", "risk_assessment"))
         _adapter(client).submit_documents("wf-001", ["doc-01"])
         _, kwargs = client.patch.call_args
         payload = kwargs.get("json", {})
@@ -181,21 +182,18 @@ class TestSubmitDocuments:
 # Tests: approve_edd
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestApproveEdd:
     def test_approve_edd_sets_mlro_sign_off(self) -> None:
         client = MagicMock()
-        client.patch.return_value = _mock_response(
-            200, _make_wf_json("wf-001", "approved")
-        )
+        client.patch.return_value = _mock_response(200, _make_wf_json("wf-001", "approved"))
         result = _adapter(client).approve_edd("wf-001", "mlro-user-007")
         assert result.mlro_sign_off is True
         assert result.status == KYCStatus.APPROVED
 
     def test_approve_edd_sends_correct_event(self) -> None:
         client = MagicMock()
-        client.patch.return_value = _mock_response(
-            200, _make_wf_json("wf-001", "approved")
-        )
+        client.patch.return_value = _mock_response(200, _make_wf_json("wf-001", "approved"))
         _adapter(client).approve_edd("wf-001", "mlro-user-007")
         _, kwargs = client.patch.call_args
         payload = kwargs.get("json", {})
@@ -207,21 +205,18 @@ class TestApproveEdd:
 # Tests: reject_workflow
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestRejectWorkflow:
     def test_reject_workflow_returns_rejected_status(self) -> None:
         client = MagicMock()
-        client.patch.return_value = _mock_response(
-            200, _make_wf_json("wf-001", "rejected")
-        )
+        client.patch.return_value = _mock_response(200, _make_wf_json("wf-001", "rejected"))
         result = _adapter(client).reject_workflow("wf-001", RejectionReason.SANCTIONS_HIT)
         assert result.status == KYCStatus.REJECTED
         assert result.rejection_reason == RejectionReason.SANCTIONS_HIT
 
     def test_reject_workflow_sends_correct_event(self) -> None:
         client = MagicMock()
-        client.patch.return_value = _mock_response(
-            200, _make_wf_json("wf-001", "rejected")
-        )
+        client.patch.return_value = _mock_response(200, _make_wf_json("wf-001", "rejected"))
         _adapter(client).reject_workflow("wf-001", RejectionReason.DOCUMENT_FRAUD)
         _, kwargs = client.patch.call_args
         payload = kwargs.get("json", {})
@@ -232,6 +227,7 @@ class TestRejectWorkflow:
 # ─────────────────────────────────────────────────────────────────────────────
 # Tests: health()
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestHealth:
     def test_health_returns_true_on_200(self) -> None:
@@ -253,6 +249,7 @@ class TestHealth:
 # ─────────────────────────────────────────────────────────────────────────────
 # Tests: _parse_workflow edge cases
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestParseWorkflow:
     def test_completed_with_rejected_result_maps_to_rejected(self) -> None:
@@ -303,9 +300,11 @@ class TestParseWorkflow:
 # Tests: BallerineAdapter init
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestBallerineAdapterInit:
     def test_raises_if_no_base_url(self) -> None:
         import os
+
         saved = os.environ.pop("BALLERINE_URL", None)
         try:
             with pytest.raises(EnvironmentError, match="BALLERINE_URL"):

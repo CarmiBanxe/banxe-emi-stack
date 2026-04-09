@@ -38,11 +38,12 @@ Usage:
     # record AFTER payment succeeds
     monitor.record(customer_id, amount)
 """
+
 from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -72,7 +73,7 @@ class RedisVelocityTracker:
 
     def __init__(
         self,
-        redis_client: "_redis.Redis",
+        redis_client: _redis.Redis,
         key_prefix: str = "banxe:velocity",
         ttl_seconds: int = _DEFAULT_TTL_SECONDS,
     ) -> None:
@@ -91,7 +92,7 @@ class RedisVelocityTracker:
         but safe for cluster because they target the same key.
         """
         key = self._key(customer_id)
-        now_ts = datetime.now(timezone.utc).timestamp()
+        now_ts = datetime.now(UTC).timestamp()
         # Member is unique per record; rsplit(":", 1) on decode splits correctly
         # even if UUID contains "-" (hyphens only, no colons).
         member = f"{uuid.uuid4()}:{amount}"
@@ -104,7 +105,8 @@ class RedisVelocityTracker:
         except Exception as exc:
             logger.error(
                 "RedisVelocityTracker.record failed: customer=%s exc=%s",
-                customer_id, exc,
+                customer_id,
+                exc,
             )
             raise RedisVelocityTrackerError(
                 f"Failed to record velocity for {customer_id}: {exc}"
@@ -112,19 +114,17 @@ class RedisVelocityTracker:
 
     def get_daily(self, customer_id: str) -> tuple[Decimal, int]:
         """Return (total_amount, tx_count) for the past 24 hours."""
-        since = datetime.now(timezone.utc) - timedelta(days=1)
+        since = datetime.now(UTC) - timedelta(days=1)
         return self._query_window(customer_id, since)
 
     def get_monthly(self, customer_id: str) -> tuple[Decimal, int]:
         """Return (total_amount, tx_count) for the past 30 days."""
-        since = datetime.now(timezone.utc) - timedelta(days=30)
+        since = datetime.now(UTC) - timedelta(days=30)
         return self._query_window(customer_id, since)
 
-    def get_recent_window(
-        self, customer_id: str, hours: int
-    ) -> tuple[Decimal, int]:
+    def get_recent_window(self, customer_id: str, hours: int) -> tuple[Decimal, int]:
         """Return (total_amount, tx_count) for the past `hours` hours."""
-        since = datetime.now(timezone.utc) - timedelta(hours=hours)
+        since = datetime.now(UTC) - timedelta(hours=hours)
         return self._query_window(customer_id, since)
 
     # ── Extras (not in VelocityTrackerPort, available for ops/tests) ──────────
@@ -150,25 +150,22 @@ class RedisVelocityTracker:
     def _key(self, customer_id: str) -> str:
         return f"{self._prefix}:{customer_id}"
 
-    def _query_window(
-        self, customer_id: str, since: datetime
-    ) -> tuple[Decimal, int]:
+    def _query_window(self, customer_id: str, since: datetime) -> tuple[Decimal, int]:
         """
         Fetch all records in [since, now] from the sorted set.
         Returns (sum_of_amounts, count).
         """
         key = self._key(customer_id)
-        now_ts = datetime.now(timezone.utc).timestamp()
+        now_ts = datetime.now(UTC).timestamp()
         since_ts = since.timestamp()
 
         try:
-            raw_members: list[bytes] = self._redis.zrangebyscore(
-                key, since_ts, now_ts
-            )
+            raw_members: list[bytes] = self._redis.zrangebyscore(key, since_ts, now_ts)
         except Exception as exc:
             logger.error(
                 "RedisVelocityTracker.query failed: customer=%s exc=%s",
-                customer_id, exc,
+                customer_id,
+                exc,
             )
             raise RedisVelocityTrackerError(
                 f"Failed to query velocity for {customer_id}: {exc}"

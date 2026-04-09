@@ -22,6 +22,7 @@ This router provides:
   4. Routing to the appropriate service handler
   5. Replay by webhook_id
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -30,14 +31,15 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 # ── Provider enum ──────────────────────────────────────────────────────────────
+
 
 class WebhookProvider(str, Enum):
     MODULR = "modulr"
@@ -57,18 +59,19 @@ class WebhookStatus(str, Enum):
 
 # ── Webhook event ──────────────────────────────────────────────────────────────
 
+
 @dataclass
 class WebhookEvent:
     webhook_id: str
     provider: WebhookProvider
-    event_type: str                  # provider-specific: "payment.completed", "applicantReviewed"
+    event_type: str  # provider-specific: "payment.completed", "applicantReviewed"
     payload: dict[str, Any]
     received_at: datetime
     status: WebhookStatus
     signature_valid: bool
     raw_body: bytes
     headers: dict[str, str] = field(default_factory=dict)
-    error: Optional[str] = None
+    error: str | None = None
 
     def to_audit_record(self) -> dict[str, Any]:
         """Serialise for ClickHouse banxe.webhook_events."""
@@ -84,6 +87,7 @@ class WebhookEvent:
 
 
 # ── HMAC verifiers ─────────────────────────────────────────────────────────────
+
 
 def _verify_modulr(body: bytes, signature_header: str, secret: str) -> bool:
     """
@@ -115,6 +119,7 @@ def _verify_n8n(_body: bytes, _signature_header: str, _secret: str) -> bool:
 
 # ── Webhook processor ──────────────────────────────────────────────────────────
 
+
 class WebhookProcessor:
     """
     Verifies HMAC, parses payload, routes to handler, logs to audit store.
@@ -130,8 +135,8 @@ class WebhookProcessor:
 
     def __init__(
         self,
-        secrets: Optional[dict[str, str]] = None,
-        audit_store: Optional[WebhookAuditStore] = None,
+        secrets: dict[str, str] | None = None,
+        audit_store: WebhookAuditStore | None = None,
     ) -> None:
         self._secrets = secrets or {}
         self._audit = audit_store or InMemoryWebhookAuditStore()
@@ -147,7 +152,7 @@ class WebhookProcessor:
         headers: dict[str, str],
     ) -> WebhookEvent:
         webhook_id = str(uuid.uuid4())
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         try:
             prov_enum = WebhookProvider(provider.lower())
@@ -184,7 +189,8 @@ class WebhookProcessor:
         if not signature_valid:
             logger.warning(
                 "Webhook SIGNATURE FAILED: provider=%s webhook_id=%s",
-                provider, webhook_id,
+                provider,
+                webhook_id,
             )
             return event
 
@@ -201,11 +207,14 @@ class WebhookProcessor:
         self._audit.update_status(webhook_id, event.status)
         logger.info(
             "Webhook processed: provider=%s type=%s id=%s status=%s",
-            provider, event_type, webhook_id[:8], event.status,
+            provider,
+            event_type,
+            webhook_id[:8],
+            event.status,
         )
         return event
 
-    def replay(self, webhook_id: str) -> Optional[WebhookEvent]:
+    def replay(self, webhook_id: str) -> WebhookEvent | None:
         """Re-process a stored webhook (skip signature re-check)."""
         event = self._audit.get(webhook_id)
         if event is None:
@@ -249,9 +258,10 @@ class WebhookProcessor:
 
 # ── Audit store ────────────────────────────────────────────────────────────────
 
+
 class WebhookAuditStore:
     def save(self, event: WebhookEvent) -> None: ...
-    def get(self, webhook_id: str) -> Optional[WebhookEvent]: ...
+    def get(self, webhook_id: str) -> WebhookEvent | None: ...
     def update_status(self, webhook_id: str, status: WebhookStatus) -> None: ...
 
 
@@ -264,7 +274,7 @@ class InMemoryWebhookAuditStore:
     def save(self, event: WebhookEvent) -> None:
         self._store[event.webhook_id] = event
 
-    def get(self, webhook_id: str) -> Optional[WebhookEvent]:
+    def get(self, webhook_id: str) -> WebhookEvent | None:
         return self._store.get(webhook_id)
 
     def update_status(self, webhook_id: str, status: WebhookStatus) -> None:
@@ -297,11 +307,16 @@ class ClickHouseWebhookAuditStore:
         password: str = "",
     ) -> None:
         from services.config import (
-            CLICKHOUSE_DB, CLICKHOUSE_HOST, CLICKHOUSE_PASSWORD,
-            CLICKHOUSE_PORT, CLICKHOUSE_USER,
+            CLICKHOUSE_DB,
+            CLICKHOUSE_HOST,
+            CLICKHOUSE_PASSWORD,
+            CLICKHOUSE_PORT,
+            CLICKHOUSE_USER,
         )
+
         try:
             import clickhouse_driver  # type: ignore[import]
+
             self._client = clickhouse_driver.Client(
                 host=host or CLICKHOUSE_HOST,
                 port=port or CLICKHOUSE_PORT,
@@ -310,7 +325,9 @@ class ClickHouseWebhookAuditStore:
                 password=password or CLICKHOUSE_PASSWORD,
             )
         except ImportError as exc:
-            raise RuntimeError("clickhouse-driver not installed: pip install clickhouse-driver") from exc
+            raise RuntimeError(
+                "clickhouse-driver not installed: pip install clickhouse-driver"
+            ) from exc
 
     def save(self, event: WebhookEvent) -> None:
         """Append webhook audit record to ClickHouse (immutable, FCA I-24)."""
@@ -321,19 +338,21 @@ class ClickHouseWebhookAuditStore:
             (webhook_id, provider, event_type, received_at, status, signature_valid, error)
             VALUES
             """,
-            [{
-                "webhook_id": record["webhook_id"],
-                "provider": record["provider"],
-                "event_type": record["event_type"],
-                "received_at": event.received_at,
-                "status": record["status"],
-                "signature_valid": record["signature_valid"],
-                "error": record["error"],
-            }],
+            [
+                {
+                    "webhook_id": record["webhook_id"],
+                    "provider": record["provider"],
+                    "event_type": record["event_type"],
+                    "received_at": event.received_at,
+                    "status": record["status"],
+                    "signature_valid": record["signature_valid"],
+                    "error": record["error"],
+                }
+            ],
         )
         logger.debug("Webhook logged to CH: %s [%s]", event.webhook_id[:8], event.provider)
 
-    def get(self, webhook_id: str) -> Optional[WebhookEvent]:
+    def get(self, webhook_id: str) -> WebhookEvent | None:
         """
         Retrieve a webhook audit record by ID.
         Note: returns a minimal WebhookEvent (raw_body and headers are not stored in CH).
@@ -352,11 +371,11 @@ class ClickHouseWebhookAuditStore:
             webhook_id=row["webhook_id"],
             provider=WebhookProvider(row["provider"]),
             event_type=row["event_type"],
-            payload={},          # not stored in CH (only audit fields)
+            payload={},  # not stored in CH (only audit fields)
             received_at=row["received_at"],
             status=WebhookStatus(row["status"]),
             signature_valid=bool(row["signature_valid"]),
-            raw_body=b"",        # not stored in CH
+            raw_body=b"",  # not stored in CH
             error=row["error"] or None,
         )
 

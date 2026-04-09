@@ -22,22 +22,23 @@ FCA requirements:
 STATUS: Production RegData API — STUB (requires FCA_REGDATA_API_KEY, CEO action).
 Data pipeline + PDF generation are fully functional.
 """
+
 from __future__ import annotations
 
 import logging
 import os
 from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Protocol
+from typing import Protocol
 
 logger = logging.getLogger(__name__)
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-FRN = os.environ.get("FCA_FRN", "000000")           # Banxe FCA Firm Reference Number
+FRN = os.environ.get("FCA_FRN", "000000")  # Banxe FCA Firm Reference Number
 REGDATA_API_KEY = os.environ.get("FCA_REGDATA_API_KEY", "")
 REGDATA_URL = os.environ.get(
     "FCA_REGDATA_URL",
@@ -55,9 +56,11 @@ class ReturnStatus(str, Enum):
 
 # ── Domain types ──────────────────────────────────────────────────────────────
 
+
 @dataclass
 class RegDataReturn:
     """One monthly FCA RegData safeguarding return."""
+
     period_start: date
     period_end: date
     frn: str
@@ -66,9 +69,9 @@ class RegDataReturn:
     currency: str
     safeguarding_method: str
     status: ReturnStatus = ReturnStatus.PENDING
-    pdf_path: Optional[str] = None
-    submission_id: Optional[str] = None
-    submitted_at: Optional[datetime] = None
+    pdf_path: str | None = None
+    submission_id: str | None = None
+    submitted_at: datetime | None = None
     errors: list[str] = field(default_factory=list)
 
     @property
@@ -85,11 +88,13 @@ class RegDataReturn:
 
 # ── Generator protocol ────────────────────────────────────────────────────────
 
+
 class FIN060Generator(Protocol):
     def generate(self, period_start: date, period_end: date) -> tuple[Path, Decimal, Decimal]: ...
 
 
 # ── In-memory generator (for tests) ───────────────────────────────────────────
+
 
 class MockFIN060Generator:
     """Deterministic stub — no ClickHouse, no WeasyPrint."""
@@ -105,17 +110,20 @@ class MockFIN060Generator:
 
 # ── Real FIN060 generator wrapper ─────────────────────────────────────────────
 
+
 class RealFIN060Generator:  # pragma: no cover
     """Wraps fin060_generator.generate_fin060() + fetches amounts."""
 
     def generate(self, period_start: date, period_end: date) -> tuple[Path, Decimal, Decimal]:
         from services.reporting.fin060_generator import _fetch_period_data, generate_fin060
+
         data = _fetch_period_data(period_start, period_end)
         pdf_path = generate_fin060(period_start, period_end)
         return pdf_path, data.avg_daily_client_funds, data.peak_client_funds
 
 
 # ── Submission client (stubbed) ───────────────────────────────────────────────
+
 
 class RegDataSubmissionClient(Protocol):
     def submit(self, return_: RegDataReturn, pdf_path: Path) -> str: ...  # returns submission_id
@@ -128,7 +136,8 @@ class StubRegDataClient:
         logger.warning(
             "RegData submission STUBBED — FCA_REGDATA_API_KEY not set. "
             "Return for %s/%s not actually submitted.",
-            return_.period_start, return_.period_end,
+            return_.period_start,
+            return_.period_end,
         )
         return f"STUB-{return_.frn}-{return_.period_start.strftime('%Y%m')}"
 
@@ -148,9 +157,11 @@ class LiveRegDataClient:  # pragma: no cover
 
 # ── Return service ────────────────────────────────────────────────────────────
 
+
 def _previous_month_period() -> tuple[date, date]:
     """Return (first_day, last_day) of the previous calendar month."""
     import calendar
+
     today = date.today()
     year = today.year - 1 if today.month == 1 else today.year
     month = 12 if today.month == 1 else today.month - 1
@@ -216,7 +227,7 @@ class RegDataReturnService:
         try:
             submission_id = self._client.submit(return_, pdf_path)
             return_.submission_id = submission_id
-            return_.submitted_at = datetime.now(timezone.utc)
+            return_.submitted_at = datetime.now(UTC)
             return_.status = ReturnStatus.SUBMITTED
             logger.info("RegData submission OK: %s", submission_id)
         except Exception as exc:

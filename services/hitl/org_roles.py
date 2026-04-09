@@ -14,57 +14,62 @@ Key invariants enforced:
   EU AI Act Art.14: meaningful human oversight of high-risk AI decisions.
   SM&CR: SAR filing, PEP approval, sanctions reversal → MLRO non-delegable.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
 
-
 # ── Org roles (SM&CR aligned) ─────────────────────────────────────────────────
+
 
 class OrgRole(str, Enum):
     """
     Roles that can act as HITL approvers.
     Mirrors HITL-MATRIX.yaml roles section.
     """
-    CEO = "CEO"                                  # SMF1
-    CFO = "CFO"                                  # SMF2
-    CRO = "CRO"                                  # SMF4
-    INTERNAL_AUDITOR = "INTERNAL_AUDITOR"        # SMF5
-    MLRO = "MLRO"                                # SMF17
-    COO = "COO"                                  # SMF24
-    CTO = "CTO"                                  # SMF26
-    COMPLIANCE_OFFICER = "COMPLIANCE_OFFICER"    # Certified, not SMF
-    OPERATOR = "OPERATOR"                        # Operations staff (within limits)
+
+    CEO = "CEO"  # SMF1
+    CFO = "CFO"  # SMF2
+    CRO = "CRO"  # SMF4
+    INTERNAL_AUDITOR = "INTERNAL_AUDITOR"  # SMF5
+    MLRO = "MLRO"  # SMF17
+    COO = "COO"  # SMF24
+    CTO = "CTO"  # SMF26
+    COMPLIANCE_OFFICER = "COMPLIANCE_OFFICER"  # Certified, not SMF
+    OPERATOR = "OPERATOR"  # Operations staff (within limits)
 
 
 # ── HITL trigger types ────────────────────────────────────────────────────────
+
 
 class HITLTrigger(str, Enum):
     """
     Decision triggers — map to HITL-MATRIX.yaml gate ids.
     New triggers must have a corresponding gate in the matrix.
     """
-    SAR_REQUIRED = "SAR_REQUIRED"                          # HITL-001
-    EDD_REQUIRED = "EDD_REQUIRED"                          # HITL-002
-    SANCTIONS_HIT = "SANCTIONS_HIT"                        # HITL-003 (auto-block)
+
+    SAR_REQUIRED = "SAR_REQUIRED"  # HITL-001
+    EDD_REQUIRED = "EDD_REQUIRED"  # HITL-002
+    SANCTIONS_HIT = "SANCTIONS_HIT"  # HITL-003 (auto-block)
     SANCTIONS_REVERSAL_REQUEST = "SANCTIONS_REVERSAL_REQUEST"  # HITL-004
-    AML_CUSTOMER_BLOCK = "AML_CUSTOMER_BLOCK"              # HITL-005
-    KYC_HIGH_RISK_REJECTION = "KYC_HIGH_RISK_REJECTION"    # HITL-006
-    PEP_ONBOARDING = "PEP_ONBOARDING"                      # HITL-007
-    SAR_RETRACTION_REQUEST = "SAR_RETRACTION_REQUEST"      # HITL-008
-    FRAUD_HIGH = "FRAUD_HIGH"                              # HITL-009
-    FCA_REGDATA_SUBMISSION = "FCA_REGDATA_SUBMISSION"      # HITL-010
-    SAFEGUARDING_SHORTFALL = "SAFEGUARDING_SHORTFALL"      # HITL-011
-    AML_THRESHOLD_CHANGE = "AML_THRESHOLD_CHANGE"          # HITL-012
-    PRODUCTION_DEPLOY = "PRODUCTION_DEPLOY"                # HITL-013
-    AI_MODEL_UPDATE = "AI_MODEL_UPDATE"                    # HITL-014
+    AML_CUSTOMER_BLOCK = "AML_CUSTOMER_BLOCK"  # HITL-005
+    KYC_HIGH_RISK_REJECTION = "KYC_HIGH_RISK_REJECTION"  # HITL-006
+    PEP_ONBOARDING = "PEP_ONBOARDING"  # HITL-007
+    SAR_RETRACTION_REQUEST = "SAR_RETRACTION_REQUEST"  # HITL-008
+    FRAUD_HIGH = "FRAUD_HIGH"  # HITL-009
+    FCA_REGDATA_SUBMISSION = "FCA_REGDATA_SUBMISSION"  # HITL-010
+    SAFEGUARDING_SHORTFALL = "SAFEGUARDING_SHORTFALL"  # HITL-011
+    AML_THRESHOLD_CHANGE = "AML_THRESHOLD_CHANGE"  # HITL-012
+    PRODUCTION_DEPLOY = "PRODUCTION_DEPLOY"  # HITL-013
+    AI_MODEL_UPDATE = "AI_MODEL_UPDATE"  # HITL-014
     SECURITY_INCIDENT_CRITICAL = "SECURITY_INCIDENT_CRITICAL"  # HITL-015
-    LARGE_TRANSACTION = "LARGE_TRANSACTION"                # HITL-016
-    NEW_PRODUCT_LAUNCH = "NEW_PRODUCT_LAUNCH"              # HITL-017
+    LARGE_TRANSACTION = "LARGE_TRANSACTION"  # HITL-016
+    NEW_PRODUCT_LAUNCH = "NEW_PRODUCT_LAUNCH"  # HITL-017
 
 
 # ── Gate definition ───────────────────────────────────────────────────────────
+
 
 @dataclass(frozen=True)
 class HITLGate:
@@ -78,14 +83,15 @@ class HITLGate:
     sla_hours:      SLA before auto-escalation / FCA alert (0 = immediate).
     fca_basis:      Regulatory reference.
     """
+
     gate_id: str
     trigger: HITLTrigger
-    required_roles: tuple[OrgRole, ...]           # ALL required (AND)
-    any_of_roles: tuple[OrgRole, ...]             # ONE required (OR)
+    required_roles: tuple[OrgRole, ...]  # ALL required (AND)
+    any_of_roles: tuple[OrgRole, ...]  # ONE required (OR)
     sla_hours: int
     auto_allowed: bool
     fca_basis: str
-    severity: str                                  # critical | high | medium | low
+    severity: str  # critical | high | medium | low
 
     def approvers_needed(self) -> set[OrgRole]:
         """Return minimum set of roles needed to satisfy this gate."""
@@ -121,7 +127,6 @@ class HITLGate:
 
 # Maps HITLTrigger → HITLGate (single source of truth)
 GATE_REGISTRY: dict[HITLTrigger, HITLGate] = {
-
     HITLTrigger.SAR_REQUIRED: HITLGate(
         gate_id="HITL-001",
         trigger=HITLTrigger.SAR_REQUIRED,
@@ -132,7 +137,6 @@ GATE_REGISTRY: dict[HITLTrigger, HITLGate] = {
         fca_basis="POCA 2002 s.330; MLR 2017 Reg.19",
         severity="critical",
     ),
-
     HITLTrigger.EDD_REQUIRED: HITLGate(
         gate_id="HITL-002",
         trigger=HITLTrigger.EDD_REQUIRED,
@@ -143,18 +147,16 @@ GATE_REGISTRY: dict[HITLTrigger, HITLGate] = {
         fca_basis="MLR 2017 Reg.28; I-04",
         severity="high",
     ),
-
     HITLTrigger.SANCTIONS_HIT: HITLGate(
         gate_id="HITL-003",
         trigger=HITLTrigger.SANCTIONS_HIT,
         required_roles=(),
         any_of_roles=(),
         sla_hours=0,
-        auto_allowed=True,         # BLOCK is automatic; no human needed to block
+        auto_allowed=True,  # BLOCK is automatic; no human needed to block
         fca_basis="SAMLA 2018; OFSI guidance; I-15",
         severity="critical",
     ),
-
     HITLTrigger.SANCTIONS_REVERSAL_REQUEST: HITLGate(
         gate_id="HITL-004",
         trigger=HITLTrigger.SANCTIONS_REVERSAL_REQUEST,
@@ -165,7 +167,6 @@ GATE_REGISTRY: dict[HITLTrigger, HITLGate] = {
         fca_basis="SAMLA 2018 s.20; OFSI consent",
         severity="critical",
     ),
-
     HITLTrigger.AML_CUSTOMER_BLOCK: HITLGate(
         gate_id="HITL-005",
         trigger=HITLTrigger.AML_CUSTOMER_BLOCK,
@@ -176,7 +177,6 @@ GATE_REGISTRY: dict[HITLTrigger, HITLGate] = {
         fca_basis="MLR 2017 Reg.27; POCA 2002",
         severity="critical",
     ),
-
     HITLTrigger.KYC_HIGH_RISK_REJECTION: HITLGate(
         gate_id="HITL-006",
         trigger=HITLTrigger.KYC_HIGH_RISK_REJECTION,
@@ -187,7 +187,6 @@ GATE_REGISTRY: dict[HITLTrigger, HITLGate] = {
         fca_basis="MLR 2017 Reg.21; FCA SYSC 6.3",
         severity="high",
     ),
-
     HITLTrigger.PEP_ONBOARDING: HITLGate(
         gate_id="HITL-007",
         trigger=HITLTrigger.PEP_ONBOARDING,
@@ -198,7 +197,6 @@ GATE_REGISTRY: dict[HITLTrigger, HITLGate] = {
         fca_basis="MLR 2017 Reg.35",
         severity="critical",
     ),
-
     HITLTrigger.SAR_RETRACTION_REQUEST: HITLGate(
         gate_id="HITL-008",
         trigger=HITLTrigger.SAR_RETRACTION_REQUEST,
@@ -209,7 +207,6 @@ GATE_REGISTRY: dict[HITLTrigger, HITLGate] = {
         fca_basis="POCA 2002 s.330",
         severity="critical",
     ),
-
     HITLTrigger.FRAUD_HIGH: HITLGate(
         gate_id="HITL-009",
         trigger=HITLTrigger.FRAUD_HIGH,
@@ -220,7 +217,6 @@ GATE_REGISTRY: dict[HITLTrigger, HITLGate] = {
         fca_basis="PSR APP 2024; EU AI Act Art.14",
         severity="high",
     ),
-
     HITLTrigger.FCA_REGDATA_SUBMISSION: HITLGate(
         gate_id="HITL-010",
         trigger=HITLTrigger.FCA_REGDATA_SUBMISSION,
@@ -231,7 +227,6 @@ GATE_REGISTRY: dict[HITLTrigger, HITLGate] = {
         fca_basis="CASS 15.12.4R; FCA PS7/24 FIN060",
         severity="high",
     ),
-
     HITLTrigger.SAFEGUARDING_SHORTFALL: HITLGate(
         gate_id="HITL-011",
         trigger=HITLTrigger.SAFEGUARDING_SHORTFALL,
@@ -242,7 +237,6 @@ GATE_REGISTRY: dict[HITLTrigger, HITLGate] = {
         fca_basis="CASS 7.15.17R; CASS 7.13.6R",
         severity="critical",
     ),
-
     HITLTrigger.AML_THRESHOLD_CHANGE: HITLGate(
         gate_id="HITL-012",
         trigger=HITLTrigger.AML_THRESHOLD_CHANGE,
@@ -253,7 +247,6 @@ GATE_REGISTRY: dict[HITLTrigger, HITLGate] = {
         fca_basis="MLR 2017 Reg.18; I-27",
         severity="high",
     ),
-
     HITLTrigger.PRODUCTION_DEPLOY: HITLGate(
         gate_id="HITL-013",
         trigger=HITLTrigger.PRODUCTION_DEPLOY,
@@ -264,7 +257,6 @@ GATE_REGISTRY: dict[HITLTrigger, HITLGate] = {
         fca_basis="FCA SYSC 8.1",
         severity="medium",
     ),
-
     HITLTrigger.AI_MODEL_UPDATE: HITLGate(
         gate_id="HITL-014",
         trigger=HITLTrigger.AI_MODEL_UPDATE,
@@ -275,7 +267,6 @@ GATE_REGISTRY: dict[HITLTrigger, HITLGate] = {
         fca_basis="EU AI Act Art.9; Art.17; I-27",
         severity="high",
     ),
-
     HITLTrigger.SECURITY_INCIDENT_CRITICAL: HITLGate(
         gate_id="HITL-015",
         trigger=HITLTrigger.SECURITY_INCIDENT_CRITICAL,
@@ -286,7 +277,6 @@ GATE_REGISTRY: dict[HITLTrigger, HITLGate] = {
         fca_basis="FCA SYSC 8.1.1R; NIS Regulations 2018",
         severity="critical",
     ),
-
     HITLTrigger.LARGE_TRANSACTION: HITLGate(
         gate_id="HITL-016",
         trigger=HITLTrigger.LARGE_TRANSACTION,
@@ -297,7 +287,6 @@ GATE_REGISTRY: dict[HITLTrigger, HITLGate] = {
         fca_basis="MLR 2017 Reg.28; PSR 2017 Reg.71",
         severity="high",
     ),
-
     HITLTrigger.NEW_PRODUCT_LAUNCH: HITLGate(
         gate_id="HITL-017",
         trigger=HITLTrigger.NEW_PRODUCT_LAUNCH,
@@ -313,11 +302,13 @@ GATE_REGISTRY: dict[HITLTrigger, HITLGate] = {
 
 # ── Approval result ───────────────────────────────────────────────────────────
 
+
 @dataclass
 class ApprovalResult:
     """
     Result of checking whether a set of approvers satisfies a HITL gate.
     """
+
     trigger: HITLTrigger
     gate_id: str
     approved: bool
@@ -331,23 +322,19 @@ class ApprovalResult:
 
     def __post_init__(self) -> None:
         if self.auto_allowed:
-            self.message = (
-                f"{self.gate_id}: auto-allowed (no human approval needed)"
-            )
+            self.message = f"{self.gate_id}: auto-allowed (no human approval needed)"
         elif self.approved:
             roles_str = ", ".join(r.value for r in self.approver_roles)
-            self.message = (
-                f"{self.gate_id}: approved by [{roles_str}] — SLA {self.sla_hours}h"
-            )
+            self.message = f"{self.gate_id}: approved by [{roles_str}] — SLA {self.sla_hours}h"
         else:
             missing_str = ", ".join(r.value for r in self.missing_roles)
             self.message = (
-                f"{self.gate_id}: BLOCKED — missing approvers: [{missing_str}] "
-                f"({self.fca_basis})"
+                f"{self.gate_id}: BLOCKED — missing approvers: [{missing_str}] ({self.fca_basis})"
             )
 
 
 # ── OrgRoleChecker ────────────────────────────────────────────────────────────
+
 
 class OrgRoleChecker:
     """

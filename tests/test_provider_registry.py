@@ -3,6 +3,7 @@ test_provider_registry.py — Provider Registry tests
 S17-12: Pluggable provider architecture with health check + fallback
 Pattern: Geniusto v5 Plugin2/Provider2
 """
+
 from __future__ import annotations
 
 import pytest
@@ -16,35 +17,43 @@ from services.providers.provider_registry import (
 
 # ── Fixtures ───────────────────────────────────────────────────────────────────
 
+
 def _make_registry(payment_defs: list[dict]) -> ProviderRegistry:
     return ProviderRegistry.from_dict({"payment_rails": payment_defs})
 
 
 @pytest.fixture
 def registry_with_sandbox_only():
-    return _make_registry([
-        {"adapter": "mock", "display_name": "Mock", "priority": 99, "enabled": True},
-    ])
+    return _make_registry(
+        [
+            {"adapter": "mock", "display_name": "Mock", "priority": 99, "enabled": True},
+        ]
+    )
 
 
 @pytest.fixture
 def registry_with_primary_disabled():
-    return _make_registry([
-        {"adapter": "modulr", "display_name": "Modulr", "priority": 1, "enabled": False},
-        {"adapter": "mock", "display_name": "Mock", "priority": 99, "enabled": True},
-    ])
+    return _make_registry(
+        [
+            {"adapter": "modulr", "display_name": "Modulr", "priority": 1, "enabled": False},
+            {"adapter": "mock", "display_name": "Mock", "priority": 99, "enabled": True},
+        ]
+    )
 
 
 @pytest.fixture
 def registry_with_primary_enabled():
-    return _make_registry([
-        {"adapter": "modulr", "display_name": "Modulr", "priority": 1, "enabled": True},
-        {"adapter": "clearbank", "display_name": "ClearBank", "priority": 2, "enabled": True},
-        {"adapter": "mock", "display_name": "Mock", "priority": 99, "enabled": True},
-    ])
+    return _make_registry(
+        [
+            {"adapter": "modulr", "display_name": "Modulr", "priority": 1, "enabled": True},
+            {"adapter": "clearbank", "display_name": "ClearBank", "priority": 2, "enabled": True},
+            {"adapter": "mock", "display_name": "Mock", "priority": 99, "enabled": True},
+        ]
+    )
 
 
 # ── Resolution ─────────────────────────────────────────────────────────────────
+
 
 class TestResolve:
     def test_sandbox_when_only_option(self, registry_with_sandbox_only):
@@ -64,11 +73,18 @@ class TestResolve:
         assert res.fallback_used is False
 
     def test_fallback_when_primary_disabled(self):
-        registry = _make_registry([
-            {"adapter": "modulr", "display_name": "Modulr", "priority": 1, "enabled": False},
-            {"adapter": "clearbank", "display_name": "ClearBank", "priority": 2, "enabled": True},
-            {"adapter": "mock", "display_name": "Mock", "priority": 99, "enabled": True},
-        ])
+        registry = _make_registry(
+            [
+                {"adapter": "modulr", "display_name": "Modulr", "priority": 1, "enabled": False},
+                {
+                    "adapter": "clearbank",
+                    "display_name": "ClearBank",
+                    "priority": 2,
+                    "enabled": True,
+                },
+                {"adapter": "mock", "display_name": "Mock", "priority": 99, "enabled": True},
+            ]
+        )
         res = registry.resolve(ProviderCategory.PAYMENT_RAILS)
         assert res.adapter == "clearbank"
         assert res.fallback_used is True
@@ -79,9 +95,11 @@ class TestResolve:
             registry.resolve(ProviderCategory.PAYMENT_RAILS)
 
     def test_error_when_all_disabled_no_sandbox(self):
-        registry = _make_registry([
-            {"adapter": "modulr", "display_name": "Modulr", "priority": 1, "enabled": False},
-        ])
+        registry = _make_registry(
+            [
+                {"adapter": "modulr", "display_name": "Modulr", "priority": 1, "enabled": False},
+            ]
+        )
         with pytest.raises(RuntimeError, match="No enabled provider"):
             registry.resolve(ProviderCategory.PAYMENT_RAILS)
 
@@ -92,6 +110,7 @@ class TestResolve:
 
 
 # ── List providers ─────────────────────────────────────────────────────────────
+
 
 class TestListProviders:
     def test_sorted_by_priority(self, registry_with_primary_enabled):
@@ -105,6 +124,7 @@ class TestListProviders:
 
 
 # ── From YAML ──────────────────────────────────────────────────────────────────
+
 
 class TestFromYaml:
     def test_loads_providers_yaml(self, tmp_path):
@@ -145,6 +165,7 @@ payment_rails:
 
 # ── Health summary ─────────────────────────────────────────────────────────────
 
+
 class TestHealthSummary:
     def test_summary_shows_disabled(self, registry_with_primary_disabled):
         summary = registry_with_primary_disabled.health_summary()
@@ -160,13 +181,9 @@ class TestHealthSummary:
         assert status == ProviderStatus.UNKNOWN
 
     def test_provider_is_sandbox_when_priority_99(self):
-        pdef = ProviderDefinition(
-            adapter="mock", display_name="Mock", priority=99, enabled=True
-        )
+        pdef = ProviderDefinition(adapter="mock", display_name="Mock", priority=99, enabled=True)
         assert pdef.is_sandbox is True
 
     def test_provider_not_sandbox_when_priority_1(self):
-        pdef = ProviderDefinition(
-            adapter="modulr", display_name="Modulr", priority=1, enabled=True
-        )
+        pdef = ProviderDefinition(adapter="modulr", display_name="Modulr", priority=1, enabled=True)
         assert pdef.is_sandbox is False

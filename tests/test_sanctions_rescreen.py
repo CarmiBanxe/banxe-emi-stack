@@ -2,6 +2,7 @@
 tests/test_sanctions_rescreen.py — Sanctions re-screen endpoint tests
 IL-068 | AML/Compliance block | banxe-emi-stack
 """
+
 from __future__ import annotations
 
 import pytest

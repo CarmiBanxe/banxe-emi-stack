@@ -22,49 +22,52 @@ Operator privilege model (PRIVILEGE-MODEL.md):
   - MLRO role: required for ESCALATED cases
   - CEO: full access (congruent with MLRO for SAR decisions)
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Optional, Protocol
-
+from typing import Protocol
 
 # ── Enumerations ───────────────────────────────────────────────────────────────
 
+
 class ReviewReason(str, Enum):
     """Why this case was held for human review."""
-    FRAUD_HIGH = "FRAUD_HIGH"                  # Fraud score 70-84
-    APP_SCAM = "APP_SCAM"                      # PSR APP 2024 scam indicator
-    EDD_REQUIRED = "EDD_REQUIRED"              # MLR 2017 Reg.28 threshold
-    VELOCITY_DAILY = "VELOCITY_DAILY"          # Daily velocity breach
-    VELOCITY_MONTHLY = "VELOCITY_MONTHLY"      # Monthly velocity breach
-    STRUCTURING = "STRUCTURING"                # POCA 2002 s.330
-    SAR_REQUIRED = "SAR_REQUIRED"             # POCA 2002 — MLRO review
-    AML_COMBINED = "AML_COMBINED"             # Multiple AML flags together
+
+    FRAUD_HIGH = "FRAUD_HIGH"  # Fraud score 70-84
+    APP_SCAM = "APP_SCAM"  # PSR APP 2024 scam indicator
+    EDD_REQUIRED = "EDD_REQUIRED"  # MLR 2017 Reg.28 threshold
+    VELOCITY_DAILY = "VELOCITY_DAILY"  # Daily velocity breach
+    VELOCITY_MONTHLY = "VELOCITY_MONTHLY"  # Monthly velocity breach
+    STRUCTURING = "STRUCTURING"  # POCA 2002 s.330
+    SAR_REQUIRED = "SAR_REQUIRED"  # POCA 2002 — MLRO review
+    AML_COMBINED = "AML_COMBINED"  # Multiple AML flags together
 
 
 class CaseStatus(str, Enum):
-    PENDING = "PENDING"         # Awaiting operator decision
-    APPROVED = "APPROVED"       # Operator approved → payment proceeds
-    REJECTED = "REJECTED"       # Operator rejected → payment blocked
-    ESCALATED = "ESCALATED"     # Escalated to MLRO
-    EXPIRED = "EXPIRED"         # SLA breached — auto-expired, MLRO alerted
+    PENDING = "PENDING"  # Awaiting operator decision
+    APPROVED = "APPROVED"  # Operator approved → payment proceeds
+    REJECTED = "REJECTED"  # Operator rejected → payment blocked
+    ESCALATED = "ESCALATED"  # Escalated to MLRO
+    EXPIRED = "EXPIRED"  # SLA breached — auto-expired, MLRO alerted
 
 
 class DecisionOutcome(str, Enum):
-    APPROVE = "APPROVE"         # Human overrides HOLD → payment proceeds
-    REJECT = "REJECT"           # Human confirms HOLD → payment rejected
-    ESCALATE = "ESCALATE"       # → MLRO / senior compliance review
+    APPROVE = "APPROVE"  # Human overrides HOLD → payment proceeds
+    REJECT = "REJECT"  # Human confirms HOLD → payment rejected
+    ESCALATE = "ESCALATE"  # → MLRO / senior compliance review
 
 
 # SLA durations
-_SLA_SAR_HOURS = 4       # POCA 2002 — MLRO must review SAR cases promptly
+_SLA_SAR_HOURS = 4  # POCA 2002 — MLRO must review SAR cases promptly
 _SLA_STANDARD_HOURS = 24  # Standard EDD / velocity / fraud HIGH cases
 
 
 # ── Domain types ───────────────────────────────────────────────────────────────
+
 
 @dataclass
 class ReviewCase:
@@ -75,6 +78,7 @@ class ReviewCase:
     Immutable fields (frozen after creation): case_id, transaction_id,
     customer_id, amount, currency, created_at, expires_at.
     """
+
     case_id: str
     transaction_id: str
     customer_id: str
@@ -83,18 +87,18 @@ class ReviewCase:
     currency: str
     reasons: list[ReviewReason]
     fraud_score: int
-    fraud_risk: str              # LOW | MEDIUM | HIGH | CRITICAL
-    aml_flags: list[str]         # active AML flag names
-    hold_reasons: list[str]      # human-readable hold reasons from pipeline
+    fraud_risk: str  # LOW | MEDIUM | HIGH | CRITICAL
+    aml_flags: list[str]  # active AML flag names
+    hold_reasons: list[str]  # human-readable hold reasons from pipeline
     status: CaseStatus
     created_at: datetime
     expires_at: datetime
 
     # Mutable — set when operator decides
-    assigned_to: Optional[str] = None
-    decided_at: Optional[datetime] = None
-    decision: Optional[DecisionOutcome] = None
-    decision_by: Optional[str] = None
+    assigned_to: str | None = None
+    decided_at: datetime | None = None
+    decision: DecisionOutcome | None = None
+    decision_by: str | None = None
     decision_notes: str = ""
 
     @property
@@ -103,15 +107,12 @@ class ReviewCase:
 
     @property
     def is_expired(self) -> bool:
-        return (
-            self.status == CaseStatus.PENDING
-            and datetime.now(timezone.utc) > self.expires_at
-        )
+        return self.status == CaseStatus.PENDING and datetime.now(UTC) > self.expires_at
 
     @property
     def hours_remaining(self) -> float:
         """Hours until SLA expiry. Negative if already expired."""
-        delta = self.expires_at - datetime.now(timezone.utc)
+        delta = self.expires_at - datetime.now(UTC)
         return delta.total_seconds() / 3600
 
     @classmethod
@@ -129,6 +130,7 @@ class HITLDecision:
     Written to feedback corpus for supervised learning (I-27).
     Never applied autonomously — feedback_loop.py proposes, human applies.
     """
+
     case_id: str
     transaction_id: str
     customer_id: str
@@ -159,18 +161,20 @@ class HITLDecision:
 @dataclass
 class HITLStats:
     """Aggregated metrics over all cases. Used for Consumer Duty + FCA reporting."""
+
     total_cases: int
     pending_cases: int
     approved_cases: int
     rejected_cases: int
     escalated_cases: int
     expired_cases: int
-    approval_rate: float           # approved / (approved + rejected) * 100
-    avg_resolution_hours: float    # mean time from enqueue to decision
-    oldest_pending_hours: float    # SLA pressure indicator
+    approval_rate: float  # approved / (approved + rejected) * 100
+    avg_resolution_hours: float  # mean time from enqueue to decision
+    oldest_pending_hours: float  # SLA pressure indicator
 
 
 # ── Port ───────────────────────────────────────────────────────────────────────
+
 
 class HITLPort(Protocol):
     """Hexagonal port for the HITL review queue."""
@@ -189,11 +193,9 @@ class HITLPort(Protocol):
         hold_reasons: list[str],
     ) -> ReviewCase: ...
 
-    def get_case(self, case_id: str) -> Optional[ReviewCase]: ...
+    def get_case(self, case_id: str) -> ReviewCase | None: ...
 
-    def list_queue(
-        self, status: Optional[CaseStatus] = None
-    ) -> list[ReviewCase]: ...
+    def list_queue(self, status: CaseStatus | None = None) -> list[ReviewCase]: ...
 
     def decide(
         self,

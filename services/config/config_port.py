@@ -22,14 +22,15 @@ FCA obligations:
   - PSR 2017 Reg.67: payment execution limits must be documented
   - MLR 2017 Reg.28: per-entity EDD thresholds (see aml_thresholds.py for AML)
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Optional, Protocol
-
+from typing import Protocol
 
 # ── Fee schedule ───────────────────────────────────────────────────────────────
+
 
 @dataclass(frozen=True)
 class FeeSchedule:
@@ -41,13 +42,14 @@ class FeeSchedule:
         FX spot:      0.25% with £1.00 min, £500 max
         SEPA Instant: flat €1.00
     """
+
     product_id: str
-    tx_type: str            # FPS | SEPA_CT | SEPA_INSTANT | BACS | FX | CARD_PAYMENT
-    fee_type: str           # FLAT | PERCENTAGE | MIXED
-    flat_fee: Decimal       # Fixed component (0 if PERCENTAGE only)
-    percentage: Decimal     # e.g. Decimal("0.0025") = 0.25% (0 if FLAT only)
-    min_fee: Decimal        # Minimum charged (applies after calculation)
-    max_fee: Optional[Decimal]  # None = uncapped
+    tx_type: str  # FPS | SEPA_CT | SEPA_INSTANT | BACS | FX | CARD_PAYMENT
+    fee_type: str  # FLAT | PERCENTAGE | MIXED
+    flat_fee: Decimal  # Fixed component (0 if PERCENTAGE only)
+    percentage: Decimal  # e.g. Decimal("0.0025") = 0.25% (0 if FLAT only)
+    min_fee: Decimal  # Minimum charged (applies after calculation)
+    max_fee: Decimal | None  # None = uncapped
     currency: str = "GBP"
 
     def calculate(self, amount: Decimal) -> Decimal:
@@ -61,6 +63,7 @@ class FeeSchedule:
 
 # ── Payment limits ─────────────────────────────────────────────────────────────
 
+
 @dataclass(frozen=True)
 class PaymentLimits:
     """
@@ -69,13 +72,14 @@ class PaymentLimits:
     Individual limits are tighter (PSR 2017 consumer protections).
     Company limits reflect B2B payment volumes.
     """
+
     product_id: str
-    entity_type: str        # INDIVIDUAL | COMPANY
+    entity_type: str  # INDIVIDUAL | COMPANY
     single_tx_max: Decimal  # Max per single transaction
-    daily_max: Decimal      # Max total outbound per day
-    monthly_max: Decimal    # Max total outbound per month
-    daily_tx_count: int     # Max number of outbound transactions per day
-    monthly_tx_count: int   # Max number of outbound transactions per month
+    daily_max: Decimal  # Max total outbound per day
+    monthly_max: Decimal  # Max total outbound per month
+    daily_tx_count: int  # Max number of outbound transactions per day
+    monthly_tx_count: int  # Max number of outbound transactions per month
     min_tx: Decimal = Decimal("0.01")
 
     def check_single(self, amount: Decimal) -> bool:
@@ -84,20 +88,17 @@ class PaymentLimits:
 
     def check_daily(self, amount: Decimal, daily_total: Decimal, daily_count: int) -> bool:
         """True if amount + daily_total stays within daily limits."""
-        return (
-            (daily_total + amount) <= self.daily_max
-            and (daily_count + 1) <= self.daily_tx_count
-        )
+        return (daily_total + amount) <= self.daily_max and (daily_count + 1) <= self.daily_tx_count
 
     def check_monthly(self, amount: Decimal, monthly_total: Decimal, monthly_count: int) -> bool:
         """True if amount + monthly_total stays within monthly limits."""
-        return (
-            (monthly_total + amount) <= self.monthly_max
-            and (monthly_count + 1) <= self.monthly_tx_count
-        )
+        return (monthly_total + amount) <= self.monthly_max and (
+            monthly_count + 1
+        ) <= self.monthly_tx_count
 
 
 # ── Product config ─────────────────────────────────────────────────────────────
+
 
 @dataclass
 class ProductConfig:
@@ -105,6 +106,7 @@ class ProductConfig:
     Full runtime configuration for one product (e.g. EMI_ACCOUNT).
     Contains fee schedules for every tx type + limits per entity type.
     """
+
     product_id: str
     display_name: str
     currencies: list[str]
@@ -113,13 +115,13 @@ class ProductConfig:
     company_limits: PaymentLimits
     active: bool = True
 
-    def get_fee(self, tx_type: str) -> Optional[FeeSchedule]:
+    def get_fee(self, tx_type: str) -> FeeSchedule | None:
         for fs in self.fee_schedules:
             if fs.tx_type == tx_type:
                 return fs
         return None
 
-    def get_limits(self, entity_type: str) -> Optional[PaymentLimits]:
+    def get_limits(self, entity_type: str) -> PaymentLimits | None:
         if entity_type == "INDIVIDUAL":
             return self.individual_limits
         if entity_type == "COMPANY":
@@ -129,11 +131,12 @@ class ProductConfig:
 
 # ── Config port (hexagonal) ────────────────────────────────────────────────────
 
+
 class ConfigPort(Protocol):
     """Hexagonal port for runtime business configuration."""
 
-    def get_product(self, product_id: str) -> Optional[ProductConfig]: ...
+    def get_product(self, product_id: str) -> ProductConfig | None: ...
     def list_products(self) -> list[ProductConfig]: ...
-    def get_fee(self, product_id: str, tx_type: str) -> Optional[FeeSchedule]: ...
-    def get_limits(self, product_id: str, entity_type: str) -> Optional[PaymentLimits]: ...
+    def get_fee(self, product_id: str, tx_type: str) -> FeeSchedule | None: ...
+    def get_limits(self, product_id: str, entity_type: str) -> PaymentLimits | None: ...
     def reload(self) -> None: ...

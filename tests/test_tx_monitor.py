@@ -2,10 +2,12 @@
 test_tx_monitor.py — TxMonitorService: dual-entity AML transaction monitoring
 MLR 2017 | POCA 2002 s.330 | FCA SYSC 6.3
 """
+
 from __future__ import annotations
 
-import pytest
 from decimal import Decimal
+
+import pytest
 
 from services.aml.tx_monitor import (
     InMemoryVelocityTracker,
@@ -41,6 +43,7 @@ def monitor():
 
 # ── Sanctions ──────────────────────────────────────────────────────────────────
 
+
 class TestSanctionsBlock:
     def test_sanctions_hit_blocks(self, monitor):
         result = monitor.evaluate(_req("1000", is_sanctions_hit=True))
@@ -59,6 +62,7 @@ class TestSanctionsBlock:
 
 
 # ── EDD (MLR 2017 Reg.28) ──────────────────────────────────────────────────────
+
 
 class TestEDD:
     def test_individual_9999_no_edd(self, monitor):
@@ -101,6 +105,7 @@ class TestEDD:
 
 # ── Velocity ───────────────────────────────────────────────────────────────────
 
+
 class TestVelocity:
     def test_daily_amount_breach_individual(self, monitor):
         # Pre-load £24,500 in tracker
@@ -134,6 +139,7 @@ class TestVelocity:
 
 # ── Structuring ────────────────────────────────────────────────────────────────
 
+
 class TestStructuring:
     def test_structuring_signal_individual(self, monitor):
         # 2 prior txs of £4,500 each (under £10k threshold)
@@ -165,6 +171,7 @@ class TestStructuring:
 
 # ── SAR ────────────────────────────────────────────────────────────────────────
 
+
 class TestSAR:
     def test_individual_50k_sar(self, monitor):
         result = monitor.evaluate(_req("50000", "INDIVIDUAL"))
@@ -192,6 +199,7 @@ class TestSAR:
 
 # ── requires_hitl ──────────────────────────────────────────────────────────────
 
+
 class TestRequiresHITL:
     def test_clean_tx_no_hitl(self, monitor):
         result = monitor.evaluate(_req("500", "INDIVIDUAL"))
@@ -207,6 +215,7 @@ class TestRequiresHITL:
 
 
 # ── thresholds_applied field ───────────────────────────────────────────────────
+
 
 class TestThresholdsApplied:
     def test_individual_thresholds_applied(self, monitor):

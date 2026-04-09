@@ -6,11 +6,11 @@ Used in tests and local development.
 Records all sent notifications in-memory for assertion.
 Simulates BOUNCED for addresses matching test patterns.
 """
+
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from services.notifications.notification_port import (
     NotificationChannel,
@@ -49,7 +49,8 @@ class MockNotificationAdapter:
                 self._sent[request.notification_id] = result
                 logger.info(
                     "Notification SUPPRESSED (no consent): %s [%s]",
-                    request.notification_type, request.notification_id[:8],
+                    request.notification_type,
+                    request.notification_id[:8],
                 )
                 return result
 
@@ -66,7 +67,8 @@ class MockNotificationAdapter:
             self._sent[request.notification_id] = result
             logger.warning(
                 "Notification BOUNCED: %s [%s]",
-                request.notification_type, request.notification_id[:8],
+                request.notification_type,
+                request.notification_id[:8],
             )
             return result
 
@@ -77,7 +79,7 @@ class MockNotificationAdapter:
             channel=request.channel,
             status=NotificationStatus.SENT,
             provider_reference=f"mock-{request.notification_id[:8]}",
-            sent_at=datetime.now(timezone.utc),
+            sent_at=datetime.now(UTC),
         )
         self._sent[request.notification_id] = result
         logger.info(
@@ -88,9 +90,7 @@ class MockNotificationAdapter:
         )
         return result
 
-    def get_delivery_status(
-        self, notification_id: str
-    ) -> Optional[NotificationResult]:
+    def get_delivery_status(self, notification_id: str) -> NotificationResult | None:
         return self._sent.get(notification_id)
 
     def health(self) -> bool:
@@ -104,27 +104,20 @@ class MockNotificationAdapter:
 
     def sent_for_customer(self, customer_id: str) -> list[NotificationResult]:
         """Filter by customer_id (requires correlation via notification_id prefix)."""
-        return [
-            r for r in self._sent.values()
-            if r.status == NotificationStatus.SENT
-        ]
+        return [r for r in self._sent.values() if r.status == NotificationStatus.SENT]
 
     def count_by_channel(self, channel: NotificationChannel) -> int:
-        return sum(
-            1 for r in self._sent.values() if r.channel == channel
-        )
+        return sum(1 for r in self._sent.values() if r.channel == channel)
 
     def count_by_status(self, status: NotificationStatus) -> int:
-        return sum(
-            1 for r in self._sent.values() if r.status == status
-        )
+        return sum(1 for r in self._sent.values() if r.status == status)
 
     def reset(self) -> None:
         """Clear state for test isolation."""
         self._sent.clear()
 
 
-def _get_recipient_address(req: NotificationRequest) -> Optional[str]:
+def _get_recipient_address(req: NotificationRequest) -> str | None:
     if req.channel == NotificationChannel.EMAIL:
         return req.recipient.email
     if req.channel == NotificationChannel.SMS:

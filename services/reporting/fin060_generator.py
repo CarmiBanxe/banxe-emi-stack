@@ -7,6 +7,7 @@ as PDF using WeasyPrint and uploads to FCA RegData.
 
 Deadline: 15th of month following reporting period.
 """
+
 from __future__ import annotations
 
 import os
@@ -21,6 +22,8 @@ from services.config import (
     CLICKHOUSE_PASSWORD,
     CLICKHOUSE_PORT,
     CLICKHOUSE_USER,
+)
+from services.config import (
     FIN060_OUTPUT_DIR as _FIN060_DIR,
 )
 
@@ -30,13 +33,14 @@ FIN060_OUTPUT_DIR = Path(_FIN060_DIR)
 @dataclass(frozen=True)
 class FIN060Data:
     """Aggregated data for one reporting period."""
+
     period_start: date
     period_end: date
-    avg_daily_client_funds: Decimal   # FIN060a: monthly average
+    avg_daily_client_funds: Decimal  # FIN060a: monthly average
     peak_client_funds: Decimal
-    safeguarding_method: str          # "segregated" | "insurance" | "guarantee"
+    safeguarding_method: str  # "segregated" | "insurance" | "guarantee"
     bank_name: str
-    account_number_masked: str        # last 4 digits only — GDPR
+    account_number_masked: str  # last 4 digits only — GDPR
     currency: str = "GBP"
 
 
@@ -55,10 +59,7 @@ def _fetch_period_data(period_start: date, period_end: date) -> FIN060Data:
     try:
         import clickhouse_driver  # type: ignore
     except ImportError:
-        raise RuntimeError(
-            "clickhouse-driver not installed. "
-            "Run: pip install clickhouse-driver"
-        )
+        raise RuntimeError("clickhouse-driver not installed. Run: pip install clickhouse-driver")
 
     client = clickhouse_driver.Client(
         host=CLICKHOUSE_HOST,
@@ -103,10 +104,7 @@ def _render_pdf(data: FIN060Data) -> Path:
     try:
         from weasyprint import HTML  # type: ignore
     except ImportError:
-        raise RuntimeError(
-            "weasyprint not installed. "
-            "Run: pip install weasyprint"
-        )
+        raise RuntimeError("weasyprint not installed. Run: pip install weasyprint")
 
     html_content = _build_html(data)
     FIN060_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -123,7 +121,7 @@ def _build_html(data: FIN060Data) -> str:
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>FIN060 — Banxe Ltd — {data.period_start.strftime('%B %Y')}</title>
+<title>FIN060 — Banxe Ltd — {data.period_start.strftime("%B %Y")}</title>
 <style>
   body {{ font-family: Arial, sans-serif; font-size: 11pt; margin: 2cm; }}
   h1 {{ font-size: 14pt; }}
@@ -137,7 +135,7 @@ def _build_html(data: FIN060Data) -> str:
 <h1>FIN060 — Monthly Safeguarding Return</h1>
 <p><strong>Firm:</strong> Banxe Limited</p>
 <p><strong>Reporting Period:</strong>
-   {data.period_start.strftime('%d %B %Y')} – {data.period_end.strftime('%d %B %Y')}</p>
+   {data.period_start.strftime("%d %B %Y")} – {data.period_end.strftime("%d %B %Y")}</p>
 
 <h2>FIN060a — Client Funds (Safeguarding)</h2>
 <table>

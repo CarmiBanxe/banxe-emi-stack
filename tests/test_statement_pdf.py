@@ -3,6 +3,7 @@ tests/test_statement_pdf.py — AccountStatementService PDF/HTML (IL-054)
 FCA PS7/24: monthly statement must be available to client on request.
 WeasyPrint: tested via mock — does not require binary installed in CI.
 """
+
 from __future__ import annotations
 
 import sys
@@ -21,10 +22,10 @@ from services.statements.statement_service import (
     TransactionLine,
 )
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Fixtures
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def _make_tx(
     dt: date,
@@ -48,9 +49,30 @@ def _make_tx(
 @pytest.fixture()
 def sample_transactions() -> list[TransactionLine]:
     return [
-        _make_tx(date(2026, 3, 5),  "BACS Receipt — salary",  "SAL-001", None,           Decimal("3500.00"), Decimal("5000.00")),
-        _make_tx(date(2026, 3, 10), "Rent payment",           "RENT-03", Decimal("1200.00"), None,            Decimal("3800.00")),
-        _make_tx(date(2026, 3, 22), "FPS — supplier ABC",     "FPS-042", Decimal("450.00"),  None,            Decimal("3350.00")),
+        _make_tx(
+            date(2026, 3, 5),
+            "BACS Receipt — salary",
+            "SAL-001",
+            None,
+            Decimal("3500.00"),
+            Decimal("5000.00"),
+        ),
+        _make_tx(
+            date(2026, 3, 10),
+            "Rent payment",
+            "RENT-03",
+            Decimal("1200.00"),
+            None,
+            Decimal("3800.00"),
+        ),
+        _make_tx(
+            date(2026, 3, 22),
+            "FPS — supplier ABC",
+            "FPS-042",
+            Decimal("450.00"),
+            None,
+            Decimal("3350.00"),
+        ),
     ]
 
 
@@ -73,6 +95,7 @@ def sample_statement(sample_transactions: list[TransactionLine]) -> AccountState
 # ─────────────────────────────────────────────────────────────────────────────
 # Tests: _render_html() content
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestRenderHtml:
     def _html(self, stmt: AccountStatement) -> str:
@@ -126,8 +149,11 @@ class TestRenderHtml:
         repo = InMemoryTransactionRepository(opening_balance=Decimal("0"))
         svc = AccountStatementService(repo=repo)
         stmt = svc.generate(
-            customer_id="c1", account_id="a1", currency="EUR",
-            period_start=date(2026, 1, 1), period_end=date(2026, 1, 31),
+            customer_id="c1",
+            account_id="a1",
+            currency="EUR",
+            period_start=date(2026, 1, 1),
+            period_end=date(2026, 1, 31),
         )
         html = svc._render_html(stmt)
         assert "No transactions" in html
@@ -151,6 +177,7 @@ class TestRenderHtml:
 # ─────────────────────────────────────────────────────────────────────────────
 # Tests: generate_pdf() with mock WeasyPrint
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestGeneratePdf:
     def _mock_weasyprint(self) -> types.ModuleType:
@@ -230,6 +257,7 @@ class TestGeneratePdf:
 # Tests: to_csv()
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestToCsv:
     def test_csv_has_header(self, sample_statement: AccountStatement) -> None:
         csv_bytes = sample_statement.to_csv()
@@ -258,18 +286,33 @@ class TestToCsv:
 # Tests: to_dict()
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestToDict:
     def test_to_dict_keys(self, sample_statement: AccountStatement) -> None:
         d = sample_statement.to_dict()
-        for key in ("statement_id", "customer_id", "account_id", "currency",
-                    "period_start", "period_end", "opening_balance",
-                    "closing_balance", "net_movement", "transaction_count"):
+        for key in (
+            "statement_id",
+            "customer_id",
+            "account_id",
+            "currency",
+            "period_start",
+            "period_end",
+            "opening_balance",
+            "closing_balance",
+            "net_movement",
+            "transaction_count",
+        ):
             assert key in d, f"missing key: {key}"
 
     def test_to_dict_amounts_are_strings(self, sample_statement: AccountStatement) -> None:
         d = sample_statement.to_dict()
-        for field in ("opening_balance", "closing_balance", "net_movement",
-                      "total_debits", "total_credits"):
+        for field in (
+            "opening_balance",
+            "closing_balance",
+            "net_movement",
+            "total_debits",
+            "total_credits",
+        ):
             assert isinstance(d[field], str), f"{field} should be str"
 
     def test_to_dict_transaction_count(self, sample_statement: AccountStatement) -> None:
@@ -280,6 +323,7 @@ class TestToDict:
 # ─────────────────────────────────────────────────────────────────────────────
 # Tests: TransactionLine.amount
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestTransactionLineAmount:
     def test_credit_amount_positive(self) -> None:

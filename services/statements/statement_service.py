@@ -19,22 +19,24 @@ FCA obligations:
   - CASS 15: client money statement details
   - UK GDPR Art.5: only include data necessary for the statement period
 """
+
 from __future__ import annotations
 
 import csv
 import io
 import logging
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Protocol
+from typing import Protocol
 
 logger = logging.getLogger(__name__)
 
 
 # ── Domain types ───────────────────────────────────────────────────────────────
+
 
 class StatementFormat(str, Enum):
     CSV = "CSV"
@@ -45,11 +47,12 @@ class StatementFormat(str, Enum):
 @dataclass(frozen=True)
 class TransactionLine:
     """One transaction line in a client statement."""
+
     date: date
     description: str
     reference: str
-    debit: Optional[Decimal]        # None if credit
-    credit: Optional[Decimal]       # None if debit
+    debit: Decimal | None  # None if credit
+    credit: Decimal | None  # None if debit
     balance_after: Decimal
     transaction_id: str
 
@@ -67,6 +70,7 @@ class AccountStatement:
     Monthly account statement — one customer account, one period.
     Generated on-demand or by monthly cron.
     """
+
     statement_id: str
     customer_id: str
     account_id: str
@@ -89,19 +93,27 @@ class AccountStatement:
         """Generate CSV bytes — client-downloadable."""
         buf = io.StringIO()
         writer = csv.writer(buf)
-        writer.writerow([
-            "Date", "Description", "Reference",
-            "Debit", "Credit", "Balance",
-        ])
+        writer.writerow(
+            [
+                "Date",
+                "Description",
+                "Reference",
+                "Debit",
+                "Credit",
+                "Balance",
+            ]
+        )
         for tx in self.transactions:
-            writer.writerow([
-                tx.date.isoformat(),
-                tx.description,
-                tx.reference,
-                str(tx.debit) if tx.debit else "",
-                str(tx.credit) if tx.credit else "",
-                str(tx.balance_after),
-            ])
+            writer.writerow(
+                [
+                    tx.date.isoformat(),
+                    tx.description,
+                    tx.reference,
+                    str(tx.debit) if tx.debit else "",
+                    str(tx.credit) if tx.credit else "",
+                    str(tx.balance_after),
+                ]
+            )
         # Summary footer
         writer.writerow([])
         writer.writerow(["Opening Balance", "", "", "", "", str(self.opening_balance)])
@@ -130,6 +142,7 @@ class AccountStatement:
 
 # ── Transaction repository protocol ───────────────────────────────────────────
 
+
 class TransactionRepository(Protocol):
     def get_transactions(
         self,
@@ -147,28 +160,29 @@ class TransactionRepository(Protocol):
 
 # ── In-memory repository ───────────────────────────────────────────────────────
 
+
 class InMemoryTransactionRepository:
     """Pre-loaded transaction list for tests."""
 
     def __init__(
         self,
-        transactions: Optional[list[TransactionLine]] = None,
+        transactions: list[TransactionLine] | None = None,
         opening_balance: Decimal = Decimal("0"),
     ) -> None:
         self._txs = transactions or []
         self._opening = opening_balance
 
-    def get_transactions(self, account_id: str, period_start: date, period_end: date) -> list[TransactionLine]:
-        return [
-            tx for tx in self._txs
-            if period_start <= tx.date <= period_end
-        ]
+    def get_transactions(
+        self, account_id: str, period_start: date, period_end: date
+    ) -> list[TransactionLine]:
+        return [tx for tx in self._txs if period_start <= tx.date <= period_end]
 
     def get_opening_balance(self, account_id: str, as_of: date) -> Decimal:
         return self._opening
 
 
 # ── Statement service ──────────────────────────────────────────────────────────
+
 
 class AccountStatementService:
     """
@@ -198,20 +212,21 @@ class AccountStatementService:
         period_end: date,
     ) -> AccountStatement:
         import uuid
+
         transactions = self._repo.get_transactions(account_id, period_start, period_end)
         opening = self._repo.get_opening_balance(account_id, period_start)
 
-        total_debits = sum(
-            (tx.debit or Decimal("0")) for tx in transactions
-        )
-        total_credits = sum(
-            (tx.credit or Decimal("0")) for tx in transactions
-        )
+        total_debits = sum((tx.debit or Decimal("0")) for tx in transactions)
+        total_credits = sum((tx.credit or Decimal("0")) for tx in transactions)
         closing = opening + total_credits - total_debits
 
         logger.info(
             "Statement generated: customer=%s account=%s period=%s..%s txs=%d",
-            customer_id, account_id, period_start, period_end, len(transactions),
+            customer_id,
+            account_id,
+            period_start,
+            period_end,
+            len(transactions),
         )
 
         return AccountStatement(
@@ -227,7 +242,7 @@ class AccountStatementService:
             total_credits=total_credits,
             transaction_count=len(transactions),
             transactions=transactions,
-            generated_at=datetime.now(timezone.utc),
+            generated_at=datetime.now(UTC),
         )
 
     def generate_pdf(self, stmt: AccountStatement, output_dir: Path) -> Path:
@@ -256,10 +271,10 @@ class AccountStatementService:
         """
         ccy = stmt.currency
 
-        def _fmt(amount: Optional[Decimal]) -> str:
+        def _fmt(amount: Decimal | None) -> str:
             return f"{ccy} {amount:,.2f}" if amount else ""
 
-        def _sign_class(amount: Optional[Decimal]) -> str:
+        def _sign_class(amount: Decimal | None) -> str:
             if amount and amount > 0:
                 return 'class="positive"'
             if amount and amount < 0:
@@ -281,7 +296,8 @@ class AccountStatementService:
         no_tx_row = (
             '<tr><td colspan="6" style="text-align:center;color:#888;padding:16px;">'
             "No transactions in this period</td></tr>"
-            if not stmt.transactions else ""
+            if not stmt.transactions
+            else ""
         )
 
         net_class = "positive" if stmt.net_movement >= 0 else "negative"
@@ -296,7 +312,7 @@ class AccountStatementService:
     size: A4;
     margin: 1.5cm 1.8cm;
     @bottom-center {{
-      content: "Statement ID: {stmt.statement_id} | Generated: {stmt.generated_at.strftime('%d %b %Y %H:%M UTC')} | Page " counter(page) " of " counter(pages);
+      content: "Statement ID: {stmt.statement_id} | Generated: {stmt.generated_at.strftime("%d %b %Y %H:%M UTC")} | Page " counter(page) " of " counter(pages);
       font-size: 7pt;
       color: #888;
     }}
@@ -349,7 +365,7 @@ class AccountStatementService:
   <div class="statement-meta">
     <div class="statement-title">Account Statement</div>
     <div class="statement-date">
-      {stmt.period_start.strftime('%d %b %Y')} – {stmt.period_end.strftime('%d %b %Y')}
+      {stmt.period_start.strftime("%d %b %Y")} – {stmt.period_end.strftime("%d %b %Y")}
     </div>
   </div>
 </div>
@@ -363,8 +379,8 @@ class AccountStatementService:
   </div>
   <div class="info-block">
     <div class="info-block-title">Statement Period</div>
-    <div class="info-row"><span class="info-label">From</span><span class="info-value">{stmt.period_start.strftime('%d %b %Y')}</span></div>
-    <div class="info-row"><span class="info-label">To</span><span class="info-value">{stmt.period_end.strftime('%d %b %Y')}</span></div>
+    <div class="info-row"><span class="info-label">From</span><span class="info-value">{stmt.period_start.strftime("%d %b %Y")}</span></div>
+    <div class="info-row"><span class="info-label">To</span><span class="info-value">{stmt.period_end.strftime("%d %b %Y")}</span></div>
     <div class="info-row"><span class="info-label">Transactions</span><span class="info-value">{stmt.transaction_count}</span></div>
   </div>
 </div>
@@ -410,7 +426,7 @@ class AccountStatementService:
      Financial Conduct Authority (FCA). Reference number: FRN {stmt.statement_id[:8].upper()}.</p>
   <p>This statement is provided in accordance with FCA PS7/24. If you have questions, contact
      support@banxe.com. For complaints, refer to our Complaints Policy at banxe.com/complaints.</p>
-  <p>Statement ID: {stmt.statement_id} | Generated: {stmt.generated_at.strftime('%d %b %Y %H:%M UTC')}</p>
+  <p>Statement ID: {stmt.statement_id} | Generated: {stmt.generated_at.strftime("%d %b %Y %H:%M UTC")}</p>
 </div>
 
 </body>

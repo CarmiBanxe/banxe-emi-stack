@@ -4,18 +4,17 @@ Supervised HITL learning: AI analyses CTIO decisions, proposes (never auto-appli
 
 I-27: every ThresholdProposal.requires_human_approval must be True.
 """
+
 from __future__ import annotations
-
-
 
 from services.hitl.feedback_loop import (
     FeedbackLoopAnalyser,
 )
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Corpus builders
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def _record(
     outcome: str,
@@ -60,6 +59,7 @@ def _corpus_of(
 # Tests: empty corpus
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestEmptyCorpus:
     def test_empty_corpus_returns_empty_report(self) -> None:
         report = FeedbackLoopAnalyser().analyse([])
@@ -77,6 +77,7 @@ class TestEmptyCorpus:
 # ─────────────────────────────────────────────────────────────────────────────
 # Tests: ReasonStats
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestReasonStats:
     def test_reason_stats_computed(self) -> None:
@@ -133,16 +134,13 @@ class TestReasonStats:
 # Tests: RiskBucketStats
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestRiskBucketStats:
     def test_risk_buckets_computed(self) -> None:
         # 5 records with score 65 (bucket 60-69)
         corpus = [
-            _record("APPROVE", ["FRAUD_HIGH"], fraud_score=65, case_id=f"a{i}")
-            for i in range(3)
-        ] + [
-            _record("REJECT", ["FRAUD_HIGH"], fraud_score=65, case_id=f"r{i}")
-            for i in range(3)
-        ]
+            _record("APPROVE", ["FRAUD_HIGH"], fraud_score=65, case_id=f"a{i}") for i in range(3)
+        ] + [_record("REJECT", ["FRAUD_HIGH"], fraud_score=65, case_id=f"r{i}") for i in range(3)]
         report = FeedbackLoopAnalyser().analyse(corpus)
         bucket = next((b for b in report.risk_buckets if b.bucket_label == "60-69"), None)
         assert bucket is not None
@@ -163,6 +161,7 @@ class TestRiskBucketStats:
 # ─────────────────────────────────────────────────────────────────────────────
 # Tests: AmountBucketStats
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestAmountBucketStats:
     def test_amount_bucket_computed(self) -> None:
@@ -193,11 +192,11 @@ class TestAmountBucketStats:
 # Tests: DeciderStats
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestDeciderStats:
     def test_decider_stats_per_operator(self) -> None:
-        corpus = (
-            _corpus_of(8, 2, ["VELOCITY_DAILY"], decided_by="ctio") +
-            _corpus_of(3, 7, ["FRAUD_HIGH"], decided_by="ceo")
+        corpus = _corpus_of(8, 2, ["VELOCITY_DAILY"], decided_by="ctio") + _corpus_of(
+            3, 7, ["FRAUD_HIGH"], decided_by="ceo"
         )
         report = FeedbackLoopAnalyser().analyse(corpus)
         by_decider = {ds.decided_by: ds for ds in report.decider_stats}
@@ -207,9 +206,8 @@ class TestDeciderStats:
         assert abs(by_decider["ceo"].approval_rate - 0.3) < 0.01
 
     def test_decider_top_reasons(self) -> None:
-        corpus = (
-            _corpus_of(5, 0, ["VELOCITY_DAILY"], decided_by="ctio") +
-            _corpus_of(5, 0, ["VELOCITY_DAILY", "FRAUD_HIGH"], decided_by="ctio")
+        corpus = _corpus_of(5, 0, ["VELOCITY_DAILY"], decided_by="ctio") + _corpus_of(
+            5, 0, ["VELOCITY_DAILY", "FRAUD_HIGH"], decided_by="ctio"
         )
         report = FeedbackLoopAnalyser().analyse(corpus)
         ds = next(d for d in report.decider_stats if d.decided_by == "ctio")
@@ -233,6 +231,7 @@ class TestDeciderStats:
 # Tests: ThresholdProposals
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestThresholdProposals:
     def test_i27_requires_human_approval_always_true(self) -> None:
         """I-27: every proposal MUST require human approval. Non-negotiable."""
@@ -240,8 +239,7 @@ class TestThresholdProposals:
         report = FeedbackLoopAnalyser().analyse(corpus)
         for proposal in report.proposals:
             assert proposal.requires_human_approval is True, (
-                f"I-27 VIOLATED: proposal {proposal.proposal_id} "
-                f"has requires_human_approval=False"
+                f"I-27 VIOLATED: proposal {proposal.proposal_id} has requires_human_approval=False"
             )
 
     def test_velocity_high_approval_triggers_raise_proposal(self) -> None:
@@ -309,8 +307,7 @@ class TestThresholdProposals:
     def test_risk_bucket_triggers_raise_proposal(self) -> None:
         # 60-69 bucket: 9/10 approved → propose raising HOLD threshold
         corpus = [
-            _record("APPROVE", ["FRAUD_HIGH"], fraud_score=65, case_id=f"a{i}")
-            for i in range(9)
+            _record("APPROVE", ["FRAUD_HIGH"], fraud_score=65, case_id=f"a{i}") for i in range(9)
         ] + [
             _record("REJECT", ["FRAUD_HIGH"], fraud_score=65, case_id="r0"),
         ]
@@ -322,6 +319,7 @@ class TestThresholdProposals:
 # ─────────────────────────────────────────────────────────────────────────────
 # Tests: FeedbackReport output
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestFeedbackReport:
     def test_corpus_size_correct(self) -> None:
@@ -384,6 +382,7 @@ class TestFeedbackReport:
 # ─────────────────────────────────────────────────────────────────────────────
 # Tests: custom watermarks
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestCustomWatermarks:
     def test_custom_high_watermark(self) -> None:

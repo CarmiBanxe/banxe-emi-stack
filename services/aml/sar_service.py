@@ -31,43 +31,46 @@ NCA SAROnline:
 Retention: all SAR records retained 5 years in ClickHouse (MLR 2017 Reg.40).
 In sandbox: in-memory store only.
 """
+
 from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, timezone
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from decimal import Decimal
 from enum import Enum
-from dataclasses import dataclass, field
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
 # ── Enumerations ───────────────────────────────────────────────────────────────
 
+
 class SARStatus(str, Enum):
-    DRAFT = "DRAFT"                          # Created, awaiting MLRO review
-    MLRO_APPROVED = "MLRO_APPROVED"          # MLRO approved — ready to submit
-    SUBMITTED = "SUBMITTED"                   # Submitted to NCA SAROnline
-    SUBMISSION_FAILED = "SUBMISSION_FAILED"   # Submission attempt failed — retry
-    WITHDRAWN = "WITHDRAWN"                   # MLRO concluded not suspicious
+    DRAFT = "DRAFT"  # Created, awaiting MLRO review
+    MLRO_APPROVED = "MLRO_APPROVED"  # MLRO approved — ready to submit
+    SUBMITTED = "SUBMITTED"  # Submitted to NCA SAROnline
+    SUBMISSION_FAILED = "SUBMISSION_FAILED"  # Submission attempt failed — retry
+    WITHDRAWN = "WITHDRAWN"  # MLRO concluded not suspicious
 
 
 class SARReason(str, Enum):
     """Grounds for SAR filing (POCA 2002 s.330 + JMLSG guidance)."""
-    VELOCITY_BREACH = "VELOCITY_BREACH"        # Unusual transaction volume
-    STRUCTURING = "STRUCTURING"                # Sub-threshold splitting (POCA s.330)
+
+    VELOCITY_BREACH = "VELOCITY_BREACH"  # Unusual transaction volume
+    STRUCTURING = "STRUCTURING"  # Sub-threshold splitting (POCA s.330)
     HIGH_RISK_JURISDICTION = "HIGH_RISK_JURISDICTION"  # FATF/UK greylist
-    UNUSUAL_PATTERN = "UNUSUAL_PATTERN"        # Activity inconsistent with profile
+    UNUSUAL_PATTERN = "UNUSUAL_PATTERN"  # Activity inconsistent with profile
     PEP_UNEXPLAINED_WEALTH = "PEP_UNEXPLAINED_WEALTH"
     SOURCE_OF_FUNDS_UNKNOWN = "SOURCE_OF_FUNDS_UNKNOWN"
-    THRESHOLD_BREACH = "THRESHOLD_BREACH"      # Single tx ≥ auto-SAR threshold
+    THRESHOLD_BREACH = "THRESHOLD_BREACH"  # Single tx ≥ auto-SAR threshold
     CONNECTED_ACCOUNTS = "CONNECTED_ACCOUNTS"  # Network / mule account signal
-    OTHER = "OTHER"                            # MLRO discretion
+    OTHER = "OTHER"  # MLRO discretion
 
 
 # ── Domain types ───────────────────────────────────────────────────────────────
+
 
 @dataclass
 class SARReport:
@@ -78,6 +81,7 @@ class SARReport:
     under GDPR Art.9(2)(g) (public interest). Access must be restricted to
     MLRO and compliance roles. Never returned in customer-facing API responses.
     """
+
     sar_id: str
     transaction_id: str
     customer_id: str
@@ -85,20 +89,20 @@ class SARReport:
     amount: Decimal
     currency: str
     sar_reasons: list[SARReason]
-    aml_flags: list[str]                    # From TxMonitorService.evaluate()
+    aml_flags: list[str]  # From TxMonitorService.evaluate()
     fraud_score: int
     status: SARStatus
     created_at: datetime
-    created_by: str                          # "system" or operator_id
+    created_by: str  # "system" or operator_id
 
     # MLRO gate fields
-    mlro_reviewed_by: Optional[str] = None
-    mlro_reviewed_at: Optional[datetime] = None
+    mlro_reviewed_by: str | None = None
+    mlro_reviewed_at: datetime | None = None
     mlro_notes: str = ""
 
     # Submission fields
-    submitted_at: Optional[datetime] = None
-    nca_reference: Optional[str] = None      # NCA SAROnline reference number
+    submitted_at: datetime | None = None
+    nca_reference: str | None = None  # NCA SAROnline reference number
     errors: list[str] = field(default_factory=list)
 
     @property
@@ -114,16 +118,18 @@ class SARReport:
 @dataclass
 class SARStats:
     """Aggregated SAR metrics for MLRO dashboard / FCA reporting."""
+
     total: int
     draft: int
     mlro_approved: int
     submitted: int
     submission_failed: int
     withdrawn: int
-    submission_rate: float    # submitted / (submitted + withdrawn) * 100
+    submission_rate: float  # submitted / (submitted + withdrawn) * 100
 
 
 # ── NCA Client (stub) ─────────────────────────────────────────────────────────
+
 
 class StubNCAClient:
     """
@@ -132,13 +138,14 @@ class StubNCAClient:
     Replace with LiveNCAClient when NCA credentials are provisioned.
     """
 
-    def submit(self, sar: "SARReport") -> str:
+    def submit(self, sar: SARReport) -> str:
         """Returns fake NCA reference: SAR-YYYYMM-{sar_id[:8]}."""
         month = sar.created_at.strftime("%Y%m")
         return f"SAR-{month}-{sar.sar_id[:8].upper()}"
 
 
 # ── Service ────────────────────────────────────────────────────────────────────
+
 
 class SARServiceError(Exception):
     """Raised for invalid SAR operations."""
@@ -150,7 +157,7 @@ class SARService:
     In production: persist to ClickHouse with 5-year TTL (MLR 2017 Reg.40).
     """
 
-    def __init__(self, nca_client: Optional[StubNCAClient] = None) -> None:
+    def __init__(self, nca_client: StubNCAClient | None = None) -> None:
         self._sars: dict[str, SARReport] = {}
         self._nca = nca_client or StubNCAClient()
 
@@ -184,13 +191,16 @@ class SARService:
             aml_flags=list(aml_flags),
             fraud_score=fraud_score,
             status=SARStatus.DRAFT,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             created_by=created_by,
         )
         self._sars[sar.sar_id] = sar
         logger.warning(
             "SAR DRAFT created: sar=%s tx=%s customer=%s amount=£%s reasons=%s",
-            sar.sar_id, transaction_id, customer_id, amount,
+            sar.sar_id,
+            transaction_id,
+            customer_id,
+            amount,
             [r.value for r in sar_reasons],
         )
         return sar
@@ -214,11 +224,9 @@ class SARService:
             )
         sar.status = SARStatus.MLRO_APPROVED
         sar.mlro_reviewed_by = mlro_id
-        sar.mlro_reviewed_at = datetime.now(timezone.utc)
+        sar.mlro_reviewed_at = datetime.now(UTC)
         sar.mlro_notes = notes
-        logger.warning(
-            "SAR MLRO_APPROVED: sar=%s by=%s", sar_id, mlro_id
-        )
+        logger.warning("SAR MLRO_APPROVED: sar=%s by=%s", sar_id, mlro_id)
         return sar
 
     def withdraw_sar(
@@ -233,12 +241,10 @@ class SARService:
         """
         sar = self._get_or_raise(sar_id)
         if sar.status not in (SARStatus.DRAFT, SARStatus.MLRO_APPROVED):
-            raise SARServiceError(
-                f"SAR {sar_id} is {sar.status.value} — cannot withdraw"
-            )
+            raise SARServiceError(f"SAR {sar_id} is {sar.status.value} — cannot withdraw")
         sar.status = SARStatus.WITHDRAWN
         sar.mlro_reviewed_by = mlro_id
-        sar.mlro_reviewed_at = datetime.now(timezone.utc)
+        sar.mlro_reviewed_at = datetime.now(UTC)
         sar.mlro_notes = reason
         logger.info("SAR WITHDRAWN: sar=%s by=%s reason=%s", sar_id, mlro_id, reason)
         return sar
@@ -258,11 +264,9 @@ class SARService:
         try:
             nca_ref = self._nca.submit(sar)
             sar.status = SARStatus.SUBMITTED
-            sar.submitted_at = datetime.now(timezone.utc)
+            sar.submitted_at = datetime.now(UTC)
             sar.nca_reference = nca_ref
-            logger.warning(
-                "SAR SUBMITTED to NCA: sar=%s nca_ref=%s", sar_id, nca_ref
-            )
+            logger.warning("SAR SUBMITTED to NCA: sar=%s nca_ref=%s", sar_id, nca_ref)
         except Exception as exc:
             sar.status = SARStatus.SUBMISSION_FAILED
             sar.errors.append(f"NCA submission failed: {exc}")
@@ -271,12 +275,10 @@ class SARService:
 
     # ── Read ──────────────────────────────────────────────────────────────────
 
-    def get_sar(self, sar_id: str) -> Optional[SARReport]:
+    def get_sar(self, sar_id: str) -> SARReport | None:
         return self._sars.get(sar_id)
 
-    def list_sars(
-        self, status: Optional[SARStatus] = None
-    ) -> list[SARReport]:
+    def list_sars(self, status: SARStatus | None = None) -> list[SARReport]:
         """List SARs, optionally filtered by status. Sorted newest-first."""
         sars = list(self._sars.values())
         if status is not None:

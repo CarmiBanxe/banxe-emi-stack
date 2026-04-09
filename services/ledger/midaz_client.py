@@ -3,9 +3,10 @@ Midaz CBS — async balance API client
 Implements LedgerPort (I-28: never direct HTTP from domain logic)
 FCA CASS 7.15 P0 | banxe-emi-stack
 """
+
 import os
 from decimal import Decimal
-from typing import Optional
+
 import httpx
 
 MIDAZ_BASE_URL = os.environ["MIDAZ_BASE_URL"]
@@ -19,7 +20,7 @@ _HEADERS = {
 }
 
 
-async def get_balance(account_id: str) -> Optional[Decimal]:
+async def get_balance(account_id: str) -> Decimal | None:
     """
     Fetch GBP available balance for *account_id* from Midaz.
 
@@ -48,10 +49,7 @@ async def get_balance(account_id: str) -> Optional[Decimal]:
 
 async def list_accounts() -> list[dict]:
     """Return all accounts for the safeguarding ledger."""
-    url = (
-        f"{MIDAZ_BASE_URL}/v1/organizations/{MIDAZ_ORG_ID}"
-        f"/ledgers/{MIDAZ_LEDGER_ID}/accounts"
-    )
+    url = f"{MIDAZ_BASE_URL}/v1/organizations/{MIDAZ_ORG_ID}/ledgers/{MIDAZ_LEDGER_ID}/accounts"
     async with httpx.AsyncClient(timeout=10.0) as client:
         resp = await client.get(url, headers=_HEADERS)
         resp.raise_for_status()

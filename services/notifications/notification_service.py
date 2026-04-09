@@ -17,10 +17,10 @@ FCA compliance:
   - GDPR Art.6: lawful basis per notification type
   - I-24: all results logged (handled by adapter)
 """
+
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from services.events.event_bus import BanxeEventType, DomainEvent, InMemoryEventBus
 from services.notifications.notification_port import (
@@ -71,8 +71,7 @@ _TEMPLATES: dict[NotificationType, dict] = {
     NotificationType.KYC_APPROVED: {
         "subject": "Identity verified — your account is now active",
         "body": (
-            "Great news! Your identity has been verified. "
-            "Your Banxe account is now fully active."
+            "Great news! Your identity has been verified. Your Banxe account is now fully active."
         ),
     },
     NotificationType.KYC_REJECTED: {
@@ -144,31 +143,41 @@ _EVENT_NOTIFICATION_MAP: dict[
     tuple[NotificationType, NotificationChannel, bool],  # type, channel, transactional
 ] = {
     BanxeEventType.PAYMENT_COMPLETED: (
-        NotificationType.PAYMENT_SENT, NotificationChannel.EMAIL, True
+        NotificationType.PAYMENT_SENT,
+        NotificationChannel.EMAIL,
+        True,
     ),
     BanxeEventType.PAYMENT_FAILED: (
-        NotificationType.PAYMENT_FAILED, NotificationChannel.EMAIL, True
+        NotificationType.PAYMENT_FAILED,
+        NotificationChannel.EMAIL,
+        True,
     ),
-    BanxeEventType.KYC_APPROVED: (
-        NotificationType.KYC_APPROVED, NotificationChannel.EMAIL, True
-    ),
-    BanxeEventType.KYC_REJECTED: (
-        NotificationType.KYC_REJECTED, NotificationChannel.EMAIL, True
-    ),
+    BanxeEventType.KYC_APPROVED: (NotificationType.KYC_APPROVED, NotificationChannel.EMAIL, True),
+    BanxeEventType.KYC_REJECTED: (NotificationType.KYC_REJECTED, NotificationChannel.EMAIL, True),
     BanxeEventType.KYC_EDD_REQUIRED: (
-        NotificationType.KYC_EDD_REQUIRED, NotificationChannel.EMAIL, True
+        NotificationType.KYC_EDD_REQUIRED,
+        NotificationChannel.EMAIL,
+        True,
     ),
     BanxeEventType.CUSTOMER_CREATED: (
-        NotificationType.CUSTOMER_WELCOME, NotificationChannel.EMAIL, True
+        NotificationType.CUSTOMER_WELCOME,
+        NotificationChannel.EMAIL,
+        True,
     ),
     BanxeEventType.CUSTOMER_ACTIVATED: (
-        NotificationType.CUSTOMER_ACTIVATED, NotificationChannel.EMAIL, True
+        NotificationType.CUSTOMER_ACTIVATED,
+        NotificationChannel.EMAIL,
+        True,
     ),
     BanxeEventType.SAFEGUARDING_SHORTFALL: (
-        NotificationType.SAFEGUARDING_SHORTFALL, NotificationChannel.TELEGRAM, True
+        NotificationType.SAFEGUARDING_SHORTFALL,
+        NotificationChannel.TELEGRAM,
+        True,
     ),
     BanxeEventType.AGREEMENT_CREATED: (
-        NotificationType.AGREEMENT_PENDING, NotificationChannel.EMAIL, True
+        NotificationType.AGREEMENT_PENDING,
+        NotificationChannel.EMAIL,
+        True,
     ),
 }
 
@@ -188,7 +197,7 @@ class NotificationService:
     def __init__(
         self,
         adapter: NotificationPort,
-        event_bus: Optional[InMemoryEventBus] = None,
+        event_bus: InMemoryEventBus | None = None,
     ) -> None:
         self._adapter = adapter
         self._event_bus = event_bus
@@ -196,9 +205,7 @@ class NotificationService:
     def register_event_handlers(self) -> None:
         """Subscribe to all relevant domain events on the event bus."""
         if self._event_bus is None:
-            logger.warning(
-                "No event bus provided — event-driven notifications disabled"
-            )
+            logger.warning("No event bus provided — event-driven notifications disabled")
             return
         for event_type in _EVENT_NOTIFICATION_MAP:
             self._event_bus.subscribe(event_type, self._handle_event)
@@ -228,7 +235,9 @@ class NotificationService:
         result = self.send(request)
         logger.info(
             "Event %s → notification %s [%s]",
-            event.event_type, notif_type, result.status,
+            event.event_type,
+            notif_type,
+            result.status,
         )
 
     def send(self, request: NotificationRequest) -> NotificationResult:
@@ -239,14 +248,10 @@ class NotificationService:
         result = self._adapter.send(request)
         return result
 
-    def get_delivery_status(
-        self, notification_id: str
-    ) -> Optional[NotificationResult]:
+    def get_delivery_status(self, notification_id: str) -> NotificationResult | None:
         return self._adapter.get_delivery_status(notification_id)
 
-    def render_body(
-        self, notification_type: NotificationType, template_vars: dict
-    ) -> str:
+    def render_body(self, notification_type: NotificationType, template_vars: dict) -> str:
         """
         Render notification body from template + vars.
         FCA COBS 2.2: returned string must be clear, fair, not misleading.
@@ -255,23 +260,17 @@ class NotificationService:
         if template is None:
             return f"Notification: {notification_type.value}"
         try:
-            return template["body"].format_map(
-                _SafeFormatDict(template_vars)
-            )
+            return template["body"].format_map(_SafeFormatDict(template_vars))
         except Exception:
             return template["body"]
 
-    def render_subject(
-        self, notification_type: NotificationType, template_vars: dict
-    ) -> str:
+    def render_subject(self, notification_type: NotificationType, template_vars: dict) -> str:
         """Render notification subject from template + vars."""
         template = _TEMPLATES.get(notification_type)
         if template is None:
             return notification_type.value
         try:
-            return template.get("subject", "").format_map(
-                _SafeFormatDict(template_vars)
-            )
+            return template.get("subject", "").format_map(_SafeFormatDict(template_vars))
         except Exception:
             return template.get("subject", notification_type.value)
 

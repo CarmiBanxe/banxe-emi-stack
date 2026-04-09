@@ -8,11 +8,11 @@ GET  /v1/hitl/queue/{case_id}    — get single case
 POST /v1/hitl/queue/{case_id}/decide — operator decision
 GET  /v1/hitl/stats              — queue metrics
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
 from functools import lru_cache
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 
@@ -66,7 +66,7 @@ def _case_to_response(case) -> ReviewCaseResponse:  # type: ignore[no-untyped-de
     summary="List HITL review queue",
 )
 def list_queue(
-    status: Optional[CaseStatus] = None,
+    status: CaseStatus | None = None,
 ) -> QueueResponse:
     """
     List HITL review cases. Filter by status (PENDING / APPROVED / REJECTED /

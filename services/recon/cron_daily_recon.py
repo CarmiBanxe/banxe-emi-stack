@@ -20,6 +20,7 @@ Exit codes:
   2 = PENDING            — no bank statement yet (sandbox or weekend)
   3 = FATAL              — infrastructure failure, PagerDuty / CEO immediate action
 """
+
 from __future__ import annotations
 
 import logging
@@ -111,6 +112,7 @@ def main() -> int:
     # ── 5. Run reconciliation pipeline ───────────────────────────────────────
     try:
         from services.recon.midaz_reconciliation import run_daily_recon  # noqa: PLC0415
+
         summary = run_daily_recon(recon_date=recon_date, dry_run=dry_run)
     except Exception as exc:
         logger.critical("FATAL — reconciliation pipeline crashed: %s", exc, exc_info=True)

@@ -14,14 +14,16 @@ Run:
     cd /home/mmber/banxe-emi-stack
     pytest tests/test_payment_service.py -v
 """
+
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
 
+from services.payment.mock_payment_adapter import MockPaymentAdapter
 from services.payment.payment_port import (
     BankAccount,
     PaymentDirection,
@@ -29,12 +31,11 @@ from services.payment.payment_port import (
     PaymentRail,
     PaymentStatus,
 )
-from services.payment.mock_payment_adapter import MockPaymentAdapter
 from services.payment.payment_service import PaymentService
 from services.recon.clickhouse_client import InMemoryReconClient
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def uk_account(name: str = "Jane Doe") -> BankAccount:
     return BankAccount(
@@ -82,11 +83,13 @@ def make_fps_intent(amount: str = "100.00") -> PaymentIntent:
         creditor_account=uk_account(),
         reference="Test Payment",
         end_to_end_id="E2E-TEST-001",
-        requested_at=datetime.now(timezone.utc),
+        requested_at=datetime.now(UTC),
     )
 
 
-def make_service(failure_rate: float = 0.0) -> tuple[PaymentService, MockPaymentAdapter, InMemoryReconClient]:
+def make_service(
+    failure_rate: float = 0.0,
+) -> tuple[PaymentService, MockPaymentAdapter, InMemoryReconClient]:
     adapter = MockPaymentAdapter(failure_rate=failure_rate)
     ch = InMemoryReconClient()
     svc = PaymentService(rail=adapter, ch_client=ch)
@@ -95,21 +98,21 @@ def make_service(failure_rate: float = 0.0) -> tuple[PaymentService, MockPayment
 
 # ── PaymentIntent validation ──────────────────────────────────────────────────
 
-class TestPaymentIntentValidation:
 
+class TestPaymentIntentValidation:
     def test_amount_must_be_decimal(self):
         with pytest.raises(TypeError, match="Decimal"):
             PaymentIntent(
                 idempotency_key=str(uuid.uuid4()),
                 rail=PaymentRail.FPS,
                 direction=PaymentDirection.OUTBOUND,
-                amount=100.0,           # float — must raise
+                amount=100.0,  # float — must raise
                 currency="GBP",
                 debtor_account=banxe_gbp_account(),
                 creditor_account=uk_account(),
                 reference="test",
                 end_to_end_id="E2E-1",
-                requested_at=datetime.now(timezone.utc),
+                requested_at=datetime.now(UTC),
             )
 
     def test_amount_must_be_positive(self):
@@ -124,7 +127,7 @@ class TestPaymentIntentValidation:
                 creditor_account=uk_account(),
                 reference="test",
                 end_to_end_id="E2E-1",
-                requested_at=datetime.now(timezone.utc),
+                requested_at=datetime.now(UTC),
             )
 
     def test_fps_requires_gbp(self):
@@ -134,12 +137,12 @@ class TestPaymentIntentValidation:
                 rail=PaymentRail.FPS,
                 direction=PaymentDirection.OUTBOUND,
                 amount=Decimal("100.00"),
-                currency="EUR",         # wrong currency for FPS
+                currency="EUR",  # wrong currency for FPS
                 debtor_account=banxe_gbp_account(),
                 creditor_account=uk_account(),
                 reference="test",
                 end_to_end_id="E2E-1",
-                requested_at=datetime.now(timezone.utc),
+                requested_at=datetime.now(UTC),
             )
 
     def test_sepa_requires_eur(self):
@@ -149,12 +152,12 @@ class TestPaymentIntentValidation:
                 rail=PaymentRail.SEPA_CT,
                 direction=PaymentDirection.OUTBOUND,
                 amount=Decimal("100.00"),
-                currency="GBP",         # wrong currency for SEPA
+                currency="GBP",  # wrong currency for SEPA
                 debtor_account=banxe_eur_account(),
                 creditor_account=eu_account(),
                 reference="test",
                 end_to_end_id="E2E-1",
-                requested_at=datetime.now(timezone.utc),
+                requested_at=datetime.now(UTC),
             )
 
     def test_valid_fps_intent_created(self):
@@ -167,8 +170,8 @@ class TestPaymentIntentValidation:
 
 # ── MockPaymentAdapter ────────────────────────────────────────────────────────
 
-class TestMockPaymentAdapter:
 
+class TestMockPaymentAdapter:
     def test_fps_completes_instantly(self):
         adapter = MockPaymentAdapter()
         result = adapter.submit_payment(make_fps_intent())
@@ -186,7 +189,7 @@ class TestMockPaymentAdapter:
             creditor_account=eu_account(),
             reference="Invoice 2026-001",
             end_to_end_id="E2E-SEPA-001",
-            requested_at=datetime.now(timezone.utc),
+            requested_at=datetime.now(UTC),
         )
         result = adapter.submit_payment(intent)
         assert result.status == PaymentStatus.PROCESSING
@@ -203,7 +206,7 @@ class TestMockPaymentAdapter:
             creditor_account=eu_account(),
             reference="Instant Payment",
             end_to_end_id="E2E-INST-001",
-            requested_at=datetime.now(timezone.utc),
+            requested_at=datetime.now(UTC),
         )
         result = adapter.submit_payment(intent)
         assert result.status == PaymentStatus.COMPLETED
@@ -235,8 +238,8 @@ class TestMockPaymentAdapter:
 
 # ── PaymentService ────────────────────────────────────────────────────────────
 
-class TestPaymentService:
 
+class TestPaymentService:
     def test_send_fps_returns_completed(self):
         svc, _, _ = make_service()
         result = svc.send_fps(
@@ -298,7 +301,7 @@ class TestPaymentService:
         svc, _, ch = make_service(failure_rate=1.0)  # 100% failure
         result = svc.send_fps(amount=Decimal("10.00"), beneficiary=uk_account(), reference="Fail")
         assert result.status == PaymentStatus.FAILED
-        assert ch.call_count == 1   # audit still written
+        assert ch.call_count == 1  # audit still written
 
     def test_audit_contains_correct_fields(self):
         svc, _, ch = make_service()

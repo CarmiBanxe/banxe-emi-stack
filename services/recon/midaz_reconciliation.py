@@ -28,6 +28,7 @@ Return codes:
     2 = at least one PENDING (no statement available)
     3 = fatal error (Midaz or ClickHouse unreachable)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -35,9 +36,8 @@ import json
 import logging
 import os
 import sys
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
-from typing import Optional
 
 # ── logging ──────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -54,8 +54,9 @@ RECON_THRESHOLD = Decimal(os.environ.get("RECON_THRESHOLD_GBP", "1.00"))
 
 # ── public API ────────────────────────────────────────────────────────────────
 
+
 def run_daily_recon(
-    recon_date: Optional[date] = None,
+    recon_date: date | None = None,
     dry_run: bool = False,
 ) -> dict:
     """
@@ -76,14 +77,15 @@ def run_daily_recon(
     # ── 1. Build adapters ─────────────────────────────────────────────────────
     from services.ledger.midaz_adapter import MidazLedgerAdapter
     from services.recon.clickhouse_client import ClickHouseReconClient
-    from services.recon.statement_fetcher import StatementFetcher
     from services.recon.reconciliation_engine import ReconciliationEngine
+    from services.recon.statement_fetcher import StatementFetcher
 
     ledger = MidazLedgerAdapter()
     fetcher = StatementFetcher()
 
     if dry_run:
         from services.recon.clickhouse_client import InMemoryReconClient
+
         ch_client = InMemoryReconClient()
         logger.info("DRY RUN: using InMemoryReconClient (no ClickHouse writes)")
     else:
@@ -111,6 +113,7 @@ def run_daily_recon(
     # ── 5. Breach detection (CASS 15.12: escalate after BREACH_DAYS) ─────────
     if not dry_run:
         from services.recon.breach_detector import BreachDetector
+
         detector = BreachDetector(ch_client)
         breaches = detector.check_and_escalate(results, recon_date)
         if breaches:
@@ -124,6 +127,7 @@ def run_daily_recon(
 
 
 # ── internal helpers ──────────────────────────────────────────────────────────
+
 
 def _ensure_schema(ch_client) -> None:
     """Create ClickHouse tables if not yet created (idempotent)."""
@@ -147,7 +151,7 @@ def _build_summary(recon_date: date, results: list) -> dict:
 
     return {
         "recon_date": recon_date.isoformat(),
-        "run_at": datetime.now(timezone.utc).isoformat(),
+        "run_at": datetime.now(UTC).isoformat(),
         "total_accounts": len(results),
         "matched": matched,
         "discrepancy": discrepancy,
@@ -208,6 +212,7 @@ def _fire_alerts(results: list, recon_date: date) -> None:
 
     try:
         import httpx
+
         payload = {
             "event": "safeguarding_discrepancy",
             "recon_date": recon_date.isoformat(),
@@ -233,6 +238,7 @@ def _fire_alerts(results: list, recon_date: date) -> None:
 
 
 # ── CLI entry point ───────────────────────────────────────────────────────────
+
 
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
@@ -260,7 +266,7 @@ def _parse_args() -> argparse.Namespace:
 def main() -> int:
     args = _parse_args()
 
-    recon_date: Optional[date] = None
+    recon_date: date | None = None
     if args.date:
         try:
             recon_date = date.fromisoformat(args.date)

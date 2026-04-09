@@ -7,9 +7,8 @@ GET  /v1/customers          — list customers (optional ?state= filter)
 GET  /v1/customers/{id}     — get customer profile
 POST /v1/customers/{id}/lifecycle — transition lifecycle state
 """
-from __future__ import annotations
 
-from typing import Optional
+from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -22,11 +21,15 @@ from api.models.customers import (
 )
 from services.customer.customer_port import (
     CreateCustomerRequest as DomainCreateRequest,
+)
+from services.customer.customer_port import (
     CustomerManagementError,
     EntityType,
     LifecycleState,
-    LifecycleTransitionRequest as DomainTransitionRequest,
     RiskLevel,
+)
+from services.customer.customer_port import (
+    LifecycleTransitionRequest as DomainTransitionRequest,
 )
 from services.customer.customer_service import InMemoryCustomerService
 
@@ -64,8 +67,10 @@ def create_customer(
     individual = None
     if body.entity_type == EntityType.INDIVIDUAL and body.individual:
         ind = body.individual
-        from services.customer.customer_port import Address, IndividualProfile
         from datetime import datetime
+
+        from services.customer.customer_port import Address, IndividualProfile
+
         individual = IndividualProfile(
             first_name=ind.first_name,
             last_name=ind.last_name,
@@ -102,9 +107,7 @@ def create_customer(
     summary="List customers",
 )
 def list_customers(
-    state: Optional[LifecycleState] = Query(
-        None, description="Filter by lifecycle state"
-    ),
+    state: LifecycleState | None = Query(None, description="Filter by lifecycle state"),
     svc: InMemoryCustomerService = Depends(get_customer_service),
 ) -> CustomerListResponse:
     profiles = svc.list_customers(lifecycle_state=state)

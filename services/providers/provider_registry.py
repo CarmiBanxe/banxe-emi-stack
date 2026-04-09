@@ -16,18 +16,19 @@ Provider Registry centralises this:
 
 This enables zero-code provider switching when BT-001/BT-004/BT-009 unlock.
 """
+
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
 # ── Provider category ──────────────────────────────────────────────────────────
+
 
 class ProviderCategory(str, Enum):
     PAYMENT_RAILS = "payment_rails"
@@ -47,13 +48,14 @@ class ProviderStatus(str, Enum):
 
 # ── Provider definition ────────────────────────────────────────────────────────
 
+
 @dataclass
 class ProviderDefinition:
-    adapter: str                        # adapter name used in factory (e.g. "modulr")
+    adapter: str  # adapter name used in factory (e.g. "modulr")
     display_name: str
     priority: int
     enabled: bool
-    health_url: Optional[str] = None
+    health_url: str | None = None
     capabilities: list[str] = field(default_factory=list)
     status: ProviderStatus = ProviderStatus.UNKNOWN
 
@@ -65,6 +67,7 @@ class ProviderDefinition:
 @dataclass
 class ProviderResolution:
     """Result of resolving the best available provider for a category."""
+
     category: ProviderCategory
     adapter: str
     provider: ProviderDefinition
@@ -73,6 +76,7 @@ class ProviderResolution:
 
 
 # ── Registry ───────────────────────────────────────────────────────────────────
+
 
 class ProviderRegistry:
     """
@@ -112,14 +116,16 @@ class ProviderRegistry:
             for slot_name, slot_config in cat_config.items():
                 if not isinstance(slot_config, dict):
                     continue
-                defs.append(ProviderDefinition(
-                    adapter=slot_config.get("adapter", slot_name),
-                    display_name=slot_config.get("display_name", slot_name),
-                    priority=slot_config.get("priority", 50),
-                    enabled=slot_config.get("enabled", False),
-                    health_url=slot_config.get("health_url"),
-                    capabilities=slot_config.get("capabilities", []),
-                ))
+                defs.append(
+                    ProviderDefinition(
+                        adapter=slot_config.get("adapter", slot_name),
+                        display_name=slot_config.get("display_name", slot_name),
+                        priority=slot_config.get("priority", 50),
+                        enabled=slot_config.get("enabled", False),
+                        health_url=slot_config.get("health_url"),
+                        capabilities=slot_config.get("capabilities", []),
+                    )
+                )
             # Sort by priority ascending (lower = higher priority)
             defs.sort(key=lambda d: d.priority)
             providers[category] = defs
@@ -149,7 +155,7 @@ class ProviderRegistry:
         if not candidates:
             raise ValueError(f"No providers configured for category: {category}")
 
-        sandbox: Optional[ProviderDefinition] = None
+        sandbox: ProviderDefinition | None = None
         for provider in candidates:
             if not provider.enabled:
                 continue
@@ -159,7 +165,10 @@ class ProviderRegistry:
             # Non-sandbox enabled provider: use it
             logger.info(
                 "Resolved %s → %s (priority=%d, status=%s)",
-                category, provider.adapter, provider.priority, provider.status,
+                category,
+                provider.adapter,
+                provider.priority,
+                provider.status,
             )
             return ProviderResolution(
                 category=category,
@@ -190,6 +199,7 @@ class ProviderRegistry:
 
         try:
             import urllib.request
+
             req = urllib.request.Request(provider.health_url, method="GET")
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 status = ProviderStatus.HEALTHY if resp.status < 400 else ProviderStatus.UNHEALTHY

@@ -19,6 +19,7 @@ Integrates with:
   - IAM port: session validation
   - Payment service: >£30 auth gate (PSR 2017 Reg.71)
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -28,8 +29,7 @@ import os
 import secrets
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -37,22 +37,24 @@ logger = logging.getLogger(__name__)
 
 TOTP_ISSUER = os.environ.get("TOTP_ISSUER", "Banxe")
 TOTP_DIGITS = 6
-TOTP_INTERVAL = 30          # seconds (RFC 6238 default)
-TOTP_VALID_WINDOW = 1       # allow ±1 interval for clock drift
+TOTP_INTERVAL = 30  # seconds (RFC 6238 default)
+TOTP_VALID_WINDOW = 1  # allow ±1 interval for clock drift
 BACKUP_CODE_COUNT = 8
-BACKUP_CODE_LENGTH = 8      # hex chars
-MAX_VERIFY_ATTEMPTS = 5     # rate limit per window
+BACKUP_CODE_LENGTH = 8  # hex chars
+MAX_VERIFY_ATTEMPTS = 5  # rate limit per window
 
 
 # ── Domain types ───────────────────────────────────────────────────────────────
 
+
 @dataclass
 class TOTPSetup:
     """Returned when enabling TOTP for a user."""
+
     customer_id: str
-    secret: str                         # Base32 secret (store encrypted)
-    provisioning_uri: str               # otpauth:// URI for QR code
-    backup_codes: list[str]             # One-time use emergency codes
+    secret: str  # Base32 secret (store encrypted)
+    provisioning_uri: str  # otpauth:// URI for QR code
+    backup_codes: list[str]  # One-time use emergency codes
     created_at: datetime
 
 
@@ -60,10 +62,11 @@ class TOTPSetup:
 class VerifyResult:
     success: bool
     message: str
-    attempts_remaining: Optional[int] = None
+    attempts_remaining: int | None = None
 
 
 # ── TOTP service ───────────────────────────────────────────────────────────────
+
 
 class TOTPService:
     """
@@ -82,12 +85,12 @@ class TOTPService:
 
     def __init__(self) -> None:
         # In-memory stores — replace with Redis/PostgreSQL in production
-        self._secrets: dict[str, str] = {}              # customer_id → base32 secret
+        self._secrets: dict[str, str] = {}  # customer_id → base32 secret
         self._backup_hashes: dict[str, list[str]] = {}  # customer_id → [hashed_codes]
-        self._attempts: dict[str, list[float]] = {}     # customer_id → [timestamps]
+        self._attempts: dict[str, list[float]] = {}  # customer_id → [timestamps]
         self._enabled: dict[str, bool] = {}
 
-    def setup_totp(self, customer_id: str, account_name: Optional[str] = None) -> TOTPSetup:
+    def setup_totp(self, customer_id: str, account_name: str | None = None) -> TOTPSetup:
         """
         Generate a new TOTP secret for a customer.
         Returns provisioning_uri for QR code display + backup codes.
@@ -104,7 +107,9 @@ class TOTPService:
         uri = totp.provisioning_uri(name=label, issuer_name=TOTP_ISSUER)
 
         # Generate backup codes
-        raw_codes = [secrets.token_hex(BACKUP_CODE_LENGTH // 2).upper() for _ in range(BACKUP_CODE_COUNT)]
+        raw_codes = [
+            secrets.token_hex(BACKUP_CODE_LENGTH // 2).upper() for _ in range(BACKUP_CODE_COUNT)
+        ]
         hashed = [self._hash_code(secret, code) for code in raw_codes]
 
         self._secrets[customer_id] = secret
@@ -118,7 +123,7 @@ class TOTPService:
             secret=secret,
             provisioning_uri=uri,
             backup_codes=raw_codes,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
 
     def confirm_totp(self, customer_id: str, otp: str) -> bool:
@@ -176,7 +181,8 @@ class TOTPService:
             self._backup_hashes[customer_id] = hashes
             logger.warning(
                 "Backup code used for customer %s — %d remaining",
-                customer_id, len(hashes),
+                customer_id,
+                len(hashes),
             )
             return VerifyResult(
                 success=True,

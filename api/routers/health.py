@@ -5,6 +5,7 @@ IL-046 | banxe-emi-stack
 GET /health — always 200 if process is alive (liveness)
 GET /health/ready — checks downstream services (readiness)
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter
@@ -30,9 +31,7 @@ async def liveness() -> HealthResponse:
     return HealthResponse(status="ok")
 
 
-@router.get(
-    "/health/ready", response_model=ReadinessResponse, summary="Readiness check"
-)
+@router.get("/health/ready", response_model=ReadinessResponse, summary="Readiness check")
 async def readiness() -> ReadinessResponse:
     """
     Checks downstream service connectivity.

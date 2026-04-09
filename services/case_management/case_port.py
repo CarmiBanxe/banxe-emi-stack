@@ -28,6 +28,7 @@ Outcome:
   ESCALATED     — escalated to senior MLRO or external (NCA for SAR)
   INCONCLUSIVE  — insufficient evidence, case closed without determination
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -79,6 +80,7 @@ class CaseRequest:
     description: human-readable summary for MLRO inbox
     metadata: arbitrary key-value for audit trail (risk_score, factors, etc.)
     """
+
     case_reference: str
     case_type: CaseType
     entity_id: str
@@ -102,6 +104,7 @@ class CaseResult:
     url: direct link to Marble backoffice for MLRO (None if unavailable)
     provider: "marble" | "mock"
     """
+
     case_id: str
     case_reference: str
     status: CaseStatus

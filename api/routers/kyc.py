@@ -8,6 +8,7 @@ POST /v1/kyc/workflows/{id}/documents — submit documents
 POST /v1/kyc/workflows/{id}/approve-edd — MLRO approves EDD
 POST /v1/kyc/workflows/{id}/reject  — reject workflow
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -58,7 +59,7 @@ def create_kyc_workflow(
     domain_req = DomainKYCRequest(
         customer_id=body.customer_id,
         kyc_type=body.kyc_type,
-        first_name="",          # Fetched from customer profile in full impl
+        first_name="",  # Fetched from customer profile in full impl
         last_name="",
         date_of_birth="",
         nationality="GB",
@@ -138,8 +139,6 @@ def reject_workflow(
     if result is None:
         raise HTTPException(status_code=404, detail=f"Workflow {workflow_id} not found")
     if result.is_terminal:
-        raise HTTPException(
-            status_code=422, detail="Workflow is already in a terminal state"
-        )
+        raise HTTPException(status_code=422, detail="Workflow is already in a terminal state")
     updated = svc.reject_workflow(workflow_id, body.reason)
     return _result_to_response(updated)

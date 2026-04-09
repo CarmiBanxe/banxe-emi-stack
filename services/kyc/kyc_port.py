@@ -29,13 +29,14 @@ FCA rules:
   - MLR 2017 §33: EDD for PEPs, high-risk third countries, complex transactions
   - I-04: transactions ≥ £10,000 → EDD mandatory
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Optional, Protocol
+from typing import Protocol
 
 
 class KYCStatus(str, Enum):
@@ -50,8 +51,8 @@ class KYCStatus(str, Enum):
 
 
 class KYCType(str, Enum):
-    INDIVIDUAL = "INDIVIDUAL"     # Retail customer
-    BUSINESS = "BUSINESS"         # Corporate (KYB)
+    INDIVIDUAL = "INDIVIDUAL"  # Retail customer
+    BUSINESS = "BUSINESS"  # Corporate (KYB)
     SOLE_TRADER = "SOLE_TRADER"
 
 
@@ -68,34 +69,36 @@ class RejectionReason(str, Enum):
 @dataclass
 class KYCWorkflowRequest:
     """Input to create a new KYC workflow."""
+
     customer_id: str
     kyc_type: KYCType
     first_name: str
     last_name: str
-    date_of_birth: str               # ISO-8601 date string
-    nationality: str                  # ISO-3166-1 alpha-2
+    date_of_birth: str  # ISO-8601 date string
+    nationality: str  # ISO-3166-1 alpha-2
     country_of_residence: str
     expected_transaction_volume: Decimal  # monthly GBP equivalent
-    is_pep: bool = False             # Politically Exposed Person
-    business_name: Optional[str] = None   # KYB only
-    registration_number: Optional[str] = None  # KYB only
+    is_pep: bool = False  # Politically Exposed Person
+    business_name: str | None = None  # KYB only
+    registration_number: str | None = None  # KYB only
 
 
 @dataclass
 class KYCWorkflowResult:
     """State snapshot of a KYC workflow."""
+
     workflow_id: str
     customer_id: str
     status: KYCStatus
     kyc_type: KYCType
     created_at: datetime
     updated_at: datetime
-    expires_at: datetime                  # 30 days from creation (FCA MLR 2017)
+    expires_at: datetime  # 30 days from creation (FCA MLR 2017)
     edd_required: bool = False
-    rejection_reason: Optional[RejectionReason] = None
-    risk_score: Optional[int] = None      # 0–100
+    rejection_reason: RejectionReason | None = None
+    risk_score: int | None = None  # 0–100
     notes: list[str] = field(default_factory=list)
-    mlro_sign_off: bool = False           # True after MLRO approves EDD
+    mlro_sign_off: bool = False  # True after MLRO approves EDD
 
     @property
     def is_terminal(self) -> bool:
@@ -108,8 +111,9 @@ class KYCWorkflowResult:
 
 class KYCWorkflowPort(Protocol):
     """Hexagonal port for KYC/KYB workflow orchestration."""
+
     def create_workflow(self, request: KYCWorkflowRequest) -> KYCWorkflowResult: ...
-    def get_workflow(self, workflow_id: str) -> Optional[KYCWorkflowResult]: ...
+    def get_workflow(self, workflow_id: str) -> KYCWorkflowResult | None: ...
     def submit_documents(self, workflow_id: str, document_ids: list[str]) -> KYCWorkflowResult: ...
     def approve_edd(self, workflow_id: str, mlro_user_id: str) -> KYCWorkflowResult: ...
     def reject_workflow(self, workflow_id: str, reason: RejectionReason) -> KYCWorkflowResult: ...

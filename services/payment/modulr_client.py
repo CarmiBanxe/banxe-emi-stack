@@ -27,15 +27,15 @@ ENV VARS (in .env):
     MODULR_GBP_ACCOUNT_ID = acc-xxxxxxxx  (Modulr account ID for GBP payments)
     MODULR_EUR_ACCOUNT_ID = acc-xxxxxxxx  (Modulr account ID for EUR SEPA)
 """
+
 from __future__ import annotations
 
 import hashlib
 import hmac
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Optional
 
 import httpx
 
@@ -49,9 +49,7 @@ from services.payment.payment_port import (
 
 logger = logging.getLogger(__name__)
 
-MODULR_API_URL = os.environ.get(
-    "MODULR_API_URL", "https://api-sandbox.modulrfinance.com"
-)
+MODULR_API_URL = os.environ.get("MODULR_API_URL", "https://api-sandbox.modulrfinance.com")
 MODULR_API_KEY = os.environ.get("MODULR_API_KEY", "")
 MODULR_API_SECRET = os.environ.get("MODULR_API_SECRET", "")
 MODULR_GBP_ACCOUNT_ID = os.environ.get("MODULR_GBP_ACCOUNT_ID", "")
@@ -110,7 +108,10 @@ class ModulrPaymentAdapter:
 
         logger.info(
             "ModulrAdapter.submit_payment: rail=%s amount=%s%s idempotency_key=%s",
-            intent.rail, intent.amount, intent.currency, intent.idempotency_key,
+            intent.rail,
+            intent.amount,
+            intent.currency,
+            intent.idempotency_key,
         )
 
         try:
@@ -128,7 +129,7 @@ class ModulrPaymentAdapter:
                 rail=intent.rail,
                 amount=intent.amount,
                 currency=intent.currency,
-                submitted_at=datetime.now(timezone.utc),
+                submitted_at=datetime.now(UTC),
                 error_code=str(exc.response.status_code),
                 error_message=exc.response.text[:200],
             )
@@ -141,7 +142,7 @@ class ModulrPaymentAdapter:
             rail=intent.rail,
             amount=intent.amount,
             currency=intent.currency,
-            submitted_at=datetime.now(timezone.utc),
+            submitted_at=datetime.now(UTC),
         )
 
     def get_payment_status(self, provider_payment_id: str) -> PaymentResult:
@@ -195,10 +196,10 @@ class ModulrPaymentAdapter:
             idempotency_key=payload.get("externalReference"),
             new_status=status_map.get(raw_status, PaymentStatus.PENDING),
             previous_status=None,
-            rail=PaymentRail.FPS,   # Modulr webhooks don't always include rail; infer from currency
+            rail=PaymentRail.FPS,  # Modulr webhooks don't always include rail; infer from currency
             amount=Decimal(amount_str) / Decimal("100"),  # Modulr sends pence
             currency=payload.get("currency", "GBP"),
-            occurred_at=datetime.now(timezone.utc),
+            occurred_at=datetime.now(UTC),
             raw_payload=payload,
         )
 
@@ -221,7 +222,7 @@ class ModulrPaymentAdapter:
             "currency": intent.currency,
             # Modulr expects pence (minor units) as integer
             "amount": int(intent.amount * 100),
-            "reference": intent.reference[:18],    # FPS: max 18 chars
+            "reference": intent.reference[:18],  # FPS: max 18 chars
             "externalReference": intent.idempotency_key,
             "endToEndReference": intent.end_to_end_id[:35],
         }
@@ -249,7 +250,7 @@ class ModulrPaymentAdapter:
 
         return payload
 
-    def _build_headers(self, idempotency_key: Optional[str] = None) -> dict:
+    def _build_headers(self, idempotency_key: str | None = None) -> dict:
         headers = {
             "Authorization": f"Basic {self._api_key}:{self._api_secret}",
             "Content-Type": "application/json",
@@ -268,7 +269,7 @@ class ModulrPaymentAdapter:
             resp.raise_for_status()
             return resp
 
-    def _post(self, path: str, payload: dict, idempotency_key: Optional[str] = None) -> httpx.Response:
+    def _post(self, path: str, payload: dict, idempotency_key: str | None = None) -> httpx.Response:
         with httpx.Client(timeout=self._timeout) as client:
             resp = client.post(
                 f"{self._base}{path}",
@@ -294,5 +295,5 @@ class ModulrPaymentAdapter:
             rail=PaymentRail.FPS,
             amount=Decimal(str(amount_pence)) / Decimal("100"),
             currency=data.get("currency", "GBP"),
-            submitted_at=datetime.now(timezone.utc),
+            submitted_at=datetime.now(UTC),
         )

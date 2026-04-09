@@ -7,9 +7,10 @@ Coverage:
   - Integration: from_pipeline_result (FraudAMLPipeline → HITLService)
   - API: GET/POST queue, GET case, POST decide, GET stats
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -23,8 +24,8 @@ from services.fraud.mock_fraud_adapter import MockFraudAdapter
 from services.hitl.hitl_port import CaseStatus, DecisionOutcome, ReviewReason
 from services.hitl.hitl_service import HITLCaseError, HITLService
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def svc():
@@ -60,6 +61,7 @@ def _enqueue(svc: HITLService, **kwargs):
 
 
 # ── Unit: enqueue ─────────────────────────────────────────────────────────────
+
 
 def test_enqueue_creates_pending_case(svc):
     case = _enqueue(svc)
@@ -105,6 +107,7 @@ def test_get_case_nonexistent_returns_none(svc):
 
 # ── Unit: decide ──────────────────────────────────────────────────────────────
 
+
 def test_decide_approve(svc):
     case = _enqueue(svc)
     decided = svc.decide(case.case_id, DecisionOutcome.APPROVE, "op-001")
@@ -141,6 +144,7 @@ def test_decide_already_decided_raises(svc):
 
 # ── Unit: list_queue ──────────────────────────────────────────────────────────
 
+
 def test_list_queue_returns_all_by_default(svc):
     _enqueue(svc, transaction_id="tx-001")
     _enqueue(svc, transaction_id="tx-002")
@@ -167,13 +171,14 @@ def test_list_queue_sar_cases_sorted_first(svc):
 def test_list_queue_expired_cases_auto_marked(svc):
     case = _enqueue(svc)
     # Manually backdating expires_at to force expiry
-    case.expires_at = datetime.now(timezone.utc) - timedelta(hours=1)
+    case.expires_at = datetime.now(UTC) - timedelta(hours=1)
     cases = svc.list_queue()
     expired = [c for c in cases if c.status == CaseStatus.EXPIRED]
     assert len(expired) == 1
 
 
 # ── Unit: stats ───────────────────────────────────────────────────────────────
+
 
 def test_stats_empty_service(svc):
     s = svc.stats()
@@ -208,6 +213,7 @@ def test_stats_approval_rate(svc):
 
 # ── Unit: feedback corpus (I-27) ──────────────────────────────────────────────
 
+
 def test_feedback_corpus_written_on_decide(svc):
     case = _enqueue(svc)
     svc.decide(case.case_id, DecisionOutcome.APPROVE, "op-001", "Looks clean")
@@ -235,26 +241,30 @@ def test_feedback_corpus_accumulates_decisions(svc):
 
 # ── Integration: from_pipeline_result ─────────────────────────────────────────
 
+
 def test_from_pipeline_result_edd_hold(svc):
     """INDIVIDUAL £10k → EDD HOLD → correctly maps to EDD_REQUIRED reason."""
     pipeline = FraudAMLPipeline(
         fraud_adapter=MockFraudAdapter(),
         tx_monitor=TxMonitorService(InMemoryVelocityTracker()),
     )
-    result = pipeline.assess(PipelineRequest(
-        transaction_id="tx-pipeline-001",
-        customer_id="cust-pipeline-001",
-        entity_type="INDIVIDUAL",
-        amount=Decimal("10000.00"),
-        currency="GBP",
-        destination_account="GB29NWBK60161331926819",
-        destination_sort_code="60-16-13",
-        destination_country="GB",
-        payment_rail="FPS",
-        first_transaction_to_payee=False,
-    ))
+    result = pipeline.assess(
+        PipelineRequest(
+            transaction_id="tx-pipeline-001",
+            customer_id="cust-pipeline-001",
+            entity_type="INDIVIDUAL",
+            amount=Decimal("10000.00"),
+            currency="GBP",
+            destination_account="GB29NWBK60161331926819",
+            destination_sort_code="60-16-13",
+            destination_country="GB",
+            payment_rail="FPS",
+            first_transaction_to_payee=False,
+        )
+    )
     # Must be HOLD for HITL to make sense
     from services.fraud.fraud_aml_pipeline import PipelineDecision
+
     assert result.decision == PipelineDecision.HOLD
 
     case = HITLService.from_pipeline_result(result, svc)
@@ -264,6 +274,7 @@ def test_from_pipeline_result_edd_hold(svc):
 
 
 # ── API tests ─────────────────────────────────────────────────────────────────
+
 
 def _enqueue_payload(**kwargs):
     defaults = {
@@ -288,9 +299,10 @@ def test_api_enqueue_case(client):
 
 
 def test_api_enqueue_sar_case(client):
-    resp = client.post("/v1/hitl/queue", json=_enqueue_payload(
-        reasons=["SAR_REQUIRED"], transaction_id="tx-sar-001"
-    ))
+    resp = client.post(
+        "/v1/hitl/queue",
+        json=_enqueue_payload(reasons=["SAR_REQUIRED"], transaction_id="tx-sar-001"),
+    )
     assert resp.status_code == 201
     assert resp.json()["is_sar_case"] is True
     assert resp.json()["hours_remaining"] <= 4.1
@@ -326,11 +338,14 @@ def test_api_get_case_not_found(client):
 def test_api_decide_approve(client):
     enq = client.post("/v1/hitl/queue", json=_enqueue_payload())
     case_id = enq.json()["case_id"]
-    resp = client.post(f"/v1/hitl/queue/{case_id}/decide", json={
-        "outcome": "APPROVE",
-        "decided_by": "op-ceo",
-        "notes": "Verified customer",
-    })
+    resp = client.post(
+        f"/v1/hitl/queue/{case_id}/decide",
+        json={
+            "outcome": "APPROVE",
+            "decided_by": "op-ceo",
+            "notes": "Verified customer",
+        },
+    )
     assert resp.status_code == 200
     assert resp.json()["status"] == "APPROVED"
     assert resp.json()["decision_by"] == "op-ceo"
@@ -339,23 +354,26 @@ def test_api_decide_approve(client):
 def test_api_decide_reject(client):
     enq = client.post("/v1/hitl/queue", json=_enqueue_payload())
     case_id = enq.json()["case_id"]
-    resp = client.post(f"/v1/hitl/queue/{case_id}/decide", json={
-        "outcome": "REJECT",
-        "decided_by": "op-mlro",
-        "notes": "Cannot verify source of funds",
-    })
+    resp = client.post(
+        f"/v1/hitl/queue/{case_id}/decide",
+        json={
+            "outcome": "REJECT",
+            "decided_by": "op-mlro",
+            "notes": "Cannot verify source of funds",
+        },
+    )
     assert resp.json()["status"] == "REJECTED"
 
 
 def test_api_decide_already_decided_returns_409(client):
     enq = client.post("/v1/hitl/queue", json=_enqueue_payload())
     case_id = enq.json()["case_id"]
-    client.post(f"/v1/hitl/queue/{case_id}/decide", json={
-        "outcome": "APPROVE", "decided_by": "op-1"
-    })
-    resp = client.post(f"/v1/hitl/queue/{case_id}/decide", json={
-        "outcome": "REJECT", "decided_by": "op-2"
-    })
+    client.post(
+        f"/v1/hitl/queue/{case_id}/decide", json={"outcome": "APPROVE", "decided_by": "op-1"}
+    )
+    resp = client.post(
+        f"/v1/hitl/queue/{case_id}/decide", json={"outcome": "REJECT", "decided_by": "op-2"}
+    )
     assert resp.status_code == 409
 
 
@@ -371,10 +389,14 @@ def test_api_get_stats(client):
 def test_api_get_stats_after_decisions(client):
     enq1 = client.post("/v1/hitl/queue", json=_enqueue_payload(transaction_id="tx-s1"))
     enq2 = client.post("/v1/hitl/queue", json=_enqueue_payload(transaction_id="tx-s2"))
-    client.post(f"/v1/hitl/queue/{enq1.json()['case_id']}/decide",
-                json={"outcome": "APPROVE", "decided_by": "op"})
-    client.post(f"/v1/hitl/queue/{enq2.json()['case_id']}/decide",
-                json={"outcome": "REJECT", "decided_by": "op"})
+    client.post(
+        f"/v1/hitl/queue/{enq1.json()['case_id']}/decide",
+        json={"outcome": "APPROVE", "decided_by": "op"},
+    )
+    client.post(
+        f"/v1/hitl/queue/{enq2.json()['case_id']}/decide",
+        json={"outcome": "REJECT", "decided_by": "op"},
+    )
     stats = client.get("/v1/hitl/stats").json()
     assert stats["approved_cases"] == 1
     assert stats["rejected_cases"] == 1

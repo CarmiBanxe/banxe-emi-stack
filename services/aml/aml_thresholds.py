@@ -30,6 +30,7 @@ Usage:
     if amount >= thresholds.edd_trigger:
         require_edd()
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -42,26 +43,27 @@ class AMLThresholdSet:
     Full threshold configuration for one entity type.
     All amounts in GBP (or GBP-equivalent for FX transactions).
     """
-    entity_type: str                     # "INDIVIDUAL" or "COMPANY"
+
+    entity_type: str  # "INDIVIDUAL" or "COMPANY"
 
     # ── EDD / structuring detection ───────────────────────────────────────────
-    edd_trigger: Decimal                 # Single tx ≥ this → EDD required (MLR 2017 Reg.28)
-    structuring_window_count: int        # Number of txs in window that = structuring signal
-    structuring_window_gbp: Decimal      # Total GBP in window that = structuring signal
+    edd_trigger: Decimal  # Single tx ≥ this → EDD required (MLR 2017 Reg.28)
+    structuring_window_count: int  # Number of txs in window that = structuring signal
+    structuring_window_gbp: Decimal  # Total GBP in window that = structuring signal
 
     # ── Velocity limits (monitored, not hard-blocked — use PaymentLimits for hard stops) ──
-    velocity_daily_amount: Decimal       # Alert if daily outbound exceeds this
-    velocity_daily_count: int            # Alert if daily tx count exceeds this
-    velocity_monthly_amount: Decimal     # Alert if monthly outbound exceeds this
-    velocity_monthly_count: int          # Alert if monthly tx count exceeds this
+    velocity_daily_amount: Decimal  # Alert if daily outbound exceeds this
+    velocity_daily_count: int  # Alert if daily tx count exceeds this
+    velocity_monthly_amount: Decimal  # Alert if monthly outbound exceeds this
+    velocity_monthly_count: int  # Alert if monthly tx count exceeds this
 
     # ── SAR thresholds ────────────────────────────────────────────────────────
-    sar_auto_single: Decimal             # Single tx ≥ this → auto SAR consideration (POCA 2002)
-    sar_auto_daily: Decimal              # Daily total ≥ this → auto SAR consideration
+    sar_auto_single: Decimal  # Single tx ≥ this → auto SAR consideration (POCA 2002)
+    sar_auto_daily: Decimal  # Daily total ≥ this → auto SAR consideration
 
     # ── FX-specific ───────────────────────────────────────────────────────────
-    fx_single_edd: Decimal               # FX single tx ≥ this → EDD (often lower than payment)
-    fx_daily_alert: Decimal              # FX daily alert threshold
+    fx_single_edd: Decimal  # FX single tx ≥ this → EDD (often lower than payment)
+    fx_daily_alert: Decimal  # FX daily alert threshold
 
     # ── PEP/Sanctions multiplier ──────────────────────────────────────────────
     pep_edd_multiplier: Decimal = Decimal("0.5")  # PEP gets EDD at 50% of normal threshold
@@ -108,15 +110,15 @@ INDIVIDUAL_THRESHOLDS = AMLThresholdSet(
     # MLR 2017 Reg.28(3): £10,000 EDD trigger for retail customers
     # Banxe I-04 invariant
     edd_trigger=Decimal("10000"),
-    structuring_window_count=3,          # 3+ txs in 24h totalling ≥ £9,000
+    structuring_window_count=3,  # 3+ txs in 24h totalling ≥ £9,000
     structuring_window_gbp=Decimal("9000"),
     velocity_daily_amount=Decimal("25000"),
     velocity_daily_count=10,
     velocity_monthly_amount=Decimal("100000"),
     velocity_monthly_count=100,
-    sar_auto_single=Decimal("50000"),    # Auto SAR consideration for retail
+    sar_auto_single=Decimal("50000"),  # Auto SAR consideration for retail
     sar_auto_daily=Decimal("25000"),
-    fx_single_edd=Decimal("5000"),       # Lower FX threshold (currency risk)
+    fx_single_edd=Decimal("5000"),  # Lower FX threshold (currency risk)
     fx_daily_alert=Decimal("10000"),
 )
 
@@ -124,13 +126,13 @@ COMPANY_THRESHOLDS = AMLThresholdSet(
     entity_type="COMPANY",
     # B2B: £50,000 EDD trigger — normal for commercial payments
     edd_trigger=Decimal("50000"),
-    structuring_window_count=5,          # 5+ txs in 24h totalling ≥ £45,000
+    structuring_window_count=5,  # 5+ txs in 24h totalling ≥ £45,000
     structuring_window_gbp=Decimal("45000"),
     velocity_daily_amount=Decimal("500000"),
     velocity_daily_count=50,
     velocity_monthly_amount=Decimal("2000000"),
     velocity_monthly_count=500,
-    sar_auto_single=Decimal("250000"),   # Auto SAR consideration for corporate
+    sar_auto_single=Decimal("250000"),  # Auto SAR consideration for corporate
     sar_auto_daily=Decimal("500000"),
     fx_single_edd=Decimal("50000"),
     fx_daily_alert=Decimal("200000"),

@@ -6,11 +6,12 @@ Tests ClickHouseCustomerService, ClickHouseWebhookAuditStore,
 PostgreSQLConfigStore.reload(), RabbitMQEventBus.subscribe()
 using unittest.mock — no real DB/MQ connections needed.
 """
+
 from __future__ import annotations
 
 import json
 import sys
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
@@ -45,8 +46,8 @@ from services.webhooks.webhook_router import (
     WebhookStatus,
 )
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture()
 def individual_req() -> CreateCustomerRequest:
@@ -57,7 +58,9 @@ def individual_req() -> CreateCustomerRequest:
             last_name="Smith",
             date_of_birth=date(1990, 5, 15),
             nationality="GB",
-            address=Address(line1="1 High Street", city="London", country="GB", postcode="EC1A 1BB"),
+            address=Address(
+                line1="1 High Street", city="London", country="GB", postcode="EC1A 1BB"
+            ),
             email="alice@example.com",
         ),
         risk_level=RiskLevel.LOW,
@@ -110,9 +113,11 @@ def _make_webhook_store() -> tuple[ClickHouseWebhookAuditStore, MagicMock]:
 # Serialisation round-trip tests
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestProfileSerialisation:
     def test_individual_round_trip(self, individual_req: CreateCustomerRequest) -> None:
         from services.customer.customer_service import InMemoryCustomerService
+
         svc = InMemoryCustomerService()
         profile = svc.create_customer(individual_req)
         json_str = _profile_to_json(profile)
@@ -126,6 +131,7 @@ class TestProfileSerialisation:
 
     def test_company_round_trip(self, company_req: CreateCustomerRequest) -> None:
         from services.customer.customer_service import InMemoryCustomerService
+
         svc = InMemoryCustomerService()
         profile = svc.create_customer(company_req)
         json_str = _profile_to_json(profile)
@@ -136,13 +142,16 @@ class TestProfileSerialisation:
 
     def test_ubo_round_trip(self, company_req: CreateCustomerRequest) -> None:
         from services.customer.customer_service import InMemoryCustomerService
+
         svc = InMemoryCustomerService()
         profile = svc.create_customer(company_req)
         assert profile.company is not None
         profile.company.ubo_registry.append(
             UBORecord(
-                full_name="Bob Jones", role="director",
-                ownership_pct=Decimal("51.00"), nationality="GB",
+                full_name="Bob Jones",
+                role="director",
+                ownership_pct=Decimal("51.00"),
+                nationality="GB",
                 date_of_birth=date(1975, 3, 10),
             )
         )
@@ -159,6 +168,7 @@ class TestProfileSerialisation:
         self, individual_req: CreateCustomerRequest
     ) -> None:
         from services.customer.customer_service import InMemoryCustomerService
+
         svc = InMemoryCustomerService()
         profile = svc.create_customer(individual_req)
         json_str = _profile_to_json(profile)
@@ -173,10 +183,9 @@ class TestProfileSerialisation:
 # ClickHouseCustomerService tests
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestClickHouseCustomerService:
-    def test_create_customer_calls_insert(
-        self, individual_req: CreateCustomerRequest
-    ) -> None:
+    def test_create_customer_calls_insert(self, individual_req: CreateCustomerRequest) -> None:
         svc, mock_client = _make_ch_svc()
         svc.create_customer(individual_req)
         # execute() should be called once for the INSERT
@@ -188,6 +197,7 @@ class TestClickHouseCustomerService:
         self, individual_req: CreateCustomerRequest
     ) -> None:
         from services.customer.customer_port import CustomerManagementError
+
         individual_req.individual.nationality = "RU"  # type: ignore[union-attr]
         svc, mock_client = _make_ch_svc()
         with pytest.raises(CustomerManagementError, match="BLOCKED_JURISDICTION"):
@@ -196,6 +206,7 @@ class TestClickHouseCustomerService:
 
     def test_get_customer_not_found_raises(self) -> None:
         from services.customer.customer_port import CustomerManagementError
+
         svc, mock_client = _make_ch_svc()
         mock_client.execute.return_value = ([], [("profile_json", None)])
         with pytest.raises(CustomerManagementError, match="NOT_FOUND"):
@@ -203,6 +214,7 @@ class TestClickHouseCustomerService:
 
     def test_get_customer_found(self, individual_req: CreateCustomerRequest) -> None:
         from services.customer.customer_service import InMemoryCustomerService
+
         in_mem = InMemoryCustomerService()
         profile = in_mem.create_customer(individual_req)
         profile_json = _profile_to_json(profile)
@@ -218,6 +230,7 @@ class TestClickHouseCustomerService:
         self, individual_req: CreateCustomerRequest
     ) -> None:
         from services.customer.customer_service import InMemoryCustomerService
+
         in_mem = InMemoryCustomerService()
         profile = in_mem.create_customer(individual_req)
         profile_json = _profile_to_json(profile)
@@ -231,10 +244,9 @@ class TestClickHouseCustomerService:
         assert updated.risk_level == RiskLevel.HIGH
         assert mock_client.execute.call_count == 2
 
-    def test_transition_lifecycle(
-        self, individual_req: CreateCustomerRequest
-    ) -> None:
+    def test_transition_lifecycle(self, individual_req: CreateCustomerRequest) -> None:
         from services.customer.customer_service import InMemoryCustomerService
+
         in_mem = InMemoryCustomerService()
         profile = in_mem.create_customer(individual_req)
         profile.lifecycle_state = LifecycleState.ONBOARDING
@@ -254,11 +266,10 @@ class TestClickHouseCustomerService:
         updated = svc.transition_lifecycle(req)
         assert updated.lifecycle_state == LifecycleState.ACTIVE
 
-    def test_invalid_transition_raises(
-        self, individual_req: CreateCustomerRequest
-    ) -> None:
+    def test_invalid_transition_raises(self, individual_req: CreateCustomerRequest) -> None:
         from services.customer.customer_port import CustomerManagementError
         from services.customer.customer_service import InMemoryCustomerService
+
         in_mem = InMemoryCustomerService()
         profile = in_mem.create_customer(individual_req)
         profile.lifecycle_state = LifecycleState.OFFBOARDED
@@ -267,14 +278,18 @@ class TestClickHouseCustomerService:
         svc, mock_client = _make_ch_svc()
         mock_client.execute.return_value = ([(profile_json,)], [("profile_json", None)])
         with pytest.raises(CustomerManagementError, match="INVALID_TRANSITION"):
-            svc.transition_lifecycle(LifecycleTransitionRequest(
-                customer_id=profile.customer_id,
-                target_state=LifecycleState.ACTIVE,
-                reason="reopen", operator_id="ops-001",
-            ))
+            svc.transition_lifecycle(
+                LifecycleTransitionRequest(
+                    customer_id=profile.customer_id,
+                    target_state=LifecycleState.ACTIVE,
+                    reason="reopen",
+                    operator_id="ops-001",
+                )
+            )
 
     def test_add_ubo_to_company(self, company_req: CreateCustomerRequest) -> None:
         from services.customer.customer_service import InMemoryCustomerService
+
         in_mem = InMemoryCustomerService()
         profile = in_mem.create_customer(company_req)
         profile_json = _profile_to_json(profile)
@@ -289,10 +304,9 @@ class TestClickHouseCustomerService:
         assert updated.company is not None
         assert len(updated.company.ubo_registry) == 1
 
-    def test_list_customers_no_filter(
-        self, individual_req: CreateCustomerRequest
-    ) -> None:
+    def test_list_customers_no_filter(self, individual_req: CreateCustomerRequest) -> None:
         from services.customer.customer_service import InMemoryCustomerService
+
         in_mem = InMemoryCustomerService()
         p1 = in_mem.create_customer(individual_req)
         json1 = _profile_to_json(p1)
@@ -305,6 +319,7 @@ class TestClickHouseCustomerService:
 
     def test_link_agreement(self, individual_req: CreateCustomerRequest) -> None:
         from services.customer.customer_service import InMemoryCustomerService
+
         in_mem = InMemoryCustomerService()
         profile = in_mem.create_customer(individual_req)
         profile_json = _profile_to_json(profile)
@@ -322,6 +337,7 @@ class TestClickHouseCustomerService:
 # ClickHouseWebhookAuditStore tests
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestClickHouseWebhookAuditStore:
     def _make_event(self) -> WebhookEvent:
         return WebhookEvent(
@@ -329,7 +345,7 @@ class TestClickHouseWebhookAuditStore:
             provider=WebhookProvider.MODULR,
             event_type="payment.completed",
             payload={"payment_id": "pay-001"},
-            received_at=datetime.now(timezone.utc),
+            received_at=datetime.now(UTC),
             status=WebhookStatus.RECEIVED,
             signature_valid=True,
             raw_body=b'{"payment_id":"pay-001"}',
@@ -354,20 +370,35 @@ class TestClickHouseWebhookAuditStore:
 
     def test_get_returns_none_when_not_found(self) -> None:
         store, mock_client = _make_webhook_store()
-        mock_client.execute.return_value = ([], [
-            ("webhook_id", None), ("provider", None), ("event_type", None),
-            ("received_at", None), ("status", None), ("signature_valid", None), ("error", None),
-        ])
+        mock_client.execute.return_value = (
+            [],
+            [
+                ("webhook_id", None),
+                ("provider", None),
+                ("event_type", None),
+                ("received_at", None),
+                ("status", None),
+                ("signature_valid", None),
+                ("error", None),
+            ],
+        )
         result = store.get("nonexistent")
         assert result is None
 
     def test_get_returns_event_when_found(self) -> None:
         store, mock_client = _make_webhook_store()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         mock_client.execute.return_value = (
             [("wh-0001", "modulr", "payment.completed", now, "PROCESSED", 1, "")],
-            [("webhook_id", None), ("provider", None), ("event_type", None),
-             ("received_at", None), ("status", None), ("signature_valid", None), ("error", None)],
+            [
+                ("webhook_id", None),
+                ("provider", None),
+                ("event_type", None),
+                ("received_at", None),
+                ("status", None),
+                ("signature_valid", None),
+                ("error", None),
+            ],
         )
         event = store.get("wh-0001")
         assert event is not None
@@ -378,12 +409,19 @@ class TestClickHouseWebhookAuditStore:
 
     def test_update_status_reinserts(self) -> None:
         store, mock_client = _make_webhook_store()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         mock_client.execute.side_effect = [
             (
                 [("wh-0002", "sumsub", "applicantReviewed", now, "RECEIVED", 1, "")],
-                [("webhook_id", None), ("provider", None), ("event_type", None),
-                 ("received_at", None), ("status", None), ("signature_valid", None), ("error", None)],
+                [
+                    ("webhook_id", None),
+                    ("provider", None),
+                    ("event_type", None),
+                    ("received_at", None),
+                    ("status", None),
+                    ("signature_valid", None),
+                    ("error", None),
+                ],
             ),
             None,  # INSERT
         ]
@@ -394,6 +432,7 @@ class TestClickHouseWebhookAuditStore:
 # ─────────────────────────────────────────────────────────────────────────────
 # PostgreSQLConfigStore tests
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestPostgreSQLConfigStore:
     def _mock_pg(self) -> MagicMock:
@@ -413,26 +452,48 @@ class TestPostgreSQLConfigStore:
         }
         # Fee schedule rows
         fee_rows = [
-            {"tx_type": "FPS", "fee_type": "FLAT", "flat_fee": "0.20",
-             "percentage": "0", "min_fee": "0.20", "max_fee": None, "currency": "GBP"},
+            {
+                "tx_type": "FPS",
+                "fee_type": "FLAT",
+                "flat_fee": "0.20",
+                "percentage": "0",
+                "min_fee": "0.20",
+                "max_fee": None,
+                "currency": "GBP",
+            },
         ]
         # Limits rows
         limits_rows = [
-            {"entity_type": "INDIVIDUAL", "single_tx_max": "25000", "daily_max": "50000",
-             "monthly_max": "150000", "daily_tx_count": 50, "monthly_tx_count": 500, "min_tx": "0.01"},
-            {"entity_type": "COMPANY", "single_tx_max": "500000", "daily_max": "1000000",
-             "monthly_max": "5000000", "daily_tx_count": 200, "monthly_tx_count": 2000, "min_tx": "0.01"},
+            {
+                "entity_type": "INDIVIDUAL",
+                "single_tx_max": "25000",
+                "daily_max": "50000",
+                "monthly_max": "150000",
+                "daily_tx_count": 50,
+                "monthly_tx_count": 500,
+                "min_tx": "0.01",
+            },
+            {
+                "entity_type": "COMPANY",
+                "single_tx_max": "500000",
+                "daily_max": "1000000",
+                "monthly_max": "5000000",
+                "daily_tx_count": 200,
+                "monthly_tx_count": 2000,
+                "min_tx": "0.01",
+            },
         ]
 
         cursor.fetchall.side_effect = [
             [products_row],  # products query
-            fee_rows,        # fees query for EMI_ACCOUNT
-            limits_rows,     # limits query for EMI_ACCOUNT
+            fee_rows,  # fees query for EMI_ACCOUNT
+            limits_rows,  # limits query for EMI_ACCOUNT
         ]
         return conn
 
     def test_reload_loads_products(self) -> None:
         from services.config.config_service import PostgreSQLConfigStore
+
         conn = self._mock_pg()
         with patch("psycopg2.connect", return_value=conn):
             with patch("psycopg2.extras.RealDictCursor"):
@@ -444,6 +505,7 @@ class TestPostgreSQLConfigStore:
 
     def test_reload_builds_fee_schedules(self) -> None:
         from services.config.config_service import PostgreSQLConfigStore
+
         conn = self._mock_pg()
         with patch("psycopg2.connect", return_value=conn):
             with patch("psycopg2.extras.RealDictCursor"):
@@ -455,6 +517,7 @@ class TestPostgreSQLConfigStore:
 
     def test_reload_builds_payment_limits(self) -> None:
         from services.config.config_service import PostgreSQLConfigStore
+
         conn = self._mock_pg()
         with patch("psycopg2.connect", return_value=conn):
             with patch("psycopg2.extras.RealDictCursor"):
@@ -465,8 +528,10 @@ class TestPostgreSQLConfigStore:
         assert limits.daily_tx_count == 50
 
     def test_missing_dsn_raises(self) -> None:
-        from services.config.config_service import PostgreSQLConfigStore
         import os
+
+        from services.config.config_service import PostgreSQLConfigStore
+
         env_backup = os.environ.pop("POSTGRES_DSN", None)
         try:
             with pytest.raises(EnvironmentError, match="POSTGRES_DSN"):
@@ -477,6 +542,7 @@ class TestPostgreSQLConfigStore:
 
     def test_list_products(self) -> None:
         from services.config.config_service import PostgreSQLConfigStore
+
         conn = self._mock_pg()
         with patch("psycopg2.connect", return_value=conn):
             with patch("psycopg2.extras.RealDictCursor"):
@@ -490,9 +556,11 @@ class TestPostgreSQLConfigStore:
 # RabbitMQEventBus tests
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestRabbitMQEventBus:
     def test_missing_url_raises(self) -> None:
         import os
+
         env_backup = os.environ.pop("RABBITMQ_URL", None)
         try:
             with pytest.raises(EnvironmentError, match="RABBITMQ_URL"):
@@ -579,6 +647,7 @@ class TestRabbitMQEventBus:
 # ─────────────────────────────────────────────────────────────────────────────
 # InMemoryEventBus — regression test (unchanged, sanity check)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestInMemoryEventBus:
     def test_publish_and_subscribe(self) -> None:

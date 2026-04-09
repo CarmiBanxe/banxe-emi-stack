@@ -5,26 +5,24 @@ IL-046 | banxe-emi-stack
 Maps between HTTP request/response JSON and domain dataclasses.
 All amounts are strings (never float). I-05 compliance.
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
 from services.customer.customer_port import EntityType, LifecycleState, RiskLevel
 
-
 # ── Request schemas ───────────────────────────────────────────────────────────
+
 
 class AddressRequest(BaseModel):
     line1: str
-    line2: Optional[str] = None
+    line2: str | None = None
     city: str
     postcode: str
-    country: str = Field(
-        ..., min_length=2, max_length=2, description="ISO 3166-1 alpha-2"
-    )
+    country: str = Field(..., min_length=2, max_length=2, description="ISO 3166-1 alpha-2")
 
 
 class IndividualProfileRequest(BaseModel):
@@ -44,10 +42,10 @@ class CompanyProfileRequest(BaseModel):
 
 class CreateCustomerRequest(BaseModel):
     entity_type: EntityType
-    individual: Optional[IndividualProfileRequest] = None
-    company: Optional[CompanyProfileRequest] = None
+    individual: IndividualProfileRequest | None = None
+    company: CompanyProfileRequest | None = None
     email: str
-    phone: Optional[str] = None
+    phone: str | None = None
 
     @field_validator("individual", "company", mode="after")
     @classmethod
@@ -58,11 +56,12 @@ class CreateCustomerRequest(BaseModel):
 
 class LifecycleTransitionRequest(BaseModel):
     target_state: LifecycleState
-    reason: Optional[str] = None
+    reason: str | None = None
     operator_id: str
 
 
 # ── Response schemas ──────────────────────────────────────────────────────────
+
 
 class CustomerResponse(BaseModel):
     customer_id: str

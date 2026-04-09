@@ -4,24 +4,25 @@ IL-052 | Phase 3 | banxe-emi-stack
 
 Covers FIN060 (CASS 15.12.4R) and SAR (POCA 2002 s.330) endpoints.
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
 
 from pydantic import BaseModel, field_validator
 
 from services.aml.sar_service import SARReason, SARStatus
 
-
 # ── FIN060 ────────────────────────────────────────────────────────────────────
+
 
 class FIN060GenerateRequest(BaseModel):
     """Generate FIN060 PDF for a reporting period."""
+
     period_start: date
     period_end: date
-    avg_daily_client_funds: str     # Decimal string (I-05)
+    avg_daily_client_funds: str  # Decimal string (I-05)
     peak_client_funds: str
 
     @field_validator("period_end")
@@ -40,22 +41,24 @@ class FIN060Response(BaseModel):
     peak_client_funds: Decimal
     frn: str
     status: str
-    submission_id: Optional[str]
-    submitted_at: Optional[datetime]
+    submission_id: str | None
+    submitted_at: datetime | None
     deadline: date
     is_overdue: bool
-    pdf_path: Optional[str]
+    pdf_path: str | None
     errors: list[str]
 
 
 # ── SAR ───────────────────────────────────────────────────────────────────────
 
+
 class FileSARRequest(BaseModel):
     """Create a draft SAR for MLRO review."""
+
     transaction_id: str
     customer_id: str
     entity_type: str = "INDIVIDUAL"
-    amount: str                         # Decimal string (I-05)
+    amount: str  # Decimal string (I-05)
     currency: str = "GBP"
     sar_reasons: list[SARReason]
     aml_flags: list[str] = []
@@ -72,6 +75,7 @@ class FileSARRequest(BaseModel):
 
 class MLRODecisionRequest(BaseModel):
     """MLRO approval or withdrawal of a SAR."""
+
     mlro_id: str
     notes: str = ""
 
@@ -85,6 +89,7 @@ class MLRODecisionRequest(BaseModel):
 
 class WithdrawSARRequest(BaseModel):
     """MLRO withdrawal of a SAR with mandatory reason."""
+
     mlro_id: str
     reason: str
 
@@ -109,11 +114,11 @@ class SARResponse(BaseModel):
     status: SARStatus
     created_at: datetime
     created_by: str
-    mlro_reviewed_by: Optional[str]
-    mlro_reviewed_at: Optional[datetime]
+    mlro_reviewed_by: str | None
+    mlro_reviewed_at: datetime | None
     mlro_notes: str
-    submitted_at: Optional[datetime]
-    nca_reference: Optional[str]
+    submitted_at: datetime | None
+    nca_reference: str | None
     errors: list[str]
     is_submittable: bool
     requires_mlro_action: bool

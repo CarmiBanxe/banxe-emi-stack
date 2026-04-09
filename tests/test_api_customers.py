@@ -2,6 +2,7 @@
 tests/test_api_customers.py — Customer API endpoint tests
 IL-046 | banxe-emi-stack
 """
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -32,6 +33,7 @@ _INDIVIDUAL_PAYLOAD = {
 def reset_service():
     """Fresh service instance per test."""
     from services.customer.customer_service import InMemoryCustomerService
+
     svc = InMemoryCustomerService()
     app.dependency_overrides[get_customer_service] = lambda: svc
     yield

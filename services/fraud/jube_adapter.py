@@ -39,12 +39,13 @@ Required environment variables:
   JUBE_MODEL_GUID   — EntityAnalysisModel GUID from Jube admin UI
   JUBE_TIMEOUT_MS   — HTTP timeout ms (default: 90, hard SLA is 100ms)
 """
+
 from __future__ import annotations
 
 import logging
 import os
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from services.fraud.fraud_port import (
     AppScamIndicator,
@@ -93,6 +94,7 @@ class JubeAdapter:
     ) -> None:
         try:
             import importlib.util
+
             if importlib.util.find_spec("httpx") is None:
                 raise ImportError
         except ImportError:
@@ -100,7 +102,7 @@ class JubeAdapter:
 
         self._base_url = (base_url or os.environ.get("JUBE_URL", "")).rstrip("/")
         if not self._base_url:
-            raise EnvironmentError(
+            raise OSError(
                 "JUBE_URL not set. "
                 "Jube is deployed on GMKtec at http://gmktec:5001. "
                 "Set JUBE_URL=http://gmktec:5001 in .env"
@@ -109,14 +111,14 @@ class JubeAdapter:
         self._username = username or os.environ.get("JUBE_USERNAME", "Administrator")
         self._password = password or os.environ.get("JUBE_PASSWORD", "")
         if not self._password:
-            raise EnvironmentError(
+            raise OSError(
                 "JUBE_PASSWORD not set. "
                 "Set JUBE_PASSWORD in .env (see Jube admin UI for the Administrator password)."
             )
 
         self._model_guid = model_guid or os.environ.get("JUBE_MODEL_GUID", "")
         if not self._model_guid:
-            raise EnvironmentError(
+            raise OSError(
                 "JUBE_MODEL_GUID not set. "
                 "Create an EntityAnalysisModel in the Jube admin UI (http://gmktec:5001), "
                 "then copy its GUID to JUBE_MODEL_GUID in .env"
@@ -126,6 +128,7 @@ class JubeAdapter:
         self._timeout_s = _timeout_ms / 1000.0
 
         import httpx as _httpx
+
         self._httpx = _httpx
         self._client = _httpx.Client(
             base_url=self._base_url,
@@ -152,9 +155,7 @@ class JubeAdapter:
                 "Check JUBE_USERNAME and JUBE_PASSWORD in .env."
             )
         if resp.is_error:
-            raise RuntimeError(
-                f"Jube authentication error: {resp.status_code} — {resp.text[:200]}"
-            )
+            raise RuntimeError(f"Jube authentication error: {resp.status_code} — {resp.text[:200]}")
         data = resp.json()
         # Jube returns: {"token": "...", "tokenExpiryTime": "2026-..."}
         token = data.get("token") or data.get("Token") or ""
@@ -166,7 +167,7 @@ class JubeAdapter:
         try:
             expiry = datetime.fromisoformat(expiry_raw.replace("Z", "+00:00"))
         except (ValueError, AttributeError):
-            expiry = datetime.now(timezone.utc) + timedelta(hours=1)
+            expiry = datetime.now(UTC) + timedelta(hours=1)
 
         self._jwt = token
         self._jwt_expires_at = expiry
@@ -175,13 +176,9 @@ class JubeAdapter:
 
     def _get_jwt(self) -> str:
         """Return cached JWT, re-authenticating if expired or about to expire."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         margin = timedelta(seconds=_JWT_REFRESH_MARGIN_S)
-        if (
-            self._jwt
-            and self._jwt_expires_at
-            and now < self._jwt_expires_at - margin
-        ):
+        if self._jwt and self._jwt_expires_at and now < self._jwt_expires_at - margin:
             return self._jwt
         return self._authenticate()
 
@@ -211,7 +208,8 @@ class JubeAdapter:
         except self._httpx.TimeoutException:
             logger.error(
                 "Jube timeout (>%dms): tx=%s — falling back to mock score",
-                int(self._timeout_s * 1000), request.transaction_id,
+                int(self._timeout_s * 1000),
+                request.transaction_id,
             )
             return self._timeout_fallback(request, time.monotonic() - t0)
 
@@ -230,14 +228,19 @@ class JubeAdapter:
         if resp.is_error:
             logger.error(
                 "Jube invoke error: tx=%s status=%d body=%s",
-                request.transaction_id, resp.status_code, resp.text[:200],
+                request.transaction_id,
+                resp.status_code,
+                resp.text[:200],
             )
             return self._error_fallback(request, latency_ms)
 
         result = self._parse_response(request, resp.json(), latency_ms)
         logger.info(
             "Jube scored: tx=%s score=%d risk=%s latency=%.1fms",
-            request.transaction_id, result.score, result.risk.value, latency_ms,
+            request.transaction_id,
+            result.score,
+            result.risk.value,
+            latency_ms,
         )
         return result
 
@@ -256,7 +259,7 @@ class JubeAdapter:
         return {
             "TransactionId": request.transaction_id,
             "CustomerId": request.customer_id,
-            "TransactionAmount": str(request.amount),   # I-05: string, not float
+            "TransactionAmount": str(request.amount),  # I-05: string, not float
             "Currency": request.currency,
             "DestinationAccount": request.destination_account,
             "DestinationSortCode": request.destination_sort_code,
@@ -292,9 +295,8 @@ class JubeAdapter:
         # Normalise keys to lowercase for resilience against .NET casing
         normalised = {k.lower(): v for k, v in data.items()}
 
-        audit_guid = (
-            data.get("EntityAnalysisModelInstanceEntryGuid")
-            or data.get("entityAnalysisModelInstanceEntryGuid", "")
+        audit_guid = data.get("EntityAnalysisModelInstanceEntryGuid") or data.get(
+            "entityAnalysisModelInstanceEntryGuid", ""
         )
         if audit_guid:
             logger.info("Jube audit GUID (I-24): %s", audit_guid)
@@ -318,16 +320,12 @@ class JubeAdapter:
 
         # Block decision: CRITICAL score OR explicit block activation rule
         block_keys = {"blocktransaction", "block", "hardblock", "reject"}
-        explicit_block = any(
-            bool(normalised.get(k)) for k in block_keys
-        )
+        explicit_block = any(bool(normalised.get(k)) for k in block_keys)
         block = (risk == FraudRisk.CRITICAL) or explicit_block
 
         # Hold decision: HIGH/MEDIUM score OR explicit hold activation rule
         hold_keys = {"holdtransaction", "hold", "holdreview", "manualreview"}
-        explicit_hold = any(
-            bool(normalised.get(k)) for k in hold_keys
-        )
+        explicit_hold = any(bool(normalised.get(k)) for k in hold_keys)
         hold = (risk in (FraudRisk.HIGH, FraudRisk.MEDIUM)) or explicit_hold
 
         # APP scam indicator from tags
@@ -335,9 +333,9 @@ class JubeAdapter:
 
         # Factors: collect activated boolean rule names (human-readable audit)
         factors = [
-            k for k, v in data.items()
-            if isinstance(v, bool) and v
-            and k not in {"EntityAnalysisModelInstanceEntryGuid"}
+            k
+            for k, v in data.items()
+            if isinstance(v, bool) and v and k not in {"EntityAnalysisModelInstanceEntryGuid"}
         ][:15]
 
         return FraudScoringResult(

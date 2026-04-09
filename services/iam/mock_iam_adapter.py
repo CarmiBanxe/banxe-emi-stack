@@ -20,19 +20,20 @@ Pre-configured users (matches Banxe SM&CR structure):
   agent-aml / agent-pass          → AGENT (AI agent identity)
   auditor@fca.gov.uk / audit-pass → AUDITOR
 """
+
 from __future__ import annotations
 
 import hashlib
 import os
 import secrets
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 from services.iam.iam_port import AuthToken, BanxeRole, IAMPort, Permission, UserIdentity
 
 _TOKEN_TTL_SECONDS = int(os.environ.get("IAM_TOKEN_TTL", "3600"))
 
 # ── Credential store ──────────────────────────────────────────────────────────
+
 
 def _h(pw: str) -> str:
     return hashlib.sha256(pw.encode()).hexdigest()
@@ -51,7 +52,7 @@ _USERS: dict[str, dict] = {
         "roles": frozenset({BanxeRole.MLRO}),
         "subject": "uuid-mlro-001",
         "email": "mlro@banxe.io",
-        "mfa_verified": True,   # MLRO requires MFA (FCA SM&CR)
+        "mfa_verified": True,  # MLRO requires MFA (FCA SM&CR)
     },
     "compliance@banxe.io": {
         "password_hash": _h("cco-pass"),
@@ -94,14 +95,14 @@ class MockIAMAdapter:
         self._ttl = ttl_seconds
         self._tokens: dict[str, UserIdentity] = {}
 
-    def authenticate(self, username: str, password: str) -> Optional[AuthToken]:
+    def authenticate(self, username: str, password: str) -> AuthToken | None:
         user = _USERS.get(username)
         if not user:
             return None
         if user["password_hash"] != _h(password):
             return None
 
-        expiry = datetime.now(timezone.utc) + timedelta(seconds=self._ttl)
+        expiry = datetime.now(UTC) + timedelta(seconds=self._ttl)
         token_str = secrets.token_urlsafe(32)
         identity = UserIdentity(
             subject=user["subject"],
@@ -119,7 +120,7 @@ class MockIAMAdapter:
             roles=list(user["roles"]),
         )
 
-    def validate_token(self, token: str) -> Optional[UserIdentity]:
+    def validate_token(self, token: str) -> UserIdentity | None:
         identity = self._tokens.get(token)
         if identity is None:
             return None
@@ -136,6 +137,7 @@ class MockIAMAdapter:
 
 
 # ── Keycloak adapter (LIVE — deployed on GMKtec :8180) ────────────────────────
+
 
 class KeycloakAdapter:  # pragma: no cover
     """
@@ -157,32 +159,36 @@ class KeycloakAdapter:  # pragma: no cover
         self._client_id = os.environ.get("KEYCLOAK_CLIENT_ID", "banxe-backend")
         self._client_secret = os.environ.get("KEYCLOAK_CLIENT_SECRET", "")
         if not self._url:
-            raise EnvironmentError(
+            raise OSError(
                 "KEYCLOAK_URL not set. Keycloak is deployed at http://gmktec:8180. "
                 "Set KEYCLOAK_URL=http://localhost:8180 and IAM_ADAPTER=keycloak."
             )
         self._token_url = f"{self._url}/realms/{self._realm}/protocol/openid-connect/token"
         self._userinfo_url = f"{self._url}/realms/{self._realm}/protocol/openid-connect/userinfo"
 
-    def authenticate(self, username: str, password: str) -> Optional[AuthToken]:
+    def authenticate(self, username: str, password: str) -> AuthToken | None:
         """Resource Owner Password Grant — direct user login."""
         import urllib.parse
         import urllib.request
         from datetime import timedelta
-        data = urllib.parse.urlencode({
-            "client_id": self._client_id,
-            "username": username,
-            "password": password,
-            "grant_type": "password",
-            **({"client_secret": self._client_secret} if self._client_secret else {}),
-        }).encode()
+
+        data = urllib.parse.urlencode(
+            {
+                "client_id": self._client_id,
+                "username": username,
+                "password": password,
+                "grant_type": "password",
+                **({"client_secret": self._client_secret} if self._client_secret else {}),
+            }
+        ).encode()
         req = urllib.request.Request(self._token_url, data=data, method="POST")
         req.add_header("Content-Type", "application/x-www-form-urlencoded")
         try:
             import json
+
             with urllib.request.urlopen(req, timeout=5) as resp:
                 token_data = json.loads(resp.read())
-            expiry = datetime.now(timezone.utc) + timedelta(seconds=token_data.get("expires_in", 3600))
+            expiry = datetime.now(UTC) + timedelta(seconds=token_data.get("expires_in", 3600))
             return AuthToken(
                 access_token=token_data["access_token"],
                 expires_at=expiry,
@@ -191,13 +197,15 @@ class KeycloakAdapter:  # pragma: no cover
             )
         except Exception as exc:
             import logging
+
             logging.getLogger(__name__).warning("Keycloak authenticate failed: %s", exc)
             return None
 
-    def validate_token(self, token: str) -> Optional[UserIdentity]:
+    def validate_token(self, token: str) -> UserIdentity | None:
         """Introspect JWT via userinfo endpoint."""
         import json
         import urllib.request
+
         req = urllib.request.Request(self._userinfo_url)
         req.add_header("Authorization", f"Bearer {token}")
         try:
@@ -211,10 +219,11 @@ class KeycloakAdapter:  # pragma: no cover
                 email=info.get("email", ""),
                 roles=roles or {BanxeRole.READONLY},
                 mfa_verified=info.get("acr", "") in ("mfa", "aal2"),
-                token_expiry=datetime.now(timezone.utc) + timedelta(seconds=300),
+                token_expiry=datetime.now(UTC) + timedelta(seconds=300),
             )
         except Exception as exc:
             import logging
+
             logging.getLogger(__name__).warning("Keycloak validate_token failed: %s", exc)
             return None
 
@@ -223,6 +232,7 @@ class KeycloakAdapter:  # pragma: no cover
 
     def health(self) -> bool:
         import urllib.request
+
         try:
             with urllib.request.urlopen(f"{self._url}/realms/{self._realm}", timeout=3) as r:
                 return r.status == 200
