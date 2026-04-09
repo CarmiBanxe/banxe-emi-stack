@@ -1,0 +1,164 @@
+name: banxe-compliance-swarm
+version: "1.0"
+description: BANXE AI BANK — Compliance Agent Swarm
+trust_zone: RED
+fca_basis: "MLR 2017, JMLSG, PSR 2017, PSR APP 2024, FCA SYSC 6"
+
+# ── Coordinator ───────────────────────────────────────────────────────────────
+
+coordinator:
+  id: mlro_agent
+  soul: ./soul/mlro_agent.soul.md
+  autonomy: L2
+  human_double: MLRO
+  tools:
+    - hitl_check_gate
+    - clickhouse_log_event
+    - n8n_trigger_workflow
+    - marble_create_case
+  human_in_loop: true
+  hitl_gates:
+    - SAR_filing
+    - AML_threshold_change
+    - sanctions_reversal
+    - PEP_onboarding
+    - board_report_sign_off
+
+# ── Agent Layers ──────────────────────────────────────────────────────────────
+
+agents:
+
+  # Layer 1: Adapters (parallel, no upstream deps)
+  - id: jube_adapter_agent
+    soul: ./soul/jube_adapter_agent.soul.md
+    autonomy: L3
+    human_double: CTIO
+    depends_on: []
+    parallel: true
+    tools:
+      - midaz_subscribe_events
+      - jube_post_transaction
+      - clickhouse_log_event
+    sla_ms: 100
+
+  - id: sanctions_check_agent
+    soul: ./soul/sanctions_check_agent.soul.md
+    autonomy: L3
+    human_double: MLRO
+    depends_on: []
+    parallel: true
+    tools:
+      - watchman_search
+      - clickhouse_log_event
+      - hitl_check_gate
+    thresholds:
+      block: 0.80
+      review: 0.60
+
+  # Layer 2: Domain agents (depend on adapters)
+  - id: aml_check_agent
+    soul: ./soul/aml_check_agent.soul.md
+    autonomy: L3
+    human_double: COMPLIANCE_OFFICER
+    depends_on: [jube_adapter_agent]
+    parallel: true
+    tools:
+      - marble_create_case
+      - clickhouse_log_event
+      - hitl_check_gate
+      - rag_query_kb
+    thresholds:
+      edd_individual: "10000"
+      edd_corporate: "50000"
+      sar_candidate_individual: "10000"
+      sar_candidate_corporate: "50000"
+
+  - id: tm_agent
+    soul: ./soul/tm_agent.soul.md
+    autonomy: L3
+    human_double: COMPLIANCE_OFFICER
+    depends_on: [jube_adapter_agent]
+    parallel: true
+    tools:
+      - clickhouse_log_event
+      - hitl_check_gate
+      - rag_query_kb
+    alert_sla_s: 2
+
+  - id: cdd_review_agent
+    soul: ./soul/cdd_review_agent.soul.md
+    autonomy: L2
+    human_double: COMPLIANCE_OFFICER
+    depends_on: [sanctions_check_agent]
+    parallel: true
+    tools:
+      - hitl_check_gate
+      - clickhouse_log_event
+      - rag_query_kb
+
+  - id: fraud_detection_agent
+    soul: ./soul/fraud_detection_agent.soul.md
+    autonomy: L3
+    human_double: FRAUD_ANALYST
+    depends_on: [jube_adapter_agent, tm_agent]
+    parallel: true
+    tools:
+      - fraud_scoring_port
+      - clickhouse_log_event
+      - hitl_check_gate
+      - rag_query_kb
+    fraud_adapter: MockFraudAdapter  # live: blocked on SARDINE_CLIENT_ID
+
+# ── Knowledge Base ────────────────────────────────────────────────────────────
+
+knowledge_base:
+  type: chromadb
+  collection: banxe_compliance_kb
+  embedding_model: all-MiniLM-L6-v2
+  context_index: ./agent_context.json
+  top_k: 5
+
+# ── Memory & Audit ────────────────────────────────────────────────────────────
+
+memory:
+  type: shared_persistent
+  backend: postgresql
+  table: compliance_swarm_sessions
+
+audit:
+  backend: clickhouse
+  table: compliance_swarm_events
+  retention_years: 5  # I-08
+
+# ── Webhooks ──────────────────────────────────────────────────────────────────
+
+webhooks:
+  - event: watchman_list_updated
+    handler: n8n_workflow:watchman_list_update
+    notify: [MLRO, HEAD_OF_FINCRIME]
+    re_screen: [HIGH_RISK, PEP_POTENTIAL]
+
+  - event: jube_alert_critical
+    handler: mlro_agent.escalate
+    notify: [MLRO]
+    sla_minutes: 15
+
+# ── HITL Gates Registry ───────────────────────────────────────────────────────
+
+hitl_gates:
+  SAR_filing:
+    roles: [MLRO]
+    timeout_hours: 24
+    escalate_to: CEO
+  AML_threshold_change:
+    roles: [MLRO, CEO]
+    timeout_hours: 4
+  sanctions_reversal:
+    roles: [MLRO, CEO]
+    timeout_hours: 1
+  PEP_onboarding:
+    roles: [MLRO]
+    timeout_hours: 48
+  board_report_sign_off:
+    roles: [MLRO, BOARD]
+    timeout_days: 3

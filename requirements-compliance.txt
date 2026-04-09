@@ -1,0 +1,22 @@
+# BANXE AI BANK — Compliance Pipeline Dependencies
+# Install: pip install -r requirements-compliance.txt
+
+# PDF parsing
+pypdf>=4.0.0
+
+# DOCX parsing
+python-docx>=1.1.0
+
+# Vector DB
+chromadb>=0.5.0
+
+# Embeddings
+sentence-transformers>=3.0.0
+
+# Google Drive API (optional — only needed for Drive download)
+google-auth>=2.30.0
+google-api-python-client>=2.130.0
+google-auth-httplib2>=0.2.0
+
+# Utilities
+tqdm>=4.66.0

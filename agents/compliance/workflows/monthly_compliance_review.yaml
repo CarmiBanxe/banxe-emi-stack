@@ -1,0 +1,111 @@
+name: monthly_compliance_review
+version: "1.0"
+schedule: "0 9 1 * *"  # 09:00 on 1st of each month
+description: Monthly Compliance Review — automated data collection + MLRO draft
+fca_basis: "MLR 2017 Reg.21, FCA SYSC 6.1.1, JMLSG Part I"
+
+steps:
+  - id: collect_aml_metrics
+    agent: aml_check_agent
+    action: aggregate_monthly_stats
+    inputs:
+      period: "last_calendar_month"
+      metrics:
+        - total_transactions_screened
+        - high_risk_count
+        - edd_triggered_count
+        - sar_candidates_count
+        - auto_hold_count
+    output: aml_stats
+
+  - id: collect_tm_alerts
+    agent: tm_agent
+    action: aggregate_monthly_alerts
+    depends_on: []
+    parallel: true
+    inputs:
+      period: "last_calendar_month"
+      group_by: [rule_type, risk_level, outcome]
+    output: tm_stats
+
+  - id: collect_sanctions_hits
+    agent: sanctions_check_agent
+    action: aggregate_monthly_screening
+    depends_on: []
+    parallel: true
+    inputs:
+      period: "last_calendar_month"
+      metrics:
+        - total_screened
+        - potential_matches
+        - confirmed_hits
+        - false_positives
+    output: sanctions_stats
+
+  - id: collect_fraud_metrics
+    agent: fraud_detection_agent
+    action: aggregate_monthly_fraud
+    depends_on: []
+    parallel: true
+    inputs:
+      period: "last_calendar_month"
+      metrics:
+        - fraud_alerts_total
+        - app_fraud_cases
+        - confirmed_fraud_count
+        - reimbursed_amount
+    output: fraud_stats
+
+  - id: collect_cdd_metrics
+    agent: cdd_review_agent
+    action: aggregate_monthly_cdd
+    depends_on: []
+    parallel: true
+    inputs:
+      period: "last_calendar_month"
+      metrics:
+        - new_customers_onboarded
+        - edd_reviews_completed
+        - cdd_refresh_due
+        - pep_onboarded
+    output: cdd_stats
+
+  - id: kri_check
+    agent: mlro_agent
+    action: evaluate_kris
+    depends_on: [collect_aml_metrics, collect_tm_alerts, collect_sanctions_hits, collect_fraud_metrics, collect_cdd_metrics]
+    inputs:
+      stats: [aml_stats, tm_stats, sanctions_stats, fraud_stats, cdd_stats]
+      kri_thresholds_kb: "kri_reporting"
+    output: kri_breaches
+
+  - id: draft_report
+    agent: mlro_agent
+    action: draft_monthly_report
+    depends_on: [kri_check]
+    inputs:
+      all_stats: [aml_stats, tm_stats, sanctions_stats, fraud_stats, cdd_stats]
+      kri_breaches: kri_breaches
+      template: "monthly_compliance_review_template"
+    output: draft_report_doc
+
+  - id: hitl_mlro_review
+    type: human_review
+    gate: board_report_sign_off
+    assignee: MLRO
+    depends_on: [draft_report]
+    deadline_hours: 72
+    action: review_and_sign
+    inputs:
+      document: draft_report_doc
+    on_approve: finalize_report
+    on_reject: return_to_draft
+
+  - id: finalize_report
+    agent: mlro_agent
+    action: finalize_and_distribute
+    depends_on: [hitl_mlro_review]
+    inputs:
+      signed_report: draft_report_doc
+      distribute_to: [MLRO, CEO, RCC, HEAD_OF_FINCRIME]
+    audit_log: true

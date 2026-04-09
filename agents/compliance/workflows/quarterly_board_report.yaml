@@ -1,0 +1,110 @@
+name: quarterly_board_report
+version: "1.0"
+schedule: "0 9 1 1,4,7,10 *"  # 09:00 on Jan/Apr/Jul/Oct 1st
+description: Quarterly Board Compliance Report — RCC presentation pack
+fca_basis: "MLR 2017 Reg.21, FCA SYSC 4.3.2, JMLSG Part I Ch.3"
+
+steps:
+  - id: aggregate_quarter_metrics
+    agent: mlro_agent
+    action: aggregate_quarterly_data
+    inputs:
+      period: "last_quarter"
+      sources:
+        - clickhouse_table: aml_events
+        - clickhouse_table: compliance_swarm_events
+        - clickhouse_table: fraud_events
+        - clickhouse_table: kyc_events
+    output: quarter_data
+
+  - id: sar_summary
+    agent: mlro_agent
+    action: compile_sar_summary
+    depends_on: []
+    parallel: true
+    inputs:
+      period: "last_quarter"
+      include: [filed_count, nca_responses, internal_sars_pending]
+      redact_customer_info: true  # I-09
+    output: sar_summary
+
+  - id: regulatory_changes
+    agent: mlro_agent
+    action: identify_regulatory_changes
+    depends_on: []
+    parallel: true
+    inputs:
+      period: "last_quarter"
+      sources_kb: [aml_afc, governance, consumer_duty]
+      watch: [FCA_publications, HMT_updates, JMLSG_revisions]
+    output: reg_changes
+
+  - id: risk_appetite_review
+    agent: aml_check_agent
+    action: review_risk_appetite
+    depends_on: [aggregate_quarter_metrics]
+    inputs:
+      quarter_data: quarter_data
+      risk_appetite_kb: "risk_assessment"
+      board_risk_appetite_statement: "current"
+    output: risk_review
+
+  - id: consumer_duty_outcomes
+    agent: cdd_review_agent
+    action: assess_consumer_duty_outcomes
+    depends_on: []
+    parallel: true
+    inputs:
+      period: "last_quarter"
+      ps22_9_metrics:
+        - products_fair_value
+        - complaints_resolution_rate
+        - vulnerable_customer_outcomes
+    output: consumer_duty_report
+
+  - id: draft_board_pack
+    agent: mlro_agent
+    action: draft_board_pack
+    depends_on:
+      - aggregate_quarter_metrics
+      - sar_summary
+      - regulatory_changes
+      - risk_appetite_review
+      - consumer_duty_outcomes
+    inputs:
+      template: "quarterly_board_pack_template"
+      sections:
+        - executive_summary
+        - aml_tm_performance
+        - sanctions_screening_performance
+        - fraud_prevention_performance
+        - sar_activity
+        - regulatory_horizon
+        - consumer_duty_outcomes
+        - kri_dashboard
+        - risk_appetite_alignment
+        - recommended_actions
+    output: board_pack_draft
+
+  - id: hitl_mlro_review
+    type: human_review
+    gate: board_report_sign_off
+    assignee: MLRO
+    depends_on: [draft_board_pack]
+    deadline_hours: 120  # 5 business days
+    action: review_sign_and_submit
+    inputs:
+      document: board_pack_draft
+    on_approve: distribute_to_board
+    on_reject: return_for_revision
+
+  - id: distribute_to_board
+    agent: mlro_agent
+    action: distribute_board_pack
+    depends_on: [hitl_mlro_review]
+    inputs:
+      signed_pack: board_pack_draft
+      distribute_to: [BOARD, CEO, MLRO, CFO, RCC_CHAIR]
+      board_meeting_agenda: true
+    audit_log: true
+    clickhouse_table: governance_events
