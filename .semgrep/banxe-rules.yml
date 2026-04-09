@@ -97,14 +97,13 @@ rules:
       I-24: Audit log append-only. DELETE/UPDATE запрещены для таблиц аудита.
       ClickHouse safeguarding_events/payment_events/compliance_screenings должны
       быть immutable. Используй INSERT-только паттерн.
-    languages: [python, sql]
+    languages: [python]
     severity: ERROR
 
   - id: banxe-clickhouse-ttl-reduce
-    patterns:
-      - pattern: "... TTL ... INTERVAL $N DAY ..."
+    pattern-regex: 'TTL\s+\w+\s*\+\s*INTERVAL\s+\d+\s+DAY'
     message: |
       I-08: ClickHouse TTL минимум 5 лет (1825 дней) для FCA audit trail.
       Проверь значение — не уменьшай существующий TTL.
-    languages: [sql]
+    languages: [generic]
     severity: WARNING
