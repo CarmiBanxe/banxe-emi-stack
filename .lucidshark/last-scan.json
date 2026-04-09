@@ -1,0 +1,809 @@
+{
+  "schema_version": "1.0",
+  "issues": [
+    {
+      "id": "ruff-F401-d07d10920a37",
+      "domain": "linting",
+      "source_tool": "ruff",
+      "severity": "medium",
+      "rule_id": "F401",
+      "title": "F401: `services.config.FCA_REGDATA_URL` imported but unused",
+      "description": "`services.config.FCA_REGDATA_URL` imported but unused",
+      "file_path": "/home/mmber/banxe-emi-stack/services/reporting/fin060_generator.py",
+      "line_start": 23,
+      "ignored": false
+    },
+    {
+      "id": "ruff-F821-5bde834631f4",
+      "domain": "linting",
+      "source_tool": "ruff",
+      "severity": "medium",
+      "rule_id": "F821",
+      "title": "F821: Undefined name `os`",
+      "description": "Undefined name `os`",
+      "file_path": "/home/mmber/banxe-emi-stack/services/reporting/fin060_generator.py",
+      "line_start": 95,
+      "ignored": false
+    },
+    {
+      "id": "ruff-F821-6b66cfe89848",
+      "domain": "linting",
+      "source_tool": "ruff",
+      "severity": "medium",
+      "rule_id": "F821",
+      "title": "F821: Undefined name `os`",
+      "description": "Undefined name `os`",
+      "file_path": "/home/mmber/banxe-emi-stack/services/reporting/fin060_generator.py",
+      "line_start": 96,
+      "ignored": false
+    },
+    {
+      "id": "ruff-F401-c3a2f8aed7ba",
+      "domain": "linting",
+      "source_tool": "ruff",
+      "severity": "medium",
+      "rule_id": "F401",
+      "title": "F401: `tempfile` imported but unused",
+      "description": "`tempfile` imported but unused",
+      "file_path": "/home/mmber/banxe-emi-stack/tests/test_parsers_and_poller.py",
+      "line_start": 18,
+      "ignored": false
+    },
+    {
+      "id": "ruff-F401-e5e0c7a014ca",
+      "domain": "linting",
+      "source_tool": "ruff",
+      "severity": "medium",
+      "rule_id": "F401",
+      "title": "F401: `pathlib.Path` imported but unused",
+      "description": "`pathlib.Path` imported but unused",
+      "file_path": "/home/mmber/banxe-emi-stack/tests/test_parsers_and_poller.py",
+      "line_start": 21,
+      "ignored": false
+    },
+    {
+      "id": "ruff-F401-399697b3db28",
+      "domain": "linting",
+      "source_tool": "ruff",
+      "severity": "medium",
+      "rule_id": "F401",
+      "title": "F401: `pytest` imported but unused",
+      "description": "`pytest` imported but unused",
+      "file_path": "/home/mmber/banxe-emi-stack/tests/test_parsers_and_poller.py",
+      "line_start": 24,
+      "ignored": false
+    },
+    {
+      "id": "ruff_format-format-684052585c8f",
+      "domain": "formatting",
+      "source_tool": "ruff_format",
+      "severity": "low",
+      "rule_id": "format",
+      "title": "File needs formatting: services/config.py",
+      "description": "File services/config.py does not match ruff format style.",
+      "file_path": "/home/mmber/banxe-emi-stack/services/config.py",
+      "line_start": null,
+      "ignored": false
+    },
+    {
+      "id": "ruff_format-format-39d559f4d682",
+      "domain": "formatting",
+      "source_tool": "ruff_format",
+      "severity": "low",
+      "rule_id": "format",
+      "title": "File needs formatting: services/recon/clickhouse_client.py",
+      "description": "File services/recon/clickhouse_client.py does not match ruff format style.",
+      "file_path": "/home/mmber/banxe-emi-stack/services/recon/clickhouse_client.py",
+      "line_start": null,
+      "ignored": false
+    },
+    {
+      "id": "ruff_format-format-834926eb4a2e",
+      "domain": "formatting",
+      "source_tool": "ruff_format",
+      "severity": "low",
+      "rule_id": "format",
+      "title": "File needs formatting: services/recon/reconciliation_engine.py",
+      "description": "File services/recon/reconciliation_engine.py does not match ruff format style.",
+      "file_path": "/home/mmber/banxe-emi-stack/services/recon/reconciliation_engine.py",
+      "line_start": null,
+      "ignored": false
+    },
+    {
+      "id": "ruff_format-format-18fdd342f268",
+      "domain": "formatting",
+      "source_tool": "ruff_format",
+      "severity": "low",
+      "rule_id": "format",
+      "title": "File needs formatting: services/recon/statement_poller.py",
+      "description": "File services/recon/statement_poller.py does not match ruff format style.",
+      "file_path": "/home/mmber/banxe-emi-stack/services/recon/statement_poller.py",
+      "line_start": null,
+      "ignored": false
+    },
+    {
+      "id": "ruff_format-format-fd69d0da70a1",
+      "domain": "formatting",
+      "source_tool": "ruff_format",
+      "severity": "low",
+      "rule_id": "format",
+      "title": "File needs formatting: services/reporting/fin060_generator.py",
+      "description": "File services/reporting/fin060_generator.py does not match ruff format style.",
+      "file_path": "/home/mmber/banxe-emi-stack/services/reporting/fin060_generator.py",
+      "line_start": null,
+      "ignored": false
+    },
+    {
+      "id": "ruff_format-format-6ee9634c35ea",
+      "domain": "formatting",
+      "source_tool": "ruff_format",
+      "severity": "low",
+      "rule_id": "format",
+      "title": "File needs formatting: tests/test_parsers_and_poller.py",
+      "description": "File tests/test_parsers_and_poller.py does not match ruff format style.",
+      "file_path": "/home/mmber/banxe-emi-stack/tests/test_parsers_and_poller.py",
+      "line_start": null,
+      "ignored": false
+    },
+    {
+      "id": "coverage_py-cov-4862d63e371e",
+      "domain": "coverage",
+      "source_tool": "coverage_py",
+      "severity": "low",
+      "rule_id": "coverage_below_threshold",
+      "title": "Coverage 80.0% is below threshold 80.0%",
+      "description": "Project coverage is 80.0%, which is 0.0% below the required threshold of 80.0%. Lines: 882/1103 (80.0%)",
+      "file_path": null,
+      "line_start": null,
+      "ignored": false
+    },
+    {
+      "id": "duplo-bf61ba8bf123",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 4 lines",
+      "description": "Duplicate code block found between this file (lines 124-127) and services/payment/mock_payment_adapter.py (lines 113-116)",
+      "file_path": "/home/mmber/banxe-emi-stack/services/payment/mock_payment_adapter.py",
+      "line_start": 124,
+      "ignored": false
+    },
+    {
+      "id": "duplo-aab641e01efb",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 4 lines",
+      "description": "Duplicate code block found between this file (lines 113-116) and services/payment/mock_payment_adapter.py (lines 100-103)",
+      "file_path": "/home/mmber/banxe-emi-stack/services/payment/mock_payment_adapter.py",
+      "line_start": 113,
+      "ignored": false
+    },
+    {
+      "id": "duplo-30cad4d0f5e8",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 4 lines",
+      "description": "Duplicate code block found between this file (lines 124-127) and services/payment/mock_payment_adapter.py (lines 100-103)",
+      "file_path": "/home/mmber/banxe-emi-stack/services/payment/mock_payment_adapter.py",
+      "line_start": 124,
+      "ignored": false
+    },
+    {
+      "id": "duplo-a4b8610fc32c",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 4 lines",
+      "description": "Duplicate code block found between this file (lines 36-39) and services/payment/modulr_client.py (lines 43-46)",
+      "file_path": "/home/mmber/banxe-emi-stack/services/payment/mock_payment_adapter.py",
+      "line_start": 36,
+      "ignored": false
+    },
+    {
+      "id": "duplo-ec906b6c8813",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 4 lines",
+      "description": "Duplicate code block found between this file (lines 124-127) and services/payment/modulr_client.py (lines 128-131)",
+      "file_path": "/home/mmber/banxe-emi-stack/services/payment/mock_payment_adapter.py",
+      "line_start": 124,
+      "ignored": false
+    },
+    {
+      "id": "duplo-ef80ad360957",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 4 lines",
+      "description": "Duplicate code block found between this file (lines 113-116) and services/payment/modulr_client.py (lines 128-131)",
+      "file_path": "/home/mmber/banxe-emi-stack/services/payment/mock_payment_adapter.py",
+      "line_start": 113,
+      "ignored": false
+    },
+    {
+      "id": "duplo-d8ac07330582",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 5 lines",
+      "description": "Duplicate code block found between this file (lines 123-127) and services/payment/modulr_client.py (lines 140-144)",
+      "file_path": "/home/mmber/banxe-emi-stack/services/payment/mock_payment_adapter.py",
+      "line_start": 123,
+      "ignored": false
+    },
+    {
+      "id": "duplo-948576b19282",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 5 lines",
+      "description": "Duplicate code block found between this file (lines 99-103) and services/payment/modulr_client.py (lines 127-131)",
+      "file_path": "/home/mmber/banxe-emi-stack/services/payment/mock_payment_adapter.py",
+      "line_start": 99,
+      "ignored": false
+    },
+    {
+      "id": "duplo-f41422965ecd",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 4 lines",
+      "description": "Duplicate code block found between this file (lines 113-116) and services/payment/modulr_client.py (lines 141-144)",
+      "file_path": "/home/mmber/banxe-emi-stack/services/payment/mock_payment_adapter.py",
+      "line_start": 113,
+      "ignored": false
+    },
+    {
+      "id": "duplo-51f9662c75bd",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 4 lines",
+      "description": "Duplicate code block found between this file (lines 100-103) and services/payment/modulr_client.py (lines 141-144)",
+      "file_path": "/home/mmber/banxe-emi-stack/services/payment/mock_payment_adapter.py",
+      "line_start": 100,
+      "ignored": false
+    },
+    {
+      "id": "duplo-bce366bfb1f6",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 4 lines",
+      "description": "Duplicate code block found between this file (lines 124-127) and services/payment/payment_service.py (lines 206-209)",
+      "file_path": "/home/mmber/banxe-emi-stack/services/payment/mock_payment_adapter.py",
+      "line_start": 124,
+      "ignored": false
+    },
+    {
+      "id": "duplo-2f3d0d6d5ead",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 4 lines",
+      "description": "Duplicate code block found between this file (lines 113-116) and services/payment/payment_service.py (lines 206-209)",
+      "file_path": "/home/mmber/banxe-emi-stack/services/payment/mock_payment_adapter.py",
+      "line_start": 113,
+      "ignored": false
+    },
+    {
+      "id": "duplo-e9eccee0a227",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 5 lines",
+      "description": "Duplicate code block found between this file (lines 99-103) and services/payment/payment_service.py (lines 205-209)",
+      "file_path": "/home/mmber/banxe-emi-stack/services/payment/mock_payment_adapter.py",
+      "line_start": 99,
+      "ignored": false
+    },
+    {
+      "id": "duplo-bae0f76050e8",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 4 lines",
+      "description": "Duplicate code block found between this file (lines 141-144) and services/payment/modulr_client.py (lines 128-131)",
+      "file_path": "/home/mmber/banxe-emi-stack/services/payment/modulr_client.py",
+      "line_start": 141,
+      "ignored": false
+    },
+    {
+      "id": "duplo-1a8790ccc058",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 5 lines",
+      "description": "Duplicate code block found between this file (lines 282-286) and services/payment/modulr_client.py (lines 183-187)",
+      "file_path": "/home/mmber/banxe-emi-stack/services/payment/modulr_client.py",
+      "line_start": 282,
+      "ignored": false
+    },
+    {
+      "id": "duplo-2235049462d5",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 4 lines",
+      "description": "Duplicate code block found between this file (lines 141-144) and services/payment/payment_service.py (lines 206-209)",
+      "file_path": "/home/mmber/banxe-emi-stack/services/payment/modulr_client.py",
+      "line_start": 141,
+      "ignored": false
+    },
+    {
+      "id": "duplo-e2c5375feae8",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 7 lines",
+      "description": "Duplicate code block found between this file (lines 125-131) and services/payment/payment_service.py (lines 203-209)",
+      "file_path": "/home/mmber/banxe-emi-stack/services/payment/modulr_client.py",
+      "line_start": 125,
+      "ignored": false
+    },
+    {
+      "id": "duplo-64eaf50133b4",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 6 lines",
+      "description": "Duplicate code block found between this file (lines 131-137) and services/payment/payment_service.py (lines 108-114)",
+      "file_path": "/home/mmber/banxe-emi-stack/services/payment/payment_service.py",
+      "line_start": 131,
+      "ignored": false
+    },
+    {
+      "id": "duplo-15ecca5b2e35",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 7 lines",
+      "description": "Duplicate code block found between this file (lines 155-162) and services/payment/payment_service.py (lines 130-137)",
+      "file_path": "/home/mmber/banxe-emi-stack/services/payment/payment_service.py",
+      "line_start": 155,
+      "ignored": false
+    },
+    {
+      "id": "duplo-d7b4cd03535c",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 6 lines",
+      "description": "Duplicate code block found between this file (lines 156-162) and services/payment/payment_service.py (lines 108-114)",
+      "file_path": "/home/mmber/banxe-emi-stack/services/payment/payment_service.py",
+      "line_start": 156,
+      "ignored": false
+    },
+    {
+      "id": "duplo-039e26e8cd38",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 4 lines",
+      "description": "Duplicate code block found between this file (lines 39-42) and tests/test_payment_service.py (lines 26-29)",
+      "file_path": "/home/mmber/banxe-emi-stack/services/payment/payment_service.py",
+      "line_start": 39,
+      "ignored": false
+    },
+    {
+      "id": "duplo-dded1f850474",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 5 lines",
+      "description": "Duplicate code block found between this file (lines 28-32) and services/reporting/fin060_generator.py (lines 18-22)",
+      "file_path": "/home/mmber/banxe-emi-stack/services/recon/clickhouse_client.py",
+      "line_start": 28,
+      "ignored": false
+    },
+    {
+      "id": "duplo-51f9b0b1d5ef",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 4 lines",
+      "description": "Duplicate code block found between this file (lines 149-152) and services/recon/reconciliation_engine.py (lines 129-132)",
+      "file_path": "/home/mmber/banxe-emi-stack/services/recon/reconciliation_engine.py",
+      "line_start": 149,
+      "ignored": false
+    },
+    {
+      "id": "duplo-32b22296aad9",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 12 lines",
+      "description": "Duplicate code block found between this file (lines 108-119) and services/recon/statement_fetcher.py (lines 89-100)",
+      "file_path": "/home/mmber/banxe-emi-stack/services/recon/statement_fetcher.py",
+      "line_start": 108,
+      "ignored": false
+    },
+    {
+      "id": "duplo-6b0908f11d60",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 4 lines",
+      "description": "Duplicate code block found between this file (lines 117-120) and tests/test_payment_service.py (lines 102-105)",
+      "file_path": "/home/mmber/banxe-emi-stack/tests/test_payment_service.py",
+      "line_start": 117,
+      "ignored": false
+    },
+    {
+      "id": "duplo-773c55d8bf9e",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 6 lines",
+      "description": "Duplicate code block found between this file (lines 122-127) and tests/test_payment_service.py (lines 107-112)",
+      "file_path": "/home/mmber/banxe-emi-stack/tests/test_payment_service.py",
+      "line_start": 122,
+      "ignored": false
+    },
+    {
+      "id": "duplo-976876352f2d",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 4 lines",
+      "description": "Duplicate code block found between this file (lines 132-135) and tests/test_payment_service.py (lines 117-120)",
+      "file_path": "/home/mmber/banxe-emi-stack/tests/test_payment_service.py",
+      "line_start": 132,
+      "ignored": false
+    },
+    {
+      "id": "duplo-72c089c924ba",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 5 lines",
+      "description": "Duplicate code block found between this file (lines 138-142) and tests/test_payment_service.py (lines 123-127)",
+      "file_path": "/home/mmber/banxe-emi-stack/tests/test_payment_service.py",
+      "line_start": 138,
+      "ignored": false
+    },
+    {
+      "id": "duplo-bd4bf75bed41",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 4 lines",
+      "description": "Duplicate code block found between this file (lines 132-135) and tests/test_payment_service.py (lines 102-105)",
+      "file_path": "/home/mmber/banxe-emi-stack/tests/test_payment_service.py",
+      "line_start": 132,
+      "ignored": false
+    },
+    {
+      "id": "duplo-4d27bbc3d15c",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 5 lines",
+      "description": "Duplicate code block found between this file (lines 138-142) and tests/test_payment_service.py (lines 108-112)",
+      "file_path": "/home/mmber/banxe-emi-stack/tests/test_payment_service.py",
+      "line_start": 138,
+      "ignored": false
+    },
+    {
+      "id": "duplo-3e5037af8265",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 4 lines",
+      "description": "Duplicate code block found between this file (lines 149-152) and tests/test_reconciliation.py (lines 132-135)",
+      "file_path": "/home/mmber/banxe-emi-stack/tests/test_reconciliation.py",
+      "line_start": 149,
+      "ignored": false
+    },
+    {
+      "id": "duplo-66b7da842cb8",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 6 lines",
+      "description": "Duplicate code block found between this file (lines 132-138) and tests/test_reconciliation.py (lines 112-118)",
+      "file_path": "/home/mmber/banxe-emi-stack/tests/test_reconciliation.py",
+      "line_start": 132,
+      "ignored": false
+    },
+    {
+      "id": "duplo-e97ac567c3ba",
+      "domain": "duplication",
+      "source_tool": "duplo",
+      "severity": "low",
+      "rule_id": "DUPLICATE",
+      "title": "Code duplicate: 4 lines",
+      "description": "Duplicate code block found between this file (lines 149-152) and tests/test_reconciliation.py (lines 112-115)",
+      "file_path": "/home/mmber/banxe-emi-stack/tests/test_reconciliation.py",
+      "line_start": 149,
+      "ignored": false
+    },
+    {
+      "id": "mandatory-skip-scalafix",
+      "domain": "linting",
+      "source_tool": "lucidshark",
+      "severity": "high",
+      "rule_id": "mandatory-tool-skipped",
+      "title": "Mandatory tool 'scalafix' is not installed",
+      "description": "scalafix is not installed. Install it with:\n  cs install scalafix\nor add sbt-scalafix plugin to your build.",
+      "file_path": null,
+      "line_start": null,
+      "ignored": false
+    },
+    {
+      "id": "mandatory-skip-mypy",
+      "domain": "type_checking",
+      "source_tool": "lucidshark",
+      "severity": "high",
+      "rule_id": "mandatory-tool-skipped",
+      "title": "Mandatory tool 'mypy' is not installed",
+      "description": "mypy is not installed. Install it with: pip install mypy",
+      "file_path": null,
+      "line_start": null,
+      "ignored": false
+    },
+    {
+      "id": "mandatory-skip-pyright",
+      "domain": "type_checking",
+      "source_tool": "lucidshark",
+      "severity": "high",
+      "rule_id": "mandatory-tool-skipped",
+      "title": "Mandatory tool 'pyright' is not installed",
+      "description": "pyright is not installed. Install it with:\n  pip install pyright\n  OR\n  npm install -g pyright",
+      "file_path": null,
+      "line_start": null,
+      "ignored": false
+    },
+    {
+      "id": "mandatory-skip-scala_compile",
+      "domain": "type_checking",
+      "source_tool": "lucidshark",
+      "severity": "high",
+      "rule_id": "mandatory-tool-skipped",
+      "title": "Mandatory tool 'scala_compile' is not installed",
+      "description": "No build system found. Ensure pom.xml (Maven) or build.gradle (Gradle) exists.",
+      "file_path": null,
+      "line_start": null,
+      "ignored": false
+    },
+    {
+      "id": "mandatory-skip-scalafmt",
+      "domain": "formatting",
+      "source_tool": "lucidshark",
+      "severity": "high",
+      "rule_id": "mandatory-tool-skipped",
+      "title": "Mandatory tool 'scalafmt' is not installed",
+      "description": "scalafmt is not installed. Install it with:\n  cs install scalafmt\nor add sbt-scalafmt plugin to your build.",
+      "file_path": null,
+      "line_start": null,
+      "ignored": false
+    },
+    {
+      "id": "mandatory-skip-sbt",
+      "domain": "testing",
+      "source_tool": "lucidshark",
+      "severity": "high",
+      "rule_id": "mandatory-tool-skipped",
+      "title": "Mandatory tool 'sbt' is not installed",
+      "description": "No build system found. Ensure pom.xml (Maven) or build.gradle (Gradle) exists.",
+      "file_path": null,
+      "line_start": null,
+      "ignored": false
+    },
+    {
+      "id": "mandatory-skip-scoverage",
+      "domain": "coverage",
+      "source_tool": "lucidshark",
+      "severity": "high",
+      "rule_id": "mandatory-tool-skipped",
+      "title": "Mandatory tool 'scoverage' missing prerequisites",
+      "description": "No build system found. Ensure pom.xml (Maven) or build.gradle (Gradle) exists.",
+      "file_path": null,
+      "line_start": null,
+      "ignored": false
+    }
+  ],
+  "metadata": {
+    "lucidshark_version": "0.7.5",
+    "scan_started_at": "2026-04-07T11:10:13.556161+00:00",
+    "scan_finished_at": "2026-04-07T11:10:23.828615+00:00",
+    "duration_ms": 10272,
+    "project_root": "/home/mmber/banxe-emi-stack",
+    "scanners_used": [
+      {
+        "name": "ruff",
+        "domains": [
+          "linting"
+        ],
+        "success": true,
+        "error": null
+      },
+      {
+        "name": "scalafix",
+        "domains": [
+          "linting"
+        ],
+        "success": true,
+        "error": null
+      },
+      {
+        "name": "mypy",
+        "domains": [
+          "type_checking"
+        ],
+        "success": true,
+        "error": null
+      },
+      {
+        "name": "pyright",
+        "domains": [
+          "type_checking"
+        ],
+        "success": true,
+        "error": null
+      },
+      {
+        "name": "scala_compile",
+        "domains": [
+          "type_checking"
+        ],
+        "success": true,
+        "error": null
+      },
+      {
+        "name": "ruff_format",
+        "domains": [
+          "formatting"
+        ],
+        "success": true,
+        "error": null
+      },
+      {
+        "name": "scalafmt",
+        "domains": [
+          "formatting"
+        ],
+        "success": true,
+        "error": null
+      },
+      {
+        "name": "pytest",
+        "domains": [
+          "testing"
+        ],
+        "success": true,
+        "error": null
+      },
+      {
+        "name": "sbt",
+        "domains": [
+          "testing"
+        ],
+        "success": true,
+        "error": null
+      },
+      {
+        "name": "coverage_py",
+        "domains": [
+          "coverage"
+        ],
+        "success": true,
+        "error": null
+      },
+      {
+        "name": "scoverage",
+        "domains": [
+          "coverage"
+        ],
+        "success": true,
+        "error": null
+      },
+      {
+        "name": "duplo",
+        "domains": [
+          "duplication"
+        ],
+        "success": true,
+        "error": null
+      }
+    ],
+    "enabled_domains": [
+      "linting",
+      "type_checking",
+      "formatting",
+      "testing",
+      "coverage",
+      "duplication",
+      "linting",
+      "type_checking",
+      "formatting",
+      "testing",
+      "coverage",
+      "duplication"
+    ],
+    "executed_domains": [
+      "linting",
+      "type_checking",
+      "formatting",
+      "testing",
+      "coverage",
+      "duplication",
+      "linting",
+      "type_checking",
+      "formatting",
+      "testing",
+      "coverage",
+      "duplication"
+    ],
+    "all_files": false
+  },
+  "summary": {
+    "total": 53,
+    "ignored_total": 0,
+    "by_severity": {
+      "medium": 6,
+      "low": 40,
+      "high": 7
+    },
+    "by_scanner": {
+      "linting": 7,
+      "formatting": 7,
+      "coverage": 2,
+      "duplication": 33,
+      "type_checking": 3,
+      "testing": 1
+    }
+  },
+  "coverage_summary": {
+    "coverage_percentage": 0.0,
+    "threshold": 80.0,
+    "total_lines": 0,
+    "covered_lines": 0,
+    "missing_lines": 0,
+    "passed": false
+  },
+  "duplication_summary": {
+    "files_analyzed": 17,
+    "total_lines": 1474,
+    "duplicate_blocks": 33,
+    "duplicate_lines": 161,
+    "duplication_percent": 10.92,
+    "threshold": 10.0,
+    "passed": false
+  }
+}

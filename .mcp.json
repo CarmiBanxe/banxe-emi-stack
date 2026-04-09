@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "lucidshark": {
+      "command": "lucidshark",
+      "args": [
+        "serve",
+        "--mcp",
+        "."
+      ]
+    }
+  }
+}

@@ -5,14 +5,13 @@ IL-022 | FCA Consumer Duty DISP | banxe-emi-stack
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from typing import List
 from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
 
 from services.complaints.complaint_service import (
-    ComplaintService,
     SLABreach,
     SLAWarning,
 )

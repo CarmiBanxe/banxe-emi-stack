@@ -11,9 +11,6 @@ import pytest
 
 from services.complaints.complaint_service import (
     ComplaintService,
-    ComplaintRepository,
-    SLABreach,
-    SLAWarning,
 )
 
 

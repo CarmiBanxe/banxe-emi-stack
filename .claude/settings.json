@@ -1,0 +1,18 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[LucidShark] Code modified \u2014 scan before completing task (mcp__lucidshark__scan or lucidshark scan --fix --format ai)'"
+          }
+        ]
+      }
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "lucidshark"
+  ]
+}

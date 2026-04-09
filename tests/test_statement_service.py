@@ -11,10 +11,8 @@ from decimal import Decimal
 import pytest
 
 from services.statements.statement_service import (
-    AccountStatement,
     AccountStatementService,
     InMemoryTransactionRepository,
-    StatementFormat,
     TransactionLine,
 )
 

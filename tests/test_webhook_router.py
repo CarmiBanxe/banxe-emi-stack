@@ -13,7 +13,6 @@ import pytest
 
 from services.webhooks.webhook_router import (
     InMemoryWebhookAuditStore,
-    WebhookEvent,
     WebhookProcessor,
     WebhookProvider,
     WebhookStatus,

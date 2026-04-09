@@ -37,9 +37,12 @@ from api.routers import (
     hitl,
     kyc,
     ledger,
+    mlro_notifications,
     notifications,
     payments,
     reporting,
+    sanctions_rescreen,
+    watchman_webhook,
 )
 
 logger = logging.getLogger("banxe.api")
@@ -106,3 +109,6 @@ app.include_router(fraud.router, prefix="/v1")
 app.include_router(consumer_duty.router, prefix="/v1")
 app.include_router(hitl.router, prefix="/v1")
 app.include_router(reporting.router, prefix="/v1")
+app.include_router(watchman_webhook.router)          # POST /webhooks/watchman (IL-068)
+app.include_router(mlro_notifications.router)        # POST /internal/notifications/mlro (IL-068)
+app.include_router(sanctions_rescreen.router)        # POST /compliance/sanctions/rescreen/high-risk (IL-068)
