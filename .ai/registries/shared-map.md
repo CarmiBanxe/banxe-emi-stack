@@ -1,7 +1,7 @@
 # Shared Map — banxe-emi-stack
 # Source: services/config/, services/events/, services/providers/, .env.example
-# Created: 2026-04-10
-# Migration Phase: 4
+# Created: 2026-04-10 | Updated: 2026-04-10 (Phase 5 intelligence pass)
+# Migration Phase: 5
 # Purpose: Shared infrastructure, event bus, config, and cross-cutting concerns
 
 ## Shared infrastructure services
@@ -70,16 +70,23 @@
 |----------|-----------|-------|
 | Midaz CBS | MIDAZ_BASE_URL, MIDAZ_ORG_ID, MIDAZ_LEDGER_ID, MIDAZ_TOKEN | 4 |
 | Safeguarding accounts | SAFEGUARDING_CLIENT_FUNDS_ACCOUNT, SAFEGUARDING_OPERATIONAL_ACCOUNT | 2 |
-| PostgreSQL | POSTGRES_HOST/PORT/DB/USER/PASSWORD | 5 |
-| ClickHouse | CLICKHOUSE_HOST/PORT/DB/USER/PASSWORD | 5 |
+| PostgreSQL | POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD | 5 |
+| ClickHouse | CLICKHOUSE_HOST, CLICKHOUSE_PORT, CLICKHOUSE_DB, CLICKHOUSE_USER, CLICKHOUSE_PASSWORD | 5 |
 | Redis | REDIS_URL | 1 |
 | n8n | N8N_WEBHOOK_URL | 1 |
-| Bank statements | STATEMENT_DIR, ADORSYS_PSD2_URL, IBANs | 5 |
+| Bank statements | STATEMENT_DIR, ADORSYS_PSD2_URL, ADORSYS_BANK_IBAN, SAFEGUARDING_OPERATIONAL_IBAN, SAFEGUARDING_CLIENT_FUNDS_IBAN | 5 |
+| PSD2 | PSD2_POSTGRES_USER, PSD2_POSTGRES_PASSWORD | 2 |
 | FX | FRANKFURTER_URL | 1 |
 | dbt | DBT_PROFILES_DIR, DBT_TARGET | 2 |
 | FCA Reporting | FCA_REGDATA_URL, FIN060_OUTPUT_DIR | 2 |
 | Reconciliation | RECON_THRESHOLD_GBP, RECON_CURRENCY | 2 |
-| **Total** | | **30** |
+| **Total** | | **32** |
+
+### Phase 5 correction note
+
+Phase 4 counted 30 env vars. Actual count from `.env.example` is **32**:
+- Added PSD2 category (PSD2_POSTGRES_USER, PSD2_POSTGRES_PASSWORD) — previously uncounted
+- Bank statements category correctly has 5 vars (3 IBANs were grouped as "IBANs" without explicit count)
 
 ---
-*Last updated: 2026-04-10 (Phase 4 migration)*
+*Last updated: 2026-04-10 (Phase 5 system intelligence pass)*
