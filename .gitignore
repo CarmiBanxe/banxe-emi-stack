@@ -14,3 +14,10 @@ dbt_packages/
 logs/
 *.log
 *.pdf
+
+# Migration snapshots (Phase 3)
+.ai/snapshots/*.tar.gz
+
+# Local Claude Code overrides (not committed)
+CLAUDE.local.md
+.claude/settings.local.json
