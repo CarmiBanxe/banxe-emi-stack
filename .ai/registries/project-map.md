@@ -1,15 +1,17 @@
 # Project Map — banxe-emi-stack
-# Source: Full repo structure analysis
-# Created: 2026-04-10
-# Migration Phase: 4
+# Source: Full repo scan (FUNCTION 1 — Architecture Skill Orchestrator)
+# Created: 2026-04-10 | Updated: 2026-04-10 (post-Phase 6 scan)
 # Purpose: Living project structure and module map
 
-## Stats (2026-04-10)
+## Stats (2026-04-10 — post-Phase 6)
 
-- Files: 249 | Directories: 65
-- Service modules: 22 | Test files: 46 (995 tests)
-- API endpoints: 42 | Docker compose files: 3
-- Python deps: ~20 (requirements.txt) | Compliance deps: ~7 (requirements-compliance.txt)
+- Python files: ~100+ (services/ + api/) | LoC: ~16,617 (services + api)
+- Service modules: 22 | Test files: 47 | Tests: 1,102 | Coverage: 86.89%
+- API routers: 14 | Endpoints: 42 | Pydantic models: 20+
+- Service adapters: 14 (Mock/Jube/Sardine/Modulr/SendGrid/Balleryne/Marble/Keycloak/Midaz/Stub…)
+- Docker compose files: 3 | Docker services: 8 (3 always-on + 5 on-demand)
+- Agents (swarm): 7 compliance agents + 1 coordinator
+- Python: 3.12 | FastAPI: 0.111+ | Pydantic: 2.0+
 
 ## Top-level structure
 
@@ -19,10 +21,9 @@ banxe-emi-stack/
 ├── CHANGELOG.md              # Keep-a-Changelog format (v0.1.0..v0.7.0)
 ├── QUALITY.md                # Quality tracking
 ├── ROADMAP.md                # Phase 1-4 feature roadmap
-├── pyproject.toml            # Python project config
-├── requirements.txt          # Runtime dependencies
-├── requirements-compliance.txt  # Compliance pipeline dependencies
-├── .env.example              # Environment variable template (34 vars)
+├── pyproject.toml            # Python project config (py312, ruff, pytest)
+├── requirements.txt          # Runtime dependencies (~12 packages)
+├── requirements-compliance.txt  # Compliance pipeline deps (chromadb, s-transformers)
 │
 ├── .claude/                  # Claude Code configuration
 │   ├── CLAUDE.md             # LucidShark + session continuity protocol
@@ -34,56 +35,105 @@ banxe-emi-stack/
 │   └── skills/lucidshark/    # LucidShark skill definition
 │
 ├── .ai/                      # AI project intelligence (Phase 3+4)
-│   ├── registries/           # Machine-readable persistent maps
-│   ├── reports/              # Human-readable analysis
+│   ├── registries/           # 12 machine-readable maps (this file)
+│   ├── reports/              # 7 human-readable reports (incl. phase6)
 │   └── snapshots/            # Migration checkpoints
 │
-├── api/                      # FastAPI REST layer (IL-046)
-│   ├── main.py               # FastAPI app entrypoint
-│   ├── deps.py               # Dependency injection
-│   ├── models/               # 10 Pydantic model files
-│   └── routers/              # 13 router files (42 endpoints)
+├── api/                      # FastAPI REST layer
+│   ├── main.py               # FastAPI app entrypoint (14 routers)
+│   ├── deps.py               # Dependency injection (auth resolver)
+│   ├── models/               # 10 Pydantic model files (20+ models)
+│   └── routers/              # 14 router files (42 endpoints)
 │
-├── services/                 # Business logic (22 modules, 56 files)
-│   ├── agreement/            # Banking core — agreement lifecycle
-│   ├── aml/                  # AML thresholds, SAR, velocity, tx monitor
-│   ├── auth/                 # 2FA authentication
-│   ├── case_management/      # Marble adapter, case factory
-│   ├── complaints/           # Consumer complaints + n8n webhook
-│   ├── config/               # YAML config store (config-as-data)
-│   ├── consumer_duty/        # PS22/9 consumer duty
-│   ├── customer/             # Customer CRUD
-│   ├── events/               # RabbitMQ event bus
-│   ├── fraud/                # FraudAML pipeline, Jube + Sardine adapters
-│   ├── hitl/                 # Human-in-the-loop feedback
-│   ├── iam/                  # Keycloak IAM adapter
-│   ├── kyc/                  # KYC workflow, mock adapter
-│   ├── ledger/               # Midaz CBS client + adapter
-│   ├── notifications/        # Email/SMS/Telegram notification
-│   ├── payment/              # Modulr payments, FPS/SEPA/BACS
-│   ├── providers/            # Provider registry (plugin architecture)
-│   ├── recon/                # Safeguarding reconciliation (10 files)
-│   ├── reporting/            # FIN060 PDF generation, RegData
-│   ├── resolution/           # Resolution pack generation
-│   ├── statements/           # Account statement service
-│   └── webhooks/             # Webhook router
+├── services/                 # Business logic (22 modules, ~56 files)
+│   ├── aml/                  # AML: tx monitor, SAR, velocity, thresholds [ACTIVE]
+│   ├── fraud/                # Fraud pipeline, Jube + Sardine adapters [ACTIVE+STUB]
+│   ├── kyc/                  # KYC workflow, Balleryne adapter [ACTIVE+STUB]
+│   ├── hitl/                 # HITL queue, org roles, feedback loop [ACTIVE]
+│   ├── payment/              # Modulr FPS/SEPA, webhook [ACTIVE+STUB]
+│   ├── notifications/        # SendGrid email, mock [ACTIVE]
+│   ├── customer/             # Customer CRUD, lifecycle [ACTIVE]
+│   ├── ledger/               # Midaz CBS balance adapter [STUB]
+│   ├── recon/                # CASS 7.15 reconciliation (10 files) [ACTIVE+STUB]
+│   ├── reporting/            # FIN060 PDF, RegData returns [ACTIVE+STUB]
+│   ├── case_management/      # Marble adapter, case factory [STUB]
+│   ├── iam/                  # Keycloak IAM adapter [STUB]
+│   ├── events/               # RabbitMQ event bus [ACTIVE]
+│   ├── agreement/            # Agreement lifecycle [STUB]
+│   ├── config/               # YAML/PostgreSQL config store [ACTIVE]
+│   ├── consumer_duty/        # FCA PS22/9 assessment [ACTIVE]
+│   ├── complaints/           # Consumer complaints + n8n [ACTIVE]
+│   ├── auth/                 # 2FA authentication [ACTIVE]
+│   ├── statements/           # Account statement service [ACTIVE]
+│   ├── resolution/           # Resolution pack generation [ACTIVE]
+│   ├── webhooks/             # Inbound webhook router [ACTIVE]
+│   └── providers/            # Provider registry (factory pattern) [ACTIVE]
 │
 ├── agents/compliance/        # AI compliance swarm (7 soul agents)
-│   ├── swarm.yaml            # Swarm orchestration config
+│   ├── swarm.yaml            # Swarm orchestration (Claude AI, tools, memory)
 │   ├── soul/                 # 7 agent soul files
 │   └── workflows/            # 2 compliance workflows
 │
-├── tests/                    # 46 test files (995 tests, coverage ≥80%)
+├── tests/                    # 47 test files | 1,102 tests | 86.89% coverage
 ├── scripts/                  # 17 operational/deploy scripts
-├── dbt/                      # dbt-clickhouse models (6 files)
+├── dbt/                      # dbt-clickhouse models (6 files, FIN060 transforms)
 ├── docker/                   # 3 compose files + postgres init
 ├── config/                   # Runtime config (YAML, Keycloak, n8n, providers)
 ├── docs/                     # API.md, ONBOARDING.md, RUNBOOK.md
 ├── infra/ballerine/          # Ballerine KYC deployment
 ├── n8n/                      # n8n workflow definitions
-├── prompts/                  # Workflow prompts (Phase 4)
+├── prompts/                  # Workflow prompts (01-safety, 02-refactoring, 03-orchestrator)
 └── .semgrep/                 # Custom security rules (10 rules)
 ```
 
 ---
-*Last updated: 2026-04-10 (Phase 4 migration)*
+
+## Service modules — status detail
+
+| Module | Files | Domain | Status | Key class | Coverage |
+|--------|-------|--------|--------|-----------|----------|
+| `aml/` | 4 | AML/Compliance | ACTIVE | TxMonitorService, SARService, RedisVelocityTracker | 94%+ |
+| `fraud/` | 5 | Fraud/PSR | ACTIVE+STUB | FraudAMLPipeline, JubeAdapter, SardineFraudAdapter | 85%+ |
+| `kyc/` | 3 | KYC | ACTIVE+STUB | MockKYCWorkflow, BallerineAdapter | 94%+ |
+| `hitl/` | 4 | Compliance Gate | ACTIVE | HITLService, OrgRoleChecker, FeedbackLoopAnalyser | 93%+ |
+| `payment/` | 5 | Transactions | ACTIVE+STUB | PaymentService, ModulrPaymentAdapter | 67%+ |
+| `notifications/` | 4 | Infra | ACTIVE | NotificationService, SendGridAdapter | 84%+ |
+| `customer/` | 2 | Banking Core | ACTIVE | InMemoryCustomerService, ClickHouseCustomerService | 94%+ |
+| `ledger/` | 2 | Banking Core | STUB | MidazLedgerAdapter, StubLedgerAdapter | 45% |
+| `recon/` | 10 | Banking Core | ACTIVE+STUB | ReconciliationEngine, BreachDetector | 37–100% |
+| `reporting/` | 3 | Reporting | ACTIVE+STUB | FIN060Generator, RegDataReturnService | 96% |
+| `case_management/` | 4 | Compliance | STUB | MarbleAdapter, CaseFactory | unknown |
+| `iam/` | 2 | Infra | STUB | KeycloakAdapter, MockIAMAdapter | 93% |
+| `events/` | 1 | Infra | ACTIVE | RabbitMQEventBus | 94% |
+| `agreement/` | 1 | Banking Core | STUB | — | unknown |
+| `config/` | 2 | Infra | ACTIVE | YAMLConfigStore, PostgreSQLConfigStore | unknown |
+| `consumer_duty/` | 2 | Compliance | ACTIVE | ConsumerDutyService | unknown |
+| `complaints/` | 2 | Compliance | ACTIVE | ComplaintService (n8n webhook) | unknown |
+| `auth/` | 1 | Infra | ACTIVE | TwoFactorService | unknown |
+| `statements/` | 2 | Banking Core | ACTIVE | StatementService | 95% |
+| `resolution/` | 1 | Compliance | ACTIVE | ResolutionPackService | 100% |
+| `webhooks/` | 1 | Infra | ACTIVE | WebhookRouter | 95% |
+| `providers/` | 1 | Infra | ACTIVE | ProviderRegistry (factory) | 87% |
+
+## Adapters — swappable at runtime
+
+| Adapter | Provider | Status | Env var to activate |
+|---------|----------|--------|---------------------|
+| MockFraudAdapter | Internal | ACTIVE (default) | FRAUD_ADAPTER=mock |
+| JubeAdapter | Jube (gmktec:5001) | ACTIVE | FRAUD_ADAPTER=jube |
+| SardineFraudAdapter | Sardine.ai | STUB | SARDINE_CLIENT_ID + SARDINE_SECRET_KEY |
+| MockKYCWorkflow | Internal | ACTIVE (default) | — |
+| BallerineAdapter | Balleryne (gmktec:3000) | STUB | — |
+| MockCaseAdapter | Internal | ACTIVE (default) | — |
+| MarbleAdapter | Checkmarble | STUB | MARBLE_API_KEY |
+| MockIAMAdapter | Internal | ACTIVE (default) | — |
+| KeycloakAdapter | Keycloak (gmktec:8180) | STUB | — |
+| ModulrPaymentAdapter | Modulr (sandbox) | ACTIVE | MODULR_API_KEY |
+| MockPaymentAdapter | Internal | ACTIVE (default) | — |
+| SendGridAdapter | SendGrid | ACTIVE | SENDGRID_API_KEY |
+| MockNotificationAdapter | Internal | ACTIVE (default) | — |
+| MidazLedgerAdapter | Midaz (localhost:8095) | STUB | MIDAZ_TOKEN |
+
+---
+
+*Last updated: 2026-04-10 (FUNCTION 1 scan — post-Phase 6)*

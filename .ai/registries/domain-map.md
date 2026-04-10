@@ -1,87 +1,143 @@
 # Domain Map — banxe-emi-stack
-# Source: services/ analysis, agents/compliance/, config/banxe_config.yaml
-# Created: 2026-04-10
-# Migration Phase: 4
-# Purpose: Domain boundaries, trust zones, and service ownership
+# Source: services/ full scan (FUNCTION 1 — Architecture Skill Orchestrator)
+# Created: 2026-04-10 | Updated: 2026-04-10 (post-Phase 6 scan)
+# Purpose: Domain boundaries, trust zones, service ownership, data flows
 
 ## Domain overview
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                     BANXE EMI DOMAIN MAP                            │
-├───────────────┬─────────────────┬───────────────────────────────────┤
-│ BANKING CORE  │ COMPLIANCE      │ INFRASTRUCTURE                    │
-│ (GREEN zone)  │ (RED zone)      │ (BLUE zone)                       │
-├───────────────┼─────────────────┼───────────────────────────────────┤
-│ ledger/       │ aml/            │ auth/                             │
-│ payment/      │ fraud/          │ config/                           │
-│ customer/     │ kyc/            │ events/                           │
-│ agreement/    │ case_management/│ iam/                              │
-│ statements/   │ consumer_duty/  │ notifications/                    │
-│ recon/        │ complaints/     │ providers/                        │
-│ reporting/    │ resolution/     │ webhooks/                         │
-│               │ hitl/           │                                   │
-└───────────────┴─────────────────┴───────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          BANXE EMI DOMAIN MAP                               │
+├───────────────────┬───────────────────────┬─────────────────────────────────┤
+│  BANKING CORE     │  COMPLIANCE / RED ZONE│  INFRASTRUCTURE                 │
+│  (GREEN zone)     │  (highest sensitivity)│  (BLUE zone)                    │
+├───────────────────┼───────────────────────┼─────────────────────────────────┤
+│ ledger/       STUB│ aml/          ACTIVE  │ auth/          ACTIVE           │
+│ payment/    ACTIVE│ fraud/     ACT+STUB   │ config/        ACTIVE           │
+│ customer/   ACTIVE│ kyc/       ACT+STUB   │ events/        ACTIVE           │
+│ agreement/    STUB│ case_mgmt/    STUB    │ iam/           STUB             │
+│ statements/ ACTIVE│ consumer_duty/ACTIVE  │ notifications/ ACTIVE           │
+│ recon/      ACTIVE│ complaints/   ACTIVE  │ providers/     ACTIVE           │
+│ reporting/  ACTIVE│ resolution/   ACTIVE  │ webhooks/      ACTIVE           │
+│                   │ hitl/         ACTIVE  │                                 │
+└───────────────────┴───────────────────────┴─────────────────────────────────┘
 ```
 
 ## Domains
 
 ### Banking Core (GREEN trust zone)
 
-| Service | Files | Purpose | FCA reference |
-|---------|-------|---------|---------------|
-| `services/ledger/` | 3 | Midaz CBS client — balance queries, tx creation | CASS 15.3 |
-| `services/payment/` | 7 | Payment rails — FPS, SEPA, BACS via Modulr | PSR 2017 |
-| `services/customer/` | 3 | Customer lifecycle CRUD | GDPR Art.5 |
-| `services/agreement/` | 3 | Agreement/contract lifecycle | — |
-| `services/statements/` | 2 | Account statement generation | FCA PS7/24 |
-| `services/recon/` | 10 | Daily safeguarding reconciliation | CASS 7.15 |
-| `services/reporting/` | 3 | FIN060 PDF, RegData returns | CASS 15.12 |
+| Service | Files | Purpose | FCA reference | Status |
+|---------|-------|---------|---------------|--------|
+| `services/ledger/` | 2 | Midaz CBS balance queries | CASS 15.3 | STUB |
+| `services/payment/` | 5 | FPS/SEPA/BACS via Modulr | PSR 2017 | ACTIVE+STUB |
+| `services/customer/` | 2 | Customer lifecycle CRUD | GDPR Art.5 | ACTIVE |
+| `services/agreement/` | 1 | Agreement/contract lifecycle | — | STUB |
+| `services/statements/` | 2 | Account statement generation | FCA PS7/24 | ACTIVE |
+| `services/recon/` | 10 | CASS 7.15 daily safeguarding recon | CASS 7.15 | ACTIVE+STUB |
+| `services/reporting/` | 3 | FIN060 PDF + RegData submission | CASS 15.12.4R | ACTIVE+STUB |
 
 ### Compliance (RED trust zone — highest sensitivity)
 
-| Service | Files | Purpose | FCA reference |
-|---------|-------|---------|---------------|
-| `services/aml/` | 5 | AML thresholds, SAR service, tx monitoring, velocity | MLR 2017 |
-| `services/fraud/` | 6 | FraudAML pipeline, Jube + Sardine adapters | MLR 2017 Reg.26 |
-| `services/kyc/` | 3 | KYC workflow, Ballerine adapter | MLR 2017 §18 |
-| `services/case_management/` | 5 | Marble adapter, case factory | EU AI Act Art.14 |
-| `services/consumer_duty/` | 3 | Consumer duty assessment (PS22/9) | PS22/9 |
-| `services/complaints/` | 3 | Consumer complaints + n8n webhook | DISP rules |
-| `services/resolution/` | 2 | Resolution pack generation | — |
-| `services/hitl/` | 5 | Human-in-the-loop feedback, PROPOSES only | EU AI Act Art.14 |
-| `agents/compliance/` | 10 | AI compliance swarm (7 soul agents, 2 workflows) | MLR 2017, JMLSG |
+| Service | Files | Purpose | FCA reference | Status |
+|---------|-------|---------|---------------|--------|
+| `services/aml/` | 4 | SAR filing, tx monitoring, velocity tracking | MLR 2017 / POCA 2002 s.330 | ACTIVE |
+| `services/fraud/` | 5 | FraudAML pipeline, Jube + Sardine adapters | PSR APP 2024 / MLR 2017 Reg.26 | ACTIVE+STUB |
+| `services/kyc/` | 3 | KYC workflow, Balleryne EDD | MLR 2017 §18 | ACTIVE+STUB |
+| `services/case_management/` | 4 | Marble case routing + case factory | EU AI Act Art.14 | STUB |
+| `services/consumer_duty/` | 2 | PS22/9 fair value + vulnerability assessment | PS22/9 | ACTIVE |
+| `services/complaints/` | 2 | Consumer complaints + n8n webhook | FCA DISP rules | ACTIVE |
+| `services/resolution/` | 1 | Resolution pack generation | FCA DISP | ACTIVE |
+| `services/hitl/` | 4 | HITL review queue, org roles, SLA tracking | EU AI Act Art.14 | ACTIVE |
 
-### Infrastructure (BLUE trust zone)
+### Infrastructure (BLUE zone)
 
-| Service | Files | Purpose |
-|---------|-------|---------|
-| `services/auth/` | 2 | Two-factor authentication |
-| `services/config/` | 4 | YAML config store (config-as-data, IL-040) |
-| `services/events/` | 2 | RabbitMQ event bus |
-| `services/iam/` | 3 | Keycloak IAM adapter (7 roles) |
-| `services/notifications/` | 5 | Email (SendGrid), SMS (Twilio), Telegram |
-| `services/providers/` | 2 | Provider registry (plugin architecture) |
-| `services/webhooks/` | 2 | Webhook routing |
+| Service | Files | Purpose | Status |
+|---------|-------|---------|--------|
+| `services/auth/` | 1 | 2FA service | ACTIVE |
+| `services/config/` | 2 | YAML + PostgreSQL config store | ACTIVE |
+| `services/events/` | 1 | RabbitMQ pub/sub event bus | ACTIVE |
+| `services/iam/` | 2 | Keycloak IAM adapter | STUB |
+| `services/notifications/` | 4 | Email (SendGrid) + mock | ACTIVE |
+| `services/providers/` | 1 | Adapter factory (ProviderRegistry) | ACTIVE |
+| `services/webhooks/` | 1 | Inbound webhook router | ACTIVE |
 
-## Trust zone boundaries
+## Data flows
 
-| Zone | Sensitivity | Access control | Audit requirement |
-|------|-------------|---------------|-------------------|
-| RED | Highest — compliance data, SAR, PEP | MLRO, Compliance Officer | Full ClickHouse audit trail, 5yr retention |
-| GREEN | High — financial transactions, balances | Ops staff + API | pgAudit + ClickHouse, DECIMAL only |
-| BLUE | Medium — infrastructure, config | Developers + Ops | Standard logging |
+### Flow 1: Transaction Monitoring (real-time)
+```
+Transaction Event (RabbitMQ)
+  → JubeAdapter (ML scoring, gmktec:5001)
+  → FraudAMLPipeline.assess()
+      ├── FraudScoringPort.score() → FraudRisk (APPROVE/HOLD/BLOCK)
+      └── TxMonitorService.evaluate() → MonitorResult
+  → HITLService.enqueue() (if requires_hitl=True)
+  → SARService.file_sar() (if aml_sar_required=True, MLRO gate)
+  → NotificationService (MLRO alert via SendGrid/n8n)
+```
 
-## Cross-domain dependencies
+### Flow 2: Customer Onboarding
+```
+POST /v1/customers
+  → CustomerManagementPort.create_customer()
+  → POST /v1/kyc/workflows
+  → KYCWorkflowPort.create_workflow()
+  → (if EDD) OrgRoleChecker.check() → MLRO gate
+  → SanctionsCheckAgent (Watchman webhook)
+  → CDD risk scoring → LifecycleState transition
+```
 
-| From → To | Interface | Notes |
-|-----------|-----------|-------|
-| recon/ → ledger/ | MidazLedgerAdapter | Balance queries via LedgerPort (I-28) |
-| fraud/ → case_management/ | MarbleAdapter | Alert → case escalation |
-| aml/ → hitl/ | HITLService | SAR candidate → MLRO review |
-| payment/ → recon/ | ClickHouse safeguarding_events | Payment audit trail feeds reconciliation |
-| reporting/ → recon/ | ClickHouse SELECT | FIN060 reads from safeguarding data |
-| complaints/ → notifications/ | n8n webhook | Complaint → Telegram MLRO alert |
+### Flow 3: SAR Filing (POCA 2002)
+```
+SARService.file_sar() [MLRO gate mandatory]
+  → OrgRoleChecker.check(role=MLRO)
+  → HITLService.enqueue() with reason=SAR_FILING
+  → [Human MLRO decision within 24h SLA]
+  → SARService.approve_sar() → SARService.submit_sar()
+  → NCA SAROnline (STUB — not yet implemented)
+  → AuditLog (ClickHouse, 5-year retention)
+```
+
+### Flow 4: CASS 7.15 Daily Reconciliation
+```
+Cron (daily 06:00 UTC)
+  → StatementPoller → mock-ASPSP (CAMT.053)
+  → BankStatementParser (XML → transactions)
+  → ReconciliationEngine.reconcile()
+  → BreachDetector → n8n webhook (if breach)
+  → ClickHouseClient (audit trail)
+  → POST /v1/reporting/fin060/generate → WeasyPrint PDF
+```
+
+### Flow 5: FIN060 Regulatory Submission
+```
+POST /v1/reporting/fin060/generate
+  → FIN060Generator.generate() → WeasyPrint PDF
+  → POST /v1/reporting/fin060/submit
+  → RegDataReturnService.run_monthly_return()
+  → StubRegDataClient (STUB — real FCA submission pending)
+```
+
+## HITL gate map
+
+| Decision | HITL required | Role | SLA |
+|----------|--------------|------|-----|
+| SAR filing | YES — mandatory | MLRO | 24h |
+| EDD onboarding | YES — mandatory | MLRO | 4h |
+| Sanctions reversal | YES — mandatory | CEO | 1h |
+| PEP onboarding | YES — mandatory | MLRO | 4h |
+| Account closure | YES — mandatory | MLRO | 4h |
+| SAR withdrawal | YES — mandatory | MLRO | 4h |
+| Fraud BLOCK decision | YES — conditional | MLRO | 4h |
+| Payment >£50k | YES — conditional | CFO | 8h |
+
+## Trust boundaries
+
+- **Compliance ↔ Banking Core:** All data passing from Compliance to Banking Core must go through HITLService.enqueue() for L2+ decisions
+- **External Adapters → Internal:** All inbound webhooks (Watchman, Modulr, n8n) validated via HMAC/secret token before processing
+- **Agents → Services:** Compliance agents use tool-calling pattern — cannot directly mutate state, only call service methods
+- **RAG Service:** No auth currently (local only, port 8765); not exposed externally
 
 ---
-*Last updated: 2026-04-10 (Phase 4 migration)*
+
+*Last updated: 2026-04-10 (FUNCTION 1 scan — post-Phase 6)*
