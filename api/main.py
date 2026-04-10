@@ -43,6 +43,7 @@ from api.routers import (
     payments,
     reporting,
     sanctions_rescreen,
+    statements,
     watchman_webhook,
 )
 
@@ -108,6 +109,7 @@ app.include_router(fraud.router, prefix="/v1")
 app.include_router(consumer_duty.router, prefix="/v1")
 app.include_router(hitl.router, prefix="/v1")
 app.include_router(reporting.router, prefix="/v1")
+app.include_router(statements.router, prefix="/v1")
 app.include_router(watchman_webhook.router)  # POST /webhooks/watchman (IL-068)
 app.include_router(mlro_notifications.router)  # POST /internal/notifications/mlro (IL-068)
 app.include_router(

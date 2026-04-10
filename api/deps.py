@@ -15,6 +15,10 @@ from functools import lru_cache
 from services.customer.customer_service import InMemoryCustomerService
 from services.kyc.mock_kyc_workflow import MockKYCWorkflow
 from services.payment.mock_payment_adapter import MockPaymentAdapter
+from services.statements.statement_service import (
+    AccountStatementService,
+    InMemoryTransactionRepository,
+)
 
 
 @lru_cache(maxsize=1)
@@ -35,3 +39,11 @@ def get_payment_service() -> MockPaymentAdapter:
 def get_ledger_base_url() -> str:
     """Midaz ledger base URL from env (falls back to sandbox)."""
     return os.environ.get("MIDAZ_BASE_URL", "http://localhost:8095")
+
+
+@lru_cache(maxsize=1)
+def get_statement_service() -> AccountStatementService:
+    """Account statement service — InMemory repo (sandbox/test).
+    In production: swap InMemoryTransactionRepository for ClickHouseTransactionRepository.
+    """
+    return AccountStatementService(repo=InMemoryTransactionRepository())
