@@ -1,5 +1,5 @@
 {
-  "name": "Banxe — Safeguarding Shortfall Alert (CASS 7.15)",
+  "name": "Banxe — Safeguarding Shortfall Alert (CASS 7.15 / CASS 15.12)",
   "nodes": [
     {
       "parameters": {
@@ -21,7 +21,27 @@
           "options": { "caseSensitive": false },
           "conditions": [
             {
-              "id": "shortfall-check",
+              "id": "breach-check",
+              "leftValue": "={{ $json.body.event }}",
+              "rightValue": "SAFEGUARDING_BREACH",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ]
+        }
+      },
+      "id": "if-breach",
+      "name": "Is Breach?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 180]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false },
+          "conditions": [
+            {
+              "id": "discrepancy-check",
               "leftValue": "={{ $json.body.status }}",
               "rightValue": "DISCREPANCY",
               "operator": { "type": "string", "operation": "equals" }
@@ -33,7 +53,91 @@
       "name": "Is Discrepancy?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [460, 300]
+      "position": [460, 420]
+    },
+    {
+      "parameters": {
+        "channel": "#compliance-alerts",
+        "text": "=:rotating_light: *CASS 15.12 SAFEGUARDING BREACH* :rotating_light:\n\n*Account:* `{{ $json.body.account_id }}`\n*Type:* {{ $json.body.account_type }}\n*Currency:* {{ $json.body.currency }}\n*Discrepancy:* £{{ $json.body.discrepancy_gbp }}\n*Days Outstanding:* {{ $json.body.days_outstanding }}\n*FCA Rule:* {{ $json.body.fca_rule }}\n\n:warning: *Action Required:* {{ $json.body.action_required }}\n:clock1: Submit FCA RegData notification WITHIN 1 BUSINESS DAY",
+        "attachments": [],
+        "otherOptions": {}
+      },
+      "id": "slack-compliance-breach",
+      "name": "Slack #compliance-alerts (Breach)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [700, 60],
+      "credentials": { "slackApi": { "id": "banxe-slack", "name": "Banxe Slack" } }
+    },
+    {
+      "parameters": {
+        "fromEmail": "compliance@banxe.com",
+        "toEmail": "={{ $env.CEO_EMAIL }};={{ $env.CTIO_EMAIL }}",
+        "subject": "=URGENT: FCA Safeguarding Breach Detected — Account {{ $json.body.account_id }}",
+        "emailType": "html",
+        "message": "=<h2 style='color:red'>CASS 15.12 Safeguarding Breach</h2><p><strong>Account:</strong> {{ $json.body.account_id }}</p><p><strong>Discrepancy:</strong> £{{ $json.body.discrepancy_gbp }}</p><p><strong>Days Outstanding:</strong> {{ $json.body.days_outstanding }}</p><p><strong>Action Required:</strong> FCA RegData notification must be submitted within 1 business day.</p><p><strong>FCA Rule:</strong> {{ $json.body.fca_rule }}</p>",
+        "options": {}
+      },
+      "id": "email-ceo-ctio",
+      "name": "Email CEO + CTIO",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [700, 180],
+      "credentials": { "smtp": { "id": "banxe-smtp", "name": "Banxe SMTP" } }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.FCA_REGDATA_URL }}/api/v1/notifications/safeguarding-breach",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.FCA_REGDATA_API_KEY }}" },
+            { "name": "X-Firm-Reference", "value": "={{ $env.FCA_FIRM_REFERENCE }}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={ \"firmReference\": \"{{ $env.FCA_FIRM_REFERENCE }}\", \"notificationType\": \"SAFEGUARDING_BREACH\", \"accountId\": \"{{ $json.body.account_id }}\", \"discrepancyAmount\": \"{{ $json.body.discrepancy_gbp }}\", \"daysOutstanding\": {{ $json.body.days_outstanding }}, \"fcaBasis\": \"CASS 15.12\" }",
+        "options": { "timeout": 15000 }
+      },
+      "id": "fca-regdata-post",
+      "name": "FCA RegData POST (mock for sandbox)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CLICKHOUSE_HTTP_URL }}/",
+        "sendBody": true,
+        "contentType": "rawBody",
+        "rawContentType": "text/plain",
+        "body": "=INSERT INTO banxe.fca_notifications (breach_account_id, submitted_at, fca_reference, status, notes) VALUES ('{{ $json.body.account_id }}', now(), 'n8n-workflow-{{ $json.body.account_id }}', 'SUBMITTED', 'Auto-submitted via n8n CASS15.12 workflow')",
+        "options": { "timeout": 5000 }
+      },
+      "id": "ch-log-fca-notification",
+      "name": "Audit log → ClickHouse fca_notifications",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [700, 420]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.MLRO_TELEGRAM_CHAT_ID }}",
+        "text": "=🚨 *CASS 15.12 BREACH* — {{ $json.body.account_id }}\n\nDiscrepancy: £{{ $json.body.discrepancy_gbp }}\nDays: {{ $json.body.days_outstanding }}\n\n⚠️ FCA RegData notification required within 1 business day.",
+        "additionalFields": {
+          "parse_mode": "Markdown",
+          "disable_notification": false
+        }
+      },
+      "id": "telegram-breach",
+      "name": "Telegram (Breach — if token set)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [700, 540],
+      "credentials": { "telegramApi": { "id": "banxe-telegram-bot", "name": "Banxe Telegram Bot" } }
     },
     {
       "parameters": {
@@ -45,11 +149,25 @@
         }
       },
       "id": "telegram-mlro",
-      "name": "Alert MLRO",
+      "name": "Alert MLRO (Discrepancy)",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [700, 200],
+      "position": [700, 660],
       "credentials": { "telegramApi": { "id": "banxe-telegram-bot", "name": "Banxe Telegram Bot" } }
+    },
+    {
+      "parameters": {
+        "channel": "#compliance-alerts",
+        "text": "=:warning: *Safeguarding Discrepancy* — {{ $json.body.recon_date }}\n\nBalance mismatch detected. Days outstanding not yet at breach threshold.\n*Discrepancy:* £{{ $json.body.shortfall_amount }}\n\nMonitoring. Will escalate if persists 3+ days (CASS 15.12).",
+        "attachments": [],
+        "otherOptions": {}
+      },
+      "id": "slack-discrepancy",
+      "name": "Slack #compliance-alerts (Discrepancy)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [700, 780],
+      "credentials": { "slackApi": { "id": "banxe-slack", "name": "Banxe Slack" } }
     },
     {
       "parameters": {
@@ -61,7 +179,7 @@
       "name": "Notify OK",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [700, 420],
+      "position": [700, 900],
       "credentials": { "telegramApi": { "id": "banxe-telegram-bot", "name": "Banxe Telegram Bot" } }
     },
     {
@@ -71,44 +189,70 @@
         "sendBody": true,
         "contentType": "rawBody",
         "rawContentType": "text/plain",
-        "body": "=INSERT INTO banxe.safeguarding_events (event_id, event_type, recon_date, status, midaz_balance, bank_balance, shortfall_amount, created_at) VALUES (generateUUIDv4(), 'SHORTFALL_ALERT_FIRED', '{{ $json.body.recon_date }}', '{{ $json.body.status }}', {{ $json.body.midaz_balance }}, {{ $json.body.bank_balance }}, {{ $json.body.shortfall_amount }}, now())",
+        "body": "=INSERT INTO banxe.safeguarding_events (recon_date, status, source_file, created_by) VALUES ('{{ $json.body.recon_date }}', '{{ $json.body.status }}', 'n8n-workflow', 'n8n-alert-workflow')",
         "options": { "timeout": 5000 }
       },
       "id": "ch-log-shortfall",
-      "name": "Log to ClickHouse",
+      "name": "Log to ClickHouse (Discrepancy)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [940, 200]
+      "position": [940, 660]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\"acknowledged\": true, \"status\": \"{{ $json.body.status }}\", \"action\": \"alerted\"}"
+        "responseBody": "={\"acknowledged\": true, \"status\": \"{{ $json.body.status || $json.body.event }}\", \"action\": \"alerted\"}"
       },
       "id": "respond-ok",
       "name": "Respond 200",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [1160, 300]
+      "position": [1160, 500]
     }
   ],
   "connections": {
     "Shortfall Webhook": {
-      "main": [[{ "node": "Is Discrepancy?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          { "node": "Is Breach?", "type": "main", "index": 0 },
+          { "node": "Is Discrepancy?", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Is Breach?": {
+      "main": [
+        [
+          { "node": "Slack #compliance-alerts (Breach)", "type": "main", "index": 0 },
+          { "node": "Email CEO + CTIO", "type": "main", "index": 0 },
+          { "node": "FCA RegData POST (mock for sandbox)", "type": "main", "index": 0 },
+          { "node": "Audit log → ClickHouse fca_notifications", "type": "main", "index": 0 },
+          { "node": "Telegram (Breach — if token set)", "type": "main", "index": 0 }
+        ],
+        []
+      ]
     },
     "Is Discrepancy?": {
       "main": [
-        [{ "node": "Alert MLRO", "type": "main", "index": 0 }],
+        [
+          { "node": "Alert MLRO (Discrepancy)", "type": "main", "index": 0 },
+          { "node": "Slack #compliance-alerts (Discrepancy)", "type": "main", "index": 0 }
+        ],
         [{ "node": "Notify OK", "type": "main", "index": 0 }]
       ]
     },
-    "Alert MLRO": {
-      "main": [[{ "node": "Log to ClickHouse", "type": "main", "index": 0 }]]
+    "Alert MLRO (Discrepancy)": {
+      "main": [[{ "node": "Log to ClickHouse (Discrepancy)", "type": "main", "index": 0 }]]
     },
-    "Notify OK": {
+    "Slack #compliance-alerts (Discrepancy)": {
+      "main": [[{ "node": "Log to ClickHouse (Discrepancy)", "type": "main", "index": 0 }]]
+    },
+    "Log to ClickHouse (Discrepancy)": {
       "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
     },
-    "Log to ClickHouse": {
+    "Audit log → ClickHouse fca_notifications": {
+      "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
+    },
+    "Notify OK": {
       "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]]
     }
   },
@@ -118,12 +262,16 @@
     "saveDataErrorExecution": "all",
     "saveManualExecutions": true
   },
-  "tags": ["safeguarding", "cass", "fca", "compliance"],
+  "tags": ["safeguarding", "cass", "fca", "compliance", "breach", "cass15"],
   "_meta": {
-    "fca_rule": "CASS 7.15.29R",
-    "trigger": "daily-recon.sh exit code 1 (DISCREPANCY)",
+    "fca_rule": "CASS 7.15.29R / CASS 15.12 / PS25/12",
+    "trigger": "BreachDetector._fire_fca_alert() or ReconciliationEngine discrepancy",
     "webhook_path": "/webhook/safeguarding-shortfall",
-    "env_required": ["MLRO_TELEGRAM_CHAT_ID", "CLICKHOUSE_HTTP_URL", "N8N_WEBHOOK_URL"],
-    "deploy_note": "CEO: import via n8n UI http://gmktec:5678 → Workflows → Import from JSON"
+    "env_required": [
+      "MLRO_TELEGRAM_CHAT_ID", "CLICKHOUSE_HTTP_URL", "N8N_WEBHOOK_URL",
+      "CEO_EMAIL", "CTIO_EMAIL", "FCA_REGDATA_URL", "FCA_REGDATA_API_KEY",
+      "FCA_FIRM_REFERENCE", "TELEGRAM_BOT_TOKEN"
+    ],
+    "deploy_note": "Import via n8n UI http://gmktec:5678 → Workflows → Import from JSON. FCA RegData node uses sandbox mock by default."
   }
 }

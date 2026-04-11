@@ -1,0 +1,111 @@
+{
+  "name": "Banxe — Daily Recon Report (18:00 UTC → Slack #daily-recon)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 18 * * *" }]
+        }
+      },
+      "id": "cron-trigger",
+      "name": "Daily 18:00 UTC",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CLICKHOUSE_HTTP_URL }}/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "text/plain" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "rawBody",
+        "rawContentType": "text/plain",
+        "body": "SELECT recon_date, status, count() as count, sum(abs(discrepancy)) as total_discrepancy FROM banxe.safeguarding_events WHERE recon_date >= today() - 7 GROUP BY recon_date, status ORDER BY recon_date DESC, status FORMAT JSON",
+        "options": { "timeout": 10000 }
+      },
+      "id": "ch-query-summary",
+      "name": "Query ClickHouse Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CLICKHOUSE_HTTP_URL }}/",
+        "sendBody": true,
+        "contentType": "rawBody",
+        "rawContentType": "text/plain",
+        "body": "SELECT account_id, discrepancy, days_outstanding, detected_at FROM banxe.safeguarding_breaches WHERE detected_at >= now() - INTERVAL 7 DAY ORDER BY detected_at DESC LIMIT 5 FORMAT JSON",
+        "options": { "timeout": 10000 }
+      },
+      "id": "ch-query-breaches",
+      "name": "Query Active Breaches",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 480]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Slack message from ClickHouse summary\nconst summaryData = $('Query ClickHouse Summary').first().json;\nconst breachData = $('Query Active Breaches').first().json;\n\nconst rows = summaryData?.data || [];\nconst breaches = breachData?.data || [];\n\nconst today = new Date().toISOString().split('T')[0];\n\n// Group by date\nconst byDate = {};\nfor (const row of rows) {\n  const d = row.recon_date || 'unknown';\n  if (!byDate[d]) byDate[d] = {};\n  byDate[d][row.status] = { count: row.count, discrepancy: row.total_discrepancy };\n}\n\n// Build summary text\nlet lines = [`*Daily Recon Report* — ${today}`];\nlines.push('```');\nlines.push('Date       | MATCHED | DISCREPANCY | PENDING');\nlines.push('-----------+---------+-------------+--------');\n\nconst dates = Object.keys(byDate).sort().reverse().slice(0, 7);\nfor (const d of dates) {\n  const m = byDate[d].MATCHED?.count || 0;\n  const disc = byDate[d].DISCREPANCY?.count || 0;\n  const pend = byDate[d].PENDING?.count || 0;\n  lines.push(`${d} | ${String(m).padStart(7)} | ${String(disc).padStart(11)} | ${String(pend).padStart(7)}`);\n}\nlines.push('```');\n\nif (breaches.length > 0) {\n  lines.push(`\\n:rotating_light: *Active Breaches (last 7 days): ${breaches.length}*`);\n  for (const b of breaches.slice(0, 5)) {\n    lines.push(`  • ${b.account_id} — £${b.discrepancy} — ${b.days_outstanding} days outstanding`);\n  }\n} else {\n  lines.push('\\n:white_check_mark: No active breaches in last 7 days');\n}\n\nreturn [{ json: { message: lines.join('\\n') } }];"
+      },
+      "id": "build-report",
+      "name": "Build Report Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 380]
+    },
+    {
+      "parameters": {
+        "channel": "#daily-recon",
+        "text": "={{ $json.message }}",
+        "attachments": [],
+        "otherOptions": {}
+      },
+      "id": "slack-daily-recon",
+      "name": "Post to #daily-recon",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [940, 380],
+      "credentials": { "slackApi": { "id": "banxe-slack", "name": "Banxe Slack" } }
+    }
+  ],
+  "connections": {
+    "Daily 18:00 UTC": {
+      "main": [
+        [
+          { "node": "Query ClickHouse Summary", "type": "main", "index": 0 },
+          { "node": "Query Active Breaches", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Query ClickHouse Summary": {
+      "main": [[{ "node": "Build Report Message", "type": "main", "index": 0 }]]
+    },
+    "Query Active Breaches": {
+      "main": [[{ "node": "Build Report Message", "type": "main", "index": 0 }]]
+    },
+    "Build Report Message": {
+      "main": [[{ "node": "Post to #daily-recon", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveDataErrorExecution": "all",
+    "saveManualExecutions": true
+  },
+  "tags": ["safeguarding", "daily-report", "fca", "slack", "recon"],
+  "_meta": {
+    "schedule": "0 18 * * * (18:00 UTC daily)",
+    "fca_rule": "CASS 7.15 — daily audit trail",
+    "env_required": ["CLICKHOUSE_HTTP_URL", "SLACK_BOT_TOKEN"],
+    "deploy_note": "Import via n8n UI http://gmktec:5678 → Workflows → Import. Requires #daily-recon Slack channel and ClickHouse HTTP interface."
+  }
+}
