@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "stitch": {
+      "command": "npx",
+      "args": ["-y", "stitch-mcp-auto"],
+      "env": {
+        "GOOGLE_CLOUD_PROJECT": "banxe-design"
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "frontend/src"]
+    },
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres"],
+      "env": {
+        "POSTGRES_CONNECTION_STRING": "${POSTGRES_CONNECTION_STRING}"
+      }
+    }
+  }
+}
