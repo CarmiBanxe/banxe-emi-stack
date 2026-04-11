@@ -31,6 +31,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from api.routers import (
+    auth,
     consumer_duty,
     customers,
     fraud,
@@ -100,6 +101,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 
 # ── Routers ───────────────────────────────────────────────────────────────
 app.include_router(health.router)
+app.include_router(auth.router, prefix="/v1")
 app.include_router(customers.router, prefix="/v1")
 app.include_router(kyc.router, prefix="/v1")
 app.include_router(payments.router, prefix="/v1")
