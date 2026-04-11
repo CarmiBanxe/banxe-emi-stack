@@ -1,0 +1,191 @@
+{
+  "name": "MCP Health Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mcp-health",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "mcp-health-monitor"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json.body.tools_failed_count}}",
+              "operation": "largerEqual",
+              "value2": 1
+            }
+          ]
+        }
+      },
+      "id": "if-errors",
+      "name": "If error_count > 0",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "slackApi",
+        "resource": "message",
+        "operation": "post",
+        "channel": "#infra-alerts",
+        "text": "=:warning: *MCP Server Health Alert*\n\nStatus: `{{ $json.body.status.toUpperCase() }}`\nFailed tools: `{{ $json.body.tools_failed_names }}`\nChecked at: `{{ $json.body.checked_at }}`\nError: `{{ $json.body.error_message || 'none' }}`\n\nRun `/mcp-status` to investigate.",
+        "otherOptions": {}
+      },
+      "id": "slack-alert",
+      "name": "Slack #infra-alerts",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [750, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.body.status}}",
+              "operation": "equal",
+              "value2": "unhealthy"
+            }
+          ]
+        }
+      },
+      "id": "if-critical",
+      "name": "If CRITICAL (unhealthy)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [750, 350]
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "telegramApi",
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $env.TELEGRAM_CTIO_CHAT_ID }}",
+        "text": "=🚨 *BANXE MCP SERVER CRITICAL*\n\nAll or most MCP tools failing!\nFailed: `{{ $json.body.tools_failed_names }}`\nChecked: `{{ $json.body.checked_at }}`\n\nImmediate action required — check `banxe-mcp` container."
+      },
+      "id": "telegram-critical",
+      "name": "Telegram CTIO Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1000, 350]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
+      },
+      "id": "daily-schedule",
+      "name": "Daily Schedule (24h)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "url": "=http://banxe-mcp:8100/health",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "fetch-daily-metrics",
+      "name": "Fetch Daily MCP Metrics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [500, 500]
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "slackApi",
+        "resource": "message",
+        "operation": "post",
+        "channel": "#infra-monitoring",
+        "text": "=:bar_chart: *Daily MCP Server Summary*\n\nDate: `{{ new Date().toISOString().split('T')[0] }}`\nStatus: `{{ $json.status || 'UNKNOWN' }}`\nTool call count: `{{ $json.tool_call_count || 'N/A' }}`\nError rate: `{{ $json.error_rate || 'N/A' }}`\nAvg latency: `{{ $json.avg_latency_ms || 'N/A' }}ms`",
+        "otherOptions": {}
+      },
+      "id": "daily-summary-slack",
+      "name": "Daily Summary to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [750, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"ack\": true, \"status\": \"{{ $('Webhook Trigger').item.json.body.status }}\"}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1000, 200]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [{ "node": "If error_count > 0", "type": "main", "index": 0 }]
+      ]
+    },
+    "If error_count > 0": {
+      "main": [
+        [
+          { "node": "Slack #infra-alerts", "type": "main", "index": 0 },
+          { "node": "If CRITICAL (unhealthy)", "type": "main", "index": 0 }
+        ],
+        [{ "node": "Respond to Webhook", "type": "main", "index": 0 }]
+      ]
+    },
+    "Slack #infra-alerts": {
+      "main": [
+        [{ "node": "Respond to Webhook", "type": "main", "index": 0 }]
+      ]
+    },
+    "If CRITICAL (unhealthy)": {
+      "main": [
+        [{ "node": "Telegram CTIO Alert", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Daily Schedule (24h)": {
+      "main": [
+        [{ "node": "Fetch Daily MCP Metrics", "type": "main", "index": 0 }]
+      ]
+    },
+    "Fetch Daily MCP Metrics": {
+      "main": [
+        [{ "node": "Daily Summary to Slack", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": ["mcp", "infrastructure", "monitoring"],
+  "meta": {
+    "description": "MCP Server health monitoring — webhook from health workflow, daily summary, critical Telegram alert",
+    "created": "2026-04-11",
+    "il_ref": "IL-MCP-01"
+  }
+}

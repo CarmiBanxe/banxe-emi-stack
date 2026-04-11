@@ -46,6 +46,15 @@ _RECON_SKILL_REGISTRY: dict[str, str] = {
     "breach_prediction_agent": "agents.compliance.skills.breach_prediction.BreachPredictionSkill",
 }
 
+# IL-MCP-01: MCP Server health skill registered for infrastructure monitoring.
+# MCPHealthSkill validates all MCP tools are documented, typed, and functional.
+# Schedule: on startup + every 6 hours.
+# Soul: agents/compliance/soul/mcp_server_agent.soul.md
+# Workflow: agents/compliance/workflows/mcp_health_workflow.py
+_MCP_SKILL_REGISTRY: dict[str, str] = {
+    "mcp_server_agent": "agents.compliance.workflows.mcp_health_workflow.MCPHealthSkill",
+}
+
 logger = logging.getLogger("banxe.swarm.orchestrator")
 
 

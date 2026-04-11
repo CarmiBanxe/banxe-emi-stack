@@ -1,0 +1,212 @@
+{
+  "__inputs": [],
+  "__requires": [
+    {
+      "type": "datasource",
+      "id": "grafana-clickhouse-datasource",
+      "name": "ClickHouse",
+      "version": "4.0.0"
+    }
+  ],
+  "annotations": {
+    "list": []
+  },
+  "description": "BANXE MCP Server — tool call metrics, error rates, latency | IL-MCP-01",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "banxe-clickhouse"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "axisPlacement": "auto", "fillOpacity": 80 }
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "options": {
+        "barWidth": 0.8,
+        "groupWidth": 0.7
+      },
+      "title": "Tool Call Count per Tool",
+      "type": "barchart",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "banxe-clickhouse"
+          },
+          "rawSql": "SELECT tool_name, count() AS call_count FROM banxe.mcp_tool_events WHERE called_at >= now() - INTERVAL 24 HOUR GROUP BY tool_name ORDER BY call_count DESC",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "banxe-clickhouse"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "red" },
+          "custom": { "lineWidth": 2 },
+          "unit": "percentunit"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "options": { "tooltip": { "mode": "multi" } },
+      "title": "Error Rate Over Time",
+      "type": "timeseries",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "banxe-clickhouse"
+          },
+          "rawSql": "SELECT toStartOfMinute(called_at) AS time, countIf(status = 'ERROR') / count() AS error_rate FROM banxe.mcp_tool_events WHERE called_at >= now() - INTERVAL 1 HOUR GROUP BY time ORDER BY time",
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "banxe-clickhouse"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "spectrum" },
+          "custom": { "hideFrom": { "legend": false, "tooltip": false, "viz": false } },
+          "unit": "ms"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "id": 3,
+      "options": {
+        "calculate": false,
+        "cellGap": 2,
+        "color": { "mode": "scheme", "scheme": "RdYlGn" },
+        "yAxis": { "unit": "ms" }
+      },
+      "title": "Average Response Time per Tool (Heatmap)",
+      "type": "heatmap",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "banxe-clickhouse"
+          },
+          "rawSql": "SELECT toStartOfHour(called_at) AS time, tool_name, avg(duration_ms) AS avg_ms FROM banxe.mcp_tool_events WHERE called_at >= now() - INTERVAL 24 HOUR GROUP BY time, tool_name ORDER BY time",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "banxe-clickhouse"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "green" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "green", "value": 5 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 8 },
+      "id": 4,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"]
+        },
+        "textMode": "auto"
+      },
+      "title": "Active Connections",
+      "type": "stat",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "banxe-clickhouse"
+          },
+          "rawSql": "SELECT count(DISTINCT caller_agent) AS active_connections FROM banxe.mcp_tool_events WHERE called_at >= now() - INTERVAL 5 MINUTE",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "banxe-clickhouse"
+      },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "status" },
+            "properties": [
+              {
+                "id": "custom.displayMode",
+                "value": "color-background"
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  { "options": { "OK": { "color": "green", "index": 0 } }, "type": "value" },
+                  { "options": { "ERROR": { "color": "red", "index": 1 } }, "type": "value" }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 18, "x": 6, "y": 12 },
+      "id": 5,
+      "options": {
+        "footer": { "show": false },
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "call_count" }]
+      },
+      "title": "Tool Registry Inventory",
+      "type": "table",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "banxe-clickhouse"
+          },
+          "rawSql": "SELECT tool_name, count() AS call_count, countIf(status = 'ERROR') AS error_count, round(avg(duration_ms), 1) AS avg_ms, max(called_at) AS last_called FROM banxe.mcp_tool_events GROUP BY tool_name ORDER BY call_count DESC",
+          "format": "table"
+        }
+      ]
+    }
+  ],
+  "refresh": "1m",
+  "schemaVersion": 38,
+  "tags": ["mcp", "infrastructure", "banxe"],
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "BANXE MCP Server",
+  "uid": "banxe-mcp-server",
+  "version": 1
+}

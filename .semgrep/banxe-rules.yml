@@ -127,3 +127,42 @@ rules:
       include:
         - "services/recon/**"
         - "agents/compliance/skills/**"
+
+  - id: banxe-mcp-tool-must-have-docstring
+    # Every function decorated with @mcp_server.tool() must have a docstring.
+    # Docstrings are exposed to AI agents as tool descriptions — missing docs
+    # means the agent cannot understand or correctly invoke the tool.
+    patterns:
+      - pattern: |
+          @$SERVER.tool(...)
+          async def $FUNC(...):
+              ...
+      - pattern-not: |
+          @$SERVER.tool(...)
+          async def $FUNC(...):
+              """..."""
+              ...
+    message: |
+      MCP tool $FUNC is missing a docstring.
+      Docstrings are mandatory — they are exposed to AI agents as tool descriptions.
+      Add a docstring: """Short description.\n\nArgs:\n    param: description"""
+    languages: [python]
+    severity: ERROR
+    paths:
+      include:
+        - "banxe_mcp/**"
+
+  - id: banxe-mcp-no-raw-exception
+    # MCP tools must not raise bare Exception() — use typed errors.
+    # Raw exceptions leak implementation details to AI agents and prevent
+    # proper error handling in the agent loop.
+    pattern: raise Exception(...)
+    message: |
+      MCP code raises raw Exception() — use typed errors instead.
+      Prefer: httpx.HTTPStatusError, ValueError, RuntimeError, or a custom
+      domain exception (e.g. MCPToolError). Raw Exception breaks agent error handling.
+    languages: [python]
+    severity: ERROR
+    paths:
+      include:
+        - "banxe_mcp/**"

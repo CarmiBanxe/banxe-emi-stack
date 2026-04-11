@@ -1,0 +1,55 @@
+version: "3.9"
+# MCP Server Stack — BANXE EMI AI Bank
+# Model Context Protocol server exposing banking tools to AI agents.
+# IL-MCP-01 | Phase 0: Read-Only Tools + Phase 1: Recon Tools
+#
+# Usage:
+#   docker compose -f docker/docker-compose.recon.yml -f docker/docker-compose.mcp.yml up -d
+
+services:
+  banxe-mcp:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.mcp
+    image: banxe-mcp:latest
+    container_name: banxe-mcp
+    command: python -m banxe_mcp --transport sse
+    ports:
+      - "8100:8100"
+    environment:
+      BANXE_API_URL: ${BANXE_API_URL:-http://banxe-api:8000}
+      FRANKFURTER_URL: ${FRANKFURTER_URL:-http://banxe-frankfurter:8080}
+      CLICKHOUSE_HOST: ${CLICKHOUSE_HOST:-clickhouse}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-banxe}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-}
+      MCP_LOG_LEVEL: ${MCP_LOG_LEVEL:-INFO}
+    env_file:
+      - .env
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - "CMD"
+        - "python"
+        - "-c"
+        - "from banxe_mcp.server import mcp_server; print('healthy:', mcp_server.name)"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - banxe-net
+    labels:
+      - "com.banxe.service=mcp"
+      - "com.banxe.fca=cass7.15"
+      - "com.banxe.il=IL-MCP-01"
+
+networks:
+  banxe-net:
+    external: true
+    name: banxe-emi-stack_default
