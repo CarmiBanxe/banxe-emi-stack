@@ -187,6 +187,32 @@ class ClickHouseReconClient:
             "recon_date": row[4],
         }
 
+    def get_recon_summary(self, date_from: date, date_to: date) -> list[dict]:
+        """Return recon status summary for date range (for dashboard API).
+
+        Queries recon_daily_summary materialized view.
+        Returns list of dicts with recon_date, status, count, total_discrepancy.
+        """
+        rows = self._client.execute(
+            """
+            SELECT recon_date, status, count, total_discrepancy
+            FROM banxe.recon_daily_summary
+            WHERE recon_date >= %(date_from)s
+              AND recon_date <= %(date_to)s
+            ORDER BY recon_date DESC, status
+            """,
+            {"date_from": date_from.isoformat(), "date_to": date_to.isoformat()},
+        )
+        return [
+            {
+                "recon_date": row[0],
+                "status": row[1],
+                "count": row[2],
+                "total_discrepancy": Decimal(str(row[3])),
+            }
+            for row in (rows or [])
+        ]
+
 
 @dataclass
 class _CapturedEvent:
@@ -267,6 +293,45 @@ class InMemoryReconClient:
     def breaches(self) -> list[dict]:
         """Return list of breach param dicts from captured log."""
         return [e.params for e in self._log if e.params.get("_is_breach")]
+
+    def get_recon_summary(self, date_from: date, date_to: date) -> list[dict]:
+        """Stub: return summary from captured events grouped by status.
+
+        Groups all captured INSERT events by status and returns counts.
+        Used in tests to verify dashboard API data without ClickHouse.
+        """
+        from collections import defaultdict
+
+        status_counts: dict[str, int] = defaultdict(int)
+        status_discrepancy: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
+
+        for e in self._log:
+            if e.params.get("_is_breach"):
+                continue
+            status = e.params.get("status", "")
+            recon_date_str = e.params.get("recon_date", "")
+            if not status or not recon_date_str:
+                continue
+            # Filter by date range
+            try:
+                from datetime import datetime
+                recon_date = datetime.fromisoformat(recon_date_str).date() if isinstance(recon_date_str, str) else recon_date_str
+                if date_from <= recon_date <= date_to:
+                    status_counts[status] += 1
+                    disc = Decimal(str(e.params.get("discrepancy", "0")))
+                    status_discrepancy[status] += abs(disc)
+            except Exception:
+                pass
+
+        return [
+            {
+                "recon_date": date_to,
+                "status": status,
+                "count": count,
+                "total_discrepancy": status_discrepancy[status],
+            }
+            for status, count in status_counts.items()
+        ]
 
 
 # ── DDL ──────────────────────────────────────────────────────────────────────
