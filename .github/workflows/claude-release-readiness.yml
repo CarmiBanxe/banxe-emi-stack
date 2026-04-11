@@ -1,0 +1,58 @@
+name: Claude Release Readiness Assessment
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Release version (e.g. v1.2.0)"
+        required: true
+        type: string
+      target_branch:
+        description: "Branch to assess (default: main)"
+        required: false
+        default: "main"
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  claude-release-readiness:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 100
+          ref: ${{ inputs.target_branch }}
+
+      - name: Claude Code Release Readiness
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are a senior release engineer assessing readiness for BANXE AI Bank release ${{ inputs.release_version }}.
+
+            Produce a release readiness report covering:
+
+            1. **Changes since last release** — summary of all commits and merged PRs
+            2. **Risk assessment** — high-risk changes (ledger, AML/KYC, reporting, auth, migrations)
+            3. **Missing tests** — business logic changes without test coverage
+            4. **Missing documentation** — API, compliance, runbook, or ADR updates not made
+            5. **Migration readiness** — DB migrations: forward tested? rollback tested? backward-compatible?
+            6. **Rollback readiness** — can this release be rolled back within 15 minutes if needed?
+            7. **Compliance gates** — which FCA controls are affected? Are approvals obtained?
+            8. **P0 items** — are all CASS 15 P0 items (deadline 7 May 2026) included or explicitly deferred?
+
+            **Go/No-Go Decision**:
+            State clearly: **GO** or **NO-GO** with justification.
+
+            NO-GO conditions (any one of these = no-go):
+            - Untested migration on financial table
+            - Missing compliance approval for a control change
+            - BLOCKER finding in PR review not resolved
+            - Rollback plan untested
+            - Missing audit trail for a new financial operation
+
+            List all conditions that must be resolved before go-live.

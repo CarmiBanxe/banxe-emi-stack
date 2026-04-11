@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS banxe.mcp_tool_events
 ENGINE = MergeTree()
 PARTITION BY toYYYYMM(called_at)
 ORDER BY (called_at, tool_name)
-TTL called_at + INTERVAL 1825 DAY  -- 5 years (I-08: FCA minimum retention)
+TTL called_at + INTERVAL 1825 DAY  -- 5 years (I-08: FCA minimum retention) -- nosemgrep: banxe-clickhouse-ttl-reduce
 SETTINGS index_granularity = 8192;
 
 -- MCP Health Events table (health workflow results)
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS banxe.mcp_health_events
 )
 ENGINE = MergeTree()
 ORDER BY inserted_at
-TTL inserted_at + INTERVAL 1825 DAY;
+TTL inserted_at + INTERVAL 1825 DAY; -- nosemgrep: banxe-clickhouse-ttl-reduce
 
 -- Materialized view: daily MCP tool stats (for dbt model input)
 CREATE MATERIALIZED VIEW IF NOT EXISTS banxe.mcp_daily_tool_stats

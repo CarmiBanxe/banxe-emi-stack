@@ -1,0 +1,44 @@
+name: Claude Issue Triage
+
+on:
+  issues:
+    types: [opened, labeled]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  claude-triage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Claude Code Issue Triage
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are a senior engineer triaging a GitHub issue for BANXE AI Bank — an FCA-authorised EMI.
+
+            Classify this issue as one of:
+            - **bug** — broken behaviour in production or staging
+            - **feature** — new capability requested
+            - **compliance** — regulatory requirement, FCA/PRA control, AML/KYC policy change
+            - **security** — vulnerability, secret exposure, access control issue
+            - **infra** — infrastructure, deployment, monitoring, performance
+            - **docs** — missing or incorrect documentation
+
+            Return a structured triage report:
+
+            **Classification**: [type]
+            **Summary**: one sentence describing the issue
+            **Domain**: which service/module is affected (ledger / recon / AML / KYC / reporting / auth / infra / ui)
+            **Files to inspect**: exact file paths most likely relevant to this issue
+            **Risks**: what could go wrong if this is not addressed
+            **Tests required**: what tests should be added or updated to cover this issue
+            **Priority suggestion**: P0 (critical/regulatory) / P1 (high) / P2 (medium) / P3 (low)
+            **Blocker dependencies**: anything that must be resolved first
+
+            If this is a compliance issue, also state which FCA rule or regulatory requirement is involved.
