@@ -1,0 +1,65 @@
+# docker/docker-compose.compliance-kb.yaml — Compliance KB Service
+# IL-CKS-01 | banxe-emi-stack
+#
+# Standalone stack for the compliance knowledge base.
+# Depends on: redis (from docker-compose.mcp.yml)
+#
+# Usage:
+#   docker compose -f docker/docker-compose.compliance-kb.yaml up -d
+#
+# Health check:
+#   curl http://localhost:8000/v1/kb/health
+
+services:
+  # ── Compliance KB API ──────────────────────────────────────────────────────
+  compliance-kb:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.compliance-kb
+    image: banxe/compliance-kb:latest
+    container_name: banxe-compliance-kb
+    ports:
+      - "8000:8000"
+    volumes:
+      - compliance_kb_data:/app/data/compliance_kb
+      - ../config:/app/config:ro
+    environment:
+      - CHROMA_PERSIST_DIR=/app/data/compliance_kb/chroma
+      - EMBEDDING_MODEL=all-MiniLM-L6-v2
+      - KB_CONFIG_PATH=/app/config/compliance_notebooks.yaml
+      - KB_MAX_RESULTS=10
+      - KB_SIMILARITY_THRESHOLD=0.7
+      - REDIS_URL=redis://redis:6379/0
+      - LOG_LEVEL=INFO
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/kb/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # ── Redis (cache for embedding results) ────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: banxe-kb-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+# ── Volumes ─────────────────────────────────────────────────────────────────
+volumes:
+  compliance_kb_data:
+    driver: local
+    labels:
+      banxe.service: "compliance-kb"
+      banxe.retention: "permanent"
+      banxe.backup: "required"

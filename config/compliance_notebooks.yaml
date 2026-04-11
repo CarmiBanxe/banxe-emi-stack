@@ -1,0 +1,136 @@
+# config/compliance_notebooks.yaml — Compliance Notebook Definitions
+# IL-CKS-01 | banxe-emi-stack
+#
+# Defines 4 pre-configured compliance notebooks for Banxe EMI.
+# Each notebook maps to a ChromaDB collection with the same ID.
+# Sources are ingested on demand via POST /v1/kb/ingest.
+
+notebooks:
+
+  emi-eu-aml:
+    name: "EU AML/CTF Framework"
+    description: "EBA/FATF AML and counter-terrorism financing directives and guidance for EMIs"
+    tags: ["emi", "aml", "ctf", "regulator", "eu", "eba", "fatf"]
+    jurisdiction: eu
+    sources:
+      - id: eba-gl-2021-02
+        name: "EBA Guidelines on ML/TF risk factors (rev. 2021)"
+        type: regulation
+        url: "https://www.eba.europa.eu/regulation-and-policy/anti-money-laundering-and-e-money/guidelines-on-ml-tf-risk-factors"
+        version: "2021-06-01"
+      - id: fatf-rec-2012
+        name: "FATF 40 Recommendations (2012, updated 2023)"
+        type: regulation
+        url: "https://www.fatf-gafi.org/en/topics/fatf-recommendations.html"
+        version: "2023-02-01"
+      - id: amld6-directive
+        name: "6th Anti-Money Laundering Directive (EU 2018/1673)"
+        type: regulation
+        url: "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32018L1673"
+        version: "2018-10-23"
+      - id: amld5-directive
+        name: "5th Anti-Money Laundering Directive (EU 2018/843)"
+        type: regulation
+        url: "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32018L0843"
+        version: "2018-05-30"
+      - id: eba-gl-2022-05
+        name: "EBA Guidelines on customer due diligence (CDD)"
+        type: guidance
+        version: "2022-12-01"
+      - id: eu-funds-transfer-reg
+        name: "EU Funds Transfer Regulation 2015/847 (Wire Transfer Regulation)"
+        type: regulation
+        url: "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32015R0847"
+        version: "2015-05-20"
+
+  emi-uk-fca:
+    name: "UK FCA EMI Regulations"
+    description: "FCA handbook, CASS 15, PSR 2017, MLR 2017 for UK-authorised EMIs"
+    tags: ["emi", "fca", "uk", "cass", "psr", "mlr", "safeguarding"]
+    jurisdiction: uk
+    sources:
+      - id: fca-cass-15
+        name: "CASS 15 Safeguarding (FCA PS25/12)"
+        type: regulation
+        url: "https://www.handbook.fca.org.uk/handbook/CASS/15/"
+        version: "2025-12-01"
+      - id: psr-2017
+        name: "Payment Services Regulations 2017 (SI 2017/752)"
+        type: regulation
+        url: "https://www.legislation.gov.uk/uksi/2017/752/contents"
+        version: "2017-07-13"
+      - id: mlr-2017
+        name: "Money Laundering Regulations 2017 (SI 2017/692)"
+        type: regulation
+        url: "https://www.legislation.gov.uk/uksi/2017/692/contents"
+        version: "2017-06-26"
+      - id: fca-aml-guidance
+        name: "FCA Financial Crime Guide — AML / CTF"
+        type: guidance
+        url: "https://www.handbook.fca.org.uk/handbook/FCG/"
+        version: "2024-01-01"
+      - id: emi-reg-2011
+        name: "Electronic Money Regulations 2011 (SI 2011/99)"
+        type: regulation
+        url: "https://www.legislation.gov.uk/uksi/2011/99/contents"
+        version: "2011-01-30"
+      - id: fca-consumer-duty
+        name: "FCA Consumer Duty (PS22/9)"
+        type: regulation
+        url: "https://www.fca.org.uk/publication/policy/ps22-9.pdf"
+        version: "2022-07-27"
+
+  emi-internal-sop:
+    name: "Banxe Internal SOPs"
+    description: "Banxe standard operating procedures for AML, KYC, safeguarding, and compliance"
+    tags: ["emi", "internal", "sop", "banxe", "kyc", "aml", "safeguarding"]
+    jurisdiction: eu
+    sources:
+      - id: banxe-kyc-sop
+        name: "KYC Onboarding Standard Operating Procedure v2.1"
+        type: sop
+        version: "2025-01-01"
+      - id: banxe-aml-sop
+        name: "AML Transaction Monitoring SOP v1.4"
+        type: sop
+        version: "2025-01-01"
+      - id: banxe-sar-template
+        name: "SAR Filing Template and Decision Tree"
+        type: sar_template
+        version: "2025-01-01"
+      - id: banxe-safeguarding-sop
+        name: "CASS 15 Daily Safeguarding Reconciliation SOP"
+        type: sop
+        version: "2025-01-01"
+      - id: banxe-pep-sop
+        name: "PEP Enhanced Due Diligence SOP v1.0"
+        type: sop
+        version: "2025-01-01"
+      - id: banxe-sanctions-sop
+        name: "Sanctions Screening and Escalation SOP v1.2"
+        type: sop
+        version: "2025-01-01"
+
+  emi-case-history:
+    name: "Historical SAR/STR Reports and Case Studies"
+    description: "Anonymised past suspicious activity reports, STR outcomes, and compliance case studies"
+    tags: ["emi", "sar", "str", "history", "case_study", "aml"]
+    jurisdiction: eu
+    sources:
+      - id: ncis-typologies-2024
+        name: "NCA/NCIS AML Typologies Report 2024"
+        type: case_study
+        version: "2024-01-01"
+      - id: fatf-ml-typologies-2023
+        name: "FATF Money Laundering Typologies 2023"
+        type: case_study
+        url: "https://www.fatf-gafi.org/en/publications/Methodsandtrends/Casestudies.html"
+        version: "2023-01-01"
+      - id: banxe-sar-archive-2024
+        name: "Banxe Internal SAR Archive 2024 (anonymised)"
+        type: sar_template
+        version: "2024-12-31"
+      - id: eba-aml-breach-cases
+        name: "EBA AML Breach Case Summaries 2022-2024"
+        type: case_study
+        version: "2024-06-01"

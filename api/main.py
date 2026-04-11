@@ -32,6 +32,7 @@ from fastapi.responses import JSONResponse
 
 from api.routers import (
     auth,
+    compliance_kb,
     consumer_duty,
     customers,
     fraud,
@@ -117,3 +118,4 @@ app.include_router(mlro_notifications.router)  # POST /internal/notifications/ml
 app.include_router(
     sanctions_rescreen.router
 )  # POST /compliance/sanctions/rescreen/high-risk (IL-068)
+app.include_router(compliance_kb.router)  # GET/POST /v1/kb/* (IL-CKS-01)

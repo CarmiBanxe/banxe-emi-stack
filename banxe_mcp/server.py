@@ -898,6 +898,263 @@ async def health_resource() -> str:
         return "API Status: UNAVAILABLE"
 
 
+# ── Compliance KB Tools (IL-CKS-01) ─────────────────────────────────────────
+
+
+@mcp_server.tool()
+async def kb_list_notebooks(tags: str = "", jurisdiction: str = "") -> str:
+    """List all compliance knowledge base notebooks.
+
+    Returns notebook IDs, names, descriptions, and document counts.
+    Useful for compliance officers to discover available regulatory sources.
+
+    Args:
+        tags: Comma-separated filter tags (e.g. "aml,uk" or "fatf")
+        jurisdiction: Filter by jurisdiction: eu | uk | fatf | eba | esma
+    """
+    try:
+        params: list[str] = []
+        if tags:
+            for tag in tags.split(","):
+                params.append(f"tags={tag.strip()}")
+        if jurisdiction:
+            params.append(f"jurisdiction={jurisdiction}")
+        qs = "?" + "&".join(params) if params else ""
+        data = await _api_get(f"/v1/kb/notebooks{qs}")
+        if not data:
+            return "No compliance notebooks found."
+        lines = [f"Compliance Knowledge Notebooks ({len(data)} total):"]
+        for nb in data:
+            lines.append(
+                f"  [{nb.get('id', '?')}] {nb.get('name', '?')} "
+                f"({nb.get('jurisdiction', '?')}) — {nb.get('doc_count', 0)} chunks"
+            )
+            desc = nb.get("description", "")
+            if desc:
+                lines.append(f"    {desc}")
+        return "\n".join(lines)
+    except httpx.HTTPStatusError as e:
+        return f"Error listing notebooks: {e.response.status_code}"
+    except httpx.ConnectError:
+        return "Error: BANXE API unavailable. Ensure API is running on :8000"
+
+
+@mcp_server.tool()
+async def kb_get_notebook(notebook_id: str) -> str:
+    """Get full details for a compliance notebook including all sources.
+
+    Returns notebook metadata, source list, and current document count.
+
+    Args:
+        notebook_id: Notebook ID (e.g. 'emi-uk-fca', 'emi-eu-aml')
+    """
+    try:
+        data = await _api_get(f"/v1/kb/notebooks/{notebook_id}")
+        sources = data.get("sources", [])
+        lines = [
+            f"Notebook: {data.get('name', notebook_id)}",
+            f"ID: {notebook_id}",
+            f"Jurisdiction: {data.get('jurisdiction', 'N/A')}",
+            f"Tags: {', '.join(data.get('tags', []))}",
+            f"Description: {data.get('description', '')}",
+            f"Document chunks: {data.get('doc_count', 0)}",
+            f"Sources ({len(sources)}):",
+        ]
+        for s in sources:
+            url_str = f" — {s.get('url', '')}" if s.get("url") else ""
+            lines.append(
+                f"  [{s.get('id', '?')}] {s.get('name', '?')} "
+                f"({s.get('source_type', '?')}, v{s.get('version', '?')}){url_str}"
+            )
+        return "\n".join(lines)
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            return f"Notebook '{notebook_id}' not found"
+        return f"Error fetching notebook: {e.response.status_code}"
+    except httpx.ConnectError:
+        return "Error: BANXE API unavailable."
+
+
+@mcp_server.tool()
+async def kb_query(
+    notebook_id: str,
+    question: str,
+    max_citations: int = 5,
+) -> str:
+    """Ask a compliance question against a knowledge base notebook.
+
+    Performs RAG retrieval and returns a synthesised answer with citations
+    showing the source document, section, and relevant snippet.
+
+    Supports English and Russian questions.
+
+    Args:
+        notebook_id: Target notebook (e.g. 'emi-uk-fca', 'emi-eu-aml')
+        question: Compliance question in English or Russian
+        max_citations: Maximum number of citations to include (1-10, default 5)
+    """
+    try:
+        payload = {
+            "notebook_id": notebook_id,
+            "question": question,
+            "max_citations": max(1, min(10, max_citations)),
+        }
+        data = await _api_post("/v1/kb/query", payload)
+        answer = data.get("answer", "No answer generated.")
+        citations = data.get("citations", [])
+        confidence = data.get("confidence", 0.0)
+
+        lines = [
+            f"Q: {question}",
+            f"Notebook: {notebook_id} | Confidence: {confidence:.0%}",
+            "",
+            answer,
+            "",
+        ]
+        if citations:
+            lines.append(f"Citations ({len(citations)}):")
+            for cit in citations:
+                uri_str = f" <{cit.get('uri', '')}>" if cit.get("uri") else ""
+                lines.append(
+                    f"  [{cit.get('source_id', '?')}] {cit.get('title', '?')} "
+                    f"§{cit.get('section', '?')} (v{cit.get('version', '?')}){uri_str}"
+                )
+                snippet = cit.get("snippet", "")
+                if snippet:
+                    lines.append(f'    "{snippet[:200]}"')
+        return "\n".join(lines)
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            return f"Notebook '{notebook_id}' not found"
+        return f"Error querying KB: {e.response.status_code}"
+    except httpx.ConnectError:
+        return "Error: BANXE API unavailable."
+
+
+@mcp_server.tool()
+async def kb_search(notebook_id: str, query: str, limit: int = 10) -> str:
+    """Semantic search over a compliance notebook.
+
+    Returns raw document chunks with similarity scores.
+    Use kb_query for synthesised answers; use kb_search for exploration.
+
+    Args:
+        notebook_id: Target notebook ID
+        query: Search query (natural language)
+        limit: Maximum results to return (1-50, default 10)
+    """
+    try:
+        payload = {"notebook_id": notebook_id, "query": query, "limit": max(1, min(50, limit))}
+        data = await _api_post("/v1/kb/search", payload)
+        if not data:
+            return f"No results found in '{notebook_id}' for: {query}"
+        lines = [f"Search: '{query}' in {notebook_id} ({len(data)} results):", ""]
+        for i, result in enumerate(data, 1):
+            score = result.get("score", 0.0)
+            lines.append(
+                f"[{i}] {result.get('section', '?')} "
+                f"(doc: {result.get('document_id', '?')}, score: {score:.2f})"
+            )
+            text = result.get("text", "")
+            if text:
+                lines.append(f"    {text[:250]}...")
+            lines.append("")
+        return "\n".join(lines)
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            return f"Notebook '{notebook_id}' not found"
+        return f"Error searching KB: {e.response.status_code}"
+    except httpx.ConnectError:
+        return "Error: BANXE API unavailable."
+
+
+@mcp_server.tool()
+async def kb_compare_versions(
+    source_id: str,
+    from_version: str,
+    to_version: str,
+    focus_sections: str = "",
+) -> str:
+    """Compare two versions of a regulatory document for changes.
+
+    Identifies added, removed, and modified sections between versions,
+    with impact tags (e.g. 'new-requirement', 'modified-requirement').
+
+    Both versions must be ingested into the knowledge base first.
+
+    Args:
+        source_id: Source document ID (e.g. 'fca-cass-15', 'mlr-2017')
+        from_version: Earlier version (ISO date, e.g. '2021-01-01')
+        to_version: Later version (ISO date, e.g. '2025-12-01')
+        focus_sections: Comma-separated section names to focus on (optional)
+    """
+    try:
+        payload: dict[str, Any] = {
+            "source_id": source_id,
+            "from_version": from_version,
+            "to_version": to_version,
+        }
+        if focus_sections:
+            payload["focus_sections"] = [s.strip() for s in focus_sections.split(",")]
+        data = await _api_post("/v1/kb/compare", payload)
+        changes = data.get("changes", [])
+        lines = [
+            f"Version Comparison: {source_id}",
+            f"From: {from_version} → To: {to_version}",
+            f"Summary: {data.get('diff_summary', 'N/A')}",
+            f"Changes: {len(changes)}",
+            "",
+        ]
+        for ch in changes[:20]:
+            change_type = ch.get("change_type", "?").upper()
+            lines.append(f"[{change_type}] §{ch.get('section', '?')}")
+            if ch.get("before"):
+                lines.append(f"  Before: {ch['before'][:150]}...")
+            if ch.get("after"):
+                lines.append(f"  After:  {ch['after'][:150]}...")
+            if ch.get("impact_tags"):
+                lines.append(f"  Impact: {', '.join(ch['impact_tags'])}")
+            lines.append("")
+        return "\n".join(lines)
+    except httpx.HTTPStatusError as e:
+        return f"Error comparing versions: {e.response.status_code}"
+    except httpx.ConnectError:
+        return "Error: BANXE API unavailable."
+
+
+@mcp_server.tool()
+async def kb_get_citations(source_id: str, notebook_id: str) -> str:
+    """Get full citation details for a source document in a notebook.
+
+    Returns source metadata including title, version, URL, and description.
+    Use this to get complete citation information after a kb_query result.
+
+    Args:
+        source_id: Source document ID (e.g. 'fca-cass-15')
+        notebook_id: Notebook containing this source (e.g. 'emi-uk-fca')
+    """
+    try:
+        data = await _api_get(f"/v1/kb/citations/{source_id}?notebook_id={notebook_id}")
+        lines = [
+            f"Citation: {data.get('title', source_id)}",
+            f"Source ID: {source_id}",
+            f"Type: {data.get('source_type', 'N/A')}",
+            f"Version: {data.get('version', 'N/A')}",
+            f"Section: {data.get('section', 'N/A')}",
+        ]
+        if data.get("uri"):
+            lines.append(f"URL: {data['uri']}")
+        if data.get("snippet"):
+            lines.append(f"Description: {data['snippet']}")
+        return "\n".join(lines)
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            return f"Source '{source_id}' not found in notebook '{notebook_id}'"
+        return f"Error fetching citation: {e.response.status_code}"
+    except httpx.ConnectError:
+        return "Error: BANXE API unavailable."
+
+
 @mcp_server.resource("banxe://info")
 async def info_resource() -> str:
     """BANXE EMI platform information."""
@@ -905,8 +1162,10 @@ async def info_resource() -> str:
         "BANXE AI Bank — FCA-authorised EMI Platform\n"
         "MCP Server v0.1.0 (Phase 0: Read-Only)\n"
         "Tools: get_account_balance, list_accounts, get_transaction_history, "
-        "get_kyc_status, check_aml_alert, get_exchange_rate, get_payment_status\n"
-        "FCA basis: CASS 7.15, MLR 2017, PSR 2017\n"
+        "get_kyc_status, check_aml_alert, get_exchange_rate, get_payment_status, "
+        "kb_list_notebooks, kb_get_notebook, kb_query, kb_search, "
+        "kb_compare_versions, kb_get_citations\n"
+        "FCA basis: CASS 7.15, CASS 15, MLR 2017, PSR 2017\n"
         "Trust zone: RED"
     )
 
