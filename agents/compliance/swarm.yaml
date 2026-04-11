@@ -109,6 +109,42 @@ agents:
       - rag_query_kb
     fraud_adapter: MockFraudAdapter  # live: blocked on SARDINE_CLIENT_ID
 
+  # Layer 3: Reconciliation AI Agents (IL-015 Phase 5)
+  - id: recon_analysis_agent
+    soul: ./soul/recon_analysis_agent.soul.md
+    autonomy: L2
+    human_double: COMPLIANCE_OFFICER
+    depends_on: []
+    parallel: true
+    tools:
+      - clickhouse_log_event
+      - hitl_check_gate
+      - n8n_trigger_workflow
+    skill: agents.compliance.skills.recon_analysis.ReconAnalysisSkill
+    hitl_gates:
+      - recon_fraud_risk_review    # confidence < 0.70 or FRAUD_RISK
+    thresholds:
+      fraud_risk_gbp: "50000"
+      timing_difference_gbp: "100"
+      confidence_hitl: "0.70"
+
+  - id: breach_prediction_agent
+    soul: ./soul/breach_prediction_agent.soul.md
+    autonomy: L2
+    human_double: COMPLIANCE_OFFICER
+    depends_on: [recon_analysis_agent]
+    parallel: true
+    tools:
+      - clickhouse_log_event
+      - hitl_check_gate
+      - n8n_trigger_workflow
+    skill: agents.compliance.skills.breach_prediction.BreachPredictionSkill
+    hitl_gates:
+      - breach_imminent_review     # predicted_breach_in_days <= 1
+    thresholds:
+      probability_alert: "0.70"
+      probability_mlro_escalate: "0.90"
+
 # ── Knowledge Base ────────────────────────────────────────────────────────────
 
 knowledge_base:

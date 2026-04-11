@@ -13,7 +13,7 @@
 | ReconcAgent | `.claude/agents/reconciliation-agent.md` | L1 Auto (alert on DISCREPANCY) | Safeguarding reconciliation | MLRO |
 | ReportingAgent | `.claude/agents/reporting-agent.md` | L1 Auto (CFO review for upload) | FIN060 PDF generation | CFO |
 
-### Compliance Swarm (agents/compliance/ — 7 soul agents)
+### Compliance Swarm (agents/compliance/ — 9 soul agents)
 
 Defined in `agents/compliance/swarm.yaml` — trust zone: RED
 
@@ -26,6 +26,8 @@ Defined in `agents/compliance/swarm.yaml` — trust zone: RED
 | Transaction Monitor Agent | `soul/tm_agent.soul.md` | L3 | Layer 2 (domain) | Compliance Officer | jube_adapter_agent |
 | CDD Review Agent | `soul/cdd_review_agent.soul.md` | L2 | Layer 2 (domain) | Compliance Officer | sanctions_check_agent |
 | Fraud Detection Agent | `soul/fraud_detection_agent.soul.md` | L3 | Layer 2 (domain) | Fraud Analyst | jube_adapter_agent, tm_agent |
+| Recon Analysis Agent | `soul/recon_analysis_agent.soul.md` | L2 | Layer 3 (recon AI) | Compliance Officer | — (parallel) |
+| Breach Prediction Agent | `soul/breach_prediction_agent.soul.md` | L2 | Layer 3 (recon AI) | Compliance Officer | recon_analysis_agent |
 
 ### Compliance workflows (agents/compliance/workflows/)
 
@@ -33,6 +35,7 @@ Defined in `agents/compliance/swarm.yaml` — trust zone: RED
 |----------|------|----------|
 | Monthly Compliance Review | `workflows/monthly_compliance_review.yaml` | Monthly |
 | Quarterly Board Report | `workflows/quarterly_board_report.yaml` | Quarterly |
+| Daily Recon Workflow | `workflows/daily_recon_workflow.py` | Daily (cron) |
 
 ## Authority matrix
 
