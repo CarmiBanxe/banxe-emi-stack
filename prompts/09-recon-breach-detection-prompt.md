@@ -1,6 +1,7 @@
 # 09 — Reconciliation & Breach Detection — Claude Code Prompt
 
 ## Created: 2026-04-11 | IL-015 | Migration Phase: 4
+## Updated: 2026-04-11 | IL-015 | Phases 2-5 implemented ✅
 
 ## Context
 
@@ -20,17 +21,25 @@ You are working on **banxe-emi-stack**, an open-source EMI (Electronic Money Ins
 
 ## Module Map
 
-| Module | Purpose |
-|--------|---------|
-| `services.recon.reconciliation_engine` | ReconciliationEngine — daily CASS 7.15 recon |
-| `services.recon.breach_detector` | BreachDetector — CASS 15.12 breach escalation |
-| `services.recon.clickhouse_client` | ClickHouseReconClient + InMemoryReconClient |
-| `services.recon.statement_fetcher` | StatementFetcher — bank statement polling |
-| `services.recon.bankstatement_parser` | CSV/MT940 parser for ASPSP statements |
-| `services.recon.cron_daily_recon` | Cron entry point for daily reconciliation |
-| `services.recon.midaz_reconciliation` | CLI entry point (`python3 -m`) |
-| `services.recon.mock_aspsp` | Mock bank API for sandbox testing |
-| `services.recon.statement_poller` | Polling loop for statement availability |
+| Module | Purpose | Phase |
+|--------|---------|-------|
+| `services.recon.reconciliation_engine` | ReconciliationEngine — daily CASS 7.15 recon | 1 ✅ |
+| `services.recon.breach_detector` | BreachDetector — CASS 15.12 breach escalation | 1 ✅ |
+| `services.recon.clickhouse_client` | ClickHouseReconClient + InMemoryReconClient | 1 ✅ |
+| `services.recon.statement_fetcher` | StatementFetcher — bank statement polling | 1+2 ✅ |
+| `services.recon.bankstatement_parser` | CSV/MT940/CAMT.053 parser + validate_statement_balance | 1+2 ✅ |
+| `services.recon.statement_poller` | Sync + async polling (async_poll_with_schedule) | 1+2 ✅ |
+| `services.recon.fca_regdata_client` | FCARegDataClient + MockFCARegDataClient | 4 ✅ |
+| `services.recon.cron_daily_recon` | Cron entry point for daily reconciliation | 1 ✅ |
+| `services.recon.midaz_reconciliation` | CLI entry point (`python3 -m`) | 1 ✅ |
+| `services.recon.mock_aspsp` | Mock bank API for sandbox testing | 1 ✅ |
+| `agents.compliance.skills.recon_analysis` | ReconAnalysisSkill — AI discrepancy classification | 5 ✅ |
+| `agents.compliance.skills.breach_prediction` | BreachPredictionSkill — trend-based prediction | 5 ✅ |
+| `agents.compliance.workflows.daily_recon_workflow` | Orchestrated daily workflow (all 4 steps) | 5 ✅ |
+| `infra/clickhouse/migrations/` | Production ClickHouse schema migrations | 3 ✅ |
+| `infra/grafana/dashboards/` | Grafana safeguarding dashboard | 3 ✅ |
+| `n8n/workflows/safeguarding-shortfall-alert.json` | Enhanced alert workflow | 4 ✅ |
+| `n8n/workflows/daily-recon-report.json` | Daily 18:00 UTC report → #daily-recon | 4 ✅ |
 
 ## Data Flow
 
