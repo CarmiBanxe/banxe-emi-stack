@@ -280,6 +280,129 @@ async def get_payment_status(payment_id: str) -> str:
         return "Error: BANXE API unavailable."
 
 
+# ── Tool 8: Reconciliation Status ───────────────────────────────────────────
+
+
+@mcp_server.tool()
+async def get_recon_status(recon_date: str = "") -> str:
+    """Get reconciliation status for a date (YYYY-MM-DD, default: today).
+    Returns MATCHED/DISCREPANCY/PENDING for all safeguarding accounts.
+    FCA CASS 7.15: daily reconciliation status must be auditable.
+
+    Args:
+        recon_date: Date in YYYY-MM-DD format (default: today)
+    """
+    from datetime import date as date_type
+
+    if not recon_date:
+        recon_date = date_type.today().isoformat()
+
+    try:
+        data = await _api_get(f"/v1/recon/status?date={recon_date}")
+        results = data.get("results", [])
+        if not results:
+            return f"No reconciliation data for {recon_date}. Status: PENDING"
+        lines = [f"Recon Status — {recon_date}:"]
+        for r in results:
+            lines.append(
+                f"  {r.get('account_id', '?')} | "
+                f"{r.get('account_type', '?')} | "
+                f"{r.get('status', '?')} | "
+                f"discrepancy: {r.get('discrepancy', '0')} {r.get('currency', 'GBP')}"
+            )
+        return "\n".join(lines)
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            return f"No recon data for {recon_date}. Status: PENDING (statement not yet received)"
+        return f"Error fetching recon status: {e.response.status_code}"
+    except httpx.ConnectError:
+        return (
+            f"Recon Status — {recon_date} (SANDBOX — API unavailable)\n"
+            f"  Run: pytest tests/ -k recon -v to verify recon engine\n"
+            f"  FCA CASS 7.15: status queryable via ClickHouse banxe.safeguarding_events"
+        )
+
+
+# ── Tool 9: Breach History ───────────────────────────────────────────────────
+
+
+@mcp_server.tool()
+async def get_breach_history(account_id: str, days: int = 30) -> str:
+    """Get breach history for a safeguarding account.
+    Returns list of BreachRecord for last N days.
+    FCA CASS 15.12: breach records must be available for FCA inspection.
+
+    Args:
+        account_id: Midaz safeguarding account UUID
+        days: Number of days to look back (default: 30)
+    """
+    try:
+        data = await _api_get(f"/v1/recon/breaches/{account_id}?days={days}")
+        breaches = data.get("breaches", [])
+        if not breaches:
+            return f"No breaches found for {account_id} in last {days} days."
+        lines = [f"Breach History — {account_id} (last {days} days):"]
+        for b in breaches:
+            lines.append(
+                f"  {b.get('detected_at', '?')} | "
+                f"discrepancy: £{b.get('discrepancy', '0')} | "
+                f"days outstanding: {b.get('days_outstanding', '?')} | "
+                f"FCA notified: {'Yes' if b.get('reported_to_fca') else 'No'}"
+            )
+        return "\n".join(lines)
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            return f"No breach records found for {account_id}"
+        return f"Error fetching breach history: {e.response.status_code}"
+    except httpx.ConnectError:
+        return (
+            f"Breach History — {account_id} (SANDBOX — API unavailable)\n"
+            f"  Query ClickHouse: SELECT * FROM banxe.safeguarding_breaches "
+            f"WHERE account_id = '{account_id}' ORDER BY detected_at DESC LIMIT 10"
+        )
+
+
+# ── Tool 10: Discrepancy Trend ───────────────────────────────────────────────
+
+
+@mcp_server.tool()
+async def get_discrepancy_trend(account_id: str, days: int = 7) -> str:
+    """Get discrepancy trend for safeguarding account over last N days.
+    Used by AI agents for breach prediction (Phase 5).
+    Returns daily discrepancy amounts as decimal strings.
+    FCA CASS 15.12: trend data required for breach prediction.
+
+    Args:
+        account_id: Midaz safeguarding account UUID
+        days: Number of days to look back (default: 7)
+    """
+    try:
+        data = await _api_get(f"/v1/recon/trend/{account_id}?days={days}")
+        trend_data = data.get("trend", [])
+        if not trend_data:
+            return f"No trend data for {account_id} in last {days} days."
+        lines = [f"Discrepancy Trend — {account_id} (last {days} days):"]
+        for entry in trend_data:
+            status_icon = "OK" if entry.get("status") == "MATCHED" else "!!"
+            lines.append(
+                f"  [{status_icon}] {entry.get('recon_date', '?')} | "
+                f"discrepancy: £{entry.get('discrepancy', '0')} | "
+                f"status: {entry.get('status', '?')}"
+            )
+        return "\n".join(lines)
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            return f"No trend data found for {account_id}"
+        return f"Error fetching discrepancy trend: {e.response.status_code}"
+    except httpx.ConnectError:
+        return (
+            f"Discrepancy Trend — {account_id} (SANDBOX — API unavailable)\n"
+            f"  Query ClickHouse: SELECT recon_date, discrepancy, status "
+            f"FROM banxe.safeguarding_events WHERE account_id = '{account_id}' "
+            f"ORDER BY recon_date DESC LIMIT {days}"
+        )
+
+
 # ── Resources ────────────────────────────────────────────────────────────
 
 

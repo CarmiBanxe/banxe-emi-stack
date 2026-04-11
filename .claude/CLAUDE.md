@@ -73,3 +73,46 @@ mcp__lucidshark__scan(all_files=true, domains=["all"])    # full project scan, a
 📋 Незавершённый план: N задач (P0 дедлайн: 7 мая — safeguarding)
 Продолжить с Задачи N или есть другие приоритеты?
 ```
+
+---
+
+## INFRASTRUCTURE UTILIZATION CHECKLIST (КАНОН — нарушение = P1 дефект)
+
+При реализации ЛЮБОЙ фичи разработчик ОБЯЗАН задействовать ВСЕ релевантные ресурсы проекта.
+
+### Обязательные интеграции для каждой фичи:
+
+1. **LucidShark** — scan after every code change
+2. **Semgrep** — add domain-specific rules in `.semgrep/banxe-rules.yml`
+3. **Claude Rules** — check `.claude/rules/` coverage for new feature
+4. **Claude Hooks** — ensure post-edit-scan and pre-commit-q cover new code
+5. **Claude Commands** — create slash command for feature check (e.g. `/recon-status`)
+6. **AI Agent Soul** — create `.soul.md` in `agents/compliance/soul/` for each new AI skill
+7. **Agent Workflow** — create workflow in `agents/compliance/workflows/`
+8. **Agent Orchestrator** — register new skill in `agents/compliance/orchestrator.py`
+9. **MCP Server** — add MCP tools in `banxe_mcp/server.py`
+10. **AI Registry** — register agent in `.ai/registries/`
+11. **n8n Workflows** — create/update for notifications (Slack, Telegram, Email)
+12. **Docker** — add services to docker-compose
+13. **dbt** — create dbt models for analytical data
+14. **Grafana** — create dashboard for monitoring
+15. **Tests** — InMemory stubs + pytest for every new component
+
+### Checklist format (before declaring feature done):
+```
+INFRASTRUCTURE CHECKLIST — [feature name]
+[ ] LucidShark scan clean
+[ ] Semgrep rules added
+[ ] Claude Rules coverage
+[ ] Claude Commands created
+[ ] AI Agent Soul files
+[ ] Agent Workflow
+[ ] Orchestrator registration
+[ ] MCP Server tools
+[ ] AI Registry
+[ ] n8n Workflows
+[ ] Docker services
+[ ] dbt models
+[ ] Grafana dashboard
+[ ] Tests passing
+```

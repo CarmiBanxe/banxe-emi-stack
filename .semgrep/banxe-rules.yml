@@ -116,3 +116,14 @@ rules:
       Проверь значение — не уменьшай существующий TTL.
     languages: [generic]
     severity: WARNING
+
+  - id: banxe-no-float-in-recon
+    pattern: |
+      float(...)
+    message: "No float in reconciliation code — use Decimal (FCA I-24)"
+    languages: [python]
+    severity: ERROR
+    paths:
+      include:
+        - "services/recon/**"
+        - "agents/compliance/skills/**"

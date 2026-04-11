@@ -29,6 +29,23 @@ from agents.compliance.agent_runner import (
     ComplianceAgent,
 )
 
+# IL-015 Phase 5: Recon AI skills registered for dynamic loading by swarm agents
+# Skills are declared in swarm.yaml under agents[*].skill field
+# and loaded at runtime via importlib when agent processes a recon event.
+#
+# Registered skills:
+#   - agents.compliance.skills.recon_analysis.ReconAnalysisSkill
+#     Soul: agents/compliance/soul/recon_analysis_agent.soul.md
+#   - agents.compliance.skills.breach_prediction.BreachPredictionSkill
+#     Soul: agents/compliance/soul/breach_prediction_agent.soul.md
+#
+# Workflow entry point:
+#   - agents.compliance.workflows.daily_recon_workflow.run_daily_workflow()
+_RECON_SKILL_REGISTRY: dict[str, str] = {
+    "recon_analysis_agent": "agents.compliance.skills.recon_analysis.ReconAnalysisSkill",
+    "breach_prediction_agent": "agents.compliance.skills.breach_prediction.BreachPredictionSkill",
+}
+
 logger = logging.getLogger("banxe.swarm.orchestrator")
 
 
