@@ -1,0 +1,212 @@
+{# banxe-component.tsx.j2 — BANXE-specific component patterns #}
+{# IL-D2C-01 | Includes: forms, tables, cards, compliance banners #}
+{# Usage: Jinja2 render with context: component_type, name, fields, compliance_level #}
+
+import { useState } from '@builder.io/mitosis';
+
+// BANXE Design Pipeline (IL-D2C-01)
+// Component type: {{ component_type | default('generic') }}
+// Compliance level: {{ compliance_level | default('standard') }}
+// EU AI Act Art.52: AI-generated — human review required before production
+
+{%- if component_type == 'form' %}
+// GDPR Art.25: This form implements Privacy-by-Design
+// - Minimal data collection
+// - Purpose limitation labels on each field
+// - No client-side logging of PII
+
+interface {{ name }}FormProps {
+  onSubmit: (data: {{ name }}FormData) => void;
+  onCancel?: () => void;
+}
+
+interface {{ name }}FormData {
+{%- for field in fields | default([]) %}
+  {{ field.name }}: {{ field.type | default('string') }};
+{%- endfor %}
+}
+
+export default function {{ name }}Form({ onSubmit, onCancel }: {{ name }}FormProps) {
+  const [formData, setFormData] = useState<Partial<{{ name }}FormData>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = (e: Event) => {
+    e.preventDefault();
+    setSubmitting(true);
+    // Validate before submit
+    onSubmit(formData as {{ name }}FormData);
+  };
+
+  return (
+    <form
+      class="banxe-form banxe-form--{{ name | lower }}"
+      onSubmit={handleSubmit}
+      aria-label="{{ name }} form"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--banxe-spacing-lg, 24px)',
+        maxWidth: '480px',
+        padding: 'var(--banxe-spacing-xl, 32px)',
+        backgroundColor: 'var(--banxe-color-surface, #FFFFFF)',
+        borderRadius: 'var(--banxe-border-radius-lg, 12px)',
+        boxShadow: 'var(--banxe-shadow-md)',
+      }}
+    >
+{%- for field in fields | default([]) %}
+      {/* Field: {{ field.name }} — Purpose: {{ field.purpose | default('required') }} */}
+      <div class="banxe-form__field">
+        <label
+          htmlFor="{{ name }}-{{ field.name }}"
+          class="banxe-form__label"
+          style={{ fontSize: 'var(--banxe-typography-label-fontSize, 14px)', fontWeight: 500 }}
+        >
+          {{ field.label | default(field.name) }}
+          {%- if field.required %} <span aria-hidden="true" style={{ color: 'var(--banxe-color-danger)' }}>*</span>{%- endif %}
+        </label>
+        <input
+          id="{{ name }}-{{ field.name }}"
+          type="{{ field.input_type | default('text') }}"
+          name="{{ field.name }}"
+          required={{ {{ field.required | default(false) | lower }} }}
+          aria-describedby="{{ name }}-{{ field.name }}-hint"
+          class="banxe-form__input"
+          style={{
+            width: '100%',
+            padding: 'var(--banxe-spacing-sm, 8px) var(--banxe-spacing-md, 16px)',
+            border: '1px solid var(--banxe-color-border, #DADCE0)',
+            borderRadius: 'var(--banxe-border-radius-md, 8px)',
+            fontSize: 'var(--banxe-typography-body-fontSize, 16px)',
+          }}
+        />
+        {%- if field.hint %}
+        <span id="{{ name }}-{{ field.name }}-hint" class="banxe-form__hint">
+          {{ field.hint }}
+        </span>
+        {%- endif %}
+      </div>
+{%- endfor %}
+
+{%- if compliance_level == 'kyc' %}
+      {/* KYC compliance notice — Consumer Duty PS22/9 */}
+      <div
+        class="banxe-compliance-notice"
+        role="note"
+        style={{
+          padding: 'var(--banxe-spacing-md)',
+          backgroundColor: '#FFF9C4',
+          borderRadius: 'var(--banxe-border-radius-sm)',
+          fontSize: 'var(--banxe-typography-caption-fontSize, 12px)',
+        }}
+      >
+        Your information is processed in accordance with our Privacy Policy
+        and UK GDPR. Required for FCA-regulated identity verification.
+      </div>
+{%- endif %}
+
+      <div class="banxe-form__actions" style={{ display: 'flex', gap: 'var(--banxe-spacing-md)' }}>
+        <button
+          type="submit"
+          disabled={submitting}
+          class="banxe-btn banxe-btn--primary"
+          aria-label="Submit {{ name }} form"
+          style={{
+            flex: 1,
+            padding: 'var(--banxe-spacing-sm) var(--banxe-spacing-lg)',
+            backgroundColor: 'var(--banxe-color-primary, #1A73E8)',
+            color: '#FFFFFF',
+            border: 'none',
+            borderRadius: 'var(--banxe-border-radius-md)',
+            cursor: 'pointer',
+            fontWeight: 500,
+          }}
+        >
+          {submitting ? 'Submitting...' : 'Submit'}
+        </button>
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            class="banxe-btn banxe-btn--secondary"
+            style={{
+              padding: 'var(--banxe-spacing-sm) var(--banxe-spacing-lg)',
+              backgroundColor: 'transparent',
+              border: '1px solid var(--banxe-color-border)',
+              borderRadius: 'var(--banxe-border-radius-md)',
+              cursor: 'pointer',
+            }}
+          >
+            Cancel
+          </button>
+        )}
+      </div>
+    </form>
+  );
+}
+
+{%- elif component_type == 'card' %}
+interface {{ name }}CardProps {
+  title: string;
+  subtitle?: string;
+  children?: any;
+  variant?: 'default' | 'warning' | 'danger' | 'success';
+}
+
+export default function {{ name }}Card({
+  title,
+  subtitle,
+  children,
+  variant = 'default',
+}: {{ name }}CardProps) {
+  const variantColors: Record<string, string> = {
+    default: 'var(--banxe-color-surface)',
+    warning: '#FFF8E1',
+    danger: '#FFEBEE',
+    success: '#E8F5E9',
+  };
+
+  return (
+    <div
+      class={`banxe-card banxe-card--${variant}`}
+      role="region"
+      aria-label={title}
+      style={{
+        backgroundColor: variantColors[variant] || variantColors.default,
+        borderRadius: 'var(--banxe-border-radius-lg, 12px)',
+        padding: 'var(--banxe-spacing-lg, 24px)',
+        boxShadow: 'var(--banxe-shadow-md)',
+      }}
+    >
+      <h3 class="banxe-card__title" style={{ margin: 0, marginBottom: 'var(--banxe-spacing-xs)' }}>
+        {title}
+      </h3>
+      {subtitle && (
+        <p class="banxe-card__subtitle" style={{ color: 'var(--banxe-color-text-secondary)', marginTop: 0 }}>
+          {subtitle}
+        </p>
+      )}
+      <div class="banxe-card__content">{children}</div>
+    </div>
+  );
+}
+
+{%- else %}
+// Generic BANXE component
+export default function {{ name }}() {
+  return (
+    <div
+      class="banxe-{{ name | lower }}"
+      role="region"
+      aria-label="{{ name }}"
+      style={{
+        padding: 'var(--banxe-spacing-md)',
+        backgroundColor: 'var(--banxe-color-surface)',
+        borderRadius: 'var(--banxe-border-radius-md)',
+      }}
+    >
+      {/* TODO: implement {{ name }} */}
+    </div>
+  );
+}
+{%- endif %}

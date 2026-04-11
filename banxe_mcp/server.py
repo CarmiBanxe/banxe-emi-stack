@@ -711,6 +711,180 @@ async def manage_playbooks(action: str = "list", playbook_id: str = "") -> str:
         return f"Playbook management error: {exc}"
 
 
+# ── Tool 16: Generate UI Component (Design Pipeline) ─────────────────────────
+
+
+@mcp_server.tool()
+async def generate_component(
+    file_id: str,
+    component_id: str,
+    framework: str = "react",
+    run_visual_qa: bool = False,
+) -> str:
+    """Generate a UI component from a Penpot design using the AI Design Pipeline.
+
+    Runs the full D2C pipeline: Penpot context → LLM (Ollama) → Mitosis compile.
+    AI-generated code is labelled per EU AI Act Art.52.
+
+    Args:
+        file_id:       Penpot file UUID
+        component_id:  Penpot component UUID
+        framework:     Target framework — react | vue | react-native | angular | svelte
+        run_visual_qa: If True, runs screenshot comparison against Penpot design
+    """
+    try:
+        data = await _api_post(
+            "/design/generate-component",
+            {
+                "file_id": file_id,
+                "component_id": component_id,
+                "framework": framework,
+                "run_visual_qa": run_visual_qa,
+            },
+        )
+        qa_info = ""
+        if run_visual_qa:
+            qa_info = (
+                f"\nVisual QA: {'PASS' if data.get('qa_passed') else 'FAIL'} "
+                f"(similarity: {data.get('qa_similarity', 0.0):.3f})"
+            )
+        return (
+            f"Component Generated: {data.get('component_id', component_id)}\n"
+            f"Framework: {data.get('framework', framework)}\n"
+            f"Model: {data.get('model_used', 'N/A')}\n"
+            f"Latency: {data.get('latency_ms', 0)}ms\n"
+            f"Success: {data.get('success', False)}\n"
+            f"{qa_info}\n\n"
+            f"--- CODE ---\n{data.get('code', '')[:2000]}"
+        )
+    except httpx.HTTPStatusError as e:
+        return f"Error generating component: HTTP {e.response.status_code}"
+    except httpx.ConnectError:
+        return (
+            "Design Pipeline API unavailable.\n"
+            "Start: uvicorn api.main:app --port 8000\n"
+            "Ensure PENPOT_BASE_URL and PENPOT_TOKEN are configured."
+        )
+
+
+# ── Tool 17: Sync Design Tokens ───────────────────────────────────────────────
+
+
+@mcp_server.tool()
+async def sync_design_tokens(file_id: str) -> str:
+    """Sync design tokens from Penpot to the codebase.
+
+    Runs: Penpot file → banxe-tokens.json → Style Dictionary build
+    → outputs: CSS variables, Tailwind config, React Native tokens.
+
+    Args:
+        file_id: Penpot file UUID to sync tokens from
+    """
+    try:
+        data = await _api_post("/design/sync-tokens", {"file_id": file_id})
+        output_files = data.get("output_files", [])
+        errors = data.get("errors", [])
+        return (
+            f"Token Sync — file_id: {file_id}\n"
+            f"Tokens extracted: {data.get('tokens_extracted', 0)}\n"
+            f"Output files: {len(output_files)}\n"
+            f"Success: {data.get('success', False)}\n"
+            + ("Outputs:\n" + "\n".join(f"  {f}" for f in output_files) if output_files else "")
+            + ("\nErrors:\n" + "\n".join(f"  {e}" for e in errors) if errors else "")
+        )
+    except httpx.HTTPStatusError as e:
+        return f"Token sync failed: HTTP {e.response.status_code}"
+    except httpx.ConnectError:
+        return "Design Pipeline API unavailable. Ensure uvicorn is running on :8000"
+
+
+# ── Tool 18: Visual Compare ───────────────────────────────────────────────────
+
+
+@mcp_server.tool()
+async def visual_compare(
+    component_id: str,
+    rendered_html: str,
+    reference_svg: str,
+    threshold: float = 0.95,
+) -> str:
+    """Compare a rendered component against its Penpot reference design.
+
+    Uses pixel-level comparison to check implementation fidelity.
+    Returns similarity score and PASS/FAIL verdict.
+    Threshold: 95% similarity = PASS (configurable).
+
+    Args:
+        component_id:  Component identifier
+        rendered_html: HTML/component code to compare
+        reference_svg: SVG exported from Penpot as reference
+        threshold:     Similarity threshold (0.0–1.0, default: 0.95)
+    """
+    try:
+        data = await _api_post(
+            "/design/visual-compare",
+            {
+                "component_id": component_id,
+                "rendered_html": rendered_html,
+                "reference_svg": reference_svg,
+                "threshold": threshold,
+            },
+        )
+        diff_info = ""
+        if not data.get("passed"):
+            diff_info = (
+                f"\nDiff pixels: {data.get('diff_pixel_count', 0)}\n"
+                f"Diff image: {data.get('diff_image_path', 'N/A')}"
+            )
+        return (
+            f"Visual Compare — {component_id}\n"
+            f"Status: {'PASS' if data.get('passed') else 'FAIL'}\n"
+            f"Similarity: {data.get('similarity_score', 0.0):.3f}\n"
+            f"Threshold: {threshold}" + diff_info
+        )
+    except httpx.HTTPStatusError as e:
+        return f"Visual compare failed: HTTP {e.response.status_code}"
+    except httpx.ConnectError:
+        return "Design Pipeline API unavailable."
+
+
+# ── Tool 19: List Design Components ──────────────────────────────────────────
+
+
+@mcp_server.tool()
+async def list_design_components(file_id: str) -> str:
+    """List all available Penpot design components for a file.
+
+    Returns a flat list of all components with their names, paths,
+    and compliance metadata (KYC, PSD2 SCA flags).
+
+    Args:
+        file_id: Penpot file UUID
+    """
+    try:
+        data = await _api_get(f"/design/components/{file_id}")
+        components = data.get("components", [])
+        count = data.get("count", len(components))
+        if not components:
+            return f"No components found in file {file_id}."
+        lines = [f"Design Components — {file_id} ({count} total):"]
+        for comp in components[:50]:
+            compliance_flag = " [COMPLIANCE]" if comp.get("is_compliance") else ""
+            lines.append(
+                f"  {comp.get('id', '?')} | {comp.get('path', '?')}/{comp.get('name', '?')}"
+                f"{compliance_flag}"
+            )
+        if count > 50:
+            lines.append(f"  ... and {count - 50} more")
+        return "\n".join(lines)
+    except httpx.HTTPStatusError as e:
+        return f"Error listing components: HTTP {e.response.status_code}"
+    except httpx.ConnectError:
+        return (
+            "Design Pipeline API unavailable.\nConfigure PENPOT_BASE_URL and PENPOT_TOKEN in .env"
+        )
+
+
 # ── Resources ────────────────────────────────────────────────────────────
 
 

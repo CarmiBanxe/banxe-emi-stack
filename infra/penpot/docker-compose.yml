@@ -1,0 +1,120 @@
+---
+# infra/penpot/docker-compose.yml
+# Penpot self-hosted design tool — BANXE Design-to-Code Pipeline
+# IL-D2C-01 | FCA-compliant UI generation
+#
+# Usage:
+#   docker compose -f infra/penpot/docker-compose.yml up -d
+#
+# Penpot UI: http://localhost:9001
+# SMTP (mailcatcher): http://localhost:1080
+
+services:
+  penpot-frontend:
+    image: penpotapp/frontend:latest
+    restart: always
+    ports:
+      - "9001:80"
+    environment:
+      PENPOT_FLAGS: enable-login-with-password
+    depends_on:
+      - penpot-backend
+      - penpot-exporter
+    networks:
+      - penpot-net
+
+  penpot-backend:
+    image: penpotapp/backend:latest
+    restart: always
+    volumes:
+      - penpot_assets:/opt/data/assets
+    environment:
+      PENPOT_FLAGS: >-
+        enable-registration
+        enable-login-with-password
+        enable-smtp
+        enable-prepl-server
+        disable-email-verification
+      PENPOT_PUBLIC_URI: http://localhost:9001
+      PENPOT_DATABASE_URI: postgresql://penpot:penpot@penpot_db/penpot
+      PENPOT_DATABASE_USERNAME: penpot
+      PENPOT_DATABASE_PASSWORD: penpot
+      PENPOT_REDIS_URI: redis://penpot_redis/0
+      PENPOT_ASSETS_STORAGE_BACKEND: assets-fs
+      PENPOT_STORAGE_ASSETS_FS_DIRECTORY: /opt/data/assets
+      PENPOT_TELEMETRY_ENABLED: "false"
+      PENPOT_SMTP_DEFAULT_FROM: no-reply@banxe.com
+      PENPOT_SMTP_DEFAULT_REPLY_TO: no-reply@banxe.com
+      PENPOT_SMTP_HOST: penpot_smtp
+      PENPOT_SMTP_PORT: "1025"
+      PENPOT_SMTP_SSL: "false"
+      PENPOT_SMTP_TLS: "false"
+    depends_on:
+      penpot_db:
+        condition: service_healthy
+      penpot_redis:
+        condition: service_healthy
+    networks:
+      - penpot-net
+
+  penpot-exporter:
+    image: penpotapp/exporter:latest
+    restart: always
+    environment:
+      PENPOT_PUBLIC_URI: http://penpot-frontend
+      PENPOT_REDIS_URI: redis://penpot_redis/0
+    depends_on:
+      - penpot_redis
+    networks:
+      - penpot-net
+
+  penpot_db:
+    image: postgres:16-alpine
+    restart: always
+    volumes:
+      - penpot_db_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: penpot
+      POSTGRES_USER: penpot
+      POSTGRES_PASSWORD: penpot
+      POSTGRES_INITDB_ARGS: --data-checksums
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U penpot -d penpot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - penpot-net
+
+  penpot_redis:
+    image: redis:7-alpine
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - penpot_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - penpot-net
+
+  # Mailcatcher for local SMTP (dev only)
+  penpot_smtp:
+    image: sj26/mailcatcher:latest
+    restart: always
+    ports:
+      - "1025:1025"
+      - "1080:1080"
+    networks:
+      - penpot-net
+
+volumes:
+  penpot_assets:
+  penpot_db_data:
+  penpot_redis_data:
+
+networks:
+  penpot-net:
+    driver: bridge

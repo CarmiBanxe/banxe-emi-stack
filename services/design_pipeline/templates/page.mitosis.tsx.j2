@@ -1,0 +1,61 @@
+{# page.mitosis.tsx.j2 — Mitosis JSX template for full-page layouts #}
+{# IL-D2C-01 | BANXE EMI AI Bank #}
+{# Usage: Jinja2 render with context: page_name, sections, components #}
+
+import { useState } from '@builder.io/mitosis';
+
+// BANXE Design Pipeline (IL-D2C-01)
+// Page: {{ page_name | default('BanxePage') }}
+// EU AI Act Art.52: AI-generated layout — review before production
+
+{%- for component in components %}
+import {{ component.name }} from './{{ component.name }}';
+{%- endfor %}
+
+export default function {{ page_name | default('BanxePage') | replace(' ', '') }}() {
+  return (
+    <div
+      class="banxe-page"
+      style={{
+        minHeight: '100vh',
+        backgroundColor: 'var(--banxe-color-background, #F8F9FA)',
+        fontFamily: 'Inter, system-ui, sans-serif',
+      }}
+    >
+      {/* Header */}
+      <header
+        class="banxe-page__header"
+        style={{
+          backgroundColor: 'var(--banxe-color-surface, #FFFFFF)',
+          padding: 'var(--banxe-spacing-md, 16px) var(--banxe-spacing-xl, 32px)',
+          boxShadow: 'var(--banxe-shadow-sm)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <div class="banxe-page__logo">BANXE</div>
+      </header>
+
+      {/* Main content */}
+      <main
+        class="banxe-page__main"
+        style={{
+          maxWidth: '1200px',
+          margin: '0 auto',
+          padding: 'var(--banxe-spacing-xl, 32px)',
+        }}
+      >
+{%- for section in sections %}
+        {/* Section: {{ section.name }} */}
+        <section class="banxe-page__section--{{ section.name | lower | replace(' ', '-') }}">
+          {{ section.content | indent(10) }}
+        </section>
+{%- endfor %}
+{%- if not sections %}
+        {/* TODO: Add page sections */}
+{%- endif %}
+      </main>
+    </div>
+  );
+}

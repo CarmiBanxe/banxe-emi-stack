@@ -1,0 +1,50 @@
+/**
+ * Do not edit directly, this file was auto-generated.
+ */
+
+:root {
+  --banxe-color-primary: #1A73E8; /** BANXE brand blue — primary CTA, links, focus rings */
+  --banxe-color-primary-dark: #1557B0; /** Darker shade for hover states */
+  --banxe-color-secondary: #34A853; /** Success / positive / active states */
+  --banxe-color-danger: #EA4335; /** Error, alert, blocked transaction */
+  --banxe-color-warning: #FBBC04; /** Warning, pending, in-review */
+  --banxe-color-info: #4285F4; /** Informational banners, tooltips */
+  --banxe-color-surface: #FFFFFF; /** Card / modal background */
+  --banxe-color-background: #F8F9FA; /** Page background */
+  --banxe-color-text-primary: #202124; /** Main body text */
+  --banxe-color-text-secondary: #5F6368; /** Subtext, labels, placeholders */
+  --banxe-color-text-disabled: #9AA0A6; /** Disabled state text */
+  --banxe-color-border: #DADCE0; /** Default border / divider */
+  --banxe-color-border-focus: #1A73E8; /** Focus ring colour (matches primary) */
+  --banxe-color-compliance-amber: #FF8F00; /** KYC pending / EDD required */
+  --banxe-color-compliance-red: #B71C1C; /** AML block / sanctions hit */
+  --banxe-color-compliance-green: #1B5E20; /** KYC approved / CASS reconciled */
+  --banxe-typography-heading-1: [object Object];
+  --banxe-typography-heading-2: [object Object];
+  --banxe-typography-heading-3: [object Object];
+  --banxe-typography-body: [object Object];
+  --banxe-typography-body-small: [object Object];
+  --banxe-typography-caption: [object Object];
+  --banxe-typography-label: [object Object];
+  --banxe-typography-mono: [object Object];
+  --banxe-spacing-xs: 4px;
+  --banxe-spacing-sm: 8px;
+  --banxe-spacing-md: 16px;
+  --banxe-spacing-lg: 24px;
+  --banxe-spacing-xl: 32px;
+  --banxe-spacing-2xl: 48px;
+  --banxe-spacing-3xl: 64px;
+  --banxe-spacing-4xl: 96px;
+  --banxe-border-radius-sm: 4px;
+  --banxe-border-radius-md: 8px;
+  --banxe-border-radius-lg: 12px;
+  --banxe-border-radius-xl: 16px;
+  --banxe-border-radius-full: 9999px;
+  --banxe-shadow-sm: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.06);
+  --banxe-shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.05);
+  --banxe-shadow-lg: 0 10px 15px rgba(0,0,0,0.07), 0 4px 6px rgba(0,0,0,0.05);
+  --banxe-animation-duration-fast: 100ms;
+  --banxe-animation-duration-normal: 200ms;
+  --banxe-animation-duration-slow: 300ms;
+  --banxe-animation-easing-default: cubic-bezier(0.4, 0, 0.2, 1);
+}

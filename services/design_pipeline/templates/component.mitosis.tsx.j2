@@ -1,0 +1,40 @@
+{# component.mitosis.tsx.j2 — Mitosis JSX template for generic components #}
+{# IL-D2C-01 | BANXE EMI AI Bank #}
+{# Usage: Jinja2 render with context: name, props, children, tokens #}
+
+import { useState } from '@builder.io/mitosis';
+
+{%- if props %}
+interface {{ name }}Props {
+{%- for prop in props %}
+  {{ prop.name }}: {{ prop.type }};
+{%- endfor %}
+}
+{%- endif %}
+
+// BANXE Design Pipeline (IL-D2C-01)
+// EU AI Act Art.52: AI-generated component — review before production
+export default function {{ name }}(
+  {%- if props %}{ {{ props | map(attribute='name') | join(', ') }} }: {{ name }}Props{% endif %}
+) {
+  return (
+    <div
+      class="banxe-{{ name | lower }}__container"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--banxe-spacing-md, 16px)',
+        padding: 'var(--banxe-spacing-lg, 24px)',
+        backgroundColor: 'var(--banxe-color-surface, #FFFFFF)',
+        borderRadius: 'var(--banxe-border-radius-md, 8px)',
+      }}
+    >
+{%- for child in children %}
+      {{ child | indent(6) }}
+{%- endfor %}
+{%- if not children %}
+      {/* TODO: Add component content */}
+{%- endif %}
+    </div>
+  );
+}

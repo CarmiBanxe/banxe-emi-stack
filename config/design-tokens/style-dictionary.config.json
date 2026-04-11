@@ -1,0 +1,67 @@
+{
+  "source": ["config/design-tokens/banxe-tokens.json"],
+  "platforms": {
+    "css": {
+      "transformGroup": "css",
+      "prefix": "banxe",
+      "buildPath": "config/design-tokens/output/",
+      "files": [
+        {
+          "destination": "banxe-tokens.css",
+          "format": "css/variables",
+          "options": {
+            "outputReferences": true,
+            "selector": ":root"
+          }
+        }
+      ]
+    },
+    "tailwind": {
+      "transformGroup": "js",
+      "buildPath": "config/design-tokens/output/",
+      "files": [
+        {
+          "destination": "tailwind-tokens.js",
+          "format": "javascript/module",
+          "options": {
+            "outputReferences": false
+          }
+        }
+      ]
+    },
+    "json": {
+      "transformGroup": "js",
+      "buildPath": "config/design-tokens/output/",
+      "files": [
+        {
+          "destination": "tokens.json",
+          "format": "json/flat"
+        }
+      ]
+    },
+    "react-native": {
+      "transformGroup": "react-native",
+      "buildPath": "config/design-tokens/output/",
+      "files": [
+        {
+          "destination": "tokens.rn.ts",
+          "format": "javascript/es6",
+          "options": {
+            "outputReferences": false
+          }
+        }
+      ]
+    },
+    "scss": {
+      "transformGroup": "scss",
+      "prefix": "banxe",
+      "buildPath": "config/design-tokens/output/",
+      "files": [
+        {
+          "destination": "_tokens.scss",
+          "format": "scss/variables"
+        }
+      ]
+    }
+  }
+}

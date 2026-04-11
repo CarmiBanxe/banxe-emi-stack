@@ -1,0 +1,61 @@
+# config/penpot/penpot-config.yaml
+# Penpot connection configuration for BANXE Design-to-Code Pipeline
+# IL-D2C-01
+#
+# Secrets (PENPOT_TOKEN) are loaded from .env — never hardcode here.
+
+penpot:
+  base_url: "${PENPOT_BASE_URL:-http://localhost:9001}"
+  token: "${PENPOT_TOKEN}"
+  timeout_seconds: 30
+  retry_attempts: 3
+  retry_backoff_seconds: 2
+
+  # Default project/file IDs for BANXE design system
+  # Set via env vars for each environment
+  banxe_design_file_id: "${PENPOT_BANXE_FILE_ID:-}"
+  compliance_library_file_id: "${PENPOT_COMPLIANCE_LIB_ID:-}"
+
+  # Export settings
+  export:
+    default_format: "svg"
+    scale: 2
+    supported_formats:
+      - svg
+      - png
+      - pdf
+
+  # MCP Server configuration (github.com/penpot/penpot)
+  mcp:
+    enabled: "${PENPOT_MCP_ENABLED:-false}"
+    server_url: "${PENPOT_MCP_URL:-http://localhost:9002}"
+
+design_pipeline:
+  llm:
+    provider: ollama
+    base_url: "${OLLAMA_BASE_URL:-http://localhost:11434}"
+    model: "${OLLAMA_MODEL:-qwen2.5-coder:7b}"
+    temperature: 0.2
+    max_tokens: 4096
+
+  code_generation:
+    default_framework: react
+    supported_frameworks:
+      - react
+      - vue
+      - react-native
+      - angular
+      - svelte
+
+  visual_qa:
+    similarity_threshold: 0.95
+    screenshot_width: 1280
+    screenshot_height: 800
+    diff_highlight_color: "rgba(255, 0, 0, 0.5)"
+    puppeteer_timeout_ms: 10000
+    playwright_timeout_ms: 10000
+
+  token_sync:
+    auto_sync: false
+    style_dictionary_cli: "npx style-dictionary"
+    output_base_path: "config/design-tokens/output"
