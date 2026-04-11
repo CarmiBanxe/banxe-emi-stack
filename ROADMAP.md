@@ -171,7 +171,21 @@ Infrastructure Checklist: 15/15 ✅
 | 55 | Specialized Agents (5 agents) | IL-ARL-01 | ⏳ | services/swarm/agents/ |
 | 56 | Telemetry + Policy Engine | IL-ARL-01 | ⏳ | ClickHouse + Grafana |
 | 57 | MCP Tools (4 new tools) | IL-ARL-01 | ⏳ | banxe_mcp/tools/ |
-| 58 | Agent Routing Tests (120+) | IL-ARL-01 | ⏳ | tests/test_agent_routing/ |
+| 58 | Agent Routing Tests 
+
+## Phase 9 — Design-to-Code Pipeline PENDING
+
+| # | Feature | IL | Status | Notes |
+|---|---------|-----|--------|-------|
+| 59 | Penpot self-hosted Docker | IL-D2C-01 | PENDING | infra/penpot/ |
+| 60 | Penpot MCP Client | IL-D2C-01 | PENDING | services/design_pipeline/ |
+| 61 | Design Token Pipeline | IL-D2C-01 | PENDING | config/design-tokens/ |
+| 62 | AI Orchestrator FastAPI LangChain | IL-D2C-01 | PENDING | Penpot to code generation |
+| 63 | Code Generator Mitosis | IL-D2C-01 | PENDING | React Vue RN output |
+| 64 | Visual QA Agent | IL-D2C-01 | PENDING | BackstopJS Loki |
+| 65 | BANXE UI Agents | IL-D2C-01 | PENDING | compliance txn report |
+| 66 | D2C MCP Tools 4 tools | IL-D2C-01 | PENDING | banxe_mcp tools |
+| 67 | D2C Tests 80 plus | IL-D2C-01 | PENDING | tests/test_design_pipeline/ |(120+) | IL-ARL-01 | ⏳ | tests/test_agent_routing/ |
 ---
 
 *Last updated: 2026-04-11 by Perplexity Computer + Claude Code.*
