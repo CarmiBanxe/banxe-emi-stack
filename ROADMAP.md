@@ -232,3 +232,46 @@ All tools: ChromaDB + scikit-learn + SHAP + sentence-transformers (free/OSS)
 ---
 
 *Last updated: 2026-04-11 by Perplexity Computer + Claude Code.*Perplexity Computer + Claude Code.*Claude Code.*
+
+
+---
+
+## Phase 12 — Customer Support Block ⏳ PENDING
+
+| # | Feature | IL | Status | Notes |
+|---|---------|-----|--------|-------|
+| 86 | Chatwoot self-hosted (MIT) — live chat + ticketing | IL-CSB-01 | ⏳ | infra/chatwoot/ |
+| 87 | TicketRoutingAgent — category + priority + SLA assignment | IL-CSB-01 | ⏳ | services/support/ |
+| 88 | CustomerSupportAgent — FAQ bot + RAG (Ollama + ChromaDB) | IL-CSB-01 | ⏳ | services/support/ |
+| 89 | EscalationAgent — SLA breach monitor + HITL escalation | IL-CSB-01 | ⏳ | n8n + ClickHouse |
+| 90 | ComplaintTriageAgent — link to DISP workflow (IL-022) | IL-CSB-01 | ⏳ | services/support/ |
+| 91 | FeedbackAnalyticsAgent — NPS/CSAT + Consumer Duty PS22/9 | IL-CSB-01 | ⏳ | ClickHouse + Superset |
+| 92 | Support ClickHouse schema (tickets, SLA events, CSAT) | IL-CSB-01 | ⏳ | scripts/schema/ |
+| 93 | FastAPI /v1/support endpoints (5+) | IL-CSB-01 | ⏳ | api/routers/support.py |
+| 94 | Agent passports + SOUL files (5 agents) | IL-CSB-01 | ⏳ | agents/passports/support/ |
+| 95 | Support Tests (60+) | IL-CSB-01 | ⏳ | tests/test_support/ |
+
+OSS Stack: Chatwoot (MIT) + Ollama RAG + ChromaDB + n8n + ClickHouse + Superset
+FCA: Consumer Duty PS22/9 §4 (Consumer Support outcome)
+
+---
+
+## Phase 13 — Marketing & Growth Block ⏳ PENDING
+
+| # | Feature | IL | Status | Notes |
+|---|---------|-----|--------|-------|
+| 96 | Listmonk self-hosted (AGPL) — email campaigns | IL-MKT-01 | ⏳ | infra/listmonk/ |
+| 97 | Plausible Analytics self-hosted (MIT) — privacy-first web analytics | IL-MKT-01 | ⏳ | infra/plausible/ |
+| 98 | CampaignAgent — email/push campaign orchestration | IL-MKT-01 | ⏳ | services/marketing/ |
+| 99 | LeadScoringAgent — behavioral scoring (ClickHouse + scikit-learn) | IL-MKT-01 | ⏳ | services/marketing/ |
+| 100 | ContentAgent — compliance-safe content generation (Ollama) | IL-MKT-01 | ⏳ | services/marketing/ |
+| 101 | OnboardingNurtureAgent — incomplete KYC follow-up sequences | IL-MKT-01 | ⏳ | n8n + Notifications |
+| 102 | AnalyticsAgent — UTM, cohort analysis, conversion funnels | IL-MKT-01 | ⏳ | Plausible + ClickHouse |
+| 103 | Marketing ClickHouse schema (campaigns, leads, events) | IL-MKT-01 | ⏳ | scripts/schema/ |
+| 104 | FastAPI /v1/marketing endpoints (5+) | IL-MKT-01 | ⏳ | api/routers/marketing.py |
+| 105 | FCA COBS 4 compliance gate (financial promotions review) | IL-MKT-01 | ⏳ | HITL: MLRO review |
+| 106 | Agent passports + SOUL files (5 agents) | IL-MKT-01 | ⏳ | agents/passports/marketing/ |
+| 107 | Marketing Tests (60+) | IL-MKT-01 | ⏳ | tests/test_marketing/ |
+
+OSS Stack: Listmonk (AGPL) + Plausible (MIT) + Ollama + scikit-learn + n8n + ClickHouse
+FCA: COBS 4 (financial promotions), Consumer Duty PS22/9 §2 (Products & Services)
