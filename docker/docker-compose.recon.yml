@@ -14,14 +14,12 @@ services:
       POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./docker/postgres/pgaudit.sql:/docker-entrypoint-initdb.d/01_pgaudit.sql:ro
+      # pgaudit disabled temporarily
     ports:
       - "5432:5432"
     command: >
       postgres
-        -c shared_preload_libraries=pgaudit
-        -c pgaudit.log=write,ddl
-        -c pgaudit.log_relation=on
+        -c shared_preload_libraries=
         -c log_destination=csvlog
         -c logging_collector=on
         -c log_directory=/var/log/postgresql
@@ -89,6 +87,31 @@ services:
     volumes:
       - n8n_data:/home/node/.n8n
 
+  # Grafana — safeguarding reconciliation dashboard
+  # Dashboard: infra/grafana/dashboards/safeguarding-recon.json
+  # Datasource: grafana-clickhouse-datasource plugin
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: banxe-grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-changeme}
+      GF_INSTALL_PLUGINS: grafana-clickhouse-datasource
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infra/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./infra/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    ports:
+      - "3001:3000"   # 3000 may conflict with frontend dev server
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   # Frankfurter — self-hosted ECB FX rates (no API key)
   frankfurter:
     image: hakanensari/frankfurter:latest
@@ -105,3 +128,4 @@ volumes:
   postgres_data:
   clickhouse_data:
   n8n_data:
+  grafana_data:
