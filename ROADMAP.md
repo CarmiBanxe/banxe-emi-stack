@@ -159,6 +159,19 @@ Infrastructure Checklist: 15/15 ✅
 | 49 | CLAUDE.md per package | IL-UI-01 | ⏳ | Multi-agent ready |
 | 50 | .ai/registries/ (12 files) + .ai/reports/ (5 files) | IL-UI-01 | ⏳ | Intelligence layer |
 
+
+## Phase 8 — Agent Routing Layer ⏳ PENDING
+
+| # | Feature | IL | Status | Notes |
+|---|---------|-----|--------|-------|
+| 51 | Agent Gateway + Tier Workers | IL-ARL-01 | ⏳ | services/agent_routing/ |
+| 52 | Playbook Engine (YAML routing rules) | IL-ARL-01 | ⏳ | config/playbooks/ |
+| 53 | ReasoningBank (vector store + case memory) | IL-ARL-01 | ⏳ | services/reasoning_bank/ |
+| 54 | Swarm Orchestrator (star/hierarchy/ring) | IL-ARL-01 | ⏳ | services/swarm/ |
+| 55 | Specialized Agents (5 agents) | IL-ARL-01 | ⏳ | services/swarm/agents/ |
+| 56 | Telemetry + Policy Engine | IL-ARL-01 | ⏳ | ClickHouse + Grafana |
+| 57 | MCP Tools (4 new tools) | IL-ARL-01 | ⏳ | banxe_mcp/tools/ |
+| 58 | Agent Routing Tests (120+) | IL-ARL-01 | ⏳ | tests/test_agent_routing/ |
 ---
 
 *Last updated: 2026-04-11 by Perplexity Computer + Claude Code.*
