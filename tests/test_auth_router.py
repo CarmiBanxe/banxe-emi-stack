@@ -40,11 +40,12 @@ _CUSTOMER_PAYLOAD = {
 
 
 @pytest.fixture(autouse=True)
-def setup_auth_env(monkeypatch):
-    """Isolated service + deterministic env for every test.
+def setup_auth_env(monkeypatch, db_session):
+    """Isolated service + deterministic env + in-memory DB for every test.
 
     Module-level constants are loaded at import time so we must patch them
-    directly (not via os.environ).
+    directly (not via os.environ). db_session (from conftest.py) injects a
+    fresh SQLite :memory: database and overrides the app's get_db dependency.
     """
     import api.routers.auth as auth_module
 
@@ -56,12 +57,13 @@ def setup_auth_env(monkeypatch):
     svc = InMemoryCustomerService()
     app.dependency_overrides[get_customer_service] = lambda: svc
 
-    # Pre-register one customer via the HTTP API so metadata.email is set correctly
+    # Pre-register one customer via the HTTP API — writes to both InMemory and DB
     client.post("/v1/customers", json=_CUSTOMER_PAYLOAD)
 
     yield
 
-    app.dependency_overrides.clear()
+    # db_session fixture cleans up get_db override; remove customer_service override
+    app.dependency_overrides.pop(get_customer_service, None)
 
 
 # ── Happy path ─────────────────────────────────────────────────────────────────

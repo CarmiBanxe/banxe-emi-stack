@@ -6,13 +6,22 @@ POST /v1/customers          — onboard new customer
 GET  /v1/customers          — list customers (optional ?state= filter)
 GET  /v1/customers/{id}     — get customer profile
 POST /v1/customers/{id}/lifecycle — transition lifecycle state
+
+Persistence: customer records are written to PostgreSQL/SQLite (best-effort)
+on creation so the auth endpoint can look them up by email after restarts.
+The InMemoryCustomerService remains the source-of-truth for domain logic.
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+import logging
 
-from api.deps import get_customer_service
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from api.db.models import Customer as DBCustomer
+from api.deps import get_customer_service, get_db
 from api.models.customers import (
     CreateCustomerRequest,
     CustomerListResponse,
@@ -32,6 +41,8 @@ from services.customer.customer_port import (
     LifecycleTransitionRequest as DomainTransitionRequest,
 )
 from services.customer.customer_service import InMemoryCustomerService
+
+logger = logging.getLogger("banxe.customers")
 
 router = APIRouter(tags=["Customers"])
 
@@ -55,14 +66,18 @@ def _profile_to_response(profile) -> CustomerResponse:  # type: ignore[return]
     status_code=201,
     summary="Onboard a new customer",
 )
-def create_customer(
+async def create_customer(
     body: CreateCustomerRequest,
     svc: InMemoryCustomerService = Depends(get_customer_service),
+    db: AsyncSession = Depends(get_db),
 ) -> CustomerResponse:
     """
     Create a new Individual or Corporate customer.
     Starts in ONBOARDING lifecycle state.
     FCA MLR 2017: KYC workflow must be started before ACTIVE state.
+
+    Side-effect: writes a minimal record to the persistent DB so the
+    auth endpoint can find this customer by email across restarts.
     """
     individual = None
     if body.entity_type == EntityType.INDIVIDUAL and body.individual:
@@ -96,9 +111,38 @@ def create_customer(
         profile.metadata["email"] = body.email
         if body.phone:
             profile.metadata["phone"] = body.phone
-        return _profile_to_response(profile)
     except CustomerManagementError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
+
+    # Persist to DB (best-effort — don't fail if DB unavailable or email duplicated)
+    try:
+        db_customer = DBCustomer(
+            customer_id=profile.customer_id,
+            email=body.email,
+            display_name=profile.display_name,
+            entity_type=profile.entity_type.value
+            if hasattr(profile.entity_type, "value")
+            else str(profile.entity_type),
+            lifecycle_state=profile.lifecycle_state.value
+            if hasattr(profile.lifecycle_state, "value")
+            else str(profile.lifecycle_state),
+            risk_level=profile.risk_level.value
+            if hasattr(profile.risk_level, "value")
+            else str(profile.risk_level),
+        )
+        db.add(db_customer)
+        await db.flush()
+    except IntegrityError:
+        # Duplicate email (e.g. test re-creates same customer) — ignore silently
+        await db.rollback()
+    except Exception:
+        logger.warning(
+            "customers.create db_sync_failed customer_id=%s — InMemory still updated",
+            profile.customer_id,
+        )
+        await db.rollback()
+
+    return _profile_to_response(profile)
 
 
 @router.get(

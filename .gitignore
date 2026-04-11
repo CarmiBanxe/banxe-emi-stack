@@ -21,3 +21,4 @@ logs/
 # Local Claude Code overrides (not committed)
 CLAUDE.local.md
 .claude/settings.local.json
+banxe_dev.db
