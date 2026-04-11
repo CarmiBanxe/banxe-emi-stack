@@ -108,6 +108,38 @@ def parse_mt940(mt940_path: Path) -> list[StatementBalance]:
     return balances
 
 
+# ── validation ───────────────────────────────────────────────────────────────
+
+
+def validate_statement_balance(
+    transactions: list[Decimal],
+    opening: Decimal,
+    closing: Decimal,
+) -> None:
+    """
+    Validate that sum of transaction amounts equals closing - opening balance.
+
+    FCA CASS 7.15: statement integrity check — ensures no transactions missing.
+    All amounts must be Decimal (never float — I-28).
+
+    Args:
+        transactions: list of signed transaction amounts (Decimal)
+        opening: opening balance (Decimal)
+        closing: closing balance (Decimal)
+
+    Raises:
+        ValueError: if sum(transactions) != closing - opening
+    """
+    expected_movement = closing - opening
+    actual_movement = sum(transactions, Decimal("0"))
+    if actual_movement != expected_movement:
+        raise ValueError(
+            f"Statement balance validation failed: "
+            f"sum(transactions)={actual_movement} != closing - opening={expected_movement} "
+            f"(opening={opening}, closing={closing})"
+        )
+
+
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 

@@ -11,9 +11,10 @@ Phase 1: real bank (Barclays/HSBC PSD2) — requires AISP registration + eIDAS c
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import httpx
@@ -27,6 +28,60 @@ STATEMENT_DIR = Path(os.environ.get("STATEMENT_DIR", "/data/banxe/statements"))
 # Safeguarding account IBANs (set in .env — not hardcoded)
 OPERATIONAL_IBAN = os.environ.get("SAFEGUARDING_OPERATIONAL_IBAN", "")
 CLIENT_FUNDS_IBAN = os.environ.get("SAFEGUARDING_CLIENT_FUNDS_IBAN", "")
+
+
+async def async_poll_with_schedule(recon_date: date | None = None) -> list[Path]:
+    """
+    Phase 2: asyncio-based polling with scheduled retry windows.
+
+    Schedule (UTC): 06:00 → 09:00 → 12:00, then returns PENDING (empty list).
+    At each window, calls poll_statements() synchronously via run_in_executor.
+    Returns paths as soon as any window yields results.
+
+    Args:
+        recon_date: Date to poll statements for (default: yesterday)
+
+    Returns:
+        list[Path] of written CAMT.053 files, or [] if all windows missed.
+    """
+    if recon_date is None:
+        recon_date = date.today() - timedelta(days=1)
+
+    # Scheduled polling windows (UTC hours)
+    poll_windows_utc = [6, 9, 12]
+    loop = asyncio.get_event_loop()
+
+    for window_hour in poll_windows_utc:
+        now_utc = datetime.now(timezone.utc)
+        target = now_utc.replace(hour=window_hour, minute=0, second=0, microsecond=0)
+
+        # If target window is in the future, sleep until it
+        wait_seconds = (target - now_utc).total_seconds()
+        if wait_seconds > 0:
+            logger.info(
+                "async_poll_with_schedule: waiting %.0fs for %02d:00 UTC window",
+                wait_seconds, window_hour,
+            )
+            await asyncio.sleep(wait_seconds)
+
+        logger.info("async_poll_with_schedule: polling at %02d:00 UTC for %s", window_hour, recon_date)
+        # Run sync poll_statements in thread pool to avoid blocking event loop
+        paths = await loop.run_in_executor(None, poll_statements, recon_date)
+        if paths:
+            logger.info(
+                "async_poll_with_schedule: %d files received at %02d:00 UTC window",
+                len(paths), window_hour,
+            )
+            return paths
+
+        logger.info(
+            "async_poll_with_schedule: no data at %02d:00 UTC — will retry", window_hour
+        )
+
+    logger.warning(
+        "async_poll_with_schedule: all windows exhausted for %s — status=PENDING", recon_date
+    )
+    return []
 
 
 def poll_statements(recon_date: date | None = None) -> list[Path]:

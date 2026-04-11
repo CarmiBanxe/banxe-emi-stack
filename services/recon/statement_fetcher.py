@@ -13,11 +13,21 @@ Phase 2 (FA-07, IL-011): adorsys PSD2 gateway → CAMT.053 XML
 from __future__ import annotations
 
 import csv
+import logging
 import os
+import time
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+# Phase 2: OAuth2 ASPSP config (read from env — never hardcoded)
+ASPSP_BASE_URL = os.environ.get("ASPSP_BASE_URL", "")
+ASPSP_CLIENT_ID = os.environ.get("ASPSP_CLIENT_ID", "")
+ASPSP_CLIENT_SECRET = os.environ.get("ASPSP_CLIENT_SECRET", "")
+ASPSP_CERT_PATH = os.environ.get("ASPSP_CERT_PATH", "")
 
 
 @dataclass(frozen=True)
@@ -97,6 +107,90 @@ class StatementFetcher:
                         balance=Decimal(row["balance"].strip()),
                         statement_date=date.fromisoformat(row["statement_date"].strip()),
                         source_file=filename,
+                    )
+                )
+        return balances
+
+    def fetch_with_oauth(self, recon_date: date, access_token: str) -> list[StatementBalance]:
+        """
+        Phase 2 (FA-07): Fetch bank statement from real ASPSP API using OAuth2 token.
+
+        Retry logic: 3 attempts with exponential backoff (1s, 2s, 4s).
+        Reads ASPSP_BASE_URL, ASPSP_CLIENT_ID, ASPSP_CLIENT_SECRET, ASPSP_CERT_PATH from env.
+        Falls back to [] on exhausted retries — caller will fall back to CSV or PENDING.
+        """
+        import httpx
+
+        # Read env at call time so tests can monkeypatch os.environ at runtime
+        aspsp_base_url = os.environ.get("ASPSP_BASE_URL", "")
+        aspsp_cert_path = os.environ.get("ASPSP_CERT_PATH", "")
+
+        if not aspsp_base_url:
+            logger.warning("ASPSP_BASE_URL not set — fetch_with_oauth skipped")
+            return []
+
+        date_str = recon_date.strftime("%Y-%m-%d")
+        url = f"{aspsp_base_url}/v1/accounts/statements"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Accept": "application/json",
+            "X-Request-ID": f"banxe-recon-oauth-{date_str}",
+        }
+        params = {"dateFrom": date_str, "dateTo": date_str}
+
+        cert = aspsp_cert_path if aspsp_cert_path else None
+        delays = [1, 2, 4]  # exponential backoff seconds
+
+        for attempt, delay in enumerate(delays, start=1):
+            try:
+                with httpx.Client(cert=cert, timeout=30.0) as client:
+                    resp = client.get(url, headers=headers, params=params)
+                    resp.raise_for_status()
+                    data = resp.json()
+                    return self._parse_aspsp_json(data, recon_date)
+            except httpx.HTTPStatusError as exc:
+                status = exc.response.status_code
+                logger.warning(
+                    "fetch_with_oauth attempt %d/%d HTTP %s for %s",
+                    attempt, len(delays), status, date_str,
+                )
+                if status not in (429, 500, 502, 503, 504):
+                    break  # non-retryable error
+            except httpx.RequestError as exc:
+                logger.warning(
+                    "fetch_with_oauth attempt %d/%d connection error: %s",
+                    attempt, len(delays), exc,
+                )
+
+            if attempt < len(delays):
+                time.sleep(delay)
+
+        logger.error(
+            "fetch_with_oauth exhausted %d retries for %s — returning []", len(delays), date_str
+        )
+        return []
+
+    def _parse_aspsp_json(self, data: dict, recon_date: date) -> list[StatementBalance]:
+        """Parse ASPSP JSON response into StatementBalance list."""
+        balances: list[StatementBalance] = []
+        accounts = data.get("accounts", []) or data.get("statements", [])
+        for acct in accounts:
+            account_id = acct.get("account_id") or acct.get("resourceId", "")
+            currency = acct.get("currency", "GBP")
+            balance_raw = acct.get("closing_balance") or acct.get("balance", "0")
+            try:
+                balance = Decimal(str(balance_raw))
+            except Exception:
+                logger.error("Invalid balance value '%s' for account %s", balance_raw, account_id)
+                continue
+            if account_id:
+                balances.append(
+                    StatementBalance(
+                        account_id=account_id,
+                        currency=currency,
+                        balance=balance,
+                        statement_date=recon_date,
+                        source_file=f"aspsp_oauth_{recon_date.strftime('%Y%m%d')}.json",
                     )
                 )
         return balances
