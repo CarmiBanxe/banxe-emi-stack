@@ -67,6 +67,34 @@ Defined in `agents/compliance/swarm.yaml` — trust zone: RED
 
 Key invariant: AI agents operate in PROPOSES mode only (I-27). All final decisions require human approval through HITL gates.
 
+### MCP Server Agent (banxe_mcp/ — infrastructure guardian)
+
+| Agent | Soul file | Autonomy | Domain | Health endpoint |
+|-------|-----------|----------|--------|-----------------|
+| MCP Server Agent | `soul/mcp_server_agent.soul.md` | L2 (Alert → CTIO) | MCP infrastructure | `python -m agents.compliance.workflows.mcp_health_workflow` |
+
+**Capabilities:**
+- Tool registry validation (docstrings, type hints)
+- Error rate monitoring via ClickHouse `banxe.mcp_tool_events`
+- Startup + scheduled health checks (every 6 hours)
+- Slack #infra-alerts on degraded, Telegram CTIO on critical
+
+**Infrastructure:**
+- Skill: `agents.compliance.workflows.mcp_health_workflow.MCPHealthSkill`
+- Orchestrator registry: `_MCP_SKILL_REGISTRY` in `agents/compliance/orchestrator.py`
+- n8n workflow: `n8n/workflows/mcp-health-monitor.json`
+- Grafana dashboard: `infra/grafana/dashboards/mcp-server.json` (uid: `banxe-mcp-server`)
+- Docker service: `docker/docker-compose.mcp.yml` → `banxe-mcp:8100`
+- ClickHouse tables: `banxe.mcp_tool_events`, `banxe.mcp_health_events`
+- dbt model: `dbt/models/mcp/mcp_tool_usage.sql`
+
+**MCP Tools exposed (11 total):**
+`get_account_balance`, `list_accounts`, `get_transaction_history`, `get_kyc_status`,
+`check_aml_alert`, `get_exchange_rate`, `get_payment_status`, `get_recon_status`,
+`get_breach_history`, `get_discrepancy_trend`, `run_reconciliation`
+
+---
+
 ## Agent tools
 
 | Tool | Used by | Purpose |
@@ -95,4 +123,4 @@ Key invariant: AI agents operate in PROPOSES mode only (I-27). All final decisio
 - Audit: ClickHouse (`compliance_swarm_events` table, 5yr retention per I-08)
 
 ---
-*Last updated: 2026-04-10 (Phase 4 migration)*
+*Last updated: 2026-04-11 (IL-MCP-01: MCP Server Agent added)*
