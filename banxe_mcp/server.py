@@ -15,6 +15,7 @@ Usage:
 
 References: MCP-i-agentnoe-potreblenie-strategiia-dlia-BANXE-EMI-AI-Bank.md
 """
+
 from __future__ import annotations
 
 import logging
@@ -422,7 +423,8 @@ async def run_reconciliation(recon_date: str = "", dry_run: bool = True) -> str:
         recon_date: Date in YYYY-MM-DD format (default: yesterday)
         dry_run: If True (default), simulate only — no writes to ClickHouse
     """
-    from datetime import date as date_type, timedelta
+    from datetime import date as date_type
+    from datetime import timedelta
 
     if not recon_date:
         recon_date = (date_type.today() - timedelta(days=1)).isoformat()
@@ -467,7 +469,6 @@ async def run_reconciliation(recon_date: str = "", dry_run: bool = True) -> str:
             from services.recon.clickhouse_client import InMemoryReconClient
             from services.recon.reconciliation_engine import (
                 ReconciliationEngine,
-                SAFEGUARDING_ACCOUNTS,
             )
             from services.recon.statement_fetcher import StatementFetcher
 
@@ -495,6 +496,219 @@ async def run_reconciliation(recon_date: str = "", dry_run: bool = True) -> str:
             lines.append(f"In-process run failed: {exc}")
             lines.append("Ensure BANXE API is running: uvicorn api.main:app --port 8000")
         return "\n".join(lines)
+
+
+# ── Tool 12: Route Agent Task (ARL) ─────────────────────────────────────────
+
+
+@mcp_server.tool()
+async def route_agent_task(
+    event_type: str,
+    product: str,
+    jurisdiction: str,
+    customer_id: str,
+    amount_eur: str = "0",
+    sanctions_hit: bool = False,
+    known_beneficiary: bool = False,
+) -> str:
+    """Submit a compliance event to the Agent Routing Layer (ARL).
+
+    Routes the task through the three-tier system (rule engine → mid LLM → swarm)
+    based on product, jurisdiction, and risk signals.
+    Target: ~60-70% token cost reduction for routine operations.
+
+    Args:
+        event_type:       Domain event, e.g. "aml_screening", "kyc_check".
+        product:          Product identifier, e.g. "sepa_retail_transfer".
+        jurisdiction:     Regulatory jurisdiction, e.g. "EU", "UK".
+        customer_id:      Customer identifier.
+        amount_eur:       Transaction amount in EUR (as string, no float — I-01).
+        sanctions_hit:    True if sanctions list hit detected upstream.
+        known_beneficiary: True if beneficiary is known to the customer.
+    """
+    import os
+
+    if os.environ.get("AGENT_ROUTING_ENABLED", "false").lower() != "true":
+        return (
+            "Agent Routing Layer is disabled.\n"
+            "Set AGENT_ROUTING_ENABLED=true to enable.\n"
+            "Current mode: direct LLM calls (no tier routing)."
+        )
+
+    try:
+        from services.agent_routing.gateway import AgentGateway
+
+        gateway = AgentGateway()
+        result = await gateway.process(
+            event_type=event_type,
+            product=product,
+            jurisdiction=jurisdiction,
+            customer_id=customer_id,
+            payload={"amount_eur": amount_eur},
+            risk_context={
+                "sanctions_hit": sanctions_hit,
+                "known_beneficiary": known_beneficiary,
+                "amount_eur": float(amount_eur),
+            },
+        )
+        responses_summary = "\n".join(
+            f"  [{r.agent_name}] {r.decision_hint} (risk={r.risk_score:.2f}, "
+            f"conf={r.confidence:.2f}): {r.reason_summary[:80]}"
+            for r in result.responses
+        )
+        return (
+            f"ARL Routing Result — Task {result.task_id}\n"
+            f"Tier used: {result.tier_used}\n"
+            f"Decision: {result.decision.upper()}\n"
+            f"Total tokens: {result.total_tokens}\n"
+            f"Latency: {result.total_latency_ms}ms\n"
+            f"Reasoning reused: {result.reasoning_reused}\n"
+            f"Playbook: {result.playbook_version}\n"
+            f"Agent responses:\n{responses_summary}"
+        )
+    except Exception as exc:
+        return f"ARL routing error: {exc}"
+
+
+# ── Tool 13: Query ReasoningBank ─────────────────────────────────────────────
+
+
+@mcp_server.tool()
+async def query_reasoning_bank(
+    event_type: str,
+    top_k: int = 5,
+) -> str:
+    """Find similar past compliance cases in the ReasoningBank.
+
+    Uses vector similarity to find cases with similar risk profiles.
+    Helps avoid re-running expensive LLM analysis for known patterns.
+
+    Args:
+        event_type: Domain event type to search for, e.g. "aml_screening".
+        top_k:      Maximum number of similar cases to return (default: 5).
+    """
+    try:
+        data = await _api_post(
+            "/reasoning/similar",
+            {"query_vector": [0.5] * 8, "top_k": top_k, "threshold": 0.5},
+        )
+        cases = data.get("cases", [])
+        if not cases:
+            return f"No similar cases found for event_type={event_type!r}."
+        lines = [f"ReasoningBank — Similar Cases for {event_type!r} (top {top_k}):"]
+        for c in cases:
+            lines.append(
+                f"  {c.get('case_id', '?')} | "
+                f"{c.get('product', '?')} / {c.get('jurisdiction', '?')} | "
+                f"tier {c.get('tier_used', '?')} | "
+                f"{c.get('created_at', '?')[:10]}"
+            )
+        return "\n".join(lines)
+    except httpx.HTTPStatusError as e:
+        return f"ReasoningBank query error: HTTP {e.response.status_code}"
+    except httpx.ConnectError:
+        return (
+            "ReasoningBank unavailable (API not running).\nStart: uvicorn api.main:app --port 8000"
+        )
+
+
+# ── Tool 14: Get ARL Routing Metrics ─────────────────────────────────────────
+
+
+@mcp_server.tool()
+async def get_routing_metrics(hours: int = 24) -> str:
+    """Get current Agent Routing Layer telemetry snapshot.
+
+    Returns tier distribution, decision ratios, token usage,
+    and cost summary for the last N hours.
+
+    Args:
+        hours: Look-back window in hours (default: 24).
+    """
+    try:
+        data = await _api_get(f"/v1/arl/metrics?hours={hours}")
+        return (
+            f"ARL Metrics (last {hours}h):\n"
+            f"Total decisions: {data.get('total_decisions', 0)}\n"
+            f"Tier 1 (rules): {data.get('tier1_pct', 0):.1f}%\n"
+            f"Tier 2 (mid LLM): {data.get('tier2_pct', 0):.1f}%\n"
+            f"Tier 3 (swarm/top): {data.get('tier3_pct', 0):.1f}%\n"
+            f"Approve rate: {data.get('approve_rate', 0):.1f}%\n"
+            f"Manual review rate: {data.get('manual_review_rate', 0):.1f}%\n"
+            f"Reasoning reuse rate: {data.get('reuse_rate', 0):.1f}%\n"
+            f"Total cost (USD): ${data.get('total_cost_usd', 0):.4f}\n"
+            f"p95 latency (ms): {data.get('latency_p95_ms', 0)}"
+        )
+    except httpx.HTTPStatusError as e:
+        return f"Error fetching ARL metrics: HTTP {e.response.status_code}"
+    except httpx.ConnectError:
+        return (
+            f"ARL Metrics (last {hours}h) — SANDBOX\n"
+            "API unavailable. Check Grafana dashboard: banxe-arl-metrics\n"
+            "ClickHouse: SELECT tier, count(), avg(cost_usd) FROM agent_routing_events "
+            f"WHERE event_time >= now() - INTERVAL {hours} HOUR GROUP BY tier"
+        )
+
+
+# ── Tool 15: Manage Playbooks ─────────────────────────────────────────────────
+
+
+@mcp_server.tool()
+async def manage_playbooks(action: str = "list", playbook_id: str = "") -> str:
+    """List and validate Agent Routing Layer playbooks.
+
+    Actions:
+      list     — List all loaded playbooks with product/jurisdiction info.
+      validate — Validate a specific playbook YAML (returns any errors).
+      reload   — Hot-reload all playbooks from config/playbooks/ (no restart needed).
+
+    Args:
+        action:      One of: list, validate, reload.
+        playbook_id: Playbook ID for validate action (e.g. "eu_sepa_retail_v1").
+    """
+    try:
+        from services.agent_routing.playbook_engine import PlaybookEngine
+
+        engine = PlaybookEngine()
+
+        match action:
+            case "list":
+                playbooks = engine.list_playbooks()
+                if not playbooks:
+                    return "No playbooks loaded. Check config/playbooks/ directory."
+                lines = [f"Loaded Playbooks ({len(playbooks)}):"]
+                for pb_id in playbooks:
+                    pb = engine.get_playbook(pb_id)
+                    if pb:
+                        juris = ", ".join(pb.get("jurisdictions", [])[:5])
+                        lines.append(
+                            f"  {pb_id} | product: {pb.get('product', '?')} | "
+                            f"jurisdictions: {juris}"
+                        )
+                return "\n".join(lines)
+
+            case "validate":
+                if not playbook_id:
+                    return "Provide playbook_id for validate action."
+                pb = engine.get_playbook(playbook_id)
+                if pb is None:
+                    return f"Playbook {playbook_id!r} not found."
+                required = ["playbook_id", "product", "jurisdictions", "tiers"]
+                missing = [f for f in required if f not in pb]
+                if missing:
+                    return f"Playbook {playbook_id!r} INVALID — missing fields: {missing}"
+                return f"Playbook {playbook_id!r} is VALID. All required fields present."
+
+            case "reload":
+                engine.reload()
+                count = len(engine.list_playbooks())
+                return f"Playbooks reloaded successfully. {count} playbooks loaded."
+
+            case _:
+                return f"Unknown action {action!r}. Use: list, validate, reload."
+
+    except Exception as exc:
+        return f"Playbook management error: {exc}"
 
 
 # ── Resources ────────────────────────────────────────────────────────────

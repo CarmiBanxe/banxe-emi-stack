@@ -1,0 +1,70 @@
+---
+# config/playbooks/eu_sepa_retail_v1.yaml
+# EU SEPA Retail Transfer Routing Playbook
+# IL-ARL-01 | banxe-emi-stack | 2026-04-11
+# Jurisdictions: EU, EEA
+# Regulated under: PSD2, MLR 2017, FCA CASS 7.15
+
+playbook_id: eu_sepa_retail_v1
+product: sepa_retail_transfer
+jurisdictions:
+  - EU
+  - EEA
+  - DE
+  - FR
+  - ES
+  - IT
+  - NL
+  - BE
+  - AT
+  - PT
+  - IE
+
+tiers:
+  tier1:
+    description: "Rule-only fast path — no LLM required"
+    max_amount_eur: 1000
+    allowed_if:
+      - known_beneficiary = true
+      - sanctions_hit = false
+      - device_risk in [low]
+      - anomaly_count <= 1
+
+  tier2:
+    description: "Mid-tier LLM — new beneficiary, behavioral anomalies"
+    triggers:
+      - new_beneficiary = true
+      - amount_spike = true
+      - customer_age_days < 30
+      - velocity_24h > 5
+
+  tier3:
+    description: "Swarm — sanctions hit, high-risk, cross-border"
+    triggers:
+      - sanctions_hit = true
+      - cumulative_risk_score >= 0.75
+      - amount_eur > 10000
+      - cross_border = true
+
+swarm:
+  topology: star
+  agents:
+    - sanctions
+    - behavior
+    - geo_risk
+    - profile_history
+
+decision:
+  approve_if: "all_critical_clean AND risk < 0.25"
+  manual_review_if: "confidence < 0.7 OR conflicting_signals"
+  decline_if: "policy_block = true"
+
+metadata:
+  version: "1.0"
+  effective_date: "2026-04-11"
+  review_date: "2026-07-11"
+  owner: "compliance@banxe.com"
+  regulatory_refs:
+    - "PSD2 Art.97 (SCA)"
+    - "MLR 2017 Reg.26-28"
+    - "FCA CASS 7.15"

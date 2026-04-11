@@ -1,0 +1,291 @@
+{
+  "__inputs": [],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "10.0.0"
+    },
+    {
+      "type": "datasource",
+      "id": "vertamedia-clickhouse-datasource",
+      "name": "ClickHouse",
+      "version": "2.5.0"
+    }
+  ],
+  "annotations": {
+    "list": []
+  },
+  "description": "BANXE Agent Routing Layer (ARL) — token cost, latency, tier distribution, and decision ratios",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "Tier Distribution",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "hideFrom": { "legend": false, "tooltip": false, "viz": false } }
+        }
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 1 },
+      "id": 2,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "pieType": "pie",
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+          "rawSql": "SELECT tier, count() as cnt FROM agent_routing_events WHERE event_time >= now() - INTERVAL 24 HOUR GROUP BY tier ORDER BY tier",
+          "refId": "A"
+        }
+      ],
+      "title": "Tier Distribution (24h)",
+      "type": "piechart"
+    },
+    {
+      "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.15 },
+              { "color": "red", "value": 0.30 }
+            ]
+          },
+          "unit": "currencyUSD"
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+      "id": 3,
+      "options": { "orientation": "auto", "reduceOptions": { "calcs": ["sum"] }, "showThresholdLabels": false },
+      "targets": [
+        {
+          "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+          "rawSql": "SELECT sum(cost_usd) as total_cost FROM agent_routing_events WHERE event_time >= now() - INTERVAL 24 HOUR",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Cost (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+      "fieldConfig": {
+        "defaults": { "unit": "none" }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+      "id": 4,
+      "options": { "reduceOptions": { "calcs": ["sum"] } },
+      "targets": [
+        {
+          "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+          "rawSql": "SELECT count() as total_decisions FROM agent_routing_events WHERE event_time >= now() - INTERVAL 24 HOUR",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Decisions (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.3 },
+              { "color": "red", "value": 0.5 }
+            ]
+          },
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
+      "id": 5,
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        {
+          "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+          "rawSql": "SELECT countIf(reasoning_reused = 1) / count() as reuse_rate FROM agent_routing_events WHERE event_time >= now() - INTERVAL 24 HOUR",
+          "refId": "A"
+        }
+      ],
+      "title": "Reasoning Reuse Rate (24h)",
+      "type": "gauge"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "id": 10,
+      "title": "Decision Ratios",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" } }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
+      "id": 11,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+          "rawSql": "SELECT toStartOfHour(event_time) as t, decision, count() as cnt FROM agent_routing_events WHERE event_time >= now() - INTERVAL 24 HOUR GROUP BY t, decision ORDER BY t",
+          "refId": "A"
+        }
+      ],
+      "title": "Decisions by Type (24h hourly)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" } }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
+      "id": 12,
+      "targets": [
+        {
+          "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+          "rawSql": "SELECT toStartOfHour(event_time) as t, tier, sum(tokens_input + tokens_output) as total_tokens FROM agent_routing_events WHERE event_time >= now() - INTERVAL 24 HOUR GROUP BY t, tier ORDER BY t",
+          "refId": "A"
+        }
+      ],
+      "title": "Token Usage by Tier (24h)",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
+      "id": 20,
+      "title": "Latency",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+      "fieldConfig": {
+        "defaults": { "unit": "ms" }
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 19 },
+      "id": 21,
+      "targets": [
+        {
+          "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+          "rawSql": "SELECT toStartOfHour(event_time) as t, tier, quantile(0.50)(latency_ms) as p50, quantile(0.95)(latency_ms) as p95, quantile(0.99)(latency_ms) as p99 FROM agent_routing_events WHERE event_time >= now() - INTERVAL 24 HOUR GROUP BY t, tier ORDER BY t",
+          "refId": "A"
+        }
+      ],
+      "title": "Latency p50/p95/p99 by Tier (24h)",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
+      "id": 30,
+      "title": "Cost per Decision",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+      "fieldConfig": {
+        "defaults": { "unit": "currencyUSD" }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 },
+      "id": 31,
+      "targets": [
+        {
+          "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+          "rawSql": "SELECT product, jurisdiction, avg(cost_usd) as avg_cost, count() as decisions FROM agent_routing_events WHERE event_time >= now() - INTERVAL 7 * 24 HOUR GROUP BY product, jurisdiction ORDER BY avg_cost DESC LIMIT 20",
+          "refId": "A"
+        }
+      ],
+      "title": "Avg Cost per Decision by Product/Jurisdiction (7d)",
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+      "fieldConfig": {
+        "defaults": { "unit": "currencyUSD" }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 },
+      "id": 32,
+      "targets": [
+        {
+          "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+          "rawSql": "SELECT toStartOfHour(event_time) as t, sum(cost_usd) as hourly_cost FROM agent_routing_events WHERE event_time >= now() - INTERVAL 24 HOUR GROUP BY t ORDER BY t",
+          "refId": "A"
+        }
+      ],
+      "title": "Hourly Cost (24h)",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "tags": ["banxe", "arl", "agent-routing", "compliance", "cost"],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+        "definition": "SELECT DISTINCT product FROM agent_routing_events ORDER BY product",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "product",
+        "options": [],
+        "query": "SELECT DISTINCT product FROM agent_routing_events ORDER BY product",
+        "refresh": 1,
+        "type": "query",
+        "label": "Product"
+      },
+      {
+        "current": {},
+        "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+        "definition": "SELECT DISTINCT jurisdiction FROM agent_routing_events ORDER BY jurisdiction",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "jurisdiction",
+        "options": [],
+        "query": "SELECT DISTINCT jurisdiction FROM agent_routing_events ORDER BY jurisdiction",
+        "refresh": 1,
+        "type": "query",
+        "label": "Jurisdiction"
+      }
+    ]
+  },
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": {},
+  "timezone": "UTC",
+  "title": "BANXE — Agent Routing Layer Metrics",
+  "uid": "banxe-arl-metrics",
+  "version": 1,
+  "weekStart": ""
+}

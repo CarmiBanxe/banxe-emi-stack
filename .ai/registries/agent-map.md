@@ -88,10 +88,21 @@ Key invariant: AI agents operate in PROPOSES mode only (I-27). All final decisio
 - ClickHouse tables: `banxe.mcp_tool_events`, `banxe.mcp_health_events`
 - dbt model: `dbt/models/mcp/mcp_tool_usage.sql`
 
-**MCP Tools exposed (11 total):**
+**MCP Tools exposed (15 total):**
 `get_account_balance`, `list_accounts`, `get_transaction_history`, `get_kyc_status`,
 `check_aml_alert`, `get_exchange_rate`, `get_payment_status`, `get_recon_status`,
-`get_breach_history`, `get_discrepancy_trend`, `run_reconciliation`
+`get_breach_history`, `get_discrepancy_trend`, `run_reconciliation`,
+`route_agent_task`, `query_reasoning_bank`, `get_routing_metrics`, `manage_playbooks`
+
+### Agent Routing Layer (ARL) Swarm Agents (services/swarm/agents/ — 5 agents)
+
+| Agent | File | Autonomy | Signal type |
+|-------|------|----------|-------------|
+| SanctionsAgent | `sanctions_agent.py` | L1 (rule-based) | sanctions_screening |
+| BehaviorAgent | `behavior_agent.py` | L2 (alert) | behavioral_anomaly |
+| GeoRiskAgent | `geo_risk_agent.py` | L1 (rule-based) | geo_risk |
+| ProfileHistoryAgent | `profile_history_agent.py` | L2 (alert) | profile_history |
+| ProductLimitsAgent | `product_limits_agent.py` | L1 (rule-based) | product_limits |
 
 ---
 
@@ -123,4 +134,4 @@ Key invariant: AI agents operate in PROPOSES mode only (I-27). All final decisio
 - Audit: ClickHouse (`compliance_swarm_events` table, 5yr retention per I-08)
 
 ---
-*Last updated: 2026-04-11 (IL-MCP-01: MCP Server Agent added)*
+*Last updated: 2026-04-11 (IL-ARL-01: Agent Routing Layer added — 5 swarm agents, 4 MCP tools, 3 playbooks)*

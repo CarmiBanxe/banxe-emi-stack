@@ -1,0 +1,85 @@
+---
+# config/playbooks/high_risk_jurisdiction_v1.yaml
+# High-Risk Jurisdiction Catch-All Playbook
+# IL-ARL-01 | banxe-emi-stack | 2026-04-11
+# Jurisdictions: All FATF greylist, EU high-risk third countries
+# Regulated under: MLR 2017, POCA 2002, EU AML Directive
+
+playbook_id: high_risk_jurisdiction_v1
+product: "*"
+jurisdictions:
+  # FATF greylist
+  - BJ
+  - BF
+  - CM
+  - CD
+  - HT
+  - LY
+  - ML
+  - MZ
+  - NG
+  - PK
+  - PH
+  - SA
+  - SN
+  - ZA
+  - SS
+  - TZ
+  - VN
+  - YE
+  - AE
+  - UG
+  # EU high-risk third countries
+  - BS
+  - BB
+  - KH
+  - KY
+  - JM
+  - JO
+  - NI
+  - TT
+  - ZW
+
+tiers:
+  tier1:
+    description: "NOT AVAILABLE — all high-risk jurisdiction transactions go Tier 3"
+    max_amount_eur: 0
+    allowed_if: []
+
+  tier2:
+    description: "NOT AVAILABLE — all high-risk jurisdiction transactions go Tier 3"
+    triggers: []
+
+  tier3:
+    description: "ALWAYS — all transactions from high-risk jurisdictions require Tier 3"
+    triggers:
+      - cumulative_risk_score >= 0.0
+
+swarm:
+  topology: ring
+  agents:
+    - sanctions
+    - geo_risk
+    - profile_history
+    - behavior
+    - product_limits
+
+decision:
+  approve_if: "NEVER_AUTO — all high-risk jurisdiction cases require manual_review minimum"
+  manual_review_if: "ALWAYS"
+  decline_if: "sanctions_hit = true OR policy_block = true"
+
+edd_required: true
+mlro_notification: true
+
+metadata:
+  version: "1.0"
+  effective_date: "2026-04-11"
+  review_date: "2026-07-11"
+  owner: "mlro@banxe.com"
+  regulatory_refs:
+    - "MLR 2017 Reg.33 (EDD)"
+    - "POCA 2002 s.330 (SAR)"
+    - "FATF Recommendations 10-12"
+    - "EU AML Directive 4AMLD/5AMLD"
+    - "FCA Financial Crime Guide"

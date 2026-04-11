@@ -1,0 +1,68 @@
+---
+# config/playbooks/uk_fps_retail_v1.yaml
+# UK Faster Payments Service Retail Routing Playbook
+# IL-ARL-01 | banxe-emi-stack | 2026-04-11
+# Jurisdictions: UK, GB
+# Regulated under: PSR 2017, FCA CASS 7.15, MLR 2017, PSR APP 2024
+
+playbook_id: uk_fps_retail_v1
+product: fps_retail_transfer
+jurisdictions:
+  - UK
+  - GB
+
+tiers:
+  tier1:
+    description: "Rule-only fast path for low-value trusted transfers"
+    max_amount_eur: 500
+    allowed_if:
+      - known_beneficiary = true
+      - sanctions_hit = false
+      - device_risk in [low]
+      - anomaly_count <= 0
+      - customer_age_days >= 90
+
+  tier2:
+    description: "Mid-tier LLM for standard review cases"
+    triggers:
+      - new_beneficiary = true
+      - amount_spike = true
+      - customer_age_days < 60
+      - velocity_24h > 3
+      - device_risk in [medium]
+
+  tier3:
+    description: "Swarm for high-risk UK transfers"
+    triggers:
+      - sanctions_hit = true
+      - cumulative_risk_score >= 0.70
+      - amount_eur > 10000
+      - cross_border = true
+      - structuring_detected = true
+
+swarm:
+  topology: hierarchy
+  coordinator: sanctions
+  agents:
+    - sanctions
+    - behavior
+    - geo_risk
+    - profile_history
+    - product_limits
+
+decision:
+  approve_if: "all_critical_clean AND risk < 0.20"
+  manual_review_if: "confidence < 0.75 OR conflicting_signals OR new_beneficiary"
+  decline_if: "policy_block = true OR sanctions_hit = true"
+
+metadata:
+  version: "1.0"
+  effective_date: "2026-04-11"
+  review_date: "2026-07-11"
+  owner: "compliance@banxe.com"
+  regulatory_refs:
+    - "PSR 2017"
+    - "PSR APP 2024"
+    - "FCA CASS 7.15"
+    - "MLR 2017 Reg.26-28"
+    - "FCA PS22/9 (Consumer Duty)"

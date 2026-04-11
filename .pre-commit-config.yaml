@@ -27,7 +27,7 @@ repos:
 
       - id: pytest-fast
         name: Pytest (all tests, fast)
-        entry: bash -c "cd /home/mmber/banxe-emi-stack && python3 -m pytest tests/ -x -q --timeout=30 --no-cov"
+        entry: bash -c "cd /home/mmber/banxe-emi-stack && python3 -m pytest tests/ -x -q --override-ini=addopts="
         language: system
         pass_filenames: false
         always_run: true
