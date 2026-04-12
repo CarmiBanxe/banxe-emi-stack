@@ -47,6 +47,7 @@ from api.routers import (
     reporting,
     sanctions_rescreen,
     statements,
+    transaction_monitor,
     watchman_webhook,
 )
 
@@ -121,3 +122,4 @@ app.include_router(
 )  # POST /compliance/sanctions/rescreen/high-risk (IL-068)
 app.include_router(compliance_kb.router)  # GET/POST /v1/kb/* (IL-CKS-01)
 app.include_router(experiments.router, prefix="/v1")  # GET/POST /v1/experiments/* (IL-CEC-01)
+app.include_router(transaction_monitor.router, prefix="/v1")  # GET/POST /v1/monitor/* (IL-RTM-01)

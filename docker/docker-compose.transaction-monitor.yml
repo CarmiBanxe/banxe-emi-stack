@@ -1,0 +1,159 @@
+version: "3.9"
+# IL-RTM-01 — Realtime Transaction Monitoring Stack
+# Components: banxe-api + Redis (velocity) + ClickHouse (audit) + Marble (case management)
+# FCA Basis: MLR 2017, EBA GL/2021/02, I-02 (hard-block), I-04 (EDD £10k)
+
+services:
+  # Banxe API — FastAPI serving /v1/monitor/* endpoints
+  banxe-api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    container_name: banxe-api-monitor
+    environment:
+      BANXE_ENV: ${BANXE_ENV:-production}
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-banxe_compliance}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_URL: redis://redis:6379/0
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: 9000
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-banxe}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      JUBE_URL: ${JUBE_URL:-http://jube:8080}
+      MARBLE_URL: ${MARBLE_URL:-http://marble:3000}
+      MARBLE_API_KEY: ${MARBLE_API_KEY}
+      # Risk scoring weights (composite: rules 40% + ML 30% + velocity 30%)
+      RULES_WEIGHT: "0.40"
+      ML_WEIGHT: "0.30"
+      VELOCITY_WEIGHT: "0.30"
+      # EDD thresholds (I-04): £10k individual, £50k corporate
+      EDD_THRESHOLD_INDIVIDUAL_GBP: "10000"
+      EDD_THRESHOLD_CORPORATE_GBP: "50000"
+      # Velocity thresholds
+      VELOCITY_1H_THRESHOLD: "5"
+      VELOCITY_24H_THRESHOLD: "10"
+      VELOCITY_7D_THRESHOLD: "50"
+      # Hard-block jurisdictions (I-02): RU BY IR KP CU MM AF VE SY
+      BLOCKED_JURISDICTIONS: "RU,BY,IR,KP,CU,MM,AF,VE,SY"
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/v1/monitor/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis — sliding-window velocity counters (1h/24h/7d per customer)
+  redis:
+    image: redis:7-alpine
+    container_name: banxe-redis-monitor
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_monitor_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ClickHouse — AML alert audit trail (append-only, TTL 5Y, I-24)
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.3
+    container_name: banxe-clickhouse-monitor
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-banxe}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+    volumes:
+      - clickhouse_monitor_data:/var/lib/clickhouse
+      - ./clickhouse/aml_audit_init.sql:/docker-entrypoint-initdb.d/aml_audit_init.sql:ro
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Marble — case management for CRITICAL/HIGH AML alerts
+  # https://github.com/checkmarble/marble — self-hosted, open-source
+  marble:
+    image: ghcr.io/checkmarble/marble-backend:latest
+    container_name: banxe-marble
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      MARBLE_API_KEY: ${MARBLE_API_KEY}
+      ENV: ${BANXE_ENV:-production}
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL — primary DB for Marble + audit foreign key references
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: banxe-postgres-monitor
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-banxe_compliance}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_monitor_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Grafana — AML monitoring dashboard
+  # Dashboard: infra/grafana/dashboards/aml-monitoring.json
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: banxe-grafana-monitor
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-changeme}
+      GF_INSTALL_PLUGINS: grafana-clickhouse-datasource
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+    volumes:
+      - grafana_monitor_data:/var/lib/grafana
+      - ../infra/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ../infra/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    ports:
+      - "3002:3000"
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  redis_monitor_data:
+  clickhouse_monitor_data:
+  postgres_monitor_data:
+  grafana_monitor_data:

@@ -1155,6 +1155,228 @@ async def kb_get_citations(source_id: str, notebook_id: str) -> str:
         return "Error: BANXE API unavailable."
 
 
+# ── Transaction Monitor Tools (IL-RTM-01) ─────────────────────────────────
+
+
+@mcp_server.tool()
+async def monitor_score_transaction(
+    transaction_id: str,
+    amount: str,
+    sender_id: str,
+    sender_jurisdiction: str = "GB",
+    receiver_jurisdiction: str | None = None,
+    transaction_type: str = "payment",
+    currency: str = "GBP",
+    channel: str = "api",
+    customer_avg_amount: str | None = None,
+) -> str:
+    """Score a transaction for AML risk and generate an alert.
+
+    Applies rules (40%) + ML anomaly detection (30%) + velocity (30%).
+    Hard-blocks sanctioned jurisdictions (I-02). EDD at GBP 10k (I-04).
+
+    Args:
+        transaction_id: Unique transaction identifier.
+        amount: Transaction amount as decimal string (e.g. "15200.00").
+        sender_id: Customer/sender ID.
+        sender_jurisdiction: ISO 3166-1 alpha-2 (default: GB).
+        receiver_jurisdiction: Optional receiver jurisdiction.
+        transaction_type: payment|transfer|withdrawal|deposit|crypto_onramp|crypto_offramp|p2p|merchant
+        currency: ISO 4217 (default: GBP).
+        channel: api|mobile|web|branch.
+        customer_avg_amount: Customer 90-day average amount string.
+
+    Returns:
+        Markdown summary of risk score and generated alert.
+    """
+    try:
+        payload: dict = {
+            "transaction_id": transaction_id,
+            "amount": amount,
+            "sender_id": sender_id,
+            "sender_jurisdiction": sender_jurisdiction,
+            "transaction_type": transaction_type,
+            "currency": currency,
+            "channel": channel,
+        }
+        if receiver_jurisdiction:
+            payload["receiver_jurisdiction"] = receiver_jurisdiction
+        if customer_avg_amount:
+            payload["customer_avg_amount"] = customer_avg_amount
+
+        result = await _api_post("/v1/monitor/score", payload)
+        risk = result.get("risk_score", {})
+        alert = result.get("alert", {})
+        score = risk.get("score", 0)
+        classification = risk.get("classification", "unknown").upper()
+        factors = risk.get("factors", [])[:3]
+
+        lines = [
+            f"## AML Score: {transaction_id}",
+            f"**Risk Score**: {score:.2f} — **{classification}**",
+            f"**Alert ID**: `{alert.get('alert_id', 'N/A')}`",
+            f"**Severity**: {alert.get('severity', 'N/A').upper()}",
+            f"**Status**: {alert.get('status', 'N/A')}",
+            f"**Action**: {alert.get('recommended_action', 'N/A')}",
+            f"**Marble Case**: {alert.get('marble_case_id') or '_none_'}",
+            "",
+            "### Top Risk Factors",
+        ]
+        for f in factors:
+            lines.append(
+                f"- **{f.get('name')}**: {f.get('value', 0):.2f} "
+                f"(contribution: {f.get('contribution', 0):.2f})"
+            )
+            if f.get("regulation_ref"):
+                lines.append(f"  → {f.get('regulation_ref')}")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Error scoring transaction: {e}"
+
+
+@mcp_server.tool()
+async def monitor_get_alerts(
+    severity: str = "",
+    status: str = "",
+    customer_id: str = "",
+    limit: int = 20,
+) -> str:
+    """List AML alerts with optional filters.
+
+    Args:
+        severity: Filter by severity: low|medium|high|critical
+        status: Filter by status: open|reviewing|escalated|closed|auto_closed
+        customer_id: Filter by customer ID.
+        limit: Max alerts to return (default: 20).
+
+    Returns:
+        Markdown table of alerts.
+    """
+    try:
+        path = f"/v1/monitor/alerts?limit={limit}"
+        if severity:
+            path += f"&severity={severity}"
+        if status:
+            path += f"&status={status}"
+        if customer_id:
+            path += f"&customer_id={customer_id}"
+        alerts = await _api_get(path)
+        if not alerts:
+            return "No alerts found matching the specified filters."
+        lines = [
+            f"## AML Alerts ({len(alerts)} results)\n",
+            "| Alert ID | Tx ID | Severity | Status | Score | Created |",
+            "|----------|-------|----------|--------|-------|---------|",
+        ]
+        for a in alerts:
+            score = a.get("risk_score", {}).get("score", 0)
+            lines.append(
+                f"| `{a.get('alert_id', '?')}` | `{a.get('transaction_id', '?')}` "
+                f"| **{a.get('severity', '?').upper()}** | {a.get('status', '?')} "
+                f"| {score:.2f} | {str(a.get('created_at', ''))[:10]} |"
+            )
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Error fetching alerts: {e}"
+
+
+@mcp_server.tool()
+async def monitor_get_alert_detail(alert_id: str) -> str:
+    """Get full alert details including explanation and KB citations.
+
+    Args:
+        alert_id: Alert ID (e.g. ALT-A1B2C3D4).
+
+    Returns:
+        Full alert with risk factor breakdown and explanation.
+    """
+    try:
+        alert = await _api_get(f"/v1/monitor/alerts/{alert_id}")
+        explanation = alert.get("explanation", "No explanation available.")
+        refs = alert.get("regulation_refs", [])
+        return (
+            f"## Alert Detail: `{alert_id}`\n\n"
+            f"**Transaction**: `{alert.get('transaction_id')}`\n"
+            f"**Customer**: `{alert.get('customer_id')}`\n"
+            f"**Severity**: {alert.get('severity', '?').upper()}\n"
+            f"**Status**: {alert.get('status')}\n"
+            f"**Amount**: £{alert.get('amount_gbp', '?')}\n"
+            f"**Review Deadline**: {str(alert.get('review_deadline', 'N/A'))[:19]}\n"
+            f"**Marble Case**: {alert.get('marble_case_id') or 'none'}\n\n"
+            f"### Explanation\n```\n{explanation}\n```\n\n"
+            f"### Regulation Citations\n" + ("\n".join(f"- {r}" for r in refs) or "_none_")
+        )
+    except Exception as e:
+        return f"Error fetching alert {alert_id}: {e}"
+
+
+@mcp_server.tool()
+async def monitor_get_velocity(customer_id: str) -> str:
+    """Get velocity metrics for a customer across 1h, 24h, 7d windows.
+
+    Args:
+        customer_id: Customer ID to query.
+
+    Returns:
+        Velocity counts vs thresholds; EDD flag if GBP 10k+ cumulative.
+    """
+    try:
+        data = await _api_get(f"/v1/monitor/velocity/{customer_id}")
+        vel = data.get("velocity", {})
+        lines = [
+            f"## Velocity Metrics — `{customer_id}`\n",
+            f"**EDD Required**: {'⚠️ YES (I-04)' if data.get('requires_edd') else '✅ No'}",
+            f"**Cumulative 24h (GBP)**: £{data.get('cumulative_gbp_24h', '0')}",
+            "",
+            "| Window | Count | Threshold | Status |",
+            "|--------|-------|-----------|--------|",
+        ]
+        for window, metrics in vel.items():
+            exceeded = metrics.get("exceeded", False)
+            status_str = "⚠️ EXCEEDED" if exceeded else "✅ OK"
+            lines.append(
+                f"| {window} | {metrics.get('count', 0)} "
+                f"| {metrics.get('threshold', '?')} | {status_str} |"
+            )
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Error fetching velocity for {customer_id}: {e}"
+
+
+@mcp_server.tool()
+async def monitor_dashboard_metrics() -> str:
+    """Get aggregate AML monitoring metrics for compliance dashboard.
+
+    Returns alert counts by severity, open/escalated breakdown,
+    and SAR yield estimate vs target (20%).
+    """
+    try:
+        metrics = await _api_get("/v1/monitor/metrics")
+        by_sev = metrics.get("by_severity", {})
+        targets = metrics.get("targets", {})
+        sar_yield = metrics.get("sar_yield_estimate", 0)
+        sar_target = targets.get("sar_yield_target", 0.20)
+        sar_status = "✅" if sar_yield >= sar_target else "⚠️"
+        return (
+            f"## AML Monitoring Dashboard\n\n"
+            f"**Total Alerts**: {metrics.get('total_alerts', 0)}\n"
+            f"**Open**: {metrics.get('open_alerts', 0)} | "
+            f"**Escalated**: {metrics.get('escalated_alerts', 0)}\n\n"
+            f"### By Severity\n"
+            f"| CRITICAL | HIGH | MEDIUM | LOW |\n"
+            f"|----------|------|--------|-----|\n"
+            f"| {by_sev.get('critical', 0)} | {by_sev.get('high', 0)} "
+            f"| {by_sev.get('medium', 0)} | {by_sev.get('low', 0)} |\n\n"
+            f"### Performance vs Targets\n"
+            f"| Metric | Current | Target | Status |\n"
+            f"|--------|---------|--------|--------|\n"
+            f"| SAR Yield | {sar_yield:.1%} | {sar_target:.0%} | {sar_status} |\n"
+            f"| Review SLA | 24h | {targets.get('review_sla_hours', 24)}h | ✅ |\n"
+        )
+    except Exception as e:
+        return f"Error fetching dashboard metrics: {e}"
+
+
 # ── Compliance Experiment Copilot Tools (IL-CEC-01) ───────────────────────
 
 
@@ -1336,7 +1558,9 @@ async def info_resource() -> str:
         "get_kyc_status, check_aml_alert, get_exchange_rate, get_payment_status, "
         "kb_list_notebooks, kb_get_notebook, kb_query, kb_search, "
         "kb_compare_versions, kb_get_citations, "
-        "experiment_design, experiment_list, experiment_get_metrics, experiment_propose_change\n"
+        "experiment_design, experiment_list, experiment_get_metrics, experiment_propose_change, "
+        "monitor_score_transaction, monitor_get_alerts, monitor_get_alert_detail, "
+        "monitor_get_velocity, monitor_dashboard_metrics\n"
         "FCA basis: CASS 7.15, CASS 15, MLR 2017, PSR 2017\n"
         "Trust zone: RED"
     )
