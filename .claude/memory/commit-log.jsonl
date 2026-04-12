@@ -1,1 +1,3 @@
 {"ts":"2026-04-12T11:48:01Z","hash":"b75626a","il":null,"type":"feat","msg":"feat(IL-091): add doc-sync.py — automatic documentation sync after git commits","files_changed":2,"areas":["tests"]}
+{"ts":"2026-04-12T11:56:16Z","hash":"ee683db","il":null,"type":"feat","msg":"feat(IL-091): add post-task.sh hook + commit-log.jsonl","files_changed":2,"areas":[]}
+{"hash": "ee683db", "full_hash": "ee683dba11a161138b6b1a6c807bad0a90f87911", "message": "feat(IL-091): add post-task.sh hook + commit-log.jsonl", "author": "Moriel Carmi", "date": "2026-04-12 13:56:00 +0200", "il_id": "IL-091", "type": "feat", "changed_files": [".claude/hooks/post-task.sh", ".claude/memory/commit-log.jsonl"]}
