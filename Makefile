@@ -17,7 +17,9 @@
 .PHONY: lint lint-python lint-frontend fix fix-python fix-frontend \
         test test-full test-frontend \
         generate-component generate-all \
-        quality-gate install help
+        quality-gate install \
+        doc-sync doc-sync-dry doc-sync-push doc-retro \
+        help
 
 # ── Paths ─────────────────────────────────────────────────────────────────
 FRONTEND_DIR := frontend
@@ -110,6 +112,27 @@ generate-all:
 	cd $(FRONTEND_DIR) && npx biome check --apply $(SRC_GEN_DIR)/react/
 	@echo "✅ All components generated"
 
+# ── Documentation Sync ───────────────────────────────────────────────────────
+# Wraps scripts/doc-sync.py — updates commit-log.jsonl, INSTRUCTION-LEDGER,
+# MEMORY.md, and .claude/memory/* files based on changed paths.
+# See also: .claude/hooks/post-task.sh (auto-runs after tasks)
+
+doc-sync:
+	@echo "▶ doc-sync → HEAD..."
+	python3 scripts/doc-sync.py --commit HEAD
+
+doc-sync-dry:
+	@echo "▶ doc-sync dry run (no writes)..."
+	python3 scripts/doc-sync.py --commit HEAD --dry-run
+
+doc-sync-push:
+	@echo "▶ doc-sync + auto-push to both repos..."
+	python3 scripts/doc-sync.py --commit HEAD --auto-push
+
+doc-retro:
+	@echo "▶ doc-sync retro from 2026-03-01..."
+	python3 scripts/doc-sync.py --commit $(shell git rev-list --since="2026-03-01" HEAD | tail -1)..HEAD
+
 # ── Full Quality Gate ──────────────────────────────────────────────────────
 
 quality-gate: lint
@@ -146,4 +169,8 @@ help:
 	@echo "  make generate-all         Compile all .lite.tsx → React/Vue/RN"
 	@echo "  make quality-gate         Full pre-merge check"
 	@echo "  make install              Install all dev deps + pre-commit"
+	@echo "  make doc-sync             Sync docs for HEAD commit"
+	@echo "  make doc-sync-dry         Preview doc-sync (no writes)"
+	@echo "  make doc-sync-push        Sync docs + auto-push both repos"
+	@echo "  make doc-retro            Retro sync from 2026-03-01"
 	@echo ""
