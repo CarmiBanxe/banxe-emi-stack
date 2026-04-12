@@ -1,4 +1,5 @@
 """Tests for AuditLogger (ClickHouse)."""
+
 import pytest
 from decimal import Decimal
 from datetime import date

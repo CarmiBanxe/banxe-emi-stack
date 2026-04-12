@@ -1,4 +1,5 @@
 """Tests for MCP tools (4 tools)."""
+
 import pytest
 
 from app.mcp.tools.safeguarding_position import safeguarding_position_tool

@@ -1,4 +1,5 @@
 """Tests for BreachService."""
+
 import pytest
 from decimal import Decimal
 

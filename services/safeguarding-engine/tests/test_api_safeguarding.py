@@ -1,4 +1,5 @@
 """Tests for safeguarding API endpoints."""
+
 import pytest
 from httpx import AsyncClient
 
@@ -6,11 +7,14 @@ from httpx import AsyncClient
 @pytest.mark.asyncio
 async def test_post_safeguard(async_client: AsyncClient):
     """POST /api/v1/safeguard - record safeguarding obligation."""
-    response = await async_client.post("/api/v1/safeguard", json={
-        "amount": "10000.00",
-        "currency": "GBP",
-        "source": "e-money-receipt",
-    })
+    response = await async_client.post(
+        "/api/v1/safeguard",
+        json={
+            "amount": "10000.00",
+            "currency": "GBP",
+            "source": "e-money-receipt",
+        },
+    )
     assert response.status_code in (200, 201)
 
 

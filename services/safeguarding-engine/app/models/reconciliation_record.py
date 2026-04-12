@@ -1,7 +1,8 @@
 """SQLAlchemy model for reconciliation records."""
+
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Date, DateTime, Numeric, Text
+from sqlalchemy import Column, String, Date, DateTime, Numeric
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 from app.models import Base
@@ -9,6 +10,7 @@ from app.models import Base
 
 class ReconciliationRecord(Base):
     """Daily/monthly reconciliation results per CASS 15."""
+
     __tablename__ = "reconciliations"
     __table_args__ = {"schema": "safeguarding"}
 

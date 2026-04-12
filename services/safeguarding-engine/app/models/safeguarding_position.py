@@ -1,8 +1,8 @@
 """SQLAlchemy models for safeguarding positions."""
+
 import uuid
-from datetime import datetime, date
-from decimal import Decimal
-from sqlalchemy import Column, String, Date, DateTime, Numeric, Boolean, ForeignKey
+from datetime import datetime
+from sqlalchemy import Column, String, Date, DateTime, Numeric, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -11,6 +11,7 @@ from app.models import Base
 
 class SafeguardingPosition(Base):
     """Daily safeguarding position snapshot."""
+
     __tablename__ = "positions"
     __table_args__ = {"schema": "safeguarding"}
 
@@ -26,6 +27,7 @@ class SafeguardingPosition(Base):
 
 class PositionDetail(Base):
     """Per-account breakdown within a position."""
+
     __tablename__ = "position_details"
     __table_args__ = {"schema": "safeguarding"}
 

@@ -1,4 +1,5 @@
 """Audit event model for ClickHouse immutable audit trail."""
+
 import uuid
 from datetime import datetime, date
 from decimal import Decimal
@@ -9,6 +10,7 @@ from typing import Optional
 @dataclass
 class AuditEvent:
     """Immutable audit event stored in ClickHouse (7-year TTL)."""
+
     event_id: uuid.UUID = field(default_factory=uuid.uuid4)
     event_type: str = ""
     entity_type: str = ""

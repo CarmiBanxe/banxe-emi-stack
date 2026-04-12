@@ -1,4 +1,5 @@
 """SQLAlchemy model for breach reports."""
+
 import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, Boolean, DateTime, Numeric, Text
@@ -9,6 +10,7 @@ from app.models import Base
 
 class BreachReport(Base):
     """Safeguarding breach report for FCA notification."""
+
     __tablename__ = "breaches"
     __table_args__ = {"schema": "safeguarding"}
 
