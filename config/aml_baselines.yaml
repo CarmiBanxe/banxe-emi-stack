@@ -1,0 +1,72 @@
+# config/aml_baselines.yaml — AML Performance Baselines
+# IL-CEC-01 | banxe-emi-stack
+#
+# Baseline metrics are measured over the prior 90-day rolling window.
+# Target metrics are FCA / FATF recommended thresholds for EMIs.
+# All rates are decimal fractions (0.0–1.0), not percentages.
+#
+# Review cadence: quarterly by MLRO + Compliance Officer
+# Last reviewed: 2026-04-01 | Approved by: MLRO
+# Regulatory basis: EBA GL/2021/02 §4, FATF 40 Recommendations
+
+baselines:
+  hit_rate_24h:
+    description: "Proportion of alerts that result in further investigation or SAR"
+    current: 0.25       # 25% — current measured hit rate
+    target: 0.35        # 35% — FCA/EBA recommended minimum for EMI
+    lower_is_better: false
+    unit: rate
+    source: "banxe.aml_alerts (ClickHouse)"
+
+  false_positive_rate:
+    description: "Proportion of alerts that are cleared as false positives"
+    current: 0.75       # 75% — current measured FP rate
+    target: 0.60        # 60% — target (lower is better)
+    lower_is_better: true
+    unit: rate
+    source: "banxe.aml_alerts (ClickHouse)"
+
+  sar_yield:
+    description: "Proportion of reviewed cases resulting in SAR submission"
+    current: 0.10       # 10% — current measured SAR yield
+    target: 0.15        # 15% — target SAR conversion rate
+    lower_is_better: false
+    unit: rate
+    source: "banxe.aml_alerts (ClickHouse)"
+
+  avg_review_hours:
+    description: "Average hours from alert creation to case decision"
+    current: 48.0       # 48 hours — current average
+    target: 24.0        # 24 hours — FCA SLA requirement (lower is better)
+    lower_is_better: true
+    unit: hours
+    source: "banxe.aml_alerts (ClickHouse)"
+
+  cases_reviewed_daily:
+    description: "Average cases reviewed per business day"
+    current: 25         # 25 cases/day
+    target: 40          # 40 cases/day (higher is better)
+    lower_is_better: false
+    unit: count
+    source: "banxe.aml_alerts (ClickHouse)"
+
+# Scope-specific overrides
+scope_overrides:
+  transaction_monitoring:
+    hit_rate_24h:
+      current: 0.28
+      target: 0.38
+  kyc_onboarding:
+    false_positive_rate:
+      current: 0.65
+      target: 0.50
+  sar_filing:
+    sar_yield:
+      current: 0.20
+      target: 0.30
+
+# Thresholds for experiment classification
+classification_thresholds:
+  improvement_pct: 0.10   # ≥10% improvement → IMPROVING
+  regression_pct: -0.05   # ≤-5% regression → REGRESSING
+  min_period_days: 14     # minimum days before auto-finish

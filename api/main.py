@@ -35,6 +35,7 @@ from api.routers import (
     compliance_kb,
     consumer_duty,
     customers,
+    experiments,
     fraud,
     health,
     hitl,
@@ -119,3 +120,4 @@ app.include_router(
     sanctions_rescreen.router
 )  # POST /compliance/sanctions/rescreen/high-risk (IL-068)
 app.include_router(compliance_kb.router)  # GET/POST /v1/kb/* (IL-CKS-01)
+app.include_router(experiments.router, prefix="/v1")  # GET/POST /v1/experiments/* (IL-CEC-01)

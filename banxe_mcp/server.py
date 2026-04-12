@@ -1155,6 +1155,177 @@ async def kb_get_citations(source_id: str, notebook_id: str) -> str:
         return "Error: BANXE API unavailable."
 
 
+# ── Compliance Experiment Copilot Tools (IL-CEC-01) ───────────────────────
+
+
+@mcp_server.tool()
+async def experiment_design(
+    query: str,
+    scope: str,
+    created_by: str,
+    tags: list[str] | None = None,
+) -> str:
+    """Design a new compliance experiment from a knowledge base query.
+
+    Queries the compliance KB for the given scope, generates a hypothesis
+    with KB citations, and creates a DRAFT experiment with AML metrics
+    baseline/target from the config.
+
+    Args:
+        query: The compliance question or gap to investigate.
+        scope: One of: transaction_monitoring, kyc_onboarding, case_management,
+               sar_filing, risk_scoring.
+        created_by: Email or name of the requesting analyst/compliance officer.
+        tags: Optional list of additional tags for the experiment.
+
+    Returns:
+        Markdown summary of the created DRAFT experiment.
+    """
+    try:
+        payload: dict = {
+            "query": query,
+            "scope": scope,
+            "created_by": created_by,
+            "tags": tags or [],
+        }
+        exp = await _api_post("/v1/experiments/design", payload)
+        return (
+            f"## Experiment Created (DRAFT)\n\n"
+            f"**ID**: `{exp.get('id')}`\n"
+            f"**Title**: {exp.get('title')}\n"
+            f"**Scope**: `{exp.get('scope')}`\n"
+            f"**Status**: {exp.get('status', 'draft').upper()}\n"
+            f"**Citations**: {', '.join(exp.get('kb_citations', []))}\n\n"
+            f"### Hypothesis\n{exp.get('hypothesis', 'N/A')}\n\n"
+            f"### Metrics Baseline\n"
+            f"- Hit Rate: {exp.get('metrics_baseline', {}).get('hit_rate_24h', 'N/A')}\n"
+            f"- False Positive Rate: {exp.get('metrics_baseline', {}).get('false_positive_rate', 'N/A')}\n\n"
+            f"Next step: `PATCH /v1/experiments/{exp.get('id')}/approve` to activate."
+        )
+    except Exception as e:
+        return f"Error designing experiment: {e}"
+
+
+@mcp_server.tool()
+async def experiment_list(status: str = "") -> str:
+    """List compliance experiments, optionally filtered by status.
+
+    Args:
+        status: Optional filter — one of: draft, active, finished, rejected.
+                Leave empty to list all experiments.
+
+    Returns:
+        Markdown table of experiments.
+    """
+    try:
+        path = "/v1/experiments"
+        if status:
+            path += f"?status={status}"
+        experiments = await _api_get(path)
+        if not experiments:
+            return f"No experiments found{f' with status={status}' if status else ''}."
+        lines = [
+            f"## Experiments ({len(experiments)} total{f', status={status}' if status else ''})\n",
+            "| ID | Title | Scope | Status | Updated |",
+            "|----|-------|-------|--------|---------|",
+        ]
+        for e in experiments:
+            lines.append(
+                f"| `{e.get('id', '?')}` | {e.get('title', 'N/A')} "
+                f"| {e.get('scope', '?')} | **{e.get('status', '?').upper()}** "
+                f"| {str(e.get('updated_at', ''))[:10]} |"
+            )
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Error listing experiments: {e}"
+
+
+@mcp_server.tool()
+async def experiment_get_metrics(period_days: int = 1) -> str:
+    """Get current AML performance metrics snapshot from ClickHouse.
+
+    Returns hit rate, false positive rate, SAR yield, review time,
+    and amount blocked (GBP) for the given lookback period.
+
+    Args:
+        period_days: Lookback period in days (1–90). Default: 1.
+
+    Returns:
+        Markdown summary of current AML metrics.
+    """
+    try:
+        metrics = await _api_get(f"/v1/experiments/metrics/current?period_days={period_days}")
+        hit = metrics.get("hit_rate_24h")
+        fp = metrics.get("false_positive_rate")
+        sar = metrics.get("sar_yield")
+        hours = metrics.get("time_to_review_hours")
+        blocked = metrics.get("amount_blocked_gbp")
+        cases = metrics.get("cases_reviewed", 0)
+        return (
+            f"## AML Metrics Snapshot (last {period_days} day(s))\n\n"
+            f"| Metric | Value |\n"
+            f"|--------|-------|\n"
+            f"| Hit Rate | {f'{hit:.1%}' if hit is not None else 'N/A'} |\n"
+            f"| False Positive Rate | {f'{fp:.1%}' if fp is not None else 'N/A'} |\n"
+            f"| SAR Yield | {f'{sar:.1%}' if sar is not None else 'N/A'} |\n"
+            f"| Avg Review Time | {f'{hours:.1f}h' if hours is not None else 'N/A'} |\n"
+            f"| Amount Blocked | {f'£{float(blocked):,.2f}' if blocked else 'N/A'} |\n"  # nosemgrep: banxe-float-money — display only, not monetary calculation
+            f"| Cases Reviewed | {cases} |\n"
+        )
+    except Exception as e:
+        return f"Error fetching AML metrics: {e}"
+
+
+@mcp_server.tool()
+async def experiment_propose_change(
+    experiment_id: str,
+    dry_run: bool = True,
+) -> str:
+    """Propose a compliance change for an ACTIVE experiment.
+
+    Creates a Git branch, renders a PR body with HITL checklist, and
+    opens a GitHub PR + tracking issue (or previews in dry_run mode).
+
+    HITL invariant: every proposal includes a human approval checklist
+    (CTIO + Compliance Officer + backtest + rollback plan).
+
+    Args:
+        experiment_id: ID of the ACTIVE experiment to propose.
+        dry_run: If True (default), preview only — no branch/PR created.
+
+    Returns:
+        Markdown summary of the proposal with HITL checklist status.
+    """
+    try:
+        proposal = await _api_post(
+            f"/v1/experiments/{experiment_id}/propose",
+            {"dry_run": dry_run},
+        )
+        checklist = proposal.get("hitl_checklist", {})
+        hitl_lines = [
+            f"- [{'x' if checklist.get('ctio_reviewed') else ' '}] CTIO reviewed",
+            f"- [{'x' if checklist.get('compliance_officer_signoff') else ' '}] Compliance officer sign-off",
+            f"- [{'x' if checklist.get('backtest_results_reviewed') else ' '}] Backtest results reviewed",
+            f"- [{'x' if checklist.get('rollback_plan_defined') else ' '}] Rollback plan defined",
+        ]
+        pr_url = proposal.get("pr_url") or "_not created (dry run)_"
+        issue_url = proposal.get("issue_url") or "_not created (dry run)_"
+        return (
+            f"## Change Proposal — `{experiment_id}`\n"
+            f"{'**[DRY RUN]** No branch or PR created.' if dry_run else ''}\n\n"
+            f"**Branch**: `{proposal.get('branch_name')}`\n"
+            f"**PR Title**: {proposal.get('pr_title')}\n"
+            f"**Status**: {proposal.get('status', '?').upper()}\n"
+            f"**PR URL**: {pr_url}\n"
+            f"**Issue URL**: {issue_url}\n\n"
+            f"### HITL Checklist\n" + "\n".join(hitl_lines) + "\n\n"
+            "### Files to Change\n"
+            + "\n".join(f"- `{f}`" for f in proposal.get("files_changed", []))
+        )
+    except Exception as e:
+        return f"Error proposing change: {e}"
+
+
 @mcp_server.resource("banxe://info")
 async def info_resource() -> str:
     """BANXE EMI platform information."""
@@ -1164,7 +1335,8 @@ async def info_resource() -> str:
         "Tools: get_account_balance, list_accounts, get_transaction_history, "
         "get_kyc_status, check_aml_alert, get_exchange_rate, get_payment_status, "
         "kb_list_notebooks, kb_get_notebook, kb_query, kb_search, "
-        "kb_compare_versions, kb_get_citations\n"
+        "kb_compare_versions, kb_get_citations, "
+        "experiment_design, experiment_list, experiment_get_metrics, experiment_propose_change\n"
         "FCA basis: CASS 7.15, CASS 15, MLR 2017, PSR 2017\n"
         "Trust zone: RED"
     )
