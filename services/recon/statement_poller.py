@@ -12,9 +12,9 @@ Phase 1: real bank (Barclays/HSBC PSD2) — requires AISP registration + eIDAS c
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, date, datetime, timedelta
 import logging
 import os
-from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import httpx
@@ -52,7 +52,7 @@ async def async_poll_with_schedule(recon_date: date | None = None) -> list[Path]
     loop = asyncio.get_event_loop()
 
     for window_hour in poll_windows_utc:
-        now_utc = datetime.now(timezone.utc)
+        now_utc = datetime.now(UTC)
         target = now_utc.replace(hour=window_hour, minute=0, second=0, microsecond=0)
 
         # If target window is in the future, sleep until it
@@ -60,23 +60,25 @@ async def async_poll_with_schedule(recon_date: date | None = None) -> list[Path]
         if wait_seconds > 0:
             logger.info(
                 "async_poll_with_schedule: waiting %.0fs for %02d:00 UTC window",
-                wait_seconds, window_hour,
+                wait_seconds,
+                window_hour,
             )
             await asyncio.sleep(wait_seconds)
 
-        logger.info("async_poll_with_schedule: polling at %02d:00 UTC for %s", window_hour, recon_date)
+        logger.info(
+            "async_poll_with_schedule: polling at %02d:00 UTC for %s", window_hour, recon_date
+        )
         # Run sync poll_statements in thread pool to avoid blocking event loop
         paths = await loop.run_in_executor(None, poll_statements, recon_date)
         if paths:
             logger.info(
                 "async_poll_with_schedule: %d files received at %02d:00 UTC window",
-                len(paths), window_hour,
+                len(paths),
+                window_hour,
             )
             return paths
 
-        logger.info(
-            "async_poll_with_schedule: no data at %02d:00 UTC — will retry", window_hour
-        )
+        logger.info("async_poll_with_schedule: no data at %02d:00 UTC — will retry", window_hour)
 
     logger.warning(
         "async_poll_with_schedule: all windows exhausted for %s — status=PENDING", recon_date

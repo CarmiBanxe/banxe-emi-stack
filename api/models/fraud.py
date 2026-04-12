@@ -7,8 +7,8 @@ POST /v1/fraud/assess — pre-payment fraud + AML gate
 
 from __future__ import annotations
 
-import re
 from datetime import datetime
+import re
 
 from pydantic import BaseModel, field_validator
 

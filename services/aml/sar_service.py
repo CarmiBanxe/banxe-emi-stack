@@ -34,12 +34,12 @@ In sandbox: in-memory store only.
 
 from __future__ import annotations
 
-import logging
-import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
 from enum import Enum
+import logging
+import uuid
 
 # ─── BANXE COMPLIANCE RAG (auto-injected) ───
 try:

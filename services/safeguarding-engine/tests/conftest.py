@@ -1,4 +1,5 @@
 """Test fixtures for Safeguarding Engine."""
+
 import asyncio
 from typing import AsyncGenerator, Generator
 

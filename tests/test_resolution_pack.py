@@ -5,11 +5,11 @@ FCA CASS 10A.3.1R | banxe-emi-stack
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+from decimal import Decimal
 import io
 import json
 import zipfile
-from datetime import UTC, datetime
-from decimal import Decimal
 
 import pytest
 

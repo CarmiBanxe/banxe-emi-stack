@@ -21,10 +21,10 @@ Schema: banxe.safeguarding_events (see scripts/schema/clickhouse_safeguarding.sq
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+import logging
 
 from services.config import (
     CLICKHOUSE_DB,
@@ -315,7 +315,12 @@ class InMemoryReconClient:
             # Filter by date range
             try:
                 from datetime import datetime
-                recon_date = datetime.fromisoformat(recon_date_str).date() if isinstance(recon_date_str, str) else recon_date_str
+
+                recon_date = (
+                    datetime.fromisoformat(recon_date_str).date()
+                    if isinstance(recon_date_str, str)
+                    else recon_date_str
+                )
                 if date_from <= recon_date <= date_to:
                     status_counts[status] += 1
                     disc = Decimal(str(e.params.get("discrepancy", "0")))

@@ -34,10 +34,10 @@ Typical usage (monthly or on-demand by CTIO / Compliance):
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
+import logging
 from statistics import mean
 
 logger = logging.getLogger(__name__)

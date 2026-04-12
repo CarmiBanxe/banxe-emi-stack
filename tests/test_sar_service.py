@@ -7,8 +7,8 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-import pytest
 from fastapi.testclient import TestClient
+import pytest
 
 from api.main import app
 from api.routers.reporting import _get_regdata_service, _get_sar_service

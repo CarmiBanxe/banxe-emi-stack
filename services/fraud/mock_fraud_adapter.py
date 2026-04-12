@@ -26,9 +26,9 @@ APP scam detection (PSR APP 2024):
 
 from __future__ import annotations
 
+from decimal import Decimal
 import logging
 import time
-from decimal import Decimal
 
 from services.aml.aml_thresholds import get_thresholds
 from services.fraud.fraud_port import (

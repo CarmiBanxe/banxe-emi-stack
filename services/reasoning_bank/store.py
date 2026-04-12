@@ -10,11 +10,11 @@ FAISS is optional — if not installed, falls back to linear cosine similarity.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import hashlib
 import logging
 import math
 import uuid
-from datetime import UTC, datetime
 
 from services.reasoning_bank.models import (
     CaseRecord,

@@ -3,9 +3,10 @@
 All safeguarding events are stored in ClickHouse with 7-year TTL
 for FCA regulatory compliance. Records are append-only and immutable.
 """
+
 import logging
 import uuid
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
@@ -30,10 +31,13 @@ class AuditLogger:
         amount: Optional[Decimal] = None,
     ) -> uuid.UUID:
         """Write immutable audit event to ClickHouse."""
-        event_id = uuid.uuid4()
+        _event_id = uuid.uuid4()
         logger.info(
             "Audit event: %s/%s/%s by %s",
-            event_type, entity_type, action, actor,
+            event_type,
+            entity_type,
+            action,
+            actor,
         )
         # TODO: Insert into ClickHouse safeguarding_audit table
         raise NotImplementedError("Implement in Phase 3.6")
@@ -49,8 +53,6 @@ class AuditLogger:
         """Query audit events from ClickHouse."""
         raise NotImplementedError("Implement in Phase 3.6")
 
-    async def generate_fca_report(
-        self, start_date: date, end_date: date
-    ) -> Dict:
+    async def generate_fca_report(self, start_date: date, end_date: date) -> Dict:
         """Generate FCA-producible audit report."""
         raise NotImplementedError("Implement in Phase 3.6")

@@ -17,8 +17,8 @@ from __future__ import annotations
 
 import json
 import logging
-import subprocess
 from pathlib import Path
+import subprocess
 from typing import Any
 
 from services.design_pipeline.models import DesignTokenSet, TokenSyncResult

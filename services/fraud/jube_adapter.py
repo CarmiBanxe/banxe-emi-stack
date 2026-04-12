@@ -42,10 +42,10 @@ Required environment variables:
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 import logging
 import os
 import time
-from datetime import UTC, datetime, timedelta
 
 from services.fraud.fraud_port import (
     AppScamIndicator,

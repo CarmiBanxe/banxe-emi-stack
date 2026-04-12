@@ -43,9 +43,8 @@ class TestExperimentDesignTool:
 
     @pytest.mark.asyncio
     async def test_experiment_design_api_error(self):
-        import httpx
-
         from banxe_mcp.server import experiment_design
+        import httpx
 
         with patch("banxe_mcp.server._api_post", new_callable=AsyncMock) as mock_post:
             mock_post.side_effect = httpx.HTTPStatusError(
@@ -119,9 +118,8 @@ class TestExperimentGetMetricsTool:
 
     @pytest.mark.asyncio
     async def test_experiment_get_metrics_api_error(self):
-        import httpx
-
         from banxe_mcp.server import experiment_get_metrics
+        import httpx
 
         with patch("banxe_mcp.server._api_get", new_callable=AsyncMock) as mock_get:
             mock_get.side_effect = httpx.HTTPStatusError(
@@ -159,9 +157,8 @@ class TestExperimentProposeChangeTool:
 
     @pytest.mark.asyncio
     async def test_experiment_propose_api_error(self):
-        import httpx
-
         from banxe_mcp.server import experiment_propose_change
+        import httpx
 
         with patch("banxe_mcp.server._api_post", new_callable=AsyncMock) as mock_post:
             mock_post.side_effect = httpx.HTTPStatusError(

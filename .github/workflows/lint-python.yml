@@ -1,0 +1,52 @@
+name: Lint Python (Ruff)
+# IL-BIOME-01 | banxe-emi-stack
+# Dedicated Python linting workflow — runs faster than full quality-gate.
+# Full test + coverage gate: quality-gate.yml
+
+on:
+  push:
+    paths:
+      - "**.py"
+      - "pyproject.toml"
+      - ".github/workflows/lint-python.yml"
+  pull_request:
+    paths:
+      - "**.py"
+      - "pyproject.toml"
+
+jobs:
+  ruff:
+    name: Ruff lint + format
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ruff lint (check mode, GitHub annotations)
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: "check --output-format=github"
+
+      - name: Ruff format (check only)
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: "format --check"
+
+  semgrep:
+    name: Semgrep security rules
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install semgrep
+        run: pip install semgrep
+
+      - name: Run Semgrep (banxe custom rules)
+        run: semgrep --config .semgrep/banxe-rules.yml --error --sarif-output=semgrep.sarif || true
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: semgrep.sarif

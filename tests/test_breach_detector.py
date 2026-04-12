@@ -207,15 +207,18 @@ class TestBreachDetectorBreachTriggered:
         ch = InMemoryBreachClient(streak_map={"acct-1": 3})
         import httpx as _httpx
 
-        with patch(
-            "services.recon.breach_detector.httpx.post", side_effect=_httpx.ConnectError("refused")
-        ):
-            with patch(
+        with (
+            patch(
+                "services.recon.breach_detector.httpx.post",
+                side_effect=_httpx.ConnectError("refused"),
+            ),
+            patch(
                 "services.recon.breach_detector.N8N_WEBHOOK_URL",
                 "http://localhost:5678/webhook/test",
-            ):
-                detector = BreachDetector(ch, breach_days=3, amount_threshold=Decimal("10.00"))
-                breaches = detector.check_and_escalate([self._make_discrepancy()], date(2026, 4, 7))
+            ),
+        ):
+            detector = BreachDetector(ch, breach_days=3, amount_threshold=Decimal("10.00"))
+            breaches = detector.check_and_escalate([self._make_discrepancy()], date(2026, 4, 7))
         # breach still written even though n8n failed
         assert len(breaches) == 1
         assert len(ch.breaches_written) == 1

@@ -3,8 +3,8 @@ tests/test_api_customers.py — Customer API endpoint tests
 IL-046 | banxe-emi-stack
 """
 
-import pytest
 from fastapi.testclient import TestClient
+import pytest
 
 from api.deps import get_customer_service
 from api.main import app

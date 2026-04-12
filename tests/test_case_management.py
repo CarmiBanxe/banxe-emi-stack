@@ -633,17 +633,19 @@ class TestCaseFactory:
     def test_marble_case_requires_env_vars(self):
         from services.case_management.case_factory import get_case_adapter
 
-        with patch.dict(
-            "os.environ",
-            {
-                "CASE_ADAPTER": "marble",
-                "MARBLE_URL": "",
-                "MARBLE_API_KEY": "",
-                "MARBLE_INBOX_ID": "",
-            },
+        with (
+            patch.dict(
+                "os.environ",
+                {
+                    "CASE_ADAPTER": "marble",
+                    "MARBLE_URL": "",
+                    "MARBLE_API_KEY": "",
+                    "MARBLE_INBOX_ID": "",
+                },
+            ),
+            pytest.raises(EnvironmentError),
         ):
-            with pytest.raises(EnvironmentError):
-                get_case_adapter()
+            get_case_adapter()
 
 
 # ─────────────────────────────────────────────────────────────────────────────

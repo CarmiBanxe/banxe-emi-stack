@@ -7,11 +7,11 @@ AMLAlert: core alert entity with explanation and routing info.
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 from typing import Any
+import uuid
 
 from pydantic import BaseModel, Field
 

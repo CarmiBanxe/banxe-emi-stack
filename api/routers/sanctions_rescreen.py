@@ -22,11 +22,11 @@ FCA basis: MLR 2017 Reg.28(1) — screening must reflect current lists.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import json
 import logging
 import os
 import uuid
-from datetime import UTC, datetime
 
 from fastapi import APIRouter, Header, HTTPException, status
 from pydantic import BaseModel

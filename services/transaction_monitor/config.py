@@ -5,8 +5,8 @@ IL-RTM-01 | banxe-emi-stack
 
 from __future__ import annotations
 
-import os
 from decimal import Decimal
+import os
 
 
 class TransactionMonitorConfig:

@@ -8,9 +8,9 @@ Queries Compliance KB (Part 1) → identifies coverage gaps → creates draft YA
 
 from __future__ import annotations
 
+from datetime import datetime
 import logging
 import re
-from datetime import datetime
 from typing import Any, Protocol, runtime_checkable
 
 import yaml

@@ -3,14 +3,13 @@
 Daily: Internal ledger vs safeguarding account balances (tolerance GBP 0.01)
 Monthly: External bank statements vs internal records
 """
+
 import logging
-from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import ReconciliationRecord
 from app.schemas.reconciliation import (
     DailyReconRequest,
     MonthlyReconRequest,
@@ -38,9 +37,7 @@ class ReconciliationService:
         self.audit = audit_logger
         self.breach = breach_service
 
-    async def run_daily_reconciliation(
-        self, request: DailyReconRequest
-    ) -> ReconciliationResponse:
+    async def run_daily_reconciliation(self, request: DailyReconRequest) -> ReconciliationResponse:
         """Run daily internal reconciliation.
 
         1. Compare Midaz ledger client fund total vs safeguarding balances
@@ -51,9 +48,7 @@ class ReconciliationService:
         logger.info("Running daily reconciliation for %s", request.recon_date)
         raise NotImplementedError("Implement in Phase 3.6")
 
-    async def run_monthly_reconciliation(
-        self, request: MonthlyReconRequest
-    ) -> ReconciliationResponse:
+    async def run_monthly_reconciliation(self, request: MonthlyReconRequest) -> ReconciliationResponse:
         """Run monthly external reconciliation.
 
         1. Match bank statements against internal records
@@ -72,8 +67,6 @@ class ReconciliationService:
         """List reconciliation results with optional type filter."""
         raise NotImplementedError("Implement in Phase 3.6")
 
-    async def get_detail(
-        self, recon_id: str
-    ) -> ReconciliationDetailResponse:
+    async def get_detail(self, recon_id: str) -> ReconciliationDetailResponse:
         """Get detailed reconciliation report with break items."""
         raise NotImplementedError("Implement in Phase 3.6")

@@ -3,16 +3,13 @@
 Handles safeguarding obligations, fund tracking, and compliance
 with FCA CASS 15 requirements.
 """
+
 import logging
 import uuid
-from datetime import datetime
-from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import SafeguardingAccount, SafeguardingPosition, PositionDetail
 from app.schemas.safeguarding import (
     SafeguardingRequest,
     SafeguardingResponse,
@@ -42,9 +39,7 @@ class SafeguardingService:
         self.audit = audit_logger
         self.breach = breach_service
 
-    async def record_obligation(
-        self, request: SafeguardingRequest
-    ) -> SafeguardingResponse:
+    async def record_obligation(self, request: SafeguardingRequest) -> SafeguardingResponse:
         """Record a new safeguarding obligation on e-money receipt."""
         logger.info(
             "Recording safeguarding obligation: %s %s",
@@ -56,9 +51,7 @@ class SafeguardingService:
         # TODO: Log audit event to ClickHouse
         raise NotImplementedError("Implement in Phase 3.6")
 
-    async def get_position(
-        self, position_date: Optional[str] = None
-    ) -> PositionResponse:
+    async def get_position(self, position_date: Optional[str] = None) -> PositionResponse:
         """Get safeguarding position for a given date."""
         raise NotImplementedError("Implement in Phase 3.6")
 
@@ -70,14 +63,10 @@ class SafeguardingService:
         """Register a new safeguarding bank account."""
         raise NotImplementedError("Implement in Phase 3.6")
 
-    async def update_account(
-        self, account_id: uuid.UUID, data: AccountUpdate
-    ) -> AccountResponse:
+    async def update_account(self, account_id: uuid.UUID, data: AccountUpdate) -> AccountResponse:
         """Update safeguarding account metadata."""
         raise NotImplementedError("Implement in Phase 3.6")
 
-    async def record_balance_snapshot(
-        self, account_id: uuid.UUID, data: BalanceSnapshotCreate
-    ) -> dict:
+    async def record_balance_snapshot(self, account_id: uuid.UUID, data: BalanceSnapshotCreate) -> dict:
         """Record a balance snapshot from bank API or manual entry."""
         raise NotImplementedError("Implement in Phase 3.6")

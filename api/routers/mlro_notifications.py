@@ -23,12 +23,12 @@ FCA basis: JMLSG 3.10 — MLRO must receive timely information for oversight.
 
 from __future__ import annotations
 
-import logging
-import os
-import uuid
 from datetime import UTC, datetime
 from enum import Enum
+import logging
+import os
 from typing import Literal
+import uuid
 
 from fastapi import APIRouter, Header, HTTPException, status
 from pydantic import BaseModel

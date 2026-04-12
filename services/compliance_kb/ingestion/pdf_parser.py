@@ -12,8 +12,8 @@ Output: list of (section_name, text, page) tuples ready for chunking.
 from __future__ import annotations
 
 import logging
-import re
 from pathlib import Path
+import re
 from typing import Any
 
 from services.compliance_kb.ingestion.chunker import chunk_document_sections

@@ -10,9 +10,9 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+import pytest
 
 from api.routers.transaction_monitor import (
     get_alert_store,

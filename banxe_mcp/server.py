@@ -18,10 +18,10 @@ References: MCP-i-agentnoe-potreblenie-strategiia-dlia-BANXE-EMI-AI-Bank.md
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import logging
 import os
 import sys
-from datetime import UTC, datetime
 from typing import Any
 
 import httpx

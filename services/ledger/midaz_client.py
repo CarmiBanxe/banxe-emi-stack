@@ -4,8 +4,8 @@ Implements LedgerPort (I-28: never direct HTTP from domain logic)
 FCA CASS 7.15 P0 | banxe-emi-stack
 """
 
-import os
 from decimal import Decimal
+import os
 
 import httpx
 

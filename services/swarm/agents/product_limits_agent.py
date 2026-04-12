@@ -8,9 +8,9 @@ and EDD thresholds per CASS 7.15 and MLR 2017.
 
 from __future__ import annotations
 
+from decimal import Decimal
 import logging
 import time
-from decimal import Decimal
 
 from services.agent_routing.models import AgentTask
 from services.agent_routing.schemas import AgentResponse

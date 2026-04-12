@@ -13,17 +13,17 @@ Algorithm:
 
 All numeric operations use Decimal — never float (I-24).
 """
+
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
-from decimal import Decimal, ROUND_HALF_UP
-from typing import Any
+from decimal import ROUND_HALF_UP, Decimal
+import logging
 
 logger = logging.getLogger("banxe.agents.breach_prediction")
 
 # Thresholds (Decimal — never float)
-BREACH_THRESHOLD = Decimal("10.00")   # £10 minimum reportable discrepancy (BREACH_AMOUNT_GBP)
+BREACH_THRESHOLD = Decimal("10.00")  # £10 minimum reportable discrepancy (BREACH_AMOUNT_GBP)
 MAX_BREACH_DISCREPANCY = Decimal("100000.00")  # normalization cap
 
 
@@ -36,10 +36,10 @@ class PredictionResult:
     """
 
     account_id: str
-    probability: Decimal          # 0.00 to 1.00 — Decimal, never float
+    probability: Decimal  # 0.00 to 1.00 — Decimal, never float
     predicted_breach_in_days: int | None  # None if no breach predicted
-    trend: str                    # "IMPROVING" | "STABLE" | "DETERIORATING"
-    confidence: Decimal           # 0.00 to 1.00 — confidence in prediction
+    trend: str  # "IMPROVING" | "STABLE" | "DETERIORATING"
+    confidence: Decimal  # 0.00 to 1.00 — confidence in prediction
 
 
 class BreachPredictionSkill:
@@ -175,9 +175,7 @@ class BreachPredictionSkill:
         else:
             return "STABLE"
 
-    def _predict_days_to_breach(
-        self, values: list[Decimal], trend: str
-    ) -> int | None:
+    def _predict_days_to_breach(self, values: list[Decimal], trend: str) -> int | None:
         """
         Predict days to FCA breach threshold (3 consecutive days per BREACH_DAYS).
 

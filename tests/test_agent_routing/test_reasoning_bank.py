@@ -7,8 +7,8 @@ Tests: store/retrieve, similarity search, reuse qualification, feedback (I-27).
 
 from __future__ import annotations
 
-import uuid
 from datetime import UTC, datetime
+import uuid
 
 import pytest
 

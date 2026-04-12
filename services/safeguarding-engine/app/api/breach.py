@@ -1,4 +1,5 @@
 """Breach management API endpoints."""
+
 import uuid
 from fastapi import APIRouter, Depends
 

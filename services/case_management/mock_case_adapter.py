@@ -7,9 +7,9 @@ Used for development and tests when Marble is not available.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import logging
 import uuid
-from datetime import UTC, datetime
 
 from services.case_management.case_port import (
     CaseOutcome,

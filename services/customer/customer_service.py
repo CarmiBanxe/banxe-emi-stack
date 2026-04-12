@@ -7,11 +7,11 @@ FCA: UK GDPR Art.5, FCA COBS 9A, MLR 2017
 from __future__ import annotations
 
 import dataclasses
+from datetime import UTC, date, datetime
+from decimal import Decimal
 import json
 import logging
 import uuid
-from datetime import UTC, date, datetime
-from decimal import Decimal
 
 from .customer_port import (
     Address,
@@ -192,7 +192,7 @@ class InMemoryCustomerService:
 
 def _json_default(obj: object) -> object:
     """Custom JSON encoder for CustomerProfile fields."""
-    if isinstance(obj, (datetime, date)):
+    if isinstance(obj, datetime | date):
         return obj.isoformat()
     if isinstance(obj, Decimal):
         return str(obj)

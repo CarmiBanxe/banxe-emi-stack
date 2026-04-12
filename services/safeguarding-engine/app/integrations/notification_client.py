@@ -2,6 +2,7 @@
 
 Notification chain: Telegram -> Email -> n8n workflow -> FCA Gabriel upload.
 """
+
 import logging
 from typing import Dict, List
 

@@ -72,9 +72,7 @@ class ProfileHistoryAgent(BaseAgent):
             signals.append("basic KYC only — insufficient for elevated risk")
 
         hint: str
-        if risk >= 0.75:
-            hint = "warning"
-        elif risk >= 0.4:
+        if risk >= 0.75 or risk >= 0.4:
             hint = "warning"
         else:
             hint = "clear"

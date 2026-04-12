@@ -25,13 +25,13 @@ FCA rules:
 from __future__ import annotations
 
 import csv
-import io
-import json
-import zipfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
+import io
+import json
 from typing import Protocol
+import zipfile
 
 # ── Domain types ──────────────────────────────────────────────────────────────
 

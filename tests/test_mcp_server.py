@@ -10,12 +10,12 @@ Tests:
   - Error handling (no raw Exception)
   - Tool count and registry
 """
+
 from __future__ import annotations
 
 import inspect
 
 import pytest
-
 
 # ── Test: Server imports ───────────────────────────────────────────────────────
 
@@ -199,8 +199,9 @@ async def test_run_reconciliation_dry_run_offline():
 @pytest.mark.asyncio
 async def test_run_reconciliation_default_is_dry_run():
     """run_reconciliation default is dry_run=True (safe by default)."""
-    from banxe_mcp import server as srv
     import inspect
+
+    from banxe_mcp import server as srv
 
     sig = inspect.signature(srv.run_reconciliation)
     dry_run_param = sig.parameters.get("dry_run")
@@ -247,8 +248,8 @@ def test_tool_source_no_bare_raise_exception():
 
     Validates banxe-mcp-no-raw-exception semgrep rule.
     """
-    import re
     from pathlib import Path
+    import re
 
     server_src = Path("banxe_mcp/server.py").read_text()
     # Check for bare Exception raises (not httpx-specific ones)

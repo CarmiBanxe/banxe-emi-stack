@@ -1,6 +1,6 @@
 """Safeguarding core API endpoints."""
+
 from fastapi import APIRouter, Depends
-from typing import Optional
 
 from app.schemas.safeguarding import (
     SafeguardingRequest,

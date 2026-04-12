@@ -1,4 +1,5 @@
 """Pydantic v2 schemas for Safeguarding Engine (CASS 15)."""
+
 from .common import (
     PaginatedResponse,
     StatusResponse,

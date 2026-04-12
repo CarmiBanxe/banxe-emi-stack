@@ -14,9 +14,9 @@ Factory:
 
 from __future__ import annotations
 
+from decimal import Decimal
 import logging
 import os
-from decimal import Decimal
 from pathlib import Path
 
 from services.config.config_port import (

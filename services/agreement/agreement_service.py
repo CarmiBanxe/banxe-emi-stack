@@ -6,10 +6,10 @@ FCA COBS 6, eIDAS Reg.910/2014
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import hashlib
 import logging
 import uuid
-from datetime import UTC, datetime
 
 from .agreement_port import (
     Agreement,

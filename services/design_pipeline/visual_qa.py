@@ -17,9 +17,9 @@ Threshold: 95% similarity = PASS
 from __future__ import annotations
 
 import base64
+from dataclasses import dataclass
 import json
 import logging
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 

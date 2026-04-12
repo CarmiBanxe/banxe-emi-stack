@@ -15,9 +15,9 @@ Run:
 
 from __future__ import annotations
 
-import os
 from datetime import date, datetime
 from decimal import Decimal
+import os
 from unittest.mock import MagicMock, patch
 
 # ── bankstatement_parser ──────────────────────────────────────────────────────
@@ -185,9 +185,9 @@ class TestConfig:
         from services import config
 
         importlib.reload(config)
-        assert config.CLICKHOUSE_HOST == os.environ.get("CLICKHOUSE_HOST", "localhost")
-        assert config.CLICKHOUSE_PORT == int(os.environ.get("CLICKHOUSE_PORT", "9000"))
-        assert config.CLICKHOUSE_DB == os.environ.get("CLICKHOUSE_DB", "banxe")
+        assert os.environ.get("CLICKHOUSE_HOST", "localhost") == config.CLICKHOUSE_HOST
+        assert int(os.environ.get("CLICKHOUSE_PORT", "9000")) == config.CLICKHOUSE_PORT
+        assert os.environ.get("CLICKHOUSE_DB", "banxe") == config.CLICKHOUSE_DB
 
     def test_midaz_defaults(self):
         from services import config

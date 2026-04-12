@@ -1,4 +1,5 @@
 """SQLAlchemy model for safeguarding bank accounts."""
+
 import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, Boolean, DateTime
@@ -10,6 +11,7 @@ from app.models import Base
 
 class SafeguardingAccount(Base):
     """Segregated safeguarding bank account per CASS 15."""
+
     __tablename__ = "accounts"
     __table_args__ = {"schema": "safeguarding"}
 

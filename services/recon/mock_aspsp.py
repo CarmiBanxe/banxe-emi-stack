@@ -17,9 +17,9 @@ Run:
 
 from __future__ import annotations
 
-import os
 from datetime import UTC, date, datetime
 from decimal import Decimal
+import os
 from textwrap import dedent
 
 from fastapi import FastAPI, Query, Response

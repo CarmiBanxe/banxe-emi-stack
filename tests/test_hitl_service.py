@@ -13,8 +13,8 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
-import pytest
 from fastapi.testclient import TestClient
+import pytest
 
 from api.main import app
 from api.routers.hitl import _get_hitl_service

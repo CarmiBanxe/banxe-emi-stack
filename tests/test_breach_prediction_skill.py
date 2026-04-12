@@ -1,4 +1,5 @@
 """Tests for BreachPredictionSkill — trend analysis and breach prediction."""
+
 from __future__ import annotations
 
 from dataclasses import FrozenInstanceError
@@ -8,7 +9,6 @@ from decimal import Decimal
 import pytest
 
 from agents.compliance.skills.breach_prediction import BreachPredictionSkill, PredictionResult
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

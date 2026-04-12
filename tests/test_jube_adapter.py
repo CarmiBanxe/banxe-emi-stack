@@ -3,8 +3,8 @@ Skeleton tests for Jube Adapter Agent integration.
 BANXE AI BANK | IL-069 | banxe-emi-stack
 """
 
-import re
 from decimal import Decimal
+import re
 
 import pytest
 

@@ -1,4 +1,5 @@
 """Safeguarding Engine configuration via pydantic-settings."""
+
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 

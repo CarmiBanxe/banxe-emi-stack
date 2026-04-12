@@ -1,4 +1,5 @@
 """Pydantic schemas for safeguarding core operations."""
+
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
@@ -10,6 +11,7 @@ from pydantic import BaseModel, Field
 # --- Safeguarding Request ---
 class SafeguardingRequest(BaseModel):
     """Record a new safeguarding obligation."""
+
     client_fund_amount: Decimal
     currency: str = "GBP"
     source: str = "e-money-receipt"
@@ -19,6 +21,7 @@ class SafeguardingRequest(BaseModel):
 
 class SafeguardingResponse(BaseModel):
     """Safeguarding obligation recorded."""
+
     id: uuid.UUID
     client_fund_amount: Decimal
     currency: str
@@ -31,6 +34,7 @@ class SafeguardingResponse(BaseModel):
 # --- Position ---
 class PositionDetailResponse(BaseModel):
     """Single account balance in a position."""
+
     account_id: uuid.UUID
     bank_name: str
     balance: Decimal
@@ -40,6 +44,7 @@ class PositionDetailResponse(BaseModel):
 
 class PositionResponse(BaseModel):
     """Daily safeguarding position summary."""
+
     id: uuid.UUID
     position_date: date
     total_client_funds: Decimal
@@ -52,6 +57,7 @@ class PositionResponse(BaseModel):
 
 class ShortfallResponse(BaseModel):
     """Shortfall calculation result."""
+
     position_date: date
     total_client_funds: Decimal
     total_safeguarded: Decimal
@@ -63,6 +69,7 @@ class ShortfallResponse(BaseModel):
 # --- Accounts ---
 class AccountCreate(BaseModel):
     """Create a safeguarding bank account."""
+
     bank_name: str = Field(..., max_length=255)
     account_number: str = Field(..., max_length=50)
     sort_code: Optional[str] = Field(None, max_length=10)
@@ -73,6 +80,7 @@ class AccountCreate(BaseModel):
 
 class AccountUpdate(BaseModel):
     """Update safeguarding account metadata."""
+
     bank_name: Optional[str] = None
     status: Optional[str] = None
     acknowledgement_letter_received: Optional[bool] = None
@@ -81,6 +89,7 @@ class AccountUpdate(BaseModel):
 
 class AccountResponse(BaseModel):
     """Safeguarding account details."""
+
     id: uuid.UUID
     bank_name: str
     account_number: str
@@ -97,6 +106,7 @@ class AccountResponse(BaseModel):
 
 class BalanceSnapshotCreate(BaseModel):
     """Record a balance snapshot from bank."""
+
     balance: Decimal
     balance_source: str = Field(default="bank_api", description="bank_api|manual|statement")
     recorded_at: Optional[datetime] = None

@@ -38,9 +38,9 @@ Required environment variables:
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import logging
 import os
-from datetime import UTC, datetime
 
 from services.case_management.case_port import (
     CaseOutcome,

@@ -9,10 +9,10 @@ using unittest.mock — no real DB/MQ connections needed.
 
 from __future__ import annotations
 
-import json
-import sys
 from datetime import UTC, date, datetime
 from decimal import Decimal
+import json
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest

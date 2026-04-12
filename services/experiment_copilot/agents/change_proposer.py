@@ -10,8 +10,8 @@ All GitHub API calls are mocked in tests.
 from __future__ import annotations
 
 import logging
-import subprocess
 from pathlib import Path
+import subprocess
 from typing import Any, Protocol, runtime_checkable
 
 from services.experiment_copilot.models.experiment import ComplianceExperiment

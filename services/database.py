@@ -14,8 +14,8 @@ Usage in FastAPI routes:
 
 from __future__ import annotations
 
-import os
 from collections.abc import AsyncGenerator
+import os
 
 from sqlalchemy.ext.asyncio import (
     AsyncSession,

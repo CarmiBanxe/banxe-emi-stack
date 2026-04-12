@@ -1,9 +1,9 @@
 """Safeguarding bank account balance API client."""
+
 import logging
 from decimal import Decimal
 from typing import Dict, List
 
-import httpx
 
 logger = logging.getLogger(__name__)
 

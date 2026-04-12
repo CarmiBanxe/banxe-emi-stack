@@ -15,11 +15,11 @@ Amount threshold: BREACH_AMOUNT_GBP = 10.00 (£10 minimum reportable)
 
 from __future__ import annotations
 
-import logging
-import os
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+import logging
+import os
 from typing import Protocol
 
 import httpx

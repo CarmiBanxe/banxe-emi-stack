@@ -18,13 +18,13 @@ Security notes:
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 import logging
 import os
 import uuid
-from datetime import UTC, datetime, timedelta
 
-import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request
+import jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 

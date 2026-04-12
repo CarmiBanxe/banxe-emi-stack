@@ -12,8 +12,8 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime
 
-import pytest
 from fastapi.testclient import TestClient
+import pytest
 
 from api.main import app
 from api.routers.consumer_duty import _get_consumer_duty_service

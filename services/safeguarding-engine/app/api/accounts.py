@@ -1,4 +1,5 @@
 """Safeguarding accounts CRUD API endpoints."""
+
 import uuid
 from fastapi import APIRouter, Depends
 

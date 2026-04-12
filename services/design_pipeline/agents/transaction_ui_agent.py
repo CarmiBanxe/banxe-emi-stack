@@ -16,8 +16,8 @@ PSD2 SCA references:
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
+import logging
 
 from services.design_pipeline.models import Framework, GenerationResult
 from services.design_pipeline.orchestrator import DesignToCodeOrchestrator

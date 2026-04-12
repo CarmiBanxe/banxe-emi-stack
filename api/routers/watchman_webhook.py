@@ -17,9 +17,9 @@ FCA basis: MLR 2017 Reg.28(1) — sanctions screening must reflect current lists
 
 from __future__ import annotations
 
+from datetime import datetime
 import logging
 import os
-from datetime import datetime
 from typing import Literal
 
 from fastapi import APIRouter, Header, HTTPException, Request, status

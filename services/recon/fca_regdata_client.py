@@ -7,12 +7,13 @@ Sandbox/test environments use MockFCARegDataClient (no real API calls).
 
 FCA RegData API documentation: https://regdata.fca.org.uk/api/docs
 """
+
 from __future__ import annotations
 
-import logging
-import os
 from dataclasses import dataclass
 from datetime import UTC, datetime
+import logging
+import os
 from typing import Protocol
 
 import httpx
@@ -28,7 +29,7 @@ class NotificationResult:
 
     success: bool
     fca_reference: str  # FCA-assigned reference number (empty string if failed)
-    submitted_at: str   # ISO-8601 datetime of submission
+    submitted_at: str  # ISO-8601 datetime of submission
     error: str | None = None  # Error message if success=False
 
 
@@ -169,7 +170,9 @@ class MockFCARegDataClient:
     def submit_breach_notification(self, breach: BreachRecord) -> NotificationResult:
         """Record a mock breach notification and return a fake FCA reference."""
         submitted_at = datetime.now(UTC).isoformat()
-        mock_ref = f"FCA-SANDBOX-{breach.account_id[:8].upper()}-{breach.latest_date.strftime('%Y%m%d')}"
+        mock_ref = (
+            f"FCA-SANDBOX-{breach.account_id[:8].upper()}-{breach.latest_date.strftime('%Y%m%d')}"
+        )
 
         self.notifications.append(
             {

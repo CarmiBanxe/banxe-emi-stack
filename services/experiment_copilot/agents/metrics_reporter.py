@@ -8,8 +8,8 @@ experiment reports. Marks experiments FINISHED when conclusive.
 
 from __future__ import annotations
 
-import logging
 from decimal import Decimal
+import logging
 from typing import Any, Protocol, runtime_checkable
 
 import yaml

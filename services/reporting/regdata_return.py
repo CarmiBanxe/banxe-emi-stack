@@ -25,12 +25,12 @@ Data pipeline + PDF generation are fully functional.
 
 from __future__ import annotations
 
-import logging
-import os
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
+import logging
+import os
 from pathlib import Path
 from typing import Protocol
 
@@ -105,7 +105,7 @@ class MockFIN060Generator:
 
     def generate(self, period_start: date, period_end: date) -> tuple[Path, Decimal, Decimal]:
         # Return a fake path (file not created) + amounts
-        return Path(f"/tmp/FIN060_{period_start.strftime('%Y%m')}.pdf"), self._avg, self._peak
+        return Path(f"/tmp/FIN060_{period_start.strftime('%Y%m')}.pdf"), self._avg, self._peak  # noqa: S108 — stub path, replaced in real impl with tempfile.mkstemp()
 
 
 # ── Real FIN060 generator wrapper ─────────────────────────────────────────────

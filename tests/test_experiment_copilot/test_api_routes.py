@@ -7,9 +7,9 @@ Tests for the 8 experiment FastAPI endpoints using TestClient with InMemory stub
 
 from __future__ import annotations
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+import pytest
 
 from api.routers.experiments import (
     get_audit,

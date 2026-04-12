@@ -7,9 +7,9 @@ Parses raw event payloads from RabbitMQ/Redis into TransactionEvent Pydantic mod
 
 from __future__ import annotations
 
-import logging
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
+import logging
 from typing import Any
 
 from services.transaction_monitor.models.transaction import (

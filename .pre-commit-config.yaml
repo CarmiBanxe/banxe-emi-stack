@@ -1,23 +1,48 @@
 # .pre-commit-config.yaml — Banxe EMI Stack pre-commit hooks
-# IL-068 | banxe-emi-stack
+# IL-BIOME-01 | banxe-emi-stack
 # Install: pre-commit install
 # Run manually: pre-commit run --all-files
+#
+# Hook order:
+#   1. ruff (upstream astral-sh/ruff-pre-commit) — Python lint + format
+#   2. biome (local)   — Frontend TS/JSON lint + format, auto-fix
+#   3. semgrep         — Custom fintech security rules (banxe-rules.yml)
+#   4. pytest-fast     — Full test suite without coverage
 
 repos:
-  - repo: local
+  # ── Python: Ruff (upstream) ─────────────────────────────────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.6
     hooks:
-      - id: ruff-check
-        name: Ruff lint
-        entry: ruff check --fix
-        language: system
-        types: [python]
+      - id: ruff
+        name: Ruff lint (Python)
+        args: [--fix, --exit-non-zero-on-fix]
+        types_or: [python, pyi]
 
       - id: ruff-format
-        name: Ruff format
-        entry: ruff format --check
-        language: system
-        types: [python]
+        name: Ruff format (Python)
+        types_or: [python, pyi]
 
+  # ── Frontend: Biome (local) ─────────────────────────────────────────────
+  # Runs from frontend/ so biome.json paths (src/**) resolve correctly.
+  # Covers: .ts .tsx .js .jsx .json *.config.ts
+  # Excludes: src/generated/** (Mitosis output), **/*.lite.tsx (Mitosis source ok)
+  # IMPORTANT: --apply-unsafe may reformat financial components — review:
+  #   • EU AI Act Art.52 disclosure headers
+  #   • tabular-nums / decimal-only logic
+  - repo: local
+    hooks:
+      - id: biome-check-frontend
+        name: Biome check (Frontend)
+        entry: bash -c "cd /home/mmber/banxe-emi-stack/frontend && npx biome check --apply ."
+        language: system
+        files: ^frontend/
+        types_or: [ts, tsx, javascript, jsx, json]
+        pass_filenames: false
+
+  # ── Security + Tests (local) ────────────────────────────────────────────
+  - repo: local
+    hooks:
       - id: semgrep-banxe
         name: Semgrep banxe rules
         entry: bash -c "cd /home/mmber/banxe-emi-stack && semgrep --config .semgrep/banxe-rules.yml --error --quiet"

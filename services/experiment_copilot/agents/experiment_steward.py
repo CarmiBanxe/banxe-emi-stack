@@ -8,8 +8,8 @@ and generates weekly summary reports.
 
 from __future__ import annotations
 
-import logging
 from datetime import datetime, timedelta
+import logging
 
 from services.experiment_copilot.models.experiment import (
     ApproveRequest,

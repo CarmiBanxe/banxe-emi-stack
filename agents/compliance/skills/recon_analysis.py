@@ -17,21 +17,22 @@ LLM integration point (Phase 1):
   _classify() can be replaced with LLM call via ReconAnalysisSkill.set_llm_backend().
   Until then, rule-based logic provides deterministic, auditable classification.
 """
+
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
+import logging
 from typing import Any
 
 logger = logging.getLogger("banxe.agents.recon_analysis")
 
 # Thresholds (Decimal — never float, I-24)
-FRAUD_THRESHOLD = Decimal("50000.00")    # £50k → FRAUD_RISK
-TIMING_THRESHOLD = Decimal("100.00")     # < £100 → TIMING_DIFFERENCE
-SYSTEMATIC_MIN_DAYS = 2                  # 2+ days same account → SYSTEMATIC_ERROR
-LOW_CONFIDENCE = Decimal("0.70")         # HITL gate threshold (agents/compliance/soul/)
+FRAUD_THRESHOLD = Decimal("50000.00")  # £50k → FRAUD_RISK
+TIMING_THRESHOLD = Decimal("100.00")  # < £100 → TIMING_DIFFERENCE
+SYSTEMATIC_MIN_DAYS = 2  # 2+ days same account → SYSTEMATIC_ERROR
+LOW_CONFIDENCE = Decimal("0.70")  # HITL gate threshold (agents/compliance/soul/)
 
 
 class DiscrepancyClass(str, Enum):
@@ -54,7 +55,7 @@ class AnalysisReport:
 
     account_id: str
     classification: DiscrepancyClass
-    confidence: Decimal      # 0.00 to 1.00 — Decimal, never float
+    confidence: Decimal  # 0.00 to 1.00 — Decimal, never float
     recommendation: str
     pattern_detected: str
 
@@ -109,9 +110,7 @@ class ReconAnalysisSkill:
             )
         return reports
 
-    def _classify(
-        self, result: Any
-    ) -> tuple[DiscrepancyClass, Decimal, str]:
+    def _classify(self, result: Any) -> tuple[DiscrepancyClass, Decimal, str]:
         """
         Rule-based classification (LLM integration point for Phase 1).
 
@@ -145,9 +144,7 @@ class ReconAnalysisSkill:
         # Rule 3: SYSTEMATIC_ERROR — recurring pattern in history
         account_id = result.account_id
         history_for_account = self._history.get(account_id, [])
-        discrepancy_streak = sum(
-            1 for h in history_for_account if h.get("status") == "DISCREPANCY"
-        )
+        discrepancy_streak = sum(1 for h in history_for_account if h.get("status") == "DISCREPANCY")
         if discrepancy_streak >= SYSTEMATIC_MIN_DAYS:
             return (
                 DiscrepancyClass.SYSTEMATIC_ERROR,

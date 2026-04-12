@@ -25,10 +25,86 @@ exclude_lines = [
 ]
 
 [tool.ruff]
-line-length = 100
+line-length = 100       # existing project convention
 target-version = "py312"
+src = ["services", "api", "agents", "tests"]
 exclude = ["requirements*.txt", "*.txt"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "W", "UP"]
-ignore = ["E501", "UP042"]  # UP042: StrEnum migration deferred (existing str+Enum pattern)
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "I",    # isort
+    "W",    # pycodestyle warnings
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "ANN",  # flake8-annotations (type coverage)
+    "S",    # flake8-bandit (security — critical for fintech)
+    "DTZ",  # flake8-datetimez (naive datetime prohibited)
+    "ERA",  # eradicate (commented-out code)
+]
+ignore = [
+    "E501",    # line too long — covered by line-length = 100
+    "UP042",   # StrEnum migration deferred (existing str+Enum pattern)
+    "S101",    # assert in tests (also in per-file-ignores below)
+    "B008",    # FastAPI Depends() default-arg pattern
+    "SIM102",  # collapsible if — sometimes clearer expanded in compliance code
+    # ── ANN: progressive adoption — IL-ANN-01 ─────────────────────────────
+    # ANN101/ANN102 removed from ruff; do NOT list them.
+    # 62 existing functions missing argument type annotations.
+    # New code must be annotated. Remove these ignores as coverage grows.
+    "ANN001",  # missing type annotation: function argument  (62) → IL-ANN-01
+    "ANN201",  # missing return type: public function               → IL-ANN-01
+    "ANN202",  # missing return type: private function              → IL-ANN-01
+    "ANN204",  # missing return type: special methods (__init__)    → IL-ANN-01
+    "ANN401",  # Annotated[Any, ...] allowed in Protocol ports
+    # ── DTZ: progressive adoption — IL-DTZ-01 ─────────────────────────────
+    # datetime.utcnow() / date.today() throughout existing models.
+    # Migration: replace with datetime.now(UTC) / date.today() → aware.
+    "DTZ003",  # datetime.utcnow()
+    "DTZ005",  # datetime.datetime.utcnow()
+    "DTZ011",  # date.today() without tzinfo (16)   → IL-DTZ-01
+    "DTZ001",  # datetime() without tzinfo (4)       → IL-DTZ-01
+    # ── B: progressive adoption — IL-B-01 ─────────────────────────────────
+    "B904",    # raise without from inside except (26) → IL-B-01
+    "B905",    # zip() without explicit strict (5)     → IL-B-01
+    "B007",    # unused loop control variable (3)      → IL-B-01
+    "B023",    # closure over loop variable (3, config_service) → IL-B-01
+    # ── SIM: progressive adoption ──────────────────────────────────────────
+    "SIM117",  # multiple with-statements (9)   → IL-SIM-01
+    "SIM103",  # return condition directly (1)  → IL-SIM-01
+    "SIM108",  # ternary operator (1)           → IL-SIM-01
+    "SIM110",  # reimplemented builtin (1)      → IL-SIM-01
+    # ── F: residual ────────────────────────────────────────────────────────
+    "F841",    # unused variable (6) — some are intentional exception bindings
+    # ── ERA: intentional ────────────────────────────────────────────────────
+    "ERA001",  # commented-out code — reviewed per-file; often spec notes
+    # ── S: scoped in per-file-ignores below ───────────────────────────────
+    "S110",    # try-except-pass — intentional in some resilience paths
+    "S603",    # subprocess without shell=True (infrastructure scripts)
+    "S607",    # start process with partial path (infrastructure scripts)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py"                   = ["S", "ANN"]
+"**/migrations/**"                = ["E", "F"]
+# S310: URL audit — these are mock/internal adapters, not accepting user URLs
+"services/iam/**"                 = ["S310"]
+"services/providers/**"           = ["S310"]
+# S608: ClickHouse queries — parameterised internally, no user-controlled input
+"banxe_mcp/server.py"             = ["S608"]
+# S602/S105: design pipeline uses subprocess + PASS is a status code, not password
+"services/design_pipeline/**"     = ["S602", "S105"]
+# S: scripts and infra are not externally-callable services
+"scripts/**"                      = ["S"]
+"infra/**"                        = ["S"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["banxe", "services", "api", "agents", "compliance", "aml", "kyc", "reporting"]
+force-sort-within-sections = true
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false

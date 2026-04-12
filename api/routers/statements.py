@@ -14,8 +14,8 @@ FCA obligations:
 
 from __future__ import annotations
 
-import logging
 from datetime import date
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response

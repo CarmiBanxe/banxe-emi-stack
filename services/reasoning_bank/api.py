@@ -13,9 +13,9 @@ GDPR Art.22: three explanation views (audit, customer, internal).
 
 from __future__ import annotations
 
-import uuid
 from datetime import UTC, datetime
 from typing import Any
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field

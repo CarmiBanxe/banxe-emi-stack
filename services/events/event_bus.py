@@ -16,14 +16,14 @@ This module adds a Banxe-domain event layer on top.
 
 from __future__ import annotations
 
-import json
-import logging
-import uuid
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from enum import Enum
+import json
+import logging
 from typing import Any, Protocol
+import uuid
 
 logger = logging.getLogger(__name__)
 

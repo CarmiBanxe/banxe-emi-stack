@@ -8,8 +8,8 @@ to the risk scoring pipeline. Protocol DI for testability.
 
 from __future__ import annotations
 
-import logging
 from collections.abc import Callable
+import logging
 from typing import Any, Protocol, runtime_checkable
 
 from services.transaction_monitor.consumer.transaction_parser import TransactionParser

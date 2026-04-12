@@ -15,12 +15,12 @@ CTX-03 AMBER — writes to ClickHouse, triggers n8n webhook
 
 from __future__ import annotations
 
-import logging
-import os
-import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+import logging
+import os
 from typing import Protocol
+import uuid
 
 import httpx
 

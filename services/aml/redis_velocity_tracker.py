@@ -41,11 +41,11 @@ Usage:
 
 from __future__ import annotations
 
-import logging
-import uuid
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+import logging
 from typing import TYPE_CHECKING
+import uuid
 
 # ─── BANXE COMPLIANCE RAG (auto-injected) ───
 try:

@@ -12,9 +12,9 @@ its output into StatementBalance dataclasses for use by ReconciliationEngine.
 
 from __future__ import annotations
 
-import os
 from datetime import date
 from decimal import Decimal
+import os
 from pathlib import Path
 
 from services.recon.statement_fetcher import StatementBalance

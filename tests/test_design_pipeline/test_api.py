@@ -5,9 +5,9 @@ IL-D2C-01 — FastAPI Design Pipeline endpoints tests
 
 from __future__ import annotations
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+import pytest
 
 from services.design_pipeline.api import router
 

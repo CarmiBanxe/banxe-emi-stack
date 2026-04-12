@@ -5,11 +5,11 @@ Severity: critical (shortfall), major (timing), minor (recon break).
 FCA notification within 1 business day for critical/major.
 Chain: Telegram -> Email -> n8n workflow -> FCA Gabriel upload.
 """
+
 import logging
 import uuid
-from datetime import datetime
 from decimal import Decimal
-from typing import List, Optional
+from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,14 +32,13 @@ class BreachService:
         self.db = db
         self.audit = audit_logger
 
-    async def detect_shortfall_breach(
-        self, shortfall: Decimal, position_date: str
-    ) -> Optional[BreachResponse]:
+    async def detect_shortfall_breach(self, shortfall: Decimal, position_date: str) -> Optional[BreachResponse]:
         """Auto-detect shortfall breach (CRITICAL severity)."""
         if shortfall > Decimal("0"):
             logger.critical(
                 "SAFEGUARDING SHORTFALL DETECTED: GBP %s on %s",
-                shortfall, position_date,
+                shortfall,
+                position_date,
             )
             # TODO: Create breach, notify FCA chain
         raise NotImplementedError("Implement in Phase 3.6")
@@ -48,9 +47,7 @@ class BreachService:
         """Manually report a safeguarding breach."""
         raise NotImplementedError("Implement in Phase 3.6")
 
-    async def list_breaches(
-        self, active_only: bool = False, severity: Optional[str] = None
-    ) -> BreachListResponse:
+    async def list_breaches(self, active_only: bool = False, severity: Optional[str] = None) -> BreachListResponse:
         """List breaches with optional filters."""
         raise NotImplementedError("Implement in Phase 3.6")
 
@@ -58,9 +55,7 @@ class BreachService:
         """Get breach detail with remediation timeline."""
         raise NotImplementedError("Implement in Phase 3.6")
 
-    async def resolve_breach(
-        self, breach_id: uuid.UUID, data: BreachResolve
-    ) -> BreachResponse:
+    async def resolve_breach(self, breach_id: uuid.UUID, data: BreachResolve) -> BreachResponse:
         """Mark breach as resolved."""
         raise NotImplementedError("Implement in Phase 3.6")
 

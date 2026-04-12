@@ -9,11 +9,11 @@ Tools are resolved at swarm boot time and injected into agent runners.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import logging
 import os
-import uuid
-from datetime import UTC, datetime
 from typing import Any, Protocol
+import uuid
 
 logger = logging.getLogger("banxe.swarm.tools")
 

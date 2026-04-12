@@ -9,8 +9,8 @@ Simulates BOUNCED for addresses matching test patterns.
 
 from __future__ import annotations
 
-import logging
 from datetime import UTC, datetime
+import logging
 
 from services.notifications.notification_port import (
     NotificationChannel,

@@ -19,9 +19,9 @@ This enables zero-code provider switching when BT-001/BT-004/BT-009 unlock.
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
 from enum import Enum
+import logging
 from pathlib import Path
 
 logger = logging.getLogger(__name__)

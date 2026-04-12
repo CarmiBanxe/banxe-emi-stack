@@ -6,11 +6,11 @@ WeasyPrint: tested via mock — does not require binary installed in CI.
 
 from __future__ import annotations
 
-import sys
-import types
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
+import sys
+import types
 from unittest.mock import MagicMock, patch
 
 import pytest

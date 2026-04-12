@@ -14,8 +14,8 @@ CTX-03 AMBER — public-facing endpoint, validates input strictly
 
 from __future__ import annotations
 
-import logging
 from datetime import UTC, datetime
+import logging
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field

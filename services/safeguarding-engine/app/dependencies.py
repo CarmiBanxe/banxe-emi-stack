@@ -1,4 +1,5 @@
 """Dependency injection: DB sessions, Redis, ClickHouse."""
+
 from typing import AsyncIterator
 
 import redis.asyncio as aioredis

@@ -13,8 +13,8 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-import pytest
 from fastapi.testclient import TestClient
+import pytest
 
 from api.main import app
 from api.routers.fraud import _get_pipeline

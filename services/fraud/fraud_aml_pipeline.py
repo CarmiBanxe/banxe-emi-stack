@@ -40,12 +40,12 @@ AFTER rail submission succeeds, NOT here. This pipeline only assesses.
 
 from __future__ import annotations
 
-import logging
-import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
 from enum import Enum
+import logging
+import time
 
 from services.aml.tx_monitor import TxMonitorRequest, TxMonitorService
 from services.fraud.fraud_port import (

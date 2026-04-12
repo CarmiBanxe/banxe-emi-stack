@@ -7,9 +7,9 @@ Tests for POST /v1/auth/login.
 
 from __future__ import annotations
 
+from fastapi.testclient import TestClient
 import jwt
 import pytest
-from fastapi.testclient import TestClient
 
 from api.deps import get_customer_service
 from api.main import app

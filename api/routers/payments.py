@@ -14,9 +14,9 @@ FCA compliance:
 
 from __future__ import annotations
 
-import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 

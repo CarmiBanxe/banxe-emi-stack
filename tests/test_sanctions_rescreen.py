@@ -5,8 +5,8 @@ IL-068 | AML/Compliance block | banxe-emi-stack
 
 from __future__ import annotations
 
-import pytest
 from fastapi.testclient import TestClient
+import pytest
 
 from api.main import app
 from api.routers.sanctions_rescreen import clear_job_log, get_job_log

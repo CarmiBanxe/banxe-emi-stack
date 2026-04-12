@@ -9,9 +9,9 @@ In production: real adapters selected via env vars.
 
 from __future__ import annotations
 
-import os
 from collections.abc import AsyncGenerator
 from functools import lru_cache
+import os
 
 from sqlalchemy.ext.asyncio import AsyncSession
 

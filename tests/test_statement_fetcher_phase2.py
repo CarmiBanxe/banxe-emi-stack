@@ -1,18 +1,15 @@
 """Tests for StatementFetcher Phase 2 — OAuth2, retry, fallback."""
+
 from __future__ import annotations
 
 import csv
-import os
 from datetime import date
 from decimal import Decimal
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import httpx
-import pytest
 
-from services.recon.statement_fetcher import StatementFetcher, StatementBalance
-
+from services.recon.statement_fetcher import StatementBalance, StatementFetcher
 
 RECON_DATE = date(2026, 4, 10)
 
@@ -83,8 +80,7 @@ def test_fetch_with_oauth_retry_3_times_on_503(tmp_path, monkeypatch):
             response=make_503_response(),
         )
 
-    with patch("httpx.Client") as mock_client_cls, \
-         patch("time.sleep") as mock_sleep:
+    with patch("httpx.Client") as mock_client_cls, patch("time.sleep") as mock_sleep:
         mock_client = MagicMock()
         mock_client.__enter__ = MagicMock(return_value=mock_client)
         mock_client.__exit__ = MagicMock(return_value=False)

@@ -8,8 +8,8 @@ Queries KB for regulation citations, generates human-readable explanations.
 
 from __future__ import annotations
 
-import logging
 from decimal import Decimal
+import logging
 
 from services.transaction_monitor.alerts.explanation_engine import (
     ExplanationEngine,

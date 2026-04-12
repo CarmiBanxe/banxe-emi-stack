@@ -1,4 +1,5 @@
 """Compliance service client (IL-CKS-01) for regulatory event logging."""
+
 import logging
 from typing import Dict
 

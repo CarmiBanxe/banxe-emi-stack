@@ -8,8 +8,8 @@ Tests: 8 scenarios covering health, list, get, query, search, compare, citation,
 
 from __future__ import annotations
 
-import pytest
 from fastapi.testclient import TestClient
+import pytest
 
 from api.main import app
 from api.routers.compliance_kb import get_service
@@ -84,7 +84,7 @@ class TestListNotebooks:
         r = client.get("/v1/kb/notebooks?tags=aml")
         assert r.status_code == 200
         notebooks = r.json()
-        assert any("test-notebook" == nb["id"] for nb in notebooks)
+        assert any(nb["id"] == "test-notebook" for nb in notebooks)
 
     def test_list_filter_by_jurisdiction(self, client):
         """GET /v1/kb/notebooks?jurisdiction=uk filters correctly."""

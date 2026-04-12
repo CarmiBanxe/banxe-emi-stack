@@ -1,4 +1,5 @@
 """Safeguarding Engine — FastAPI application factory."""
+
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
@@ -53,5 +54,6 @@ app = create_app()
 
 if __name__ == "__main__":
     import uvicorn
+
     settings = get_settings()
     uvicorn.run("app.main:app", host=settings.host, port=settings.port, reload=settings.debug)

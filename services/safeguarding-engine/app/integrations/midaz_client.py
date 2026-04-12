@@ -1,4 +1,5 @@
 """Midaz GL ledger client for client fund balances."""
+
 import logging
 from decimal import Decimal
 from typing import Dict

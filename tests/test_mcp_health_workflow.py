@@ -8,10 +8,8 @@ Tests:
   - MCPHealthSkill.check() returns structured result
   - MCPHealthSkill.list_tools() returns tool inventory
 """
+
 from __future__ import annotations
-
-import pytest
-
 
 # ── Test: MCPHealthSkill import ───────────────────────────────────────────────
 
@@ -73,9 +71,7 @@ def test_health_check_all_tools_pass():
     assert isinstance(result["tools_checked"], int)
     assert isinstance(result["tools_failed"], list)
     # All real tools have docstrings — should have 0 failures
-    assert result["tools_failed"] == [], (
-        f"Unexpected tool failures: {result['tools_failed']}"
-    )
+    assert result["tools_failed"] == [], f"Unexpected tool failures: {result['tools_failed']}"
     assert result["status"] == "healthy"
 
 
@@ -108,6 +104,7 @@ def test_health_check_result_has_tool_inventory():
 def test_health_check_detects_broken_tool(monkeypatch):
     """MCPHealthSkill.check() detects a tool without docstring and reports it as failed."""
     from banxe_mcp import server as srv
+
     from agents.compliance.workflows.mcp_health_workflow import MCPHealthSkill
 
     # Temporarily remove docstring from get_account_balance
@@ -127,6 +124,7 @@ def test_health_check_detects_broken_tool(monkeypatch):
 def test_health_check_status_degraded_on_single_failure(monkeypatch):
     """Status is 'degraded' (not 'unhealthy') when only 1 out of 11+ tools fails."""
     from banxe_mcp import server as srv
+
     from agents.compliance.workflows.mcp_health_workflow import MCPHealthSkill
 
     original_doc = srv.list_accounts.__doc__

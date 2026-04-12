@@ -23,9 +23,9 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+from decimal import Decimal
 import logging
 import os
-from decimal import Decimal
 
 import httpx
 

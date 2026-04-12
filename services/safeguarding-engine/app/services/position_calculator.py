@@ -7,14 +7,13 @@
 5. Store position in PostgreSQL + audit event in ClickHouse
 6. Run daily via Celery beat at 06:00 UTC
 """
+
 import logging
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
-from typing import List
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import SafeguardingPosition, PositionDetail, SafeguardingAccount
 from app.schemas.safeguarding import PositionResponse, ShortfallResponse
 from app.services.audit_logger import AuditLogger
 
@@ -28,9 +27,7 @@ class PositionCalculator:
         self.db = db
         self.audit = audit_logger
 
-    async def calculate_position(
-        self, position_date: date = None
-    ) -> PositionResponse:
+    async def calculate_position(self, position_date: date = None) -> PositionResponse:
         """Calculate safeguarding position for given date.
 
         Steps:

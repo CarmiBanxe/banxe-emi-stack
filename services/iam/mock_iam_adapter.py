@@ -23,10 +23,10 @@ Pre-configured users (matches Banxe SM&CR structure):
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 import hashlib
 import os
 import secrets
-from datetime import UTC, datetime, timedelta
 
 from services.iam.iam_port import AuthToken, BanxeRole, IAMPort, Permission, UserIdentity
 
@@ -168,9 +168,9 @@ class KeycloakAdapter:  # pragma: no cover
 
     def authenticate(self, username: str, password: str) -> AuthToken | None:
         """Resource Owner Password Grant — direct user login."""
+        from datetime import timedelta
         import urllib.parse
         import urllib.request
-        from datetime import timedelta
 
         data = urllib.parse.urlencode(
             {

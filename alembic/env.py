@@ -5,12 +5,11 @@ IL-046 | banxe-emi-stack
 from __future__ import annotations
 
 import asyncio
-import os
 from logging.config import fileConfig
-
-from sqlalchemy.ext.asyncio import create_async_engine
+import os
 
 from alembic import context
+from sqlalchemy.ext.asyncio import create_async_engine
 
 # Import all ORM models so Alembic can autogenerate diffs
 from api.db import models as _models  # noqa: F401

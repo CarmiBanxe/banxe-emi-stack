@@ -8,8 +8,8 @@ Tests: 6 scenarios. No real PDF or PyMuPDF required — uses mocking.
 from __future__ import annotations
 
 import os
-import tempfile
 from pathlib import Path
+import tempfile
 from unittest.mock import patch
 
 import pytest

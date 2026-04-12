@@ -1,15 +1,14 @@
 """Tests for async polling loop."""
+
 from __future__ import annotations
 
-import asyncio
-from datetime import date
+from datetime import UTC, date
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from services.recon.statement_poller import async_poll_with_schedule, health_check
-
 
 RECON_DATE = date(2026, 4, 10)
 
@@ -26,12 +25,14 @@ async def test_async_poll_returns_paths_from_first_window(tmp_path):
 
     # Mock datetime.now to return a time past the 06:00 window
     # so no sleep is needed, and poll_statements returns paths immediately
-    with patch("services.recon.statement_poller.datetime") as mock_dt, \
-         patch("services.recon.statement_poller.poll_statements") as mock_poll:
+    with (
+        patch("services.recon.statement_poller.datetime") as mock_dt,
+        patch("services.recon.statement_poller.poll_statements") as mock_poll,
+    ):
+        from datetime import datetime
 
-        from datetime import datetime, timezone
         # Return a time that is already past all windows (13:00 UTC)
-        mock_dt.now.return_value = datetime(2026, 4, 10, 13, 0, 0, tzinfo=timezone.utc)
+        mock_dt.now.return_value = datetime(2026, 4, 10, 13, 0, 0, tzinfo=UTC)
         mock_dt.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
         mock_poll.return_value = expected_paths
 
@@ -43,13 +44,15 @@ async def test_async_poll_returns_paths_from_first_window(tmp_path):
 @pytest.mark.asyncio
 async def test_async_poll_returns_empty_when_all_windows_miss():
     """async_poll_with_schedule returns [] when no data across all windows."""
-    with patch("services.recon.statement_poller.datetime") as mock_dt, \
-         patch("services.recon.statement_poller.poll_statements") as mock_poll, \
-         patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+    with (
+        patch("services.recon.statement_poller.datetime") as mock_dt,
+        patch("services.recon.statement_poller.poll_statements") as mock_poll,
+        patch("asyncio.sleep", new_callable=AsyncMock) as _mock_sleep,
+    ):
+        from datetime import datetime
 
-        from datetime import datetime, timezone
         # Past all windows — no sleep needed
-        mock_dt.now.return_value = datetime(2026, 4, 10, 13, 0, 0, tzinfo=timezone.utc)
+        mock_dt.now.return_value = datetime(2026, 4, 10, 13, 0, 0, tzinfo=UTC)
         mock_dt.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
         # All polls return empty
         mock_poll.return_value = []
@@ -71,11 +74,13 @@ async def test_async_poll_stops_after_first_success():
             return [Path("/tmp/test.xml")]
         return []
 
-    with patch("services.recon.statement_poller.datetime") as mock_dt, \
-         patch("services.recon.statement_poller.poll_statements", side_effect=mock_poll):
+    with (
+        patch("services.recon.statement_poller.datetime") as mock_dt,
+        patch("services.recon.statement_poller.poll_statements", side_effect=mock_poll),
+    ):
+        from datetime import datetime
 
-        from datetime import datetime, timezone
-        mock_dt.now.return_value = datetime(2026, 4, 10, 13, 0, 0, tzinfo=timezone.utc)
+        mock_dt.now.return_value = datetime(2026, 4, 10, 13, 0, 0, tzinfo=UTC)
         mock_dt.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
 
         result = await async_poll_with_schedule(RECON_DATE)

@@ -22,14 +22,14 @@ Integrates with:
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from datetime import UTC, datetime
 import hashlib
 import hmac
 import logging
 import os
 import secrets
 import time
-from dataclasses import dataclass
-from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 

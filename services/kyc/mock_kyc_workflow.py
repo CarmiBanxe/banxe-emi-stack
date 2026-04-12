@@ -25,10 +25,10 @@ State machine transitions:
 
 from __future__ import annotations
 
-import logging as _logging
-import uuid
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+import logging as _logging
+import uuid
 
 from services.kyc.kyc_port import (
     KYCStatus,

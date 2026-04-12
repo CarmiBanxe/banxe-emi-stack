@@ -6,6 +6,7 @@ Registers 4 tools:
 3. breach_report - List/report breaches
 4. safeguarding_health - Overall health dashboard
 """
+
 import logging
 from typing import Any, Dict
 

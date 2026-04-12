@@ -11,8 +11,8 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-import pytest
 from fastapi.testclient import TestClient
+import pytest
 
 from api.deps import get_statement_service
 from api.main import app

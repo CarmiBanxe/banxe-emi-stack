@@ -15,10 +15,10 @@ Key invariants enforced here:
 
 from __future__ import annotations
 
-import logging
-import uuid
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+import logging
+import uuid
 
 from services.hitl.hitl_port import (
     CaseStatus,

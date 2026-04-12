@@ -1,4 +1,5 @@
 """Tests for ReconAnalysisSkill — discrepancy classification."""
+
 from __future__ import annotations
 
 from dataclasses import FrozenInstanceError
@@ -12,7 +13,6 @@ from agents.compliance.skills.recon_analysis import (
     DiscrepancyClass,
     ReconAnalysisSkill,
 )
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -167,7 +167,7 @@ def test_analyze_multiple_results():
     results = [
         make_result("acct-010", "MATCHED", "0.00"),
         make_result("acct-011", "DISCREPANCY", "75000.00"),  # FRAUD_RISK
-        make_result("acct-012", "DISCREPANCY", "50.00"),     # TIMING
+        make_result("acct-012", "DISCREPANCY", "50.00"),  # TIMING
     ]
 
     reports = skill.analyze(results)

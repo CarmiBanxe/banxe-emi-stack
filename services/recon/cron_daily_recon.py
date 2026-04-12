@@ -23,11 +23,11 @@ Exit codes:
 
 from __future__ import annotations
 
+from datetime import date
 import logging
 import os
-import sys
-from datetime import date
 from pathlib import Path
+import sys
 
 # ── Journal-compatible logging (systemd reads stdout/stderr via journald) ─────
 logging.basicConfig(

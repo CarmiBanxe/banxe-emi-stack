@@ -1,4 +1,5 @@
 """Main API router aggregating all endpoint modules."""
+
 from fastapi import APIRouter
 
 from app.api.safeguarding import router as safeguarding_router

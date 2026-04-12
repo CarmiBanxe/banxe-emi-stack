@@ -1,9 +1,10 @@
 """SQLAlchemy ORM models for safeguarding engine."""
+
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -11,11 +12,13 @@ from sqlalchemy.sql import func
 
 class Base(DeclarativeBase):
     """Base class for all models."""
+
     pass
 
 
 class SafeguardingAccount(Base):
     """Segregated safeguarding bank accounts (CASS 15)."""
+
     __tablename__ = "accounts"
     __table_args__ = {"schema": "safeguarding"}
 
@@ -30,13 +33,16 @@ class SafeguardingAccount(Base):
     acknowledgement_letter_received: Mapped[bool] = mapped_column(Boolean, default=False)
     acknowledgement_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
     position_details = relationship("PositionDetail", back_populates="account")
 
 
 class SafeguardingPosition(Base):
     """Daily safeguarding position snapshots."""
+
     __tablename__ = "positions"
     __table_args__ = (UniqueConstraint("position_date"), {"schema": "safeguarding"})
 
@@ -53,6 +59,7 @@ class SafeguardingPosition(Base):
 
 class PositionDetail(Base):
     """Per-account breakdown within a position."""
+
     __tablename__ = "position_details"
     __table_args__ = {"schema": "safeguarding"}
 
@@ -69,6 +76,7 @@ class PositionDetail(Base):
 
 class ReconciliationRecord(Base):
     """Daily/monthly reconciliation records."""
+
     __tablename__ = "reconciliations"
     __table_args__ = {"schema": "safeguarding"}
 
@@ -86,6 +94,7 @@ class ReconciliationRecord(Base):
 
 class BreachReport(Base):
     """Safeguarding breach reports for FCA notification."""
+
     __tablename__ = "breaches"
     __table_args__ = {"schema": "safeguarding"}
 

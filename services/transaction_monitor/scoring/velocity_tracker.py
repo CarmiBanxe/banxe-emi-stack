@@ -12,8 +12,8 @@ Invariants:
 
 from __future__ import annotations
 
-import logging
 from decimal import Decimal
+import logging
 from typing import Protocol, runtime_checkable
 
 from services.transaction_monitor.config import get_config

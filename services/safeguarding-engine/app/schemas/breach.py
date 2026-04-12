@@ -1,4 +1,5 @@
 """Pydantic schemas for breach management."""
+
 import uuid
 from datetime import datetime
 from decimal import Decimal
@@ -9,6 +10,7 @@ from pydantic import BaseModel, Field
 
 class BreachCreate(BaseModel):
     """Report a safeguarding breach."""
+
     breach_type: str = Field(..., description="shortfall|timing|recon_break|other")
     severity: str = Field(..., description="critical|major|minor")
     description: str
@@ -18,6 +20,7 @@ class BreachCreate(BaseModel):
 
 class BreachResponse(BaseModel):
     """Breach report details."""
+
     id: uuid.UUID
     breach_type: str
     severity: str
@@ -34,12 +37,14 @@ class BreachResponse(BaseModel):
 
 class BreachResolve(BaseModel):
     """Mark a breach as resolved."""
+
     remediation_notes: str
     resolved_by: str = "system"
 
 
 class BreachListResponse(BaseModel):
     """List of breaches with summary."""
+
     breaches: List[BreachResponse]
     total: int
     active_count: int

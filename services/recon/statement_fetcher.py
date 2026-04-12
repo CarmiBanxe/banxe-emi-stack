@@ -13,13 +13,13 @@ Phase 2 (FA-07, IL-011): adorsys PSD2 gateway → CAMT.053 XML
 from __future__ import annotations
 
 import csv
-import logging
-import os
-import time
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+import logging
+import os
 from pathlib import Path
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -152,14 +152,19 @@ class StatementFetcher:
                 status = exc.response.status_code
                 logger.warning(
                     "fetch_with_oauth attempt %d/%d HTTP %s for %s",
-                    attempt, len(delays), status, date_str,
+                    attempt,
+                    len(delays),
+                    status,
+                    date_str,
                 )
                 if status not in (429, 500, 502, 503, 504):
                     break  # non-retryable error
             except httpx.RequestError as exc:
                 logger.warning(
                     "fetch_with_oauth attempt %d/%d connection error: %s",
-                    attempt, len(delays), exc,
+                    attempt,
+                    len(delays),
+                    exc,
                 )
 
             if attempt < len(delays):

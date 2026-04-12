@@ -16,10 +16,10 @@ Fee benchmarks used in fair_value assessment are UK EMI industry averages
 
 from __future__ import annotations
 
-import logging
-import uuid
 from datetime import UTC, date, datetime
 from decimal import Decimal
+import logging
+import uuid
 
 from services.consumer_duty.consumer_duty_port import (
     ConsumerDutyOutcome,

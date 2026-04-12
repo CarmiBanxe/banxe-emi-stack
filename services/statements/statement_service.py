@@ -23,12 +23,12 @@ FCA obligations:
 from __future__ import annotations
 
 import csv
-import io
-import logging
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from enum import Enum
+import io
+import logging
 from pathlib import Path
 from typing import Protocol
 

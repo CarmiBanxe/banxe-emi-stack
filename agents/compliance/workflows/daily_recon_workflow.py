@@ -14,11 +14,12 @@ Workflow steps:
 
 All amounts remain Decimal throughout (never float — I-24).
 """
+
 from __future__ import annotations
 
-import logging
 from datetime import date
 from decimal import Decimal
+import logging
 from typing import Any
 
 logger = logging.getLogger("banxe.agents.daily_recon_workflow")
@@ -96,7 +97,6 @@ def run_daily_workflow(recon_date: date | None = None) -> dict[str, Any]:
 def _run_reconciliation(recon_date: date) -> list:
     """Step 1: Run ReconciliationEngine with InMemory stubs (sandbox mode)."""
     try:
-        from services.recon.reconciliation_engine import ReconciliationEngine
         from services.recon.clickhouse_client import InMemoryReconClient
         from services.recon.statement_fetcher import StatementFetcher
 
@@ -118,6 +118,7 @@ def _build_engine(ch: Any, fetcher: Any) -> Any:
 
     class _SandboxLedger:
         """Minimal ledger stub for workflow testing."""
+
         def get_balance(self, account_id: str, currency: str, as_of: date) -> Decimal:
             return Decimal("0.00")
 
@@ -146,6 +147,7 @@ def _run_analysis(results: list) -> list:
     """Step 3: Run ReconAnalysisSkill on reconciliation results."""
     try:
         from agents.compliance.skills.recon_analysis import ReconAnalysisSkill
+
         skill = ReconAnalysisSkill()
         return skill.analyze(results)
     except Exception as exc:
@@ -157,6 +159,7 @@ def _run_predictions(results: list) -> list:
     """Step 4: Run BreachPredictionSkill for each DISCREPANCY account."""
     try:
         from agents.compliance.skills.breach_prediction import BreachPredictionSkill
+
         skill = BreachPredictionSkill()
         predictions = []
         for result in results:

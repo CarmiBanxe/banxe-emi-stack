@@ -14,9 +14,9 @@ To activate:
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import logging
 import os
-from datetime import UTC, datetime
 
 from services.notifications.notification_port import (
     NotificationChannel,

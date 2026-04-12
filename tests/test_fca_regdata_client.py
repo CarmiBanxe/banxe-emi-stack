@@ -1,9 +1,9 @@
 """Tests for FCARegDataClient — MockFCARegDataClient and NotificationResult."""
+
 from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -13,7 +13,6 @@ from services.recon.fca_regdata_client import (
     MockFCARegDataClient,
     NotificationResult,
 )
-
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 

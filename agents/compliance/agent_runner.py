@@ -11,13 +11,13 @@ Autonomy Levels (from swarm.yaml):
 
 from __future__ import annotations
 
-import logging
-import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
+import logging
 from pathlib import Path
 from typing import Any
+import uuid
 
 from agents.compliance.tools import ToolCallable, resolve_tools
 

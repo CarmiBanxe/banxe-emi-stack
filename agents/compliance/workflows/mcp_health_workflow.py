@@ -11,11 +11,12 @@ Steps:
 
 MCPHealthSkill is registered in agents/compliance/orchestrator.py.
 """
+
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import inspect
 import logging
-from datetime import UTC, datetime
 from typing import Any
 
 logger = logging.getLogger("banxe.swarm.mcp_health")
@@ -203,17 +204,23 @@ def _try_log_to_clickhouse(result: dict[str, Any]) -> None:
         )
         client.insert(
             "mcp_health_events",
-            [[
-                result["checked_at"],
-                result["status"],
-                result["tools_checked"],
-                len(result["tools_failed"]),
-                ",".join(result["tools_failed"]),
-                result.get("error") or "",
-            ]],
+            [
+                [
+                    result["checked_at"],
+                    result["status"],
+                    result["tools_checked"],
+                    len(result["tools_failed"]),
+                    ",".join(result["tools_failed"]),
+                    result.get("error") or "",
+                ]
+            ],
             column_names=[
-                "checked_at", "status", "tools_checked",
-                "tools_failed_count", "tools_failed_names", "error_message",
+                "checked_at",
+                "status",
+                "tools_checked",
+                "tools_failed_count",
+                "tools_failed_names",
+                "error_message",
             ],
         )
     except Exception as exc:

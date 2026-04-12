@@ -9,8 +9,8 @@ Supports ATX headings (# H1, ## H2) and setext headings.
 from __future__ import annotations
 
 import logging
-import re
 from pathlib import Path
+import re
 from typing import Any
 
 from services.compliance_kb.ingestion.chunker import chunk_document_sections

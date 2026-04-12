@@ -9,8 +9,8 @@ Used by: api/routers/compliance_kb.py and banxe_mcp/server.py (via API).
 from __future__ import annotations
 
 import logging
-import textwrap
 from pathlib import Path
+import textwrap
 from typing import Any
 
 import yaml

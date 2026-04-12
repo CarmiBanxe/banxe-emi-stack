@@ -1,0 +1,80 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.3.0/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "organizeImports": {
+    "enabled": true
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "correctness": {
+        "noFloatingPromises": "error",
+        "useExhaustiveDependencies": "error",
+        "noUnusedVariables": "warn",
+        "noUnusedImports": "warn"
+      },
+      "style": {
+        "useNamingConvention": "warn",
+        "useConst": "error",
+        "noNonNullAssertion": "warn"
+      },
+      "suspicious": {
+        "noExplicitAny": "warn",
+        "noConsoleLog": "warn"
+      },
+      "performance": {
+        "noBarrelFile": "off"
+      }
+    }
+  },
+  "formatter": {
+    "enabled": true,
+    "lineWidth": 120,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineEnding": "lf"
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "trailingCommas": "all",
+      "semicolons": "always"
+    }
+  },
+  "css": {
+    "formatter": {
+      "enabled": true
+    },
+    "linter": {
+      "enabled": true
+    }
+  },
+  "json": {
+    "formatter": {
+      "enabled": true,
+      "trailingCommas": "none"
+    }
+  },
+  "files": {
+    "include": [
+      "src/**",
+      "*.json",
+      "*.config.ts",
+      "*.config.js"
+    ],
+    "ignore": [
+      "dist/**",
+      "node_modules/**",
+      "src/generated/**",
+      "**/*.lite.tsx",
+      "coverage/**",
+      "playwright-report/**",
+      ".storybook/**"
+    ]
+  }
+}

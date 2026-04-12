@@ -9,11 +9,11 @@ and routes tasks to the appropriate tier worker.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import logging
 import time
-import uuid
-from datetime import UTC, datetime
 from typing import Any, Protocol
+import uuid
 
 from services.agent_routing.models import AgentTask
 from services.agent_routing.playbook_engine import PlaybookEngine, PlaybookNotFoundError

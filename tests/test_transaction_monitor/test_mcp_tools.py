@@ -63,9 +63,8 @@ class TestMonitorScoreTransactionTool:
 
     @pytest.mark.asyncio
     async def test_score_transaction_api_error(self):
-        import httpx
-
         from banxe_mcp.server import monitor_score_transaction
+        import httpx
 
         with patch("banxe_mcp.server._api_post", new_callable=AsyncMock) as mock_post:
             mock_post.side_effect = httpx.HTTPStatusError(
@@ -111,9 +110,8 @@ class TestMonitorGetAlertsTool:
 
     @pytest.mark.asyncio
     async def test_get_alerts_api_error(self):
-        import httpx
-
         from banxe_mcp.server import monitor_get_alerts
+        import httpx
 
         with patch("banxe_mcp.server._api_get", new_callable=AsyncMock) as mock_get:
             mock_get.side_effect = httpx.HTTPStatusError(
@@ -150,9 +148,8 @@ class TestMonitorGetAlertDetailTool:
 
     @pytest.mark.asyncio
     async def test_get_alert_detail_not_found(self):
-        import httpx
-
         from banxe_mcp.server import monitor_get_alert_detail
+        import httpx
 
         with patch("banxe_mcp.server._api_get", new_callable=AsyncMock) as mock_get:
             mock_get.side_effect = httpx.HTTPStatusError(
@@ -186,9 +183,8 @@ class TestMonitorGetVelocityTool:
 
     @pytest.mark.asyncio
     async def test_get_velocity_api_error(self):
-        import httpx
-
         from banxe_mcp.server import monitor_get_velocity
+        import httpx
 
         with patch("banxe_mcp.server._api_get", new_callable=AsyncMock) as mock_get:
             mock_get.side_effect = httpx.HTTPStatusError(
@@ -224,9 +220,8 @@ class TestMonitorDashboardMetricsTool:
 
     @pytest.mark.asyncio
     async def test_dashboard_metrics_api_error(self):
-        import httpx
-
         from banxe_mcp.server import monitor_dashboard_metrics
+        import httpx
 
         with patch("banxe_mcp.server._api_get", new_callable=AsyncMock) as mock_get:
             mock_get.side_effect = httpx.HTTPStatusError(
