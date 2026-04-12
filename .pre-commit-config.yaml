@@ -6,8 +6,9 @@
 # Hook order:
 #   1. ruff (upstream astral-sh/ruff-pre-commit) — Python lint + format
 #   2. biome (local)   — Frontend TS/JSON lint + format, auto-fix
-#   3. semgrep         — Custom fintech security rules (banxe-rules.yml)
-#   4. pytest-fast     — Full test suite without coverage
+#   3. bandit          — Python security linter (OWASP Top 10)
+#   4. semgrep         — Custom fintech security rules (banxe-rules.yml)
+#   5. pytest-fast     — Full test suite without coverage
 
 repos:
   # ── Python: Ruff (upstream) ─────────────────────────────────────────────
@@ -39,6 +40,15 @@ repos:
         files: ^frontend/
         types_or: [ts, tsx, javascript, jsx, json]
         pass_filenames: false
+
+  # ── Python security linter: Bandit ────────────────────────────────────────
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.8.3
+    hooks:
+      - id: bandit
+        name: Bandit security scan
+        args: [-r, -ll, --exclude, tests/,agents/]
+        types: [python]
 
   # ── Security + Tests (local) ────────────────────────────────────────────
   - repo: local

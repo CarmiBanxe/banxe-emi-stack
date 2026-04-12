@@ -11,6 +11,18 @@ on:
     branches: [main]
 
 jobs:
+  # ── Secrets scan (P0 security gate) ─────────────────────────────────────
+  secrets-scan:
+    name: Gitleaks — Secrets Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   # ── Python: lint (mirrors lint-python.yml but inline for gate) ───────────
   ruff:
     name: Ruff lint + format
