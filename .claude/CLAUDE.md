@@ -116,3 +116,13 @@ INFRASTRUCTURE CHECKLIST — [feature name]
 [ ] Grafana dashboard
 [ ] Tests passing
 ```
+
+## Agent Skills
+
+- **supabase-postgres-best-practices** — PostgreSQL optimization, schema design, security
+  - Установлен: 2026-04-12
+  - Scope: project-level (banxe-emi-stack, banxe-platform, banxe-ui)
+  - Путь: `.claude/skills/supabase-postgres-best-practices/`
+  - Загружается автоматически при работе с PostgreSQL/SQL
+  - 8 категорий правил: query perf, connection mgmt, security/RLS, schema design, locking, data patterns, monitoring, advanced
+  - НЕ использовать Supabase-specific features (Auth, Edge Functions, Realtime, Storage) — не наш стек
