@@ -1,6 +1,6 @@
 # API Reference — Banxe EMI Analytics Stack
 
-**Version:** 0.7.0 | **Updated:** 2026-04-07 | IL-017
+**Version:** 1.0.0 | **Updated:** 2026-04-12 | IL-RETRO-02 (backfill: IL-046..IL-072)
 
 Public interfaces for all domain services. Internal helpers are not documented here.
 
@@ -332,6 +332,158 @@ pdf_path = generate_fin060(
 
 **Requires:** `clickhouse-driver` + `weasyprint` installed.
 **Output dir:** `FIN060_OUTPUT_DIR` env var (default `/data/banxe/reports/fin060`).
+
+---
+
+## TransactionMonitorRouter
+
+**Module:** `api.routers.transaction_monitor`
+**FCA rule:** MLR 2017 — AML/CTF screening | IL-071
+**Prefix:** `/monitor`
+
+### Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/monitor/health` | Service health |
+| `POST` | `/monitor/score` | Score a transaction for AML risk → `RiskScore` + optional `AMLAlert` |
+| `GET` | `/monitor/alerts` | List alerts (filter: severity, status, customer_id) |
+| `GET` | `/monitor/alerts/{alert_id}` | Get alert detail |
+| `PATCH` | `/monitor/alerts/{alert_id}` | Update alert status (HITL gate: CRITICAL+CLOSED requires notes) |
+| `GET` | `/monitor/velocity/{customer_id}` | Velocity metrics for customer (1h/24h/7d windows) |
+| `GET` | `/monitor/metrics` | Dashboard metrics (counts by severity/status) |
+| `POST` | `/monitor/backtest` | Backtest scoring rules against historical transactions |
+
+### Score Transaction
+
+```python
+POST /monitor/score
+{
+    "transaction_id": "tx-001",
+    "customer_id": "cust-001",
+    "amount": "9500.00",   # Decimal string (I-01)
+    "currency": "GBP",
+    "jurisdiction": "GB",
+    "counterparty_jurisdiction": "GB",
+    "is_crypto": false
+}
+# → {"risk_score": {...}, "alert": {...} | null}
+```
+
+**Risk scoring formula:** rules 40% + ML 30% + velocity 30%
+**CRITICAL threshold:** ≥ 0.90 | **HIGH:** ≥ 0.75 | **MEDIUM:** ≥ 0.50
+
+### HITL gate on PATCH /alerts/{id}
+
+| Case | Allowed |
+|------|---------|
+| Any status → REVIEWING | Always allowed |
+| MEDIUM/HIGH → CLOSED | Allowed without notes |
+| CRITICAL → CLOSED | **Requires `reviewer_notes` field** (I-27) |
+
+---
+
+## ComplianceKBRouter
+
+**Module:** `api.routers.compliance_kb`
+**FCA rule:** FCA CASS 15, MLR 2017, PS22/9 — AI-assisted compliance guidance | IL-069
+**Prefix:** `/v1/kb`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/v1/kb/health` | Service health |
+| `GET` | `/v1/kb/notebooks` | List regulatory notebooks |
+| `GET` | `/v1/kb/notebooks/{id}` | Get notebook detail |
+| `POST` | `/v1/kb/query` | RAG query across all notebooks |
+| `POST` | `/v1/kb/search` | Semantic search within a notebook |
+| `POST` | `/v1/kb/compare` | Compare two regulation versions |
+| `POST` | `/v1/kb/ingest` | Ingest a new PDF into a notebook |
+| `GET` | `/v1/kb/citations/{id}` | Get citations for a source |
+
+---
+
+## ExperimentsRouter
+
+**Module:** `api.routers.experiments`
+**FCA rule:** I-27 — supervised AI changes | IL-070
+**Prefix:** `/v1/experiments`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/v1/experiments/design` | Design new compliance experiment (DRAFT) |
+| `GET` | `/v1/experiments/list` | List experiments (filter by status) |
+| `GET` | `/v1/experiments/{id}` | Get experiment detail |
+| `PATCH` | `/v1/experiments/{id}/approve` | Approve experiment (DRAFT→ACTIVE) |
+| `PATCH` | `/v1/experiments/{id}/reject` | Reject experiment |
+| `GET` | `/v1/experiments/metrics/current` | Current AML baseline metrics |
+| `POST` | `/v1/experiments/{id}/propose` | Propose change (dry_run=True default, I-27) |
+| `GET` | `/v1/experiments/{id}/audit` | Experiment audit trail |
+
+---
+
+## MCP Tools Registry
+
+**Module:** `banxe_mcp/server.py`
+**Transport:** stdio (MCP protocol)
+**Total tools:** 34
+
+### Financial Tools
+| Tool | Description |
+|------|-------------|
+| `get_account_balance(account_id)` | Midaz balance |
+| `list_accounts()` | All org accounts |
+| `get_transaction_history(account_id, period)` | Transaction history |
+| `get_kyc_status(customer_id)` | KYC status |
+| `check_aml_alert(transaction_id)` | AML check |
+| `get_exchange_rate(from_currency, to_currency)` | Frankfurter ECB FX |
+| `get_payment_status(payment_id)` | Payment status |
+| `get_recon_status(recon_date)` | Reconciliation status |
+| `get_breach_history(account_id, days)` | CASS 15 breach history |
+| `get_discrepancy_trend(account_id, days)` | Discrepancy trend |
+| `run_reconciliation(recon_date, dry_run)` | Trigger reconciliation |
+
+### Agent Routing Layer (IL-ARL-01)
+| Tool | Description |
+|------|-------------|
+| `route_agent_task(task, context, priority)` | Route to Tier 1/2/3 LLM |
+| `query_reasoning_bank(query, context_type)` | Reasoning bank query |
+| `get_routing_metrics(hours)` | Routing stats |
+| `manage_playbooks(action, playbook_id)` | Playbook CRUD |
+
+### Design System (IL-ADDS-01)
+| Tool | Description |
+|------|-------------|
+| `generate_component(component_name, variant)` | Mitosis → React |
+| `sync_design_tokens(file_id)` | Penpot token sync |
+| `visual_compare(component_a, component_b)` | Visual diff |
+| `list_design_components(file_id)` | Component catalog |
+
+### Compliance KB (IL-069)
+| Tool | Description |
+|------|-------------|
+| `kb_list_notebooks(tags, jurisdiction)` | List notebooks |
+| `kb_get_notebook(notebook_id)` | Notebook detail |
+| `kb_query(question, jurisdiction, top_k)` | RAG query |
+| `kb_search(notebook_id, query, limit)` | Semantic search |
+| `kb_compare_versions(notebook_id, v1, v2)` | Version compare |
+| `kb_get_citations(source_id, notebook_id)` | Citations |
+
+### Transaction Monitor (IL-071)
+| Tool | Description |
+|------|-------------|
+| `monitor_score_transaction(tx_event)` | AML score |
+| `monitor_get_alerts(severity, status, customer_id)` | Alert list |
+| `monitor_get_alert_detail(alert_id)` | Alert detail |
+| `monitor_get_velocity(customer_id)` | Velocity metrics |
+| `monitor_dashboard_metrics()` | Dashboard |
+
+### Experiment Copilot (IL-070)
+| Tool | Description |
+|------|-------------|
+| `experiment_design(objective, baseline_metrics)` | Design experiment |
+| `experiment_list(status)` | List experiments |
+| `experiment_get_metrics(period_days)` | AML metrics |
+| `experiment_propose_change(exp_id, change_type, rationale)` | Propose change |
 
 ---
 
