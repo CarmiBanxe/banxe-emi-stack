@@ -6,10 +6,13 @@ FCA COBS 6, eIDAS Reg.910/2014
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, datetime
 import hashlib
 import logging
 import uuid
+
+from services.kyc.kyc_port import KYCStatus
 
 from .agreement_port import (
     Agreement,
@@ -69,10 +72,18 @@ class InMemoryAgreementService:
     """
     In-memory Agreement service for tests + development.
     Enforces eIDAS e-sig workflow (PENDING → SIGNED) and version history.
+
+    kyc_checker: optional callable(customer_id) → KYCStatus.
+    If provided, record_signature() requires KYCStatus.APPROVED before
+    transitioning to ACTIVE (FCA COBS 6 — product suitability gate).
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        kyc_checker: Callable[[str], KYCStatus | None] | None = None,
+    ) -> None:
         self._agreements: dict[str, Agreement] = {}
+        self._kyc_checker = kyc_checker
 
     def _now(self) -> datetime:
         return datetime.now(UTC)
@@ -125,6 +136,18 @@ class InMemoryAgreementService:
                 code="NOT_SIGNABLE",
                 message=f"Agreement {req.agreement_id} status {agreement.status} cannot be signed",
             )
+
+        # KYC gate (FCA COBS 6): customer must have APPROVED KYC before activation
+        if self._kyc_checker is not None:
+            kyc_status = self._kyc_checker(agreement.customer_id)
+            if kyc_status != KYCStatus.APPROVED:
+                raise AgreementError(
+                    code="KYC_REQUIRED",
+                    message=(
+                        f"Customer {agreement.customer_id} KYC not approved "
+                        f"(status={kyc_status}). Complete KYC before signing."
+                    ),
+                )
 
         now = self._now()
         agreement.signature_status = SignatureStatus.SIGNED

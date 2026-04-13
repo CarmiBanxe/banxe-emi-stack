@@ -17,6 +17,7 @@ from services.agreement.agreement_port import (
     SignatureStatus,
 )
 from services.agreement.agreement_service import InMemoryAgreementService
+from services.kyc.kyc_port import KYCStatus
 
 
 @pytest.fixture
@@ -180,3 +181,110 @@ class TestListAndVersions:
         tv1 = svc.get_current_terms_version(ProductType.EMONEY_ACCOUNT)
         tv2 = svc.get_current_terms_version(ProductType.EMONEY_ACCOUNT)
         assert tv1.content_hash == tv2.content_hash
+
+
+# ── S13-04: KYC gate ──────────────────────────────────────────────────────────
+
+
+def _make_kyc_checker(status: KYCStatus):
+    """Factory: returns a callable that always returns the given KYCStatus."""
+
+    def checker(customer_id: str) -> KYCStatus:
+        return status
+
+    return checker
+
+
+class TestKycGate:
+    """record_signature() must enforce KYC APPROVED gate (FCA COBS 6)."""
+
+    def _svc(self, kyc_status: KYCStatus | None = None):
+        checker = _make_kyc_checker(kyc_status) if kyc_status is not None else None
+        return InMemoryAgreementService(kyc_checker=checker)
+
+    def _create_and_sign(self, svc, customer_id="cust-kyc"):
+        agr = svc.create_agreement(CreateAgreementRequest(customer_id, ProductType.EMONEY_ACCOUNT))
+        req = SignAgreementRequest(
+            agreement_id=agr.agreement_id,
+            customer_id=customer_id,
+            signature_provider="docusign",
+        )
+        return svc.record_signature(req)
+
+    def test_no_kyc_checker_allows_signing(self):
+        """Default (no KYC checker) preserves existing behaviour — no gate."""
+        svc = self._svc(kyc_status=None)
+        result = self._create_and_sign(svc)
+        assert result.status == AgreementStatus.ACTIVE
+
+    def test_approved_kyc_allows_signing(self):
+        svc = self._svc(KYCStatus.APPROVED)
+        result = self._create_and_sign(svc)
+        assert result.status == AgreementStatus.ACTIVE
+
+    def test_pending_kyc_blocks_signing(self):
+        svc = self._svc(KYCStatus.PENDING)
+        agr = svc.create_agreement(CreateAgreementRequest("cust-kyc", ProductType.EMONEY_ACCOUNT))
+        with pytest.raises(AgreementError, match="KYC_REQUIRED"):
+            svc.record_signature(SignAgreementRequest(agr.agreement_id, "cust-kyc", "docusign"))
+
+    def test_rejected_kyc_blocks_signing(self):
+        svc = self._svc(KYCStatus.REJECTED)
+        agr = svc.create_agreement(CreateAgreementRequest("cust-kyc", ProductType.EMONEY_ACCOUNT))
+        with pytest.raises(AgreementError, match="KYC_REQUIRED"):
+            svc.record_signature(SignAgreementRequest(agr.agreement_id, "cust-kyc", "docusign"))
+
+    def test_edd_required_kyc_blocks_signing(self):
+        svc = self._svc(KYCStatus.EDD_REQUIRED)
+        agr = svc.create_agreement(CreateAgreementRequest("cust-kyc", ProductType.EMONEY_ACCOUNT))
+        with pytest.raises(AgreementError, match="KYC_REQUIRED"):
+            svc.record_signature(SignAgreementRequest(agr.agreement_id, "cust-kyc", "docusign"))
+
+    def test_mlro_review_blocks_signing(self):
+        svc = self._svc(KYCStatus.MLRO_REVIEW)
+        agr = svc.create_agreement(CreateAgreementRequest("cust-kyc", ProductType.EMONEY_ACCOUNT))
+        with pytest.raises(AgreementError, match="KYC_REQUIRED"):
+            svc.record_signature(SignAgreementRequest(agr.agreement_id, "cust-kyc", "docusign"))
+
+    def test_kyc_error_message_contains_status(self):
+        svc = self._svc(KYCStatus.PENDING)
+        agr = svc.create_agreement(CreateAgreementRequest("cust-kyc", ProductType.EMONEY_ACCOUNT))
+        try:
+            svc.record_signature(SignAgreementRequest(agr.agreement_id, "cust-kyc", "docusign"))
+        except AgreementError as e:
+            assert "KYCStatus.PENDING" in e.message or "PENDING" in e.message
+
+    def test_kyc_checker_receives_correct_customer_id(self):
+        called_with = []
+
+        def tracker(cid: str) -> KYCStatus:
+            called_with.append(cid)
+            return KYCStatus.APPROVED
+
+        svc = InMemoryAgreementService(kyc_checker=tracker)
+        self._create_and_sign(svc, customer_id="cust-abc-123")
+        assert called_with == ["cust-abc-123"]
+
+    def test_kyc_gate_does_not_affect_create_agreement(self):
+        """create_agreement should never block — KYC gate only on signing."""
+        svc = self._svc(KYCStatus.REJECTED)
+        agr = svc.create_agreement(CreateAgreementRequest("cust-kyc", ProductType.EMONEY_ACCOUNT))
+        assert agr.status == AgreementStatus.SENT_FOR_SIGNATURE
+
+    @pytest.mark.parametrize(
+        "status",
+        [
+            KYCStatus.PENDING,
+            KYCStatus.DOCUMENT_REVIEW,
+            KYCStatus.RISK_ASSESSMENT,
+            KYCStatus.EDD_REQUIRED,
+            KYCStatus.MLRO_REVIEW,
+            KYCStatus.REJECTED,
+            KYCStatus.EXPIRED,
+        ],
+    )
+    def test_all_non_approved_statuses_block_signing(self, status):
+        svc = self._svc(status)
+        agr = svc.create_agreement(CreateAgreementRequest("cust-kyc", ProductType.EMONEY_ACCOUNT))
+        with pytest.raises(AgreementError, match="KYC_REQUIRED"):
+            svc.record_signature(SignAgreementRequest(agr.agreement_id, "cust-kyc", "docusign"))
