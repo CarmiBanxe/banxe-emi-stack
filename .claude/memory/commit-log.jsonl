@@ -1,3 +1,20 @@
 {"ts":"2026-04-12T11:48:01Z","hash":"b75626a","il":null,"type":"feat","msg":"feat(IL-091): add doc-sync.py — automatic documentation sync after git commits","files_changed":2,"areas":["tests"]}
 {"ts":"2026-04-12T11:56:16Z","hash":"ee683db","il":null,"type":"feat","msg":"feat(IL-091): add post-task.sh hook + commit-log.jsonl","files_changed":2,"areas":[]}
 {"hash": "ee683db", "full_hash": "ee683dba11a161138b6b1a6c807bad0a90f87911", "message": "feat(IL-091): add post-task.sh hook + commit-log.jsonl", "author": "Moriel Carmi", "date": "2026-04-12 13:56:00 +0200", "il_id": "IL-091", "type": "feat", "changed_files": [".claude/hooks/post-task.sh", ".claude/memory/commit-log.jsonl"]}
+{"ts":"2026-04-12T11:57:26Z","hash":"6053a38","il":null,"type":"chore","msg":"chore: update commit-log.jsonl after post-task test run","files_changed":1,"areas":[]}
+{"ts":"2026-04-12T12:02:34Z","hash":"16e409a","il":null,"type":"feat","msg":"feat(IL-092): add doc-sync targets to Makefile","files_changed":1,"areas":[]}
+{"ts":"2026-04-12T13:36:58Z","hash":"5646f59","il":null,"type":"docs","msg":"docs: add full 9-repo audit report 2026-04-12","files_changed":1,"areas":[]}
+{"ts":"2026-04-12T13:56:58Z","hash":"b830718","il":null,"type":null,"msg":"[FULL-FIX] banxe-emi-stack: 85% → 100% Ready","files_changed":3,"areas":[]}
+{"ts":"2026-04-12T14:02:40Z","hash":"b39a827","il":null,"type":"fix","msg":"fix: AUDIT-2026-04-12.md — корректируем 8→7 CI workflows (верификация 2026-04-12)","files_changed":1,"areas":[]}
+{"ts":"2026-04-12T14:06:31Z","hash":"57ee729","il":null,"type":"docs","msg":"docs: AUDIT-2026-04-12.md — верификация 4 гарантий, все расхождения устранены","files_changed":1,"areas":[]}
+{"ts":"2026-04-12T15:38:48Z","hash":"2235ed0","il":null,"type":null,"msg":"[FIX-VERIFY-UPDATE] Update VERIFY-2026-04-12.md: all 19 repos fixed, 56%→85% health","files_changed":1,"areas":[]}
+{"ts":"2026-04-12T16:37:21Z","hash":"620f86a","il":null,"type":null,"msg":"[VERIFY] Final health score: collaboration unarchived, all 19 repos verified","files_changed":1,"areas":[]}
+{"ts":"2026-04-12T16:54:41Z","hash":"8d76650","il":null,"type":null,"msg":"[VERIFY] Final: 14 BANXE repos ~97%, scope corrected (exclude 5 non-BANXE)","files_changed":1,"areas":[]}
+{"ts":"2026-04-12T17:25:55Z","hash":"e060184","il":null,"type":null,"msg":"[FIX-100] banxe-emi-stack: add AGENTS.md + README.md","files_changed":2,"areas":[]}
+{"ts":"2026-04-12T17:28:36Z","hash":"9a61e1b","il":null,"type":null,"msg":"[FIX-100] docs: final VERIFY-2026-04-12 — 14/14 repos at 100% health","files_changed":1,"areas":[]}
+{"ts":"2026-04-12T17:53:18Z","hash":"ed7c501","il":null,"type":"feat","msg":"feat: add BANXE dynamic skills (.claude/skills/)","files_changed":7,"areas":[]}
+{"ts":"2026-04-12T18:03:16Z","hash":"bfcb9c4","il":null,"type":null,"msg":"[SKILL] Add supabase-postgres-best-practices agent skill","files_changed":52,"areas":["services"]}
+{"ts":"2026-04-12T18:03:49Z","hash":"f3aecd2","il":null,"type":"docs","msg":"docs: add Agent Skills section to CLAUDE.md","files_changed":1,"areas":[]}
+{"ts":"2026-04-13T02:56:10Z","hash":"cc97e99","il":null,"type":null,"msg":"ops: add systemd user-service for compliance-api :8093","files_changed":1,"areas":[]}
+{"ts":"2026-04-13T03:43:42Z","hash":"6668d7d","il":null,"type":"feat","msg":"feat(safeguarding): implement CASS 15 src/safeguarding/ module — GAP-003, GAP-004 DONE","files_changed":6,"areas":["tests"]}
+{"ts":"2026-04-13T03:52:34Z","hash":"cabfb2f","il":null,"type":"feat","msg":"feat(settlement): tri-party reconciliation engine — GAP-010 D-recon DONE","files_changed":3,"areas":["tests"]}
