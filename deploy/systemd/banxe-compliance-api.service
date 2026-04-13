@@ -1,0 +1,14 @@
+[Unit]
+Description=Banxe Compliance API
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/mmber/banxe-emi-stack
+EnvironmentFile=/home/mmber/banxe-emi-stack/.env
+ExecStart=/opt/banxe/compliance/venv/bin/uvicorn api.main:app --host 0.0.0.0 --port 8093 --workers 1
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
