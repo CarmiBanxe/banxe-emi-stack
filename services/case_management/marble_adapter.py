@@ -238,6 +238,97 @@ class MarbleAdapter:
         )
         return result
 
+    def update_case(
+        self,
+        case_id: str,
+        status: CaseStatus,
+        notes: str = "",
+    ) -> CaseResult:
+        """
+        PATCH /api/cases/{id} → transition status (e.g. OPEN → INVESTIGATING).
+        Does not set a final outcome; use resolve_case() for closure with outcome.
+        """
+        payload: dict = {"status": status.value.lower()}
+        if notes:
+            payload["comment"] = notes
+
+        try:
+            resp = self._client.patch(f"{_MARBLE_CASES_PATH}/{case_id}", json=payload)
+        except self._httpx.TimeoutException:
+            logger.error("Marble timeout updating case_id=%s", case_id)
+            return self._stub_result(case_id, "marble_timeout")
+
+        if resp.is_error:
+            logger.error(
+                "Marble update_case error: case_id=%s status=%d",
+                case_id,
+                resp.status_code,
+            )
+            return self._stub_result(case_id, "marble_error")
+
+        result = self._parse_case(resp.json(), case_id)
+        logger.info("Marble case updated: case_id=%s status=%s", case_id, status)
+        return result
+
+    def close_case(self, case_id: str, notes: str = "") -> CaseResult:
+        """
+        PATCH /api/cases/{id} → set status=closed (admin close, no outcome).
+        Used when a case is closed without a formal MLRO outcome determination.
+        """
+        payload: dict = {"status": "closed"}
+        if notes:
+            payload["comment"] = notes
+
+        try:
+            resp = self._client.patch(f"{_MARBLE_CASES_PATH}/{case_id}", json=payload)
+        except self._httpx.TimeoutException:
+            logger.error("Marble timeout closing case_id=%s", case_id)
+            return self._stub_result(case_id, "marble_timeout")
+
+        if resp.is_error:
+            logger.error(
+                "Marble close_case error: case_id=%s status=%d",
+                case_id,
+                resp.status_code,
+            )
+            return self._stub_result(case_id, "marble_error")
+
+        result = self._parse_case(resp.json(), case_id)
+        logger.info("Marble case closed: case_id=%s", case_id)
+        return result
+
+    def list_cases(
+        self,
+        status: CaseStatus | None = None,
+        limit: int = 50,
+    ) -> list[CaseResult]:
+        """
+        GET /api/cases → list cases with optional status filter.
+        Marble returns {"cases": [...], "total": N} or a plain list.
+        """
+        params: dict = {"limit": limit}
+        if status is not None:
+            params["status"] = status.value.lower()
+
+        try:
+            resp = self._client.get(_MARBLE_CASES_PATH, params=params)
+        except self._httpx.TimeoutException:
+            logger.error("Marble timeout listing cases")
+            return []
+
+        if resp.is_error:
+            logger.error("Marble list_cases error: status=%d", resp.status_code)
+            return []
+
+        data = resp.json()
+        # Marble may return {"cases": [...]} or a plain list
+        if isinstance(data, list):
+            raw_cases = data
+        else:
+            raw_cases = data.get("cases") or data.get("data") or []
+
+        return [self._parse_case(c, c.get("id", "")) for c in raw_cases]
+
     def health(self) -> bool:
         """GET /api/health → True if Marble is reachable."""
         try:

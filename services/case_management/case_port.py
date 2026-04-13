@@ -141,6 +141,27 @@ class CaseManagementPort(Protocol):
         """
         ...
 
+    def update_case(
+        self,
+        case_id: str,
+        status: CaseStatus,
+        notes: str = "",
+    ) -> CaseResult:
+        """Transition case to a new status (e.g. OPEN → INVESTIGATING)."""
+        ...
+
+    def close_case(self, case_id: str, notes: str = "") -> CaseResult:
+        """Admin-close a case without a final outcome (audit trail preserved)."""
+        ...
+
+    def list_cases(
+        self,
+        status: CaseStatus | None = None,
+        limit: int = 50,
+    ) -> list[CaseResult]:
+        """List cases, optionally filtered by status. Returns up to limit results."""
+        ...
+
     def health(self) -> bool:
         """Return True if the case management backend is reachable."""
         ...

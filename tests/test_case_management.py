@@ -681,3 +681,219 @@ class TestI27HumanOversight:
             c = adapter2.create_case(_req(case_reference=f"ref-{outcome.value}"))
             resolved = adapter2.resolve_case(c.case_id, outcome)
             assert resolved.outcome == outcome
+
+
+# ── S13-03: update_case / close_case / list_cases ────────────────────────────
+
+
+class TestMockUpdateCase:
+    def test_update_open_to_investigating(self):
+        adapter = MockCaseAdapter()
+        c = adapter.create_case(_req())
+        result = adapter.update_case(c.case_id, CaseStatus.INVESTIGATING)
+        assert result.status == CaseStatus.INVESTIGATING
+
+    def test_update_preserves_reference(self):
+        adapter = MockCaseAdapter()
+        c = adapter.create_case(_req(case_reference="ref-upd"))
+        result = adapter.update_case(c.case_id, CaseStatus.INVESTIGATING)
+        assert result.case_reference == "ref-upd"
+
+    def test_update_missing_case_raises(self):
+        adapter = MockCaseAdapter()
+        with pytest.raises(KeyError):
+            adapter.update_case("NO-SUCH-ID", CaseStatus.INVESTIGATING)
+
+    def test_update_persists_in_get_case(self):
+        adapter = MockCaseAdapter()
+        c = adapter.create_case(_req())
+        adapter.update_case(c.case_id, CaseStatus.INVESTIGATING)
+        fetched = adapter.get_case(c.case_id)
+        assert fetched.status == CaseStatus.INVESTIGATING
+
+
+class TestMockCloseCase:
+    def test_close_sets_closed_status(self):
+        adapter = MockCaseAdapter()
+        c = adapter.create_case(_req())
+        result = adapter.close_case(c.case_id)
+        assert result.status == CaseStatus.CLOSED
+
+    def test_close_preserves_case_id(self):
+        adapter = MockCaseAdapter()
+        c = adapter.create_case(_req())
+        result = adapter.close_case(c.case_id)
+        assert result.case_id == c.case_id
+
+    def test_close_missing_case_raises(self):
+        adapter = MockCaseAdapter()
+        with pytest.raises(KeyError):
+            adapter.close_case("DOES-NOT-EXIST")
+
+    def test_close_with_notes_accepted(self):
+        adapter = MockCaseAdapter()
+        c = adapter.create_case(_req())
+        result = adapter.close_case(c.case_id, notes="Admin close — duplicate case")
+        assert result.status == CaseStatus.CLOSED
+
+
+class TestMockListCases:
+    def test_list_returns_all_cases(self):
+        adapter = MockCaseAdapter()
+        adapter.create_case(_req(case_reference="r1"))
+        adapter.create_case(_req(case_reference="r2"))
+        assert len(adapter.list_cases()) == 2
+
+    def test_list_filtered_by_status(self):
+        adapter = MockCaseAdapter()
+        c = adapter.create_case(_req(case_reference="r1"))
+        adapter.create_case(_req(case_reference="r2"))
+        adapter.update_case(c.case_id, CaseStatus.INVESTIGATING)
+        results = adapter.list_cases(status=CaseStatus.INVESTIGATING)
+        assert len(results) == 1
+        assert results[0].case_id == c.case_id
+
+    def test_list_limit_applied(self):
+        adapter = MockCaseAdapter()
+        for i in range(10):
+            adapter.create_case(_req(case_reference=f"r{i}"))
+        assert len(adapter.list_cases(limit=3)) == 3
+
+    def test_list_empty_returns_empty_list(self):
+        adapter = MockCaseAdapter()
+        assert adapter.list_cases() == []
+
+
+class TestMarbleUpdateCase:
+    def _adapter(self):
+        return _marble()
+
+    def test_update_success(self):
+        adapter = self._adapter()
+        mock_resp = _mock_http_response(
+            200,
+            {"id": "case-999", "status": "investigating", "createdAt": "2026-01-01T00:00:00Z"},
+        )
+        with patch.object(adapter._client, "patch", return_value=mock_resp):
+            result = adapter.update_case("case-999", CaseStatus.INVESTIGATING)
+        assert result.status == CaseStatus.INVESTIGATING
+        assert result.case_id == "case-999"
+
+    def test_update_timeout_returns_stub(self):
+        import httpx
+
+        adapter = self._adapter()
+        with patch.object(adapter._client, "patch", side_effect=httpx.TimeoutException("t")):
+            result = adapter.update_case("case-999", CaseStatus.INVESTIGATING)
+        assert "STUB" in result.case_id
+
+    def test_update_error_returns_stub(self):
+        adapter = self._adapter()
+        with patch.object(adapter._client, "patch", return_value=_mock_http_response(500, {})):
+            result = adapter.update_case("case-999", CaseStatus.INVESTIGATING)
+        assert "STUB" in result.case_id
+
+    def test_update_with_notes_sends_comment(self):
+        adapter = self._adapter()
+        mock_resp = _mock_http_response(
+            200,
+            {"id": "case-999", "status": "investigating", "createdAt": "2026-01-01T00:00:00Z"},
+        )
+        with patch.object(adapter._client, "patch", return_value=mock_resp) as m:
+            adapter.update_case("case-999", CaseStatus.INVESTIGATING, notes="Escalating")
+        call_kwargs = m.call_args[1]
+        assert call_kwargs["json"]["comment"] == "Escalating"
+
+
+class TestMarbleCloseCase:
+    def _adapter(self):
+        return _marble()
+
+    def test_close_success(self):
+        adapter = self._adapter()
+        mock_resp = _mock_http_response(
+            200,
+            {"id": "case-888", "status": "closed", "createdAt": "2026-01-01T00:00:00Z"},
+        )
+        with patch.object(adapter._client, "patch", return_value=mock_resp):
+            result = adapter.close_case("case-888")
+        assert result.status == CaseStatus.CLOSED
+
+    def test_close_timeout_returns_stub(self):
+        import httpx
+
+        adapter = self._adapter()
+        with patch.object(adapter._client, "patch", side_effect=httpx.TimeoutException("t")):
+            result = adapter.close_case("case-888")
+        assert "STUB" in result.case_id
+
+    def test_close_error_returns_stub(self):
+        adapter = self._adapter()
+        with patch.object(adapter._client, "patch", return_value=_mock_http_response(404, {})):
+            result = adapter.close_case("case-888")
+        assert "STUB" in result.case_id
+
+
+class TestMarbleListCases:
+    def _adapter(self):
+        return _marble()
+
+    def _case_item(self, case_id: str, status: str = "open") -> dict:
+        return {
+            "id": case_id,
+            "status": status,
+            "createdAt": "2026-01-01T00:00:00Z",
+            "metadata": {"banxe_reference": f"ref-{case_id}"},
+        }
+
+    def test_list_returns_all(self):
+        adapter = self._adapter()
+        mock_resp = _mock_http_response(
+            200,
+            {"cases": [self._case_item("c1"), self._case_item("c2")]},
+        )
+        with patch.object(adapter._client, "get", return_value=mock_resp):
+            results = adapter.list_cases()
+        assert len(results) == 2
+
+    def test_list_plain_array_response(self):
+        adapter = self._adapter()
+        # Marble may return plain list (no wrapper)
+        mock_resp = _mock_http_response(
+            200,
+            [self._case_item("c1"), self._case_item("c2")],
+        )
+        mock_resp.json.return_value = [self._case_item("c1"), self._case_item("c2")]
+        with patch.object(adapter._client, "get", return_value=mock_resp):
+            results = adapter.list_cases()
+        assert len(results) == 2
+
+    def test_list_timeout_returns_empty(self):
+        import httpx
+
+        adapter = self._adapter()
+        with patch.object(adapter._client, "get", side_effect=httpx.TimeoutException("t")):
+            results = adapter.list_cases()
+        assert results == []
+
+    def test_list_error_returns_empty(self):
+        adapter = self._adapter()
+        with patch.object(adapter._client, "get", return_value=_mock_http_response(500, {})):
+            results = adapter.list_cases()
+        assert results == []
+
+    def test_list_with_status_filter_sends_param(self):
+        adapter = self._adapter()
+        mock_resp = _mock_http_response(200, {"cases": []})
+        with patch.object(adapter._client, "get", return_value=mock_resp) as m:
+            adapter.list_cases(status=CaseStatus.OPEN)
+        call_kwargs = m.call_args[1]
+        assert call_kwargs["params"]["status"] == "open"
+
+    def test_list_with_limit_sends_param(self):
+        adapter = self._adapter()
+        mock_resp = _mock_http_response(200, {"cases": []})
+        with patch.object(adapter._client, "get", return_value=mock_resp) as m:
+            adapter.list_cases(limit=10)
+        call_kwargs = m.call_args[1]
+        assert call_kwargs["params"]["limit"] == 10

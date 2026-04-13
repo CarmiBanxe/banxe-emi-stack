@@ -105,6 +105,57 @@ class MockCaseAdapter:
         )
         return resolved
 
+    def update_case(
+        self,
+        case_id: str,
+        status: CaseStatus,
+        notes: str = "",
+    ) -> CaseResult:
+        if case_id not in self._cases:
+            raise KeyError(f"MockCaseAdapter: case {case_id} not found")
+        result = self._cases[case_id]
+        updated = CaseResult(
+            case_id=result.case_id,
+            case_reference=result.case_reference,
+            status=status,
+            provider=result.provider,
+            created_at=result.created_at,
+            assigned_to=result.assigned_to,
+            outcome=result.outcome,
+            url=result.url,
+        )
+        self._cases[case_id] = updated
+        logger.info("MockCaseAdapter.update_case: case_id=%s status=%s", case_id, status)
+        return updated
+
+    def close_case(self, case_id: str, notes: str = "") -> CaseResult:
+        if case_id not in self._cases:
+            raise KeyError(f"MockCaseAdapter: case {case_id} not found")
+        result = self._cases[case_id]
+        closed = CaseResult(
+            case_id=result.case_id,
+            case_reference=result.case_reference,
+            status=CaseStatus.CLOSED,
+            provider=result.provider,
+            created_at=result.created_at,
+            assigned_to=result.assigned_to,
+            outcome=result.outcome,
+            url=result.url,
+        )
+        self._cases[case_id] = closed
+        logger.info("MockCaseAdapter.close_case: case_id=%s", case_id)
+        return closed
+
+    def list_cases(
+        self,
+        status: CaseStatus | None = None,
+        limit: int = 50,
+    ) -> list[CaseResult]:
+        cases = list(self._cases.values())
+        if status is not None:
+            cases = [c for c in cases if c.status == status]
+        return cases[:limit]
+
     def health(self) -> bool:
         return True
 
