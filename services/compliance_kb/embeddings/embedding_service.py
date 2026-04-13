@@ -121,12 +121,70 @@ class SentenceTransformerEmbeddingService:
         return self.embed_batch([text])[0]
 
 
+# ── OpenAI Embedding Service (S15-06) ─────────────────────────────────────
+
+
+class OpenAIEmbeddingService:
+    """Production embedding service using OpenAI text-embedding-3-small.
+
+    Requires OPENAI_API_KEY env var. Dimension: 1536.
+    Set EMBEDDING_ADAPTER=openai to activate.
+    """
+
+    _OPENAI_DIM = 1536
+    _OPENAI_MODEL = "text-embedding-3-small"
+
+    def __init__(self, api_key: str | None = None) -> None:
+        import os
+
+        self._api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
+
+    @property
+    def dimension(self) -> int:
+        return self._OPENAI_DIM
+
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        import httpx
+
+        if not self._api_key:
+            raise RuntimeError(
+                "OPENAI_API_KEY not set. Set EMBEDDING_ADAPTER=sentence_transformers "
+                "for local embeddings, or provide OPENAI_API_KEY."
+            )
+
+        response = httpx.post(
+            "https://api.openai.com/v1/embeddings",
+            headers={"Authorization": f"Bearer {self._api_key}"},
+            json={"input": texts, "model": self._OPENAI_MODEL},
+            timeout=30.0,
+        )
+        response.raise_for_status()
+        data = response.json()
+        return [item["embedding"] for item in sorted(data["data"], key=lambda x: x["index"])]
+
+    def embed_single(self, text: str) -> list[float]:
+        return self.embed_batch([text])[0]
+
+
 # ── Factory ────────────────────────────────────────────────────────────────
 
 
 def make_embedding_service(model_name: str = EMBEDDING_MODEL) -> EmbeddingServiceProtocol:
-    """Return the production embedding service (sentence-transformers).
+    """Return the production embedding service.
 
-    Use InMemoryEmbeddingService or FixedEmbeddingService in tests.
+    Adapter selected via EMBEDDING_ADAPTER env var:
+      - "sentence_transformers" (default): all-MiniLM-L6-v2, CPU-compatible, no API key
+      - "openai": text-embedding-3-small, requires OPENAI_API_KEY (dim=1536)
+      - "inmemory": zero-vector stub — tests only
+
+    S15-06: Stub row 40 RESOLVED — factory is env-var driven.
     """
+    import os
+
+    adapter = os.environ.get("EMBEDDING_ADAPTER", "sentence_transformers")
+
+    if adapter == "openai":
+        return OpenAIEmbeddingService()
+    if adapter == "inmemory":
+        return InMemoryEmbeddingService()
     return SentenceTransformerEmbeddingService(model_name)

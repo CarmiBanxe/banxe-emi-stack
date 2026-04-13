@@ -97,6 +97,26 @@ _SCOPE_NOTEBOOKS = {
 }
 
 
+def make_kb_port(api_base: str | None = None) -> KBQueryPort:
+    """
+    Return the appropriate KB port based on KB_ADAPTER env var.
+
+    Adapters:
+      - "http" (or "production"): HTTPKBPort — calls /v1/kb/query on banxe-emi-stack
+      - "inmemory" (default): InMemoryKBPort — deterministic test stub
+
+    Set KB_ADAPTER=http and KB_API_BASE=http://localhost:8000 in production.
+    S15-06: Stub row 41 RESOLVED — factory is env-var driven.
+    """
+    import os
+
+    adapter = os.environ.get("KB_ADAPTER", "inmemory")
+    if adapter in ("http", "production"):
+        base = api_base or os.environ.get("KB_API_BASE", "http://localhost:8000")
+        return HTTPKBPort(api_base=base)
+    return InMemoryKBPort()
+
+
 class ExperimentDesigner:
     """Designs new compliance experiments from KB queries.
 
@@ -117,7 +137,7 @@ class ExperimentDesigner:
     ) -> None:
         self._store = store
         self._audit = audit
-        self._kb = kb_port or InMemoryKBPort()
+        self._kb = kb_port or make_kb_port()  # env-var driven: KB_ADAPTER=http for production
         self._baselines = self._load_baselines(baselines_path)
 
     def design(self, request: DesignRequest) -> ComplianceExperiment:

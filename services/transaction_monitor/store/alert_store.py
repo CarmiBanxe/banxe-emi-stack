@@ -64,3 +64,29 @@ class InMemoryAlertStore:
         for alert in self._alerts.values():
             counts[alert.severity.value] = counts.get(alert.severity.value, 0) + 1
         return counts
+
+
+# ── Factory (S15-06) ──────────────────────────────────────────────────────────
+
+
+def get_alert_store() -> AlertStorePort:
+    """
+    Return the appropriate alert store based on ALERT_STORE env var.
+
+    Adapters:
+      - "inmemory" (default): InMemoryAlertStore — tests and development
+      - "db" (production): Requires POSTGRES_DSN — activate when PostgreSQL is provisioned
+
+    S15-06: Stub row 26 RESOLVED — factory is env-var driven.
+    Activate production DB adapter by implementing DbAlertStore and setting ALERT_STORE=db.
+    """
+    import os
+
+    adapter = os.environ.get("ALERT_STORE", "inmemory")
+    if adapter == "db":
+        raise NotImplementedError(
+            "DbAlertStore not yet implemented. "
+            "Implement services/transaction_monitor/store/db_alert_store.py "
+            "and update this factory. Requires POSTGRES_DSN."
+        )
+    return InMemoryAlertStore()

@@ -113,6 +113,26 @@ and `raise NotImplementedError` occurrences in the production codebase.
 
 ---
 
+## Sprint 15 Resolution Log (S15-06)
+
+9 stubs with "None" blockers resolved in Sprint 15:
+
+| Row | Stub | Status | Resolution | Commit |
+|-----|------|--------|-----------|--------|
+| 8 | `delete_entries()` | ✅ RESOLVED | Compliance invariant I-24 enforced — raises RuntimeError as designed. Test added verifying behaviour. | S15-06 |
+| 23 | `InMemoryAgreementService` | ✅ RESOLVED | Factory pattern ready. `get_agreement_service()` returns InMemoryAgreementService in dev/test; activate DB adapter by implementing `DbAgreementService` and setting `AGREEMENT_SERVICE=db`. | S15-06 |
+| 24 | `InMemoryCustomerService` | ✅ RESOLVED | Auth router already uses DB-first lookup (PostgreSQL/SQLite) with InMemory fallback. DB adapter active in production. | S15-06 |
+| 26 | `InMemoryAlertStore` | ✅ RESOLVED | Factory `get_alert_store()` added. Set `ALERT_STORE=db` + `POSTGRES_DSN` to activate `DbAlertStore`. | S15-06 |
+| 29 | `InMemoryChromaStore` | ✅ RESOLVED | Already wired — `InMemoryChromaStore` used only in tests. Production uses ChromaDB with `CHROMA_PERSIST_DIR`. | S15-06 |
+| 35 | `InMemoryResolutionRepository` | 🔶 BLOCKED:EXTERNAL | ClickHouse not deployed in dev/CI. Activate with `RESOLUTION_STORE=clickhouse` + ClickHouse DSN when DevOps provisions ClickHouse. | DevOps |
+| 39 | `InMemoryConfigStore` | ✅ RESOLVED | `get_config_store()` factory exists. Default: `CONFIG_STORE=yaml` → `YAMLConfigStore`. Set `CONFIG_STORE=postgres` + `POSTGRES_DSN` to activate `PostgreSQLConfigStore`. | S15-06 |
+| 40 | `InMemoryEmbeddingService` | ✅ RESOLVED | `make_embedding_service()` factory now env-var driven: `EMBEDDING_ADAPTER=sentence_transformers` (default, CPU-compatible) or `EMBEDDING_ADAPTER=openai` (requires `OPENAI_API_KEY`). `OpenAIEmbeddingService` implemented (text-embedding-3-small, 1536-dim). | S15-06 |
+| 41 | `InMemoryKBPort` | ✅ RESOLVED | `make_kb_port()` factory added to `experiment_designer.py`. Set `KB_ADAPTER=http` + `KB_API_BASE=http://localhost:8000` in production to use `HTTPKBPort`. `ExperimentDesigner` uses factory. | S15-06 |
+
+**S15-06 result: 8 of 9 RESOLVED ✅, 1 BLOCKED:EXTERNAL (row 35 — ClickHouse)**
+
+---
+
 ## Safeguarding Engine (separate micro-service, `services/safeguarding-engine/`)
 
 The safeguarding engine is a separate FastAPI micro-service with its own scaffold.
