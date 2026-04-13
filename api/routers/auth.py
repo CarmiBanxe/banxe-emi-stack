@@ -1,12 +1,16 @@
 """
-api/routers/auth.py — Authentication endpoint
-IL-046 | banxe-emi-stack
+api/routers/auth.py — Authentication endpoints
+IL-046 | S15-01 | banxe-emi-stack
 
 POST /v1/auth/login
   Body: { email, pin }
   Returns: { token, expires_at }
 
-Lookup order:
+POST /v1/auth/sca/challenge   — Initiate PSD2 SCA challenge (Art.97)
+POST /v1/auth/sca/verify      — Verify SCA challenge, receive dynamic-linking token
+GET  /v1/auth/sca/methods/{customer_id} — Available SCA methods for customer
+
+Lookup order (login):
   1. PostgreSQL/SQLite customers table (persistent)
   2. Fallback: InMemoryCustomerService (sandbox / test)
 
@@ -31,6 +35,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.db.models import AuthSession, Customer
 from api.deps import get_customer_service, get_db
 from api.models.auth import LoginRequest, LoginResponse
+from api.models.sca import (
+    SCAInitiateRequest,
+    SCAInitiateResponse,
+    SCAMethodsResponse,
+    SCAVerifyRequest,
+    SCAVerifyResponse,
+)
+from services.auth.sca_service import get_sca_service
 from services.customer.customer_service import InMemoryCustomerService
 
 logger = logging.getLogger("banxe.auth")
@@ -150,3 +162,128 @@ async def login(
 
     logger.info("auth.login success customer_id=%s", customer_id)
     return LoginResponse(token=token, expires_at=expires_at)
+
+
+# ── SCA Endpoints (PSD2 Art.97) ───────────────────────────────────────────────
+
+
+@router.post(
+    "/auth/sca/challenge",
+    response_model=SCAInitiateResponse,
+    status_code=201,
+    summary="Initiate PSD2 SCA challenge",
+    description=(
+        "Creates a new Strong Customer Authentication challenge for a transaction. "
+        "PSD2 Directive 2015/2366 Art.97 — required for payments > £30 and sensitive actions."
+    ),
+    responses={
+        201: {"description": "Challenge created"},
+        400: {"description": "Invalid method or too many active challenges"},
+        422: {"description": "Validation error"},
+    },
+)
+async def initiate_sca_challenge(body: SCAInitiateRequest) -> SCAInitiateResponse:
+    """
+    Initiate an SCA challenge for the given transaction.
+
+    Returns a challenge_id that must be passed to POST /v1/auth/sca/verify.
+    Challenge expires after SCA_CHALLENGE_TTL_SEC seconds (default 120s).
+    Max 3 concurrent active challenges per customer (PSD2 concurrent limit).
+    """
+    sca = get_sca_service()
+    try:
+        challenge = sca.create_challenge(
+            customer_id=body.customer_id,
+            transaction_id=body.transaction_id,
+            method=body.method,
+            amount=body.amount,
+            payee=body.payee,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return SCAInitiateResponse(
+        challenge_id=challenge.challenge_id,
+        transaction_id=challenge.transaction_id,
+        method=challenge.method,  # type: ignore[arg-type]
+        expires_at=challenge.expires_at,
+    )
+
+
+@router.post(
+    "/auth/sca/verify",
+    response_model=SCAVerifyResponse,
+    summary="Verify SCA challenge",
+    description=(
+        "Verify a pending SCA challenge with OTP code or biometric proof. "
+        "On success returns a PSD2 RTS Art.10 dynamic-linking JWT token (TTL ≤ 300s). "
+        "After 5 failed attempts the challenge is locked; request a new one."
+    ),
+    responses={
+        200: {"description": "Verification result (check verified field)"},
+        404: {"description": "Challenge not found"},
+        422: {"description": "Validation error"},
+        429: {"description": "Too many failed attempts — challenge locked"},
+    },
+)
+async def verify_sca_challenge(body: SCAVerifyRequest) -> SCAVerifyResponse:
+    """
+    Verify the SCA challenge.
+
+    Replay prevention: challenge is marked 'used' after successful verification.
+    Rate limit: 5 failed attempts → challenge locked (HTTP 429).
+    Returns SCA JWT token bound to { txn_id, amount, payee } for payment authorisation.
+    """
+    sca = get_sca_service()
+    result = sca.verify(
+        challenge_id=body.challenge_id,
+        otp_code=body.otp_code,
+        biometric_proof=body.biometric_proof,
+    )
+
+    if not result.verified and result.attempts_remaining == 0:
+        raise HTTPException(
+            status_code=429,
+            detail=result.error or "Too many failed attempts. Request a new challenge.",
+        )
+
+    if not result.verified and result.error == "Challenge not found":
+        raise HTTPException(status_code=404, detail="Challenge not found")
+
+    return SCAVerifyResponse(
+        verified=result.verified,
+        transaction_id=result.transaction_id,
+        sca_token=result.sca_token,
+        error=result.error,
+        attempts_remaining=result.attempts_remaining,
+    )
+
+
+@router.get(
+    "/auth/sca/methods/{customer_id}",
+    response_model=SCAMethodsResponse,
+    summary="Get available SCA methods for customer",
+    description=(
+        "Returns the available SCA methods (otp, biometric) and preferred method "
+        "for the given customer. Used by frontend to decide which SCA UI to show."
+    ),
+    responses={
+        200: {"description": "Available SCA methods"},
+    },
+)
+async def get_sca_methods(customer_id: str) -> SCAMethodsResponse:
+    """
+    Return available SCA methods for the customer.
+
+    OTP is always available. Biometric is available if the customer
+    has an enrolled device (expo-local-auth / WebAuthn).
+    """
+    sca = get_sca_service()
+    methods = sca.get_methods(customer_id)
+    return SCAMethodsResponse(
+        customer_id=methods.customer_id,
+        methods=methods.methods,
+        preferred=methods.preferred,
+    )

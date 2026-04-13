@@ -13,6 +13,9 @@ Single entry point for all REST API routes. Exposes:
   GET  /v1/payments/{id}         — get payment status
   GET  /v1/ledger/accounts       — list ledger accounts
   GET  /v1/ledger/accounts/{id}/balance — get account balance
+  POST /v1/auth/sca/challenge    — initiate PSD2 SCA challenge (Art.97)
+  POST /v1/auth/sca/verify       — verify SCA challenge, receive dynamic-linking token
+  GET  /v1/auth/sca/methods/{id} — available SCA methods for customer
 
 FCA compliance:
   - All requests logged with X-Request-ID (I-24 audit trail)
