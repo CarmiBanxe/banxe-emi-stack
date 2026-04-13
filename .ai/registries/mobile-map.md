@@ -132,3 +132,30 @@ Pre-requisites: live payment rails (BT-001), web portal (P2 complete), push noti
 
 ---
 *Last updated: 2026-04-10 (Phase 5 system intelligence pass)*
+
+
+## EXTRACT Update — 2026-04-13 (FUNCTION 3)
+
+### New mobile integration points (post-safeguarding)
+
+COMPONENT: Safeguarding Breach Push Notification
+SOURCE: src/safeguarding/ + services/notifications/
+STATUS: ready — backend notification service active, push integration needed
+SCREEN TYPE: push notification + modal alert
+DATA MODEL: BreachRecord (breach_id, amount, detected_at)
+AUTH REQUIRED: yes — internal staff only (MLRO)
+COMPLIANCE FLAG: yes — CASS 15
+PRIORITY: MVP (P1)
+NOTES: Safeguarding breaches must trigger immediate push notifications to MLRO via mobile. Wire Firebase Cloud Messaging to safeguarding breach detector.
+
+COMPONENT: Recon Status Badge
+SOURCE: services/settlement/ (tri-party recon, commit cabfb2f)
+STATUS: ready — backend done, mobile needs status polling endpoint
+SCREEN TYPE: status badge on dashboard
+DATA MODEL: ReconciliationStatus (date, status, breach_flag)
+AUTH REQUIRED: yes
+COMPLIANCE FLAG: yes — CASS 7.15
+PRIORITY: P2
+NOTES: Can surface recon status as a small compliance indicator on mobile ops dashboard.
+
+*Last updated: 2026-04-13 (FUNCTION 3 EXTRACT — Architecture Skill Orchestrator)*
