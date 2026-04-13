@@ -1,10 +1,53 @@
 # Change Log — AI Migration Tracking
 # Source: CHANGELOG.md reference + migration tracking
-# Created: 2026-04-10
-# Migration Phase: 4
+# Created: 2026-04-10 | Updated: 2026-04-13 (Sprint 13)
+# Migration Phase: 13
 # Purpose: Ongoing change tracking for AI-assisted development
 
 ## Migration changelog
+
+### 2026-04-13 — Sprint 13: ArchiMate Pipeline + IAM Active + Case Mgmt + KYC Gate + Coverage
+
+**S13-00: ArchiMate Import Pipeline**
+- Renamed `import-archimate.py` → `import_archimate.py` (Python import compatibility)
+- Updated Makefile `IMPORT_SCR` variable in `banxe-architecture/`
+- Added `tests/test_import_archimate.py` — 32 tests (XML + CSV + registry roundtrip)
+
+**S13-02: IAM STUB→ACTIVE — Keycloak JWKS offline JWT validation**
+- Rewrote `KeycloakAdapter.validate_token()` in `services/iam/mock_iam_adapter.py`
+- `_fetch_jwks()`: JWKS cache (300s TTL), `urllib.request.urlopen` → offline RS256 via PyJWT
+- Added 51 tests in `tests/test_iam_adapter.py` — iam/ coverage 98%
+- Commit: `feat(S13-02): IAM STUB→ACTIVE — Keycloak JWKS offline RS256 JWT validation`
+
+**S13-03: Case Management — update/close/list**
+- Extended `CaseManagementPort` Protocol: `update_case()`, `close_case()`, `list_cases()`
+- Implemented in `MarbleAdapter` (HTTP PATCH/GET) and `MockCaseAdapter`
+- Added 22 tests in `tests/test_case_management.py` (total 86 tests)
+- Commit: `feat(S13-03): case management — update_case, close_case, list_cases`
+
+**S13-04: Agreement lifecycle — KYC gate (FCA COBS 6)**
+- `InMemoryAgreementService.__init__()` takes `kyc_checker: Callable[[str], KYCStatus | None]`
+- `record_signature()` enforces KYC APPROVED before ACTIVE transition
+- Added `TestKycGate` (17 tests) in `tests/test_agreement_service.py`
+- Commit: `feat(S13-04): agreement KYC gate — FCA COBS 6 requires APPROVED KYC before signature`
+
+**S13-05: Payment service coverage 67%→95%**
+- Added 5 test classes: rail exceptions, ClickHouse failures, event bus, n8n webhook, factory
+- Patches `httpx.post` and `N8N_WEBHOOK_URL` module var for webhook tests
+- Commit: `feat(S13-05): payment_service coverage 67%→95% — rail, clickhouse, eventbus, n8n, factory`
+
+**S13-06: Auth coverage 53%→100% + import_archimate test fix**
+- Added `TestGetCustomerByEmailMemory` (3 tests), `TestGetCustomerByEmailDb` (2 async)
+- Added `TestLoginHandlerDirect` (5 async tests): direct `login()` handler calls without HTTP
+- Fixed `test_parse_element_properties`: property key `"prop-status"` → `"banxe-status"`
+- `pyproject.toml`: `concurrency = ["thread"]` added to coverage.run
+- Total: 2378 passed, 3 skipped, coverage 82.18%
+- Commit: `feat(S13-06): auth.py coverage 53%→100%`
+
+**S13-07: Registry sync (this entry)**
+- Created `archimate-map.md` — 13th registry (ArchiMate pipeline metadata)
+- Updated `domain-map.md`: IAM/agreement/case_mgmt status to ACTIVE+STUB
+- Updated `change-log.md` (this entry)
 
 ### 2026-04-13 — Sprint 12: CASS 15 Safeguarding + Tri-Party Recon API
 - Created `api/routers/safeguarding.py` — 6 CASS 15 endpoints (position, accounts, breaches, reconcile, resolution-pack, fca-return)

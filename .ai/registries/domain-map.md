@@ -1,6 +1,6 @@
 # Domain Map — banxe-emi-stack
 # Source: services/ full scan (FUNCTION 1 — Architecture Skill Orchestrator)
-# Created: 2026-04-10 | Updated: 2026-04-10 (post-Phase 6 scan)
+# Created: 2026-04-10 | Updated: 2026-04-13 (Sprint 13: IAM ACTIVE, agreement KYC gate, case_mgmt extended)
 # Purpose: Domain boundaries, trust zones, service ownership, data flows
 
 ## Domain overview
@@ -15,7 +15,7 @@
 │ ledger/       STUB│ aml/          ACTIVE  │ auth/          ACTIVE           │
 │ payment/    ACTIVE│ fraud/     ACT+STUB   │ config/        ACTIVE           │
 │ customer/   ACTIVE│ kyc/       ACT+STUB   │ events/        ACTIVE           │
-│ agreement/    STUB│ case_mgmt/    STUB    │ iam/           STUB             │
+│ agreement/ ACT+STUB│ case_mgmt/ ACT+STUB   │ iam/        ACT+STUB            │
 │ statements/ ACTIVE│ consumer_duty/ACTIVE  │ notifications/ ACTIVE           │
 │ recon/      ACTIVE│ complaints/   ACTIVE  │ providers/     ACTIVE           │
 │ reporting/  ACTIVE│ resolution/   ACTIVE  │ webhooks/      ACTIVE           │
@@ -32,7 +32,7 @@
 | `services/ledger/` | 2 | Midaz CBS balance queries | CASS 15.3 | STUB |
 | `services/payment/` | 5 | FPS/SEPA/BACS via Modulr | PSR 2017 | ACTIVE+STUB |
 | `services/customer/` | 2 | Customer lifecycle CRUD | GDPR Art.5 | ACTIVE |
-| `services/agreement/` | 1 | Agreement/contract lifecycle | — | STUB |
+| `services/agreement/` | 1 | Agreement/contract lifecycle + KYC gate (FCA COBS 6) | FCA COBS 6 | ACTIVE+STUB |
 | `services/statements/` | 2 | Account statement generation | FCA PS7/24 | ACTIVE |
 | `services/recon/` | 10 | CASS 7.15 daily safeguarding recon | CASS 7.15 | ACTIVE+STUB |
 | `services/reporting/` | 3 | FIN060 PDF + RegData submission | CASS 15.12.4R | ACTIVE+STUB |
@@ -44,7 +44,7 @@
 | `services/aml/` | 4 | SAR filing, tx monitoring, velocity tracking | MLR 2017 / POCA 2002 s.330 | ACTIVE |
 | `services/fraud/` | 5 | FraudAML pipeline, Jube + Sardine adapters | PSR APP 2024 / MLR 2017 Reg.26 | ACTIVE+STUB |
 | `services/kyc/` | 3 | KYC workflow, Balleryne EDD | MLR 2017 §18 | ACTIVE+STUB |
-| `services/case_management/` | 4 | Marble case routing + case factory | EU AI Act Art.14 | STUB |
+| `services/case_management/` | 4 | Marble case routing + case factory; update/close/list added | EU AI Act Art.14 | ACTIVE+STUB |
 | `services/consumer_duty/` | 2 | PS22/9 fair value + vulnerability assessment | PS22/9 | ACTIVE |
 | `services/complaints/` | 2 | Consumer complaints + n8n webhook | FCA DISP rules | ACTIVE |
 | `services/resolution/` | 1 | Resolution pack generation | FCA DISP | ACTIVE |
@@ -57,7 +57,7 @@
 | `services/auth/` | 1 | 2FA service | ACTIVE |
 | `services/config/` | 2 | YAML + PostgreSQL config store | ACTIVE |
 | `services/events/` | 1 | RabbitMQ pub/sub event bus | ACTIVE |
-| `services/iam/` | 2 | Keycloak IAM adapter | STUB |
+| `services/iam/` | 2 | Keycloak IAM adapter — JWKS offline RS256 validation (S13-02) | ACTIVE+STUB |
 | `services/notifications/` | 4 | Email (SendGrid) + mock | ACTIVE |
 | `services/providers/` | 1 | Adapter factory (ProviderRegistry) | ACTIVE |
 | `services/webhooks/` | 1 | Inbound webhook router | ACTIVE |
