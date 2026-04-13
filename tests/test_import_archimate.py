@@ -203,7 +203,7 @@ class TestParseXml:
         xml = _write_xml(tmp_path, _SAMPLE_XML)
         model = ia.parse_xml(xml)
         payment = next(e for e in model["elements"] if e["name"] == "Payment Service")
-        assert payment["properties"].get("prop-status") == "ACTIVE"
+        assert payment["properties"].get("banxe-status") == "ACTIVE"
 
     def test_parse_relationships_count(self, tmp_path):
         xml = _write_xml(tmp_path, _SAMPLE_XML)

@@ -150,3 +150,243 @@ def test_login_missing_email_returns_422():
 def test_login_missing_pin_returns_422():
     resp = client.post("/v1/auth/login", json={"email": "alice@example.com"})
     assert resp.status_code == 422
+
+
+# ── S13-06: Direct unit tests for auth helpers (coverage lines 54, 66, 104-152) ─
+
+
+def _make_in_memory_customer(svc, email: str):
+    """Create a customer profile with email stored in metadata (matches auth lookup)."""
+    from datetime import date
+
+    from services.customer.customer_port import (
+        Address,
+        CreateCustomerRequest,
+        EntityType,
+        IndividualProfile,
+    )
+
+    address = Address(line1="1 Test St", city="London", country="GB", postcode="EC1A 1BB")
+    individual = IndividualProfile(
+        first_name="Test",
+        last_name="User",
+        date_of_birth=date(1990, 1, 1),
+        nationality="GB",
+        address=address,
+    )
+    req = CreateCustomerRequest(entity_type=EntityType.INDIVIDUAL, individual=individual)
+    profile = svc.create_customer(req)
+    profile.metadata["email"] = email
+    return profile
+
+
+class TestGetCustomerByEmailMemory:
+    """Direct tests for _get_customer_by_email_memory (line 66)."""
+
+    def test_found_returns_customer_id_and_email(self):
+        from api.routers.auth import _get_customer_by_email_memory
+        from services.customer.customer_service import InMemoryCustomerService
+
+        svc = InMemoryCustomerService()
+        _make_in_memory_customer(svc, "bob@example.com")
+        result = _get_customer_by_email_memory(svc, "bob@example.com")
+        assert result is not None
+        cid, email = result
+        assert email == "bob@example.com"
+        assert len(cid) > 0
+
+    def test_not_found_returns_none(self):
+        from api.routers.auth import _get_customer_by_email_memory
+        from services.customer.customer_service import InMemoryCustomerService
+
+        svc = InMemoryCustomerService()
+        result = _get_customer_by_email_memory(svc, "nobody@example.com")
+        assert result is None
+
+    def test_multiple_customers_finds_correct(self):
+        from api.routers.auth import _get_customer_by_email_memory
+        from services.customer.customer_service import InMemoryCustomerService
+
+        svc = InMemoryCustomerService()
+        _make_in_memory_customer(svc, "alice@x.com")
+        _make_in_memory_customer(svc, "bob@x.com")
+        result = _get_customer_by_email_memory(svc, "bob@x.com")
+        assert result is not None
+        _, email = result
+        assert email == "bob@x.com"
+
+
+@pytest.mark.asyncio
+class TestGetCustomerByEmailDb:
+    """Direct async tests for _get_customer_by_email_db (line 54)."""
+
+    async def test_found_returns_customer(self):
+        from unittest.mock import AsyncMock, MagicMock
+
+        from api.routers.auth import _get_customer_by_email_db
+
+        mock_customer = MagicMock()
+        mock_customer.customer_id = "cust-db-001"
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_customer
+        db = AsyncMock()
+        db.execute = AsyncMock(return_value=mock_result)
+
+        result = await _get_customer_by_email_db(db, "alice@db.com")
+        assert result is mock_customer
+
+    async def test_not_found_returns_none(self):
+        from unittest.mock import AsyncMock, MagicMock
+
+        from api.routers.auth import _get_customer_by_email_db
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        db = AsyncMock()
+        db.execute = AsyncMock(return_value=mock_result)
+
+        result = await _get_customer_by_email_db(db, "ghost@db.com")
+        assert result is None
+
+
+@pytest.mark.asyncio
+class TestLoginHandlerDirect:
+    """
+    Direct async tests for login() handler function.
+    These cover lines 104-152 by calling the handler without HTTP.
+    """
+
+    def _make_request(self, email: str, pin: str):
+        from unittest.mock import MagicMock
+
+        from api.models.auth import LoginRequest
+
+        req = MagicMock()  # fastapi Request mock
+        req.headers.get = MagicMock(return_value=None)
+        return LoginRequest(email=email, pin=pin), req
+
+    async def test_login_db_customer_found(self):
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        import api.routers.auth as auth_module
+        from api.routers.auth import login
+
+        body, request = self._make_request("db@test.com", "123456")
+
+        mock_customer = MagicMock()
+        mock_customer.customer_id = "cust-db-xyz"
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_customer
+        db = AsyncMock()
+        db.execute = AsyncMock(return_value=mock_result)
+        db.add = MagicMock()
+        db.flush = AsyncMock()
+
+        from services.customer.customer_service import InMemoryCustomerService
+
+        svc = InMemoryCustomerService()
+
+        with (
+            patch.object(auth_module, "_DEV_PIN", "123456"),
+            patch.object(auth_module, "_SECRET_KEY", "test-secret"),
+        ):
+            result = await login(body=body, request=request, db=db, svc=svc)
+
+        assert result.token
+        assert result.expires_at
+
+    async def test_login_db_exception_falls_to_memory(self):
+        from unittest.mock import AsyncMock, patch
+
+        import api.routers.auth as auth_module
+        from api.routers.auth import login
+        from services.customer.customer_service import InMemoryCustomerService
+
+        body, request = self._make_request("mem@test.com", "654321")
+
+        db = AsyncMock()
+        db.execute = AsyncMock(side_effect=Exception("DB connection refused"))
+
+        svc = InMemoryCustomerService()
+        _make_in_memory_customer(svc, "mem@test.com")
+
+        with (
+            patch.object(auth_module, "_DEV_PIN", "654321"),
+            patch.object(auth_module, "_SECRET_KEY", "test-secret"),
+        ):
+            result = await login(body=body, request=request, db=db, svc=svc)
+
+        assert result.token
+
+    async def test_login_customer_not_found_raises_401(self):
+        from unittest.mock import AsyncMock, MagicMock
+
+        from fastapi import HTTPException
+
+        from api.routers.auth import login
+        from services.customer.customer_service import InMemoryCustomerService
+
+        body, request = self._make_request("ghost@test.com", "123456")
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        db = AsyncMock()
+        db.execute = AsyncMock(return_value=mock_result)
+        svc = InMemoryCustomerService()  # empty — no customer
+
+        with pytest.raises(HTTPException) as exc_info:
+            await login(body=body, request=request, db=db, svc=svc)
+        assert exc_info.value.status_code == 401
+
+    async def test_login_wrong_pin_raises_401(self):
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from fastapi import HTTPException
+
+        import api.routers.auth as auth_module
+        from api.routers.auth import login
+        from services.customer.customer_service import InMemoryCustomerService
+
+        body, request = self._make_request("db@test.com", "000000")
+
+        mock_customer = MagicMock()
+        mock_customer.customer_id = "cust-001"
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_customer
+        db = AsyncMock()
+        db.execute = AsyncMock(return_value=mock_result)
+        svc = InMemoryCustomerService()
+
+        with (
+            patch.object(auth_module, "_DEV_PIN", "123456"),
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            await login(body=body, request=request, db=db, svc=svc)
+        assert exc_info.value.status_code == 401
+
+    async def test_login_session_persist_failure_still_returns_token(self):
+        """Session persist failure (lines 138-149) must not abort login."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        import api.routers.auth as auth_module
+        from api.routers.auth import login
+        from services.customer.customer_service import InMemoryCustomerService
+
+        body, request = self._make_request("db@test.com", "123456")
+
+        mock_customer = MagicMock()
+        mock_customer.customer_id = "cust-001"
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_customer
+        db = AsyncMock()
+        db.execute = AsyncMock(return_value=mock_result)
+        db.add = MagicMock(side_effect=Exception("DB is full"))
+        svc = InMemoryCustomerService()
+
+        with (
+            patch.object(auth_module, "_DEV_PIN", "123456"),
+            patch.object(auth_module, "_SECRET_KEY", "test-secret"),
+        ):
+            result = await login(body=body, request=request, db=db, svc=svc)
+
+        assert result.token  # login still succeeds despite session persist failure
