@@ -58,13 +58,16 @@
 | `services/case_management/marble_adapter.py` | **90%+** |
 | `services/agreement/agreement_service.py` | **98%** |
 
-### Remaining coverage gaps (not Sprint 13 scope)
-| Module | Coverage | Reason |
-|--------|----------|--------|
-| `api/routers/compliance_kb.py` | 39% | RAG endpoints require ChromaDB + vector store |
-| `api/routers/transaction_monitor.py` | 34% | Requires live Redis + RabbitMQ |
-| `api/routers/experiments.py` | 43% | Requires live experimentation backend |
-| `api/routers/consumer_duty.py` | 46% | Requires live DB + service layer |
+### S13-06-FIX: Router coverage uplift (post-Sprint 13 patch)
+| Module | Before | After | Tests added |
+|--------|--------|-------|-------------|
+| `api/routers/compliance_kb.py` | 39% | **99%** | 25 (test_api_compliance_kb.py) |
+| `api/routers/transaction_monitor.py` | 34% | **93%** | 24 (test_api_transaction_monitor.py) |
+| `api/routers/experiments.py` | 43% | **93%** | 24 (test_api_experiments.py) |
+| `api/routers/consumer_duty.py` | 46% | **100%** | 12 (test_api_consumer_duty.py) |
+
+**Strategy:** `app.dependency_overrides` for FastAPI DI; `lru_cache.cache_clear()` + `patch()` for consumer_duty.
+**Total tests after S13-06-FIX:** 2463 passed (+85) | Coverage: 82.47%
 
 ---
 
