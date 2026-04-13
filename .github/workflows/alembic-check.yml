@@ -1,0 +1,64 @@
+name: Alembic Schema Check
+# S13-08 | banxe-emi-stack
+#
+# Detects schema drift: fails if ORM models changed without a matching migration.
+# Runs `alembic check` against a fresh SQLite DB on every push/PR.
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "api/db/models.py"
+      - "services/database.py"
+      - "alembic/**"
+      - "alembic.ini"
+  pull_request:
+    branches: [main]
+    paths:
+      - "api/db/models.py"
+      - "services/database.py"
+      - "alembic/**"
+      - "alembic.ini"
+
+jobs:
+  alembic-check:
+    name: Alembic — schema drift check
+    runs-on: ubuntu-latest
+
+    env:
+      DATABASE_URL: sqlite+aiosqlite:///./banxe_ci.db
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install aiosqlite
+
+      - name: Apply all migrations (upgrade head)
+        run: python -m alembic upgrade head
+
+      - name: Check for schema drift (alembic check)
+        run: |
+          python -m alembic check && \
+          echo "✅ No schema drift detected — all model changes have migrations." || \
+          (echo "❌ Schema drift: ORM models changed without a migration. Run: python -m alembic revision --autogenerate -m 'describe_change'" && exit 1)
+
+      - name: Verify downgrade path exists (rollback test)
+        run: |
+          CURRENT=$(python -m alembic current 2>&1 | tail -1)
+          echo "Current revision: $CURRENT"
+          python -m alembic downgrade -1
+          echo "✅ Downgrade -1 succeeded — rollback path is valid."
+          python -m alembic upgrade head
+          echo "✅ Re-upgrade to head succeeded."
+
+      - name: Cleanup CI database
+        if: always()
+        run: rm -f banxe_ci.db
