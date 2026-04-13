@@ -139,19 +139,20 @@ class MockIAMAdapter:
 # ── Keycloak adapter (LIVE — deployed on GMKtec :8180) ────────────────────────
 
 
-class KeycloakAdapter:  # pragma: no cover
+class KeycloakAdapter:
     """
-    Live Keycloak OIDC adapter.
-    STATUS: DEPLOYED — Keycloak 26.2.5 running on GMKtec :8180 (BT-011 UNBLOCKED 2026-04-08)
+    Live Keycloak OIDC adapter with JWKS-based offline JWT validation.
+    STATUS: ACTIVE — Keycloak 26.2.5 running on GMKtec :8180
 
     Realm: banxe | Roles: CEO / MLRO / CCO / OPERATOR / AGENT / AUDITOR / READONLY
-    Admin Console: http://gmktec:8180/admin
-    KEYCLOAK_URL=http://localhost:8180
-    KEYCLOAK_REALM=banxe
+    KEYCLOAK_URL=http://localhost:8180  KEYCLOAK_REALM=banxe
 
-    authenticate(): Resource Owner Password Grant (internal services only).
-    In production: replace with Authorization Code Flow + PKCE for user-facing apps.
+    validate_token() verifies JWT signature using Keycloak's public JWKS keys —
+    no round-trip to Keycloak per request. JWKS cached for _JWKS_CACHE_TTL seconds.
+    authenticate() uses Resource Owner Password Grant (internal services only).
     """
+
+    _JWKS_CACHE_TTL = 300  # seconds
 
     def __init__(self) -> None:
         self._url = os.environ.get("KEYCLOAK_URL", "")
@@ -164,11 +165,36 @@ class KeycloakAdapter:  # pragma: no cover
                 "Set KEYCLOAK_URL=http://localhost:8180 and IAM_ADAPTER=keycloak."
             )
         self._token_url = f"{self._url}/realms/{self._realm}/protocol/openid-connect/token"
-        self._userinfo_url = f"{self._url}/realms/{self._realm}/protocol/openid-connect/userinfo"
+        self._jwks_url = f"{self._url}/realms/{self._realm}/protocol/openid-connect/certs"
+        self._realm_url = f"{self._url}/realms/{self._realm}"
+        self._jwks_cache: dict | None = None
+        self._jwks_fetched_at: datetime | None = None
+
+    # ── JWKS cache ────────────────────────────────────────────────────────────
+
+    def _fetch_jwks(self) -> dict:
+        """Fetch JWKS from Keycloak certs endpoint; cache for _JWKS_CACHE_TTL seconds."""
+        import json
+        import urllib.request
+
+        now = datetime.now(UTC)
+        if (
+            self._jwks_cache is not None
+            and self._jwks_fetched_at is not None
+            and (now - self._jwks_fetched_at).total_seconds() < self._JWKS_CACHE_TTL
+        ):
+            return self._jwks_cache
+        with urllib.request.urlopen(self._jwks_url, timeout=5) as resp:  # nosec B310
+            self._jwks_cache = json.loads(resp.read())
+            self._jwks_fetched_at = now
+            return self._jwks_cache
+
+    # ── IAMPort implementation ────────────────────────────────────────────────
 
     def authenticate(self, username: str, password: str) -> AuthToken | None:
         """Resource Owner Password Grant — direct user login."""
         from datetime import timedelta
+        import json
         import urllib.parse
         import urllib.request
 
@@ -184,9 +210,7 @@ class KeycloakAdapter:  # pragma: no cover
         req = urllib.request.Request(self._token_url, data=data, method="POST")
         req.add_header("Content-Type", "application/x-www-form-urlencoded")
         try:
-            import json
-
-            with urllib.request.urlopen(req, timeout=5) as resp:
+            with urllib.request.urlopen(req, timeout=5) as resp:  # nosec B310
                 token_data = json.loads(resp.read())
             expiry = datetime.now(UTC) + timedelta(seconds=token_data.get("expires_in", 3600))
             return AuthToken(
@@ -202,29 +226,56 @@ class KeycloakAdapter:  # pragma: no cover
             return None
 
     def validate_token(self, token: str) -> UserIdentity | None:
-        """Introspect JWT via userinfo endpoint."""
+        """
+        Validate JWT offline using Keycloak's JWKS public keys (RS256).
+        Verifies: signature, expiry, audience.
+        Extracts: sub, preferred_username, email, realm_access.roles, acr.
+        """
         import json
-        import urllib.request
+        import logging
 
-        req = urllib.request.Request(self._userinfo_url)
-        req.add_header("Authorization", f"Bearer {token}")
+        import jwt  # PyJWT
+        from jwt.algorithms import RSAAlgorithm
+
+        log = logging.getLogger(__name__)
         try:
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                info = json.loads(resp.read())
-            roles_raw = info.get("realm_access", {}).get("roles", [])
-            roles = {BanxeRole(r) for r in roles_raw if r in BanxeRole.__members__}
+            header = jwt.get_unverified_header(token)
+            kid = header.get("kid")
+            alg = header.get("alg", "RS256")
+
+            jwks = self._fetch_jwks()
+            keys = jwks.get("keys", [])
+            if not keys:
+                log.warning("Keycloak JWKS returned no keys")
+                return None
+
+            jwk = next((k for k in keys if k.get("kid") == kid), None) or keys[0]
+            public_key = RSAAlgorithm.from_jwk(json.dumps(jwk))
+
+            payload = jwt.decode(
+                token,
+                public_key,
+                algorithms=[alg],
+                audience=self._client_id,
+                options={"verify_exp": True},
+            )
+
+            roles_raw = payload.get("realm_access", {}).get("roles", [])
+            roles = frozenset(BanxeRole(r) for r in roles_raw if r in BanxeRole.__members__)
+
+            exp = payload.get("exp")
+            token_expiry = datetime.fromtimestamp(exp, tz=UTC) if exp else None
+
             return UserIdentity(
-                subject=info.get("sub", ""),
-                username=info.get("preferred_username", ""),
-                email=info.get("email", ""),
-                roles=roles or {BanxeRole.READONLY},
-                mfa_verified=info.get("acr", "") in ("mfa", "aal2"),
-                token_expiry=datetime.now(UTC) + timedelta(seconds=300),
+                subject=payload.get("sub", ""),
+                username=payload.get("preferred_username", ""),
+                email=payload.get("email", ""),
+                roles=roles or frozenset({BanxeRole.READONLY}),
+                mfa_verified=payload.get("acr", "") in ("mfa", "aal2"),
+                token_expiry=token_expiry,
             )
         except Exception as exc:
-            import logging
-
-            logging.getLogger(__name__).warning("Keycloak validate_token failed: %s", exc)
+            log.warning("Keycloak validate_token failed: %s", exc)
             return None
 
     def authorize(self, identity: UserIdentity, permission: Permission) -> bool:
@@ -234,7 +285,7 @@ class KeycloakAdapter:  # pragma: no cover
         import urllib.request
 
         try:
-            with urllib.request.urlopen(f"{self._url}/realms/{self._realm}", timeout=3) as r:
+            with urllib.request.urlopen(self._realm_url, timeout=3) as r:  # nosec B310
                 return r.status == 200
         except Exception:
             return False
