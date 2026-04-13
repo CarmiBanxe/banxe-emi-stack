@@ -1,6 +1,6 @@
 # Domain Map — banxe-emi-stack
 # Source: services/ full scan (FUNCTION 1 — Architecture Skill Orchestrator)
-# Created: 2026-04-10 | Updated: 2026-04-13 (Sprint 13: IAM ACTIVE, agreement KYC gate, case_mgmt extended)
+# Created: 2026-04-10 | Updated: 2026-04-13 (Sprint 14: +2619 tests, 87% coverage, stub inventory)
 # Purpose: Domain boundaries, trust zones, service ownership, data flows
 
 ## Domain overview

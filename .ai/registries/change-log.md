@@ -1,10 +1,45 @@
 # Change Log — AI Migration Tracking
 # Source: CHANGELOG.md reference + migration tracking
-# Created: 2026-04-10 | Updated: 2026-04-13 (Sprint 13)
-# Migration Phase: 13
+# Created: 2026-04-10 | Updated: 2026-04-13 (Sprint 14)
+# Migration Phase: 14
 # Purpose: Ongoing change tracking for AI-assisted development
 
 ## Migration changelog
+
+### 2026-04-13 — Sprint 14: Stub Inventory + E2E Tests + Coverage 87% + SCA + Platform Registries
+
+**S14-01: STUB-INVENTORY.md**
+- Created `docs/STUB-INVENTORY.md` — 41 entries across 5 parts cataloguing all stubs/mocks/pragmas
+- Key blockers documented: BT-001 (DocuSign/CEO), BT-002 (Midaz/DevOps), BT-003 (Keycloak/DevOps), BT-004 (Marble/CEO)
+- Commit: `docs(S14-01): STUB-INVENTORY.md — 41 stub entries across banxe-emi-stack`
+
+**S14-02: E2E Compliance Integration Tests**
+- Created `tests/integration/__init__.py` + `tests/integration/test_e2e_compliance_flow.py`
+- 19 integration tests: KYC approval/rejection, agreement KYC gate, case management, multi-product, MLRO EDD flow
+- Tests run without external dependencies (InMemory adapters)
+- Commit: `test(S14-02): E2E compliance flow integration tests — 19 tests`
+
+**S14-03: Coverage uplift 82.18% → 87.00%**
+- `tests/test_two_factor.py` — 30 tests for TOTPService (0% → ~95%)
+- `tests/test_reasoning_bank.py` — 26 tests for ReasoningBankStore + API router (0% → ~90%)
+- `tests/test_markdown_parser.py` — 22 tests for compliance_kb markdown parser (25% → ~95%)
+- `tests/test_repo_watch.py` — 35 tests for all repo_watch services (0% → ~85%)
+- `tests/test_config_modules.py` — 21 tests for small config modules
+- Extended `tests/test_api_health.py` — health readiness error paths
+- Extended `tests/test_experiment_copilot/test_experiment_store.py` — delete + rebuild tests
+- pyotp installed for real TOTP generation in tests
+- Total: 2378 → 2619 tests, 82.18% → 87.00% coverage
+- Commit: `test(S14-03): coverage uplift 82→87% — two_factor, reasoning_bank, markdown_parser, repo_watch`
+
+**S14-08: PSD2 SCA flow stubs (banxe-platform)**
+- `packages/shared/src/tokens/` — 5 design token files (colors, typography, spacing, breakpoints, index)
+- `packages/web/src/components/molecules/SCAChallenge.tsx` — PSD2 Art.97 SCA modal (web, WebAuthn stub)
+- `packages/mobile/app/sca/index.tsx` — PSD2 Art.97 SCA screen (mobile, expo-local-authentication)
+- Commit: `feat(S14-08): PSD2 SCA stubs — web modal + mobile screen + design tokens`
+
+**S14-09 + S14-10: Registry updates**
+- Created 8 new banxe-platform registries: tokens-map, sca-map, auth-map, types-map, store-map, api-map, integration-map, compliance-map
+- Updated all 13 banxe-emi-stack registries (this entry)
 
 ### 2026-04-13 — Sprint 13: ArchiMate Pipeline + IAM Active + Case Mgmt + KYC Gate + Coverage
 

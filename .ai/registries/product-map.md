@@ -1,6 +1,6 @@
 # Product Map — banxe-emi-stack
 # Source: FUNCTION 2 (FIX) — Architecture Skill Orchestrator, based on FUNCTION 1 scan
-# Created: 2026-04-10 | Updated: 2026-04-10 | Version: 2.0 (post-Phase 6)
+# Created: 2026-04-10 | Updated: 2026-04-13 | Version: 2.1 (Sprint 14)
 # Purpose: Living product architecture map — modules, API surface, agents, readiness
 
 ## Product Overview

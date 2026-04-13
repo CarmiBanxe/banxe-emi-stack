@@ -1,6 +1,6 @@
 # Agent Map — banxe-emi-stack
 # Source: agents/compliance/swarm.yaml, .claude/agents/, services/hitl/
-# Created: 2026-04-10
+# Created: 2026-04-10 | Updated: 2026-04-13 (Sprint 14)
 # Migration Phase: 4
 # Purpose: All AI agents, soul files, authority levels, HITL gates
 

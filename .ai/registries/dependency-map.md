@@ -1,6 +1,6 @@
 # Dependency Map — banxe-emi-stack
 # Source: requirements.txt, requirements-compliance.txt, pyproject.toml, docker/ (FUNCTION 1 scan)
-# Created: 2026-04-10 | Updated: 2026-04-10 (post-Phase 6 scan)
+# Created: 2026-04-10 | Updated: 2026-04-13 (Sprint 14: pyotp added for TOTP tests)
 # Purpose: All dependencies — Python, Docker, external services, env vars
 
 ## Python dependencies (requirements.txt — runtime)

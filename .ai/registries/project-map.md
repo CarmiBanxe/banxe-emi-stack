@@ -1,13 +1,13 @@
 # Project Map — banxe-emi-stack
 # Source: Full repo scan (FUNCTION 1 — Architecture Skill Orchestrator)
-# Created: 2026-04-10 | Updated: 2026-04-10 (post-Phase 6 scan)
+# Created: 2026-04-10 | Updated: 2026-04-13 (Sprint 14)
 # Purpose: Living project structure and module map
 
-## Stats (2026-04-10 — post-Phase 6)
+## Stats (2026-04-13 — Sprint 14)
 
-- Python files: ~100+ (services/ + api/) | LoC: ~16,617 (services + api)
-- Service modules: 22 | Test files: 47 | Tests: 1,102 | Coverage: 86.89%
-- API routers: 14 | Endpoints: 42 | Pydantic models: 20+
+- Python files: ~120+ (services/ + api/ + src/) | LoC: ~18,000+
+- Service modules: 24 | Test files: 60+ | Tests: 2,619 | Coverage: 87.00%
+- API routers: 18 | Endpoints: 78 | Pydantic models: 30+
 - Service adapters: 14 (Mock/Jube/Sardine/Modulr/SendGrid/Balleryne/Marble/Keycloak/Midaz/Stub…)
 - Docker compose files: 3 | Docker services: 8 (3 always-on + 5 on-demand)
 - Agents (swarm): 7 compliance agents + 1 coordinator
@@ -169,4 +169,29 @@ banxe-emi-stack/
 └── biome.json               # Biome linter config (IL-BIOME-01)
 ```
 
-*Last updated: 2026-04-13 (FUNCTION 4 TRACK — Architecture Skill Orchestrator)*
+## TRACK Update — Sprint 14 (2026-04-13)
+
+### New files added in Sprint 14
+
+| File | Purpose |
+|------|---------|
+| `docs/STUB-INVENTORY.md` | 41-entry stub catalogue (S14-01) |
+| `tests/integration/__init__.py` | Integration test package init |
+| `tests/integration/test_e2e_compliance_flow.py` | 19 E2E compliance integration tests (S14-02) |
+| `tests/test_two_factor.py` | 30 TOTP service tests (coverage uplift S14-03) |
+| `tests/test_reasoning_bank.py` | 26 ReasoningBank + API tests (S14-03) |
+| `tests/test_markdown_parser.py` | 22 compliance_kb markdown parser tests (S14-03) |
+| `tests/test_repo_watch.py` | 35 repo_watch service tests (S14-03) |
+| `tests/test_config_modules.py` | 21 config module import coverage tests (S14-03) |
+
+### Updated stats vs Sprint 13
+
+| Metric | Sprint 13 | Sprint 14 |
+|--------|-----------|-----------|
+| Tests | 2,378 | 2,619 |
+| Coverage | 82.18% | 87.00% |
+| Test files | 54+ | 60+ |
+| Integration tests | 0 | 19 |
+| Docs files | 12 | 14 |
+
+*Last updated: 2026-04-13 (Sprint 14)*

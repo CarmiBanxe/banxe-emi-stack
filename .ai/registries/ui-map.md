@@ -1,6 +1,6 @@
 # UI Map — banxe-emi-stack
 # Source: api/routers/, api/main.py, config/banxe_config.yaml, agents/compliance/swarm.yaml
-# Created: 2026-04-10 | Updated: 2026-04-10 (Phase 5 intelligence pass)
+# Created: 2026-04-10 | Updated: 2026-04-13 (Sprint 14: SCA challenge component in banxe-platform/web)
 # Migration Phase: 5
 # Purpose: Complete screen inventory for web and mobile apps
 

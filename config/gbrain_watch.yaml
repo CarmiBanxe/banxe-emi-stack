@@ -1,0 +1,37 @@
+# config/gbrain_watch.yaml — GBrain Watch Agent
+# IL-093 | banxe-emi-stack
+#
+# Repos to monitor and maturity thresholds.
+# Secrets (GITHUB_TOKEN, TELEGRAM_REPO_WATCH_CHAT_ID, REPO_WATCH_INTERNAL_KEY)
+# are loaded from environment variables, not from this file.
+
+repos:
+  - owner: garrytan
+    repo: gbrain
+    reason: "Candidate MCP layer for BANXE dev environment; evaluate production suitability"
+
+# GitHub issue labels counted as critical bugs in the maturity score.
+# Change with caution — adding labels widens the bug net (stricter gate).
+critical_issue_labels:
+  - bug
+  - security
+  - vulnerability
+  - critical
+  - regression
+
+# How often to poll (seconds). Default: 604800 = 7 days (weekly).
+check_interval_seconds: 604800
+
+# Maturity thresholds.
+# DEV_CANDIDATE: safe for banxe dev/staging MCP layer.
+# PROD_CANDIDATE: safe for production compliance agents.
+thresholds:
+  dev_candidate:
+    min_contributors: 3           # commit-based; see NOTE in github_client.py
+    max_open_bug_issues: 5        # open issues with critical_issue_labels
+    max_days_since_last_commit: 7 # repo must be actively maintained
+    min_weeks_observed: 4         # must have been watched for ≥4 weeks
+  prod_candidate:
+    min_contributors: 5
+    max_open_bug_issues: 2
+    min_weeks_stable: 12          # consecutive weeks at DEV_CANDIDATE or above

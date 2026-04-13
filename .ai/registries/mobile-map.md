@@ -1,6 +1,6 @@
 # Mobile Map — banxe-emi-stack
 # Source: api/routers/, config/banxe_config.yaml, ROADMAP.md
-# Created: 2026-04-10 | Updated: 2026-04-10 (Phase 5 intelligence pass)
+# Created: 2026-04-10 | Updated: 2026-04-13 (Sprint 14: SCA screen in banxe-platform/mobile)
 # Migration Phase: 5
 # Purpose: Mobile app architecture analysis and readiness assessment
 

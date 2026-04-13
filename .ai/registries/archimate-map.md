@@ -1,6 +1,6 @@
 # ArchiMate Map — banxe-emi-stack / banxe-architecture
 # Source: banxe-architecture/scripts/import_archimate.py, .ai/registries/
-# Created: 2026-04-13 (Sprint 13: S13-00 ArchiMate import pipeline)
+# Created: 2026-04-13 (Sprint 13: S13-00 ArchiMate import pipeline) | Updated: 2026-04-13 (Sprint 14)
 # Migration Phase: 13
 # Purpose: ArchiMate 3.2 model elements, relations, views — AI-readable registry
 

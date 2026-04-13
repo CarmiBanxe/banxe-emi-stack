@@ -87,3 +87,23 @@ def test_readiness_payment_check_ok():
 def test_liveness_content_type_json():
     resp = client.get("/health")
     assert "application/json" in resp.headers["content-type"]
+
+
+def test_readiness_kyc_service_error_returns_200_with_error_status():
+    from unittest.mock import patch
+
+    with patch("api.deps.get_kyc_service", side_effect=Exception("KYC unavailable")):
+        resp = client.get("/health/ready")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["checks"]["kyc"] == "error"
+
+
+def test_readiness_payment_service_error_returns_200_with_error_status():
+    from unittest.mock import patch
+
+    with patch("api.deps.get_payment_service", side_effect=Exception("Payment unavailable")):
+        resp = client.get("/health/ready")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["checks"]["payment"] == "error"

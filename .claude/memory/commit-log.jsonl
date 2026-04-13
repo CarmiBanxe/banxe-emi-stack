@@ -19,3 +19,19 @@
 {"ts":"2026-04-13T03:43:42Z","hash":"6668d7d","il":null,"type":"feat","msg":"feat(safeguarding): implement CASS 15 src/safeguarding/ module — GAP-003, GAP-004 DONE","files_changed":6,"areas":["tests"]}
 {"ts":"2026-04-13T03:52:34Z","hash":"cabfb2f","il":null,"type":"feat","msg":"feat(settlement): tri-party reconciliation engine — GAP-010 D-recon DONE","files_changed":3,"areas":["tests"]}
 {"ts":"2026-04-13T04:23:25Z","hash":"f44251b","il":null,"type":"feat","msg":"feat: Sprint 12 fixup — GAP-051,017,019,014,023 completed","files_changed":13,"areas":["tests"]}
+{"ts":"2026-04-13T16:02:59Z","hash":"b9d4623","il":null,"type":"feat","msg":"feat(S13-01): ledger STUB→ACTIVE — real Midaz adapter","files_changed":2,"areas":["services","tests"]}
+{"ts":"2026-04-13T16:15:39Z","hash":"f930a80","il":null,"type":"feat","msg":"feat(S13-00): ArchiMate import pipeline — Archi XML/CSV → JSON + registry","files_changed":1,"areas":["tests"]}
+{"ts":"2026-04-13T16:25:50Z","hash":"d472594","il":null,"type":"feat","msg":"feat(S13-02): IAM STUB→ACTIVE — KeycloakAdapter JWKS offline JWT validation","files_changed":2,"areas":["services","tests"]}
+{"ts":"2026-04-13T16:34:56Z","hash":"4fe386b","il":null,"type":"feat","msg":"feat(S13-03): Case Management — update_case/close_case/list_cases","files_changed":4,"areas":["services","tests"]}
+{"ts":"2026-04-13T16:38:37Z","hash":"c3b7bc3","il":null,"type":"feat","msg":"feat(S13-04): Agreement lifecycle — KYC gate before ACTIVE transition","files_changed":2,"areas":["services","tests"]}
+{"ts":"2026-04-13T16:43:00Z","hash":"e3aba48","il":null,"type":"feat","msg":"feat(S13-05): Payment coverage 67%→95% — rail exceptions, n8n, event bus, audit","files_changed":1,"areas":["tests"]}
+{"ts":"2026-04-13T17:20:44Z","hash":"e15f9ce","il":null,"type":"feat","msg":"feat(S13-06): auth.py coverage 53%→100% — direct async unit tests + fix import_archimate key","files_changed":3,"areas":["tests"]}
+{"ts":"2026-04-13T17:22:37Z","hash":"28c720a","il":null,"type":"feat","msg":"feat(S13-07): registry sync — archimate-map.md (13th) + domain/changelog updates","files_changed":3,"areas":[]}
+{"ts":"2026-04-13T17:24:08Z","hash":"feae509","il":null,"type":"feat","msg":"feat(S13-08): Alembic production-ready — CI schema-drift check + rollback script","files_changed":2,"areas":[]}
+{"ts":"2026-04-13T17:24:58Z","hash":"eb7c1ae","il":null,"type":"docs","msg":"docs(S13-09): BLOCKED-TASKS.md — BT-001..BT-004 external blockers catalogue","files_changed":1,"areas":[]}
+{"ts":"2026-04-13T17:27:18Z","hash":"e1b438d","il":null,"type":"docs","msg":"docs(S13-10): SPRINT-13-AUDIT.md — Phase 7 readiness audit","files_changed":1,"areas":[]}
+{"ts":"2026-04-13T19:52:28Z","hash":"a3ee65f","il":null,"type":"feat","msg":"feat(S13-06-FIX-1): compliance_kb router tests — 25 tests, coverage 39%→99%","files_changed":1,"areas":["tests"]}
+{"ts":"2026-04-13T19:53:08Z","hash":"7f96bd2","il":null,"type":"feat","msg":"feat(S13-06-FIX-2): transaction_monitor router tests — 24 tests, coverage 34%→93%","files_changed":1,"areas":["tests"]}
+{"ts":"2026-04-13T19:53:43Z","hash":"32de43e","il":null,"type":"feat","msg":"feat(S13-06-FIX-3): experiments router tests — 24 tests, coverage 43%→93%","files_changed":1,"areas":["tests"]}
+{"ts":"2026-04-13T19:54:14Z","hash":"215f18f","il":null,"type":"feat","msg":"feat(S13-06-FIX-4): consumer_duty router tests — 12 tests, coverage 46%→97%","files_changed":1,"areas":["tests"]}
+{"ts":"2026-04-13T19:56:26Z","hash":"126392a","il":null,"type":"docs","msg":"docs(S13-06-FIX): update SPRINT-13-AUDIT — router coverage uplift results","files_changed":1,"areas":[]}

@@ -1,7 +1,7 @@
 # API Map — banxe-emi-stack
 # Source: api/routers/, api/models/, api/main.py, services/payment/openapi.yml
-# Created: 2026-04-10 | Updated: 2026-04-13 (Sprint 12: safeguarding + recon routers)
-# Migration Phase: 12
+# Created: 2026-04-10 | Updated: 2026-04-13 (Sprint 14: 78 endpoints, 2619 tests, 87% coverage)
+# Migration Phase: 14
 # Purpose: All API endpoints with exact paths, methods, models, auth
 
 ## Overview

@@ -119,3 +119,26 @@ class TestExperimentStoreCountAndIndex:
         idx = store.get_index()
         assert idx["total"] == 1
         assert len(idx["experiments"]) == 1
+
+    def test_get_index_no_file_rebuilds(self, tmp_path):
+        """get_index() with no index.json triggers _rebuild_index()."""
+        store = ExperimentStore(experiments_dir=str(tmp_path))
+        # Don't save anything; index.json doesn't exist yet
+        idx = store.get_index()
+        assert idx["total"] == 0
+
+
+class TestExperimentStoreDelete:
+    def test_delete_existing_experiment(self, tmp_path):
+        store = ExperimentStore(experiments_dir=str(tmp_path))
+        exp = _make_experiment("exp-delete-test", ExperimentStatus.DRAFT)
+        store.save(exp)
+        assert store.get("exp-delete-test") is not None
+        result = store.delete("exp-delete-test")
+        assert result is True
+        assert store.get("exp-delete-test") is None
+
+    def test_delete_nonexistent_returns_false(self, tmp_path):
+        store = ExperimentStore(experiments_dir=str(tmp_path))
+        result = store.delete("nonexistent-exp-id")
+        assert result is False
