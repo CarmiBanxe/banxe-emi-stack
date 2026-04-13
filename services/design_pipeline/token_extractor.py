@@ -113,12 +113,11 @@ class TokenExtractor:
           # or use npx (zero-install)
         """
         config_path = str(_STYLE_DICT_CONFIG)
-        cmd = f"{self._style_dict_cli} build --config {config_path}"
-        logger.info("Running: %s", cmd)
+        cmd_parts = [self._style_dict_cli, "build", "--config", config_path]
+        logger.info("Running: %s", " ".join(cmd_parts))
 
-        result = subprocess.run(
-            cmd,
-            shell=True,  # noqa: S602
+        result = subprocess.run(  # noqa: S603
+            cmd_parts,
             capture_output=True,
             text=True,
             timeout=60,
@@ -127,7 +126,7 @@ class TokenExtractor:
         if result.returncode != 0:
             raise TokenExtractionError(
                 f"Style Dictionary build failed: {result.stderr}",
-                context={"cmd": cmd, "stdout": result.stdout},
+                context={"cmd": " ".join(cmd_parts), "stdout": result.stdout},
             )
 
         logger.info("Style Dictionary output:\n%s", result.stdout)

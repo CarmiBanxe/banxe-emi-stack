@@ -10,6 +10,16 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/mmber/banxe-emi-stack/.claude/hooks/post-task.sh"
+          }
+        ]
+      }
     ]
   },
   "enabledMcpjsonServers": [

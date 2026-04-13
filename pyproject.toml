@@ -104,6 +104,18 @@ ignore = [
 known-first-party = ["banxe", "services", "api", "agents", "compliance", "aml", "kyc", "reporting"]
 force-sort-within-sections = true
 
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+warn_return_any = false
+warn_unused_ignores = true
+exclude = ["tests/", ".venv/", "services/safeguarding-engine/"]
+# Progressive adoption — IL-ANN-01. Only new src/ modules type-checked strictly.
+# Remove per-module ignores as annotation coverage grows.
+[[tool.mypy.overrides]]
+module = ["services.*", "agents.*", "api.*"]
+ignore_errors = true
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"

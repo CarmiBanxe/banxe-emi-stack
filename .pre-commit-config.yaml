@@ -7,8 +7,9 @@
 #   1. ruff (upstream astral-sh/ruff-pre-commit) — Python lint + format
 #   2. biome (local)   — Frontend TS/JSON lint + format, auto-fix
 #   3. bandit          — Python security linter (OWASP Top 10)
-#   4. semgrep         — Custom fintech security rules (banxe-rules.yml)
-#   5. pytest-fast     — Full test suite without coverage
+#   4. mypy            — Static type checking (src/ strict, services/ ignored)
+#   5. semgrep         — Custom fintech security rules (banxe-rules.yml)
+#   6. pytest-fast     — Full test suite without coverage
 
 repos:
   # ── Python: Ruff (upstream) ─────────────────────────────────────────────
@@ -49,6 +50,19 @@ repos:
         name: Bandit security scan
         args: [-r, -ll, --exclude, tests/,agents/]
         types: [python]
+
+  # ── Static type checking: mypy ────────────────────────────────────────────
+  # Only checks src/ — services/ and agents/ ignored per IL-ANN-01.
+  - repo: local
+    hooks:
+      - id: mypy-src
+        name: mypy (src/ type check)
+        entry: python3 -m mypy src/ --ignore-missing-imports --no-error-summary
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: false
+        files: ^src/
 
   # ── Security + Tests (local) ────────────────────────────────────────────
   - repo: local
