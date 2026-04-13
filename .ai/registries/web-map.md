@@ -144,3 +144,54 @@ Keycloak realm `banxe` already has 7 roles. Web apps need:
 
 ---
 *Last updated: 2026-04-10 (Phase 5 system intelligence pass)*
+
+## EXTRACT Update — 2026-04-13 (FUNCTION 3)
+
+### New: Safeguarding module (CASS 15) — web readiness
+
+COMPONENT: CASS 15 Safeguarding Dashboard
+SOURCE: src/safeguarding/ (new module, commit 6668d7d)
+STATUS: ready — backend implemented, no UI yet
+SCREEN TYPE: dashboard + list + detail
+DATA MODEL: SafeguardingAccount (client_id, amount, currency, pool_type), Position (total_client_funds, total_safeguarded, breach_flag), BreachRecord (breach_id, amount, detected_at, resolved_at)
+AUTH REQUIRED: yes — MLRO, CFO roles
+COMPLIANCE FLAG: yes — CASS 15, FCA PS22/9
+PRIORITY: MVP (P0 — FCA deadline)
+NOTES: Safeguarding pool must show daily position vs. client e-money holdings. Breach alerts must surface immediately in Ops Console.
+
+COMPONENT: Safeguarding Reconciliation View
+SOURCE: services/settlement/ (tri-party recon engine, commit cabfb2f) + services/recon/
+STATUS: ready — backend implemented, no UI yet
+SCREEN TYPE: table + status
+DATA MODEL: ReconciliationReport (date, matched, unmatched, breach_flag), TriPartyRecord (custodian, amount, reference)
+AUTH REQUIRED: yes — MLRO, CFO, COMPLIANCE_OFFICER
+COMPLIANCE FLAG: yes — CASS 7.15
+PRIORITY: MVP (P1)
+NOTES: Move /recon dashboard from 'Not ready' to 'Ready' — tri-party recon engine now DONE (GAP-010).
+
+### Ops Console — additional pages (post-safeguarding)
+
+```
+/safeguarding          → Safeguarding Position Dashboard (GET /v1/safeguarding/position)
+/safeguarding/accounts → Safeguarding Account List (GET /v1/safeguarding/accounts)
+/safeguarding/breaches → Breach History (GET /v1/safeguarding/breaches)
+/recon                 → Tri-Party Recon Dashboard (GET /v1/recon/status, /v1/recon/report)
+/recon/history         → Reconciliation History (GET /v1/recon/history)
+```
+
+### Ready table additions (post-2026-04-13 TRACK)
+
+| Feature | Endpoints | Notes |
+|---------|-----------|-------|
+| Safeguarding position | GET /v1/safeguarding/position | CASS 15 — new, MVP |
+| Safeguarding accounts | GET/POST /v1/safeguarding/accounts | Pool management |
+| Safeguarding breaches | GET /v1/safeguarding/breaches | Breach log |
+| Recon dashboard | GET /v1/recon/status, /report | Was 'Not ready' — now DONE |
+
+### Not ready — removed (resolved)
+
+| Feature | Resolution |
+|---------|------------|
+| Recon dashboard | Tri-party recon engine DONE (GAP-010, commit cabfb2f) — move to Ready |
+
+*Last updated: 2026-04-13 (FUNCTION 3 EXTRACT — Architecture Skill Orchestrator)*
