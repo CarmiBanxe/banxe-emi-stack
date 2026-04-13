@@ -6,7 +6,7 @@
 
 ## Phase 1 — Core EMI Platform ✅ COMPLETE
 
-867 тестов green, ruff clean, coverage ≥ 80%.
+2675 тестов green, ruff clean, coverage 87%.
 
 | # | Feature | IL | Status | FCA ref |
 |---|---------|-----|--------|---------|
@@ -96,20 +96,18 @@
 
 ---
 
-## Test matrix (2026-04-09)
+## Test matrix (2026-04-13 — Sprint 14 FIX)
 
 | Suite | Tests | Status |
 |-------|-------|--------|
-| **Full suite** | **995** | ✅ |
-| Phase 2 HITL + Feedback Loop | 35 | ✅ IL-056 |
-| IL-057 Jube adapter | 67 | ✅ IL-057 |
-| IL-059 Marble case management | 61 | ✅ IL-059 |
-| Phase 1 core | 480 | ✅ |
-| Phase 2 services | 234 | ✅ |
-| Phase 3 reporting | 37 | ✅ |
-| Infra stubs | 29 | ✅ |
-| IL-054 PDF | 28 | ✅ |
-| IL-055 Ballerine | 24 | ✅ |
+| **Full suite** | **2675** | ✅ (87.00% coverage) |
+| E2E integration tests | 19 | ✅ S14-02 |
+| AML thresholds | 17 | ✅ S14-FIX-1 |
+| Rule engine + velocity tracker | 17 | ✅ S14-FIX-1 |
+| ReasoningBank + TOTP | 56 | ✅ S14-03 |
+| Repo watch services | 35 | ✅ S14-03 |
+| Markdown parser | 22 | ✅ S14-03 |
+| Config modules | 21 | ✅ S14-03 |
 
 ---
 
@@ -147,17 +145,17 @@ Infrastructure Checklist: 15/15 ✅
 
 ---
 
-## Phase 7 — UI/UX Open-Source Platform ⏳ PENDING
+## Phase 7 — UI/UX Open-Source Platform 🔄 IN PROGRESS
 
 | # | Feature | IL | Status | Notes |
 |---|---------|-----|--------|-------|
-| 44 | Monorepo setup (pnpm + turbo) | IL-UI-01 | ⏳ | banxe-platform/ |
-| 45 | Design system (tokens, atoms, molecules) | IL-UI-01 | ⏳ | packages/shared/ |
-| 46 | Mobile app (Expo SDK 53 + NativeWind) | IL-UI-01 | ⏳ | packages/mobile/ |
-| 47 | Web app (Next.js 15 + shadcn/ui) | IL-UI-01 | ⏳ | packages/web/ |
-| 48 | PSD2 SCA flows + KYC screens | IL-UI-01 | ⏳ | Compliance UI |
-| 49 | CLAUDE.md per package | IL-UI-01 | ⏳ | Multi-agent ready |
-| 50 | .ai/registries/ (12 files) + .ai/reports/ (5 files) | IL-UI-01 | ⏳ | Intelligence layer |
+| 44 | Monorepo setup (pnpm + turbo) | IL-UI-01 | ✅ | banxe-platform/ — scaffold complete |
+| 45 | Design system (tokens, atoms, molecules) | IL-UI-01 | ✅ | packages/shared/src/tokens/ — colors, typography, spacing, breakpoints |
+| 46 | Mobile app (Expo SDK 53 + NativeWind) | IL-UI-01 | 🔄 | packages/mobile/ — scaffold done, SCA screen added |
+| 47 | Web app (Next.js 15 + shadcn/ui) | IL-UI-01 | 🔄 | packages/web/ — scaffold done, SCAChallenge added |
+| 48 | PSD2 SCA flows + KYC screens | IL-UI-01 | 🔄 | SCA stubs created (S14-08), wire-up Sprint 15 |
+| 49 | CLAUDE.md per package | IL-UI-01 | 🔄 | 3/4 done (web, mobile, ui) — shared pending |
+| 50 | .ai/registries/ (12 files) + .ai/reports/ (5 files) | IL-UI-01 | ✅ | 12 registries created (S14-09) |
 
 
 ## Phase 8 — Agent Routing Layer ⏳ PENDING
@@ -188,7 +186,7 @@ Infrastructure Checklist: 15/15 ✅
 | 67 | D2C Tests 80 plus | IL-D2C-01 | PENDING | tests/test_design_pipeline/ |(120+) | IL-ARL-01 | ⏳ | tests/test_agent_routing/ |
 ---
 
-*Last updated: 2026-04-11 by Perplexity Computer + Claude Code.*
+*Last updated: 2026-04-13 by Claude Code + Moriel Carmi.*
 
 *Last updated: 2026-04-09 by 
 
