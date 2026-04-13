@@ -154,20 +154,36 @@ Total: **12 registries** (4 existing + 8 new)
 
 ---
 
-## Acceptance Criteria Verification
+## Acceptance Criteria Verification (post S14-FIX)
 
 | Criterion | Target | Actual | Pass |
 |-----------|--------|--------|------|
 | All 12 tasks complete | 12/12 | 12/12 | ✅ |
 | Test coverage | ≥ 87% | 87.00% | ✅ |
-| Tests passing | ≥ 2,650 | 2,619 | ⚠️ |
+| Tests passing | ≥ 2,650 | **2,675** | ✅ |
 | Integration tests | ≥ 15 | 19 | ✅ |
 | Stub inventory entries | ≥ 20 | 41 | ✅ |
 | banxe-platform registries | 12 | 12 | ✅ |
+| packages/shared/CLAUDE.md | exists | ✅ created | ✅ |
+| ROADMAP.md Phase 7 status | IN PROGRESS | 🔄 IN PROGRESS | ✅ |
 | Pre-commit failures | 0 | 0 | ✅ |
 
-> ⚠️ Tests: target was ≥ 2,650 — actual is 2,619 (31 short). Recommend adding ~35 additional tests in Sprint 15
-> to pass the gate, or adjusting the threshold to ≥ 2,600 (coverage gate at 87% is met).
+**All criteria PASS. Sprint 14 + S14-FIX = 100% complete.**
+
+---
+
+## S14-FIX — Gap Closure (2026-04-13)
+
+All gaps identified in the initial Sprint 14 audit were closed in the same session:
+
+| Task | Description | Commit | Outcome |
+|------|-------------|--------|---------|
+| S14-FIX-1 | +56 tests (aml_thresholds, rule_engine, velocity_tracker, risk_scorer, bankstatement_parser, experiment_steward) | 895f4a8 | Tests: 2619 → **2675** ✅ |
+| S14-FIX-2 | ROADMAP.md Phase 7 ⏳→🔄, test matrix 995→2675, Phase 1 coverage note updated | 7d7b108 | ROADMAP accurate ✅ |
+| S14-FIX-3 | `packages/shared/CLAUDE.md` created with I-01/I-05 invariants, design tokens usage, backend sync table | 5844b6d (platform) | shared CLAUDE.md ✅ |
+| S14-FIX-4 | This audit update | — | Acceptance criteria all ✅ |
+
+**Gap closure time: same session as Sprint 14 (2026-04-13)**
 
 ---
 
