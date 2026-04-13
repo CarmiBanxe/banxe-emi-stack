@@ -16,6 +16,7 @@ Single entry point for all REST API routes. Exposes:
   POST /v1/auth/sca/challenge    — initiate PSD2 SCA challenge (Art.97)
   POST /v1/auth/sca/verify       — verify SCA challenge, receive dynamic-linking token
   GET  /v1/auth/sca/methods/{id} — available SCA methods for customer
+  POST /v1/auth/token/refresh    — rotate refresh token, issue new access token (PSD2 RTS)
 
 FCA compliance:
   - All requests logged with X-Request-ID (I-24 audit trail)

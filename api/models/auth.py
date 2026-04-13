@@ -25,5 +25,21 @@ class LoginRequest(BaseModel):
 
 
 class LoginResponse(BaseModel):
-    token: str = Field(..., description="JWT Bearer token")
-    expires_at: datetime = Field(..., description="Token expiry (UTC)")
+    token: str = Field(..., description="JWT Bearer token (access token)")
+    expires_at: datetime = Field(..., description="Access token expiry (UTC)")
+    refresh_token: str | None = Field(
+        None,
+        description="JWT refresh token — valid for 7 days. Pass to POST /v1/auth/token/refresh.",
+    )
+    token_type: str = Field(default="bearer", description="Token type")
+
+
+class TokenRefreshRequest(BaseModel):
+    refresh_token: str = Field(..., description="Refresh token from login response")
+
+
+class TokenRefreshResponse(BaseModel):
+    token: str = Field(..., description="New JWT Bearer token (access token)")
+    expires_at: datetime = Field(..., description="New access token expiry (UTC)")
+    refresh_token: str = Field(..., description="New refresh token (rotated)")
+    token_type: str = Field(default="bearer", description="Token type")

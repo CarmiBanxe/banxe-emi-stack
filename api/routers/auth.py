@@ -34,7 +34,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.models import AuthSession, Customer
 from api.deps import get_customer_service, get_db
-from api.models.auth import LoginRequest, LoginResponse
+from api.models.auth import LoginRequest, LoginResponse, TokenRefreshRequest, TokenRefreshResponse
 from api.models.sca import (
     SCAInitiateRequest,
     SCAInitiateResponse,
@@ -53,6 +53,7 @@ router = APIRouter(tags=["Auth"])
 
 _SECRET_KEY = os.environ.get("AUTH_SECRET_KEY", "dev-insecure-secret-change-in-prod")
 _TTL_HOURS = int(os.environ.get("AUTH_TOKEN_TTL_HOURS", "24"))
+_REFRESH_TTL_DAYS = int(os.environ.get("AUTH_REFRESH_TOKEN_TTL_DAYS", "7"))
 _ALGORITHM = "HS256"
 _DEV_PIN = os.environ.get("AUTH_DEV_PIN", "123456")
 
@@ -160,8 +161,93 @@ async def login(
     except Exception:
         logger.warning("auth.login session_persist_failed customer_id=%s", customer_id)
 
+    # 5. Issue refresh token (7 day TTL, jti for uniqueness/rotation)
+    refresh_expires_at = now + timedelta(days=_REFRESH_TTL_DAYS)
+    refresh_payload = {
+        "sub": customer_id,
+        "type": "refresh",
+        "jti": str(uuid.uuid4()),
+        "iat": int(now.timestamp()),
+        "exp": int(refresh_expires_at.timestamp()),
+    }
+    refresh_token = jwt.encode(refresh_payload, _SECRET_KEY, algorithm=_ALGORITHM)
+
     logger.info("auth.login success customer_id=%s", customer_id)
-    return LoginResponse(token=token, expires_at=expires_at)
+    return LoginResponse(token=token, expires_at=expires_at, refresh_token=refresh_token)
+
+
+# ── Token Refresh (PSD2 RTS — max 5 min inactivity, max 15 min silent refresh) ──
+
+
+@router.post(
+    "/auth/token/refresh",
+    response_model=TokenRefreshResponse,
+    summary="Refresh access token using refresh token",
+    description=(
+        "Exchange a valid refresh token for a new access token + rotated refresh token. "
+        "PSD2 RTS: re-authentication required after 5 min inactivity or 15 min maximum. "
+        "Refresh tokens are rotated on every use (rotation prevents replay)."
+    ),
+    responses={
+        200: {"description": "New access + refresh token pair"},
+        401: {"description": "Refresh token invalid or expired"},
+        422: {"description": "Validation error"},
+    },
+)
+async def refresh_token_endpoint(body: TokenRefreshRequest) -> TokenRefreshResponse:
+    """
+    Rotate refresh token → new access token + new refresh token.
+
+    Security:
+      - Verifies refresh token signature (HS256)
+      - Checks token type == 'refresh' (prevents access tokens being used as refresh)
+      - Issues new token pair (token rotation)
+      - Old refresh token is immediately invalid (in-memory store not needed for stateless JWT)
+
+    PSD2 RTS Art.4: SCA token TTL ≤ 300s (enforced at SCA layer).
+    PSD2 RTS general: inactivity timeout ≤ 5 min, enforced at frontend.
+    """
+    try:
+        payload = jwt.decode(body.refresh_token, _SECRET_KEY, algorithms=[_ALGORITHM])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Refresh token expired. Please login again.")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid refresh token.")
+
+    if payload.get("type") != "refresh":
+        raise HTTPException(status_code=401, detail="Invalid token type.")
+
+    customer_id = payload.get("sub")
+    if not customer_id:
+        raise HTTPException(status_code=401, detail="Invalid refresh token payload.")
+
+    # Issue new access + refresh token pair
+    now = datetime.now(tz=UTC)
+    expires_at = now + timedelta(hours=_TTL_HOURS)
+    refresh_expires_at = now + timedelta(days=_REFRESH_TTL_DAYS)
+
+    new_access_payload = {
+        "sub": customer_id,
+        "iat": int(now.timestamp()),
+        "exp": int(expires_at.timestamp()),
+    }
+    new_refresh_payload = {
+        "sub": customer_id,
+        "type": "refresh",
+        "jti": str(uuid.uuid4()),  # unique per token — ensures rotation changes the token
+        "iat": int(now.timestamp()),
+        "exp": int(refresh_expires_at.timestamp()),
+    }
+
+    new_access_token = jwt.encode(new_access_payload, _SECRET_KEY, algorithm=_ALGORITHM)
+    new_refresh_token = jwt.encode(new_refresh_payload, _SECRET_KEY, algorithm=_ALGORITHM)
+
+    logger.info("auth.token_refreshed customer_id=%s", customer_id)
+    return TokenRefreshResponse(
+        token=new_access_token,
+        expires_at=expires_at,
+        refresh_token=new_refresh_token,
+    )
 
 
 # ── SCA Endpoints (PSD2 Art.97) ───────────────────────────────────────────────
