@@ -316,3 +316,173 @@ class TestPaymentService:
         assert event["rail"] == "FPS"
         assert event["creditor_name"] == "Bob Smith"
         assert event["reference"] == "REF-042"
+
+
+# ── S13-05: Coverage gap tests (lines 53-55, 213-215, 258-260, 266-313, 343-363) ─
+
+
+class TestRailExceptionHandling:
+    """Lines 213-215: rail.submit_payment() raises → FAILED result, audit still written."""
+
+    def test_rail_exception_returns_failed_status(self):
+        from unittest.mock import MagicMock
+
+        ch = InMemoryReconClient()
+        rail = MagicMock()
+        rail.submit_payment.side_effect = RuntimeError("Rail is down")
+        svc = PaymentService(rail=rail, ch_client=ch)
+        result = svc.send_fps(amount=Decimal("50.00"), beneficiary=uk_account(), reference="Test")
+        assert result.status == PaymentStatus.FAILED
+        assert result.error_code == "SUBMISSION_ERROR"
+        assert "Rail is down" in (result.error_message or "")
+
+    def test_rail_exception_audit_still_written(self):
+        from unittest.mock import MagicMock
+
+        ch = InMemoryReconClient()
+        rail = MagicMock()
+        rail.submit_payment.side_effect = RuntimeError("Timeout")
+        svc = PaymentService(rail=rail, ch_client=ch)
+        svc.send_fps(amount=Decimal("10.00"), beneficiary=uk_account(), reference="R")
+        assert ch.call_count == 1  # audit written even on rail failure
+
+
+class TestClickhouseAuditFailure:
+    """Lines 258-260: ClickHouse.execute() raises → error logged, payment result returned."""
+
+    def test_ch_exception_does_not_suppress_payment_result(self):
+        from unittest.mock import MagicMock
+
+        adapter = MockPaymentAdapter()
+        ch = MagicMock()
+        ch.execute.side_effect = Exception("ClickHouse unavailable")
+        svc = PaymentService(rail=adapter, ch_client=ch)
+        result = svc.send_fps(amount=Decimal("25.00"), beneficiary=uk_account(), reference="R")
+        # Payment should succeed even if audit write fails (I-24 note)
+        assert result is not None
+        assert result.status == PaymentStatus.COMPLETED
+
+
+class TestEventBusEmission:
+    """Lines 266-290: _emit_event() with event bus wired."""
+
+    def _svc_with_event_bus(self, event_bus):
+        ch = InMemoryReconClient()
+        adapter = MockPaymentAdapter()
+        return PaymentService(rail=adapter, ch_client=ch, event_bus=event_bus)
+
+    def test_emit_event_called_on_completed_payment(self):
+        from unittest.mock import MagicMock
+
+        bus = MagicMock()
+        svc = self._svc_with_event_bus(bus)
+        svc.send_fps(amount=Decimal("10.00"), beneficiary=uk_account(), reference="R")
+        bus.publish.assert_called_once()
+
+    def test_emit_event_called_on_failed_payment(self):
+        from unittest.mock import MagicMock
+
+        bus = MagicMock()
+        ch = InMemoryReconClient()
+        adapter = MockPaymentAdapter(failure_rate=1.0)
+        svc = PaymentService(rail=adapter, ch_client=ch, event_bus=bus)
+        svc.send_fps(amount=Decimal("10.00"), beneficiary=uk_account(), reference="R")
+        bus.publish.assert_called_once()
+
+    def test_event_bus_failure_does_not_suppress_payment(self):
+        from unittest.mock import MagicMock
+
+        bus = MagicMock()
+        bus.publish.side_effect = Exception("Bus down")
+        svc = self._svc_with_event_bus(bus)
+        result = svc.send_fps(amount=Decimal("10.00"), beneficiary=uk_account(), reference="R")
+        assert result is not None
+        assert result.status == PaymentStatus.COMPLETED
+
+    def test_no_event_bus_skips_emit(self):
+        """Lines 264-265: early return when event_bus is None."""
+        svc, _, _ = make_service()  # no event_bus
+        # Should not raise
+        result = svc.send_fps(amount=Decimal("5.00"), beneficiary=uk_account(), reference="R")
+        assert result.status == PaymentStatus.COMPLETED
+
+
+class TestN8nWebhook:
+    """Lines 296-313: _notify_n8n() called for FAILED payments when N8N_WEBHOOK_URL set."""
+
+    def test_n8n_called_on_failed_payment(self, monkeypatch):
+        from unittest.mock import patch
+
+        monkeypatch.setenv("N8N_WEBHOOK_URL", "http://n8n-test:5678/webhook/payment")
+        # Reload module-level constant
+        import services.payment.payment_service as psvc
+
+        psvc.N8N_WEBHOOK_URL = "http://n8n-test:5678/webhook/payment"
+
+        ch = InMemoryReconClient()
+        adapter = MockPaymentAdapter(failure_rate=1.0)
+        svc = PaymentService(rail=adapter, ch_client=ch)
+
+        with patch("httpx.post") as mock_post:
+            svc.send_fps(amount=Decimal("10.00"), beneficiary=uk_account(), reference="R")
+            mock_post.assert_called_once()
+            call_json = mock_post.call_args[1]["json"]
+            assert call_json["event"] == "payment_failed"
+
+        psvc.N8N_WEBHOOK_URL = ""  # reset
+
+    def test_n8n_not_called_on_completed_payment(self, monkeypatch):
+        from unittest.mock import patch
+
+        import services.payment.payment_service as psvc
+
+        psvc.N8N_WEBHOOK_URL = "http://n8n-test:5678/webhook/payment"
+
+        svc, _, _ = make_service()
+        with patch("httpx.post") as mock_post:
+            svc.send_fps(amount=Decimal("10.00"), beneficiary=uk_account(), reference="R")
+            mock_post.assert_not_called()
+
+        psvc.N8N_WEBHOOK_URL = ""
+
+    def test_n8n_failure_does_not_suppress_result(self, monkeypatch):
+        from unittest.mock import patch
+
+        import services.payment.payment_service as psvc
+
+        psvc.N8N_WEBHOOK_URL = "http://n8n-test:5678/webhook/payment"
+
+        ch = InMemoryReconClient()
+        adapter = MockPaymentAdapter(failure_rate=1.0)
+        svc = PaymentService(rail=adapter, ch_client=ch)
+
+        with patch("httpx.post", side_effect=Exception("n8n down")):
+            result = svc.send_fps(amount=Decimal("10.00"), beneficiary=uk_account(), reference="R")
+        assert result.status == PaymentStatus.FAILED
+
+        psvc.N8N_WEBHOOK_URL = ""
+
+
+class TestBuildPaymentServiceFactory:
+    """Lines 343-363: build_payment_service() both branches."""
+
+    def test_build_with_mock_adapter(self, monkeypatch):
+        from services.payment.payment_service import build_payment_service
+
+        monkeypatch.setenv("PAYMENT_ADAPTER", "mock")
+        import services.payment.payment_service as psvc
+
+        psvc.PAYMENT_ADAPTER = "mock"
+
+        from services.recon.clickhouse_client import InMemoryReconClient
+
+        svc = build_payment_service(ch_client=InMemoryReconClient())
+        assert svc is not None
+        assert isinstance(svc, PaymentService)
+
+    def test_get_event_bus_types_importable(self):
+        """Lines 53-55: _get_event_bus_types() lazy import works."""
+        from services.payment.payment_service import _get_event_bus_types
+
+        types = _get_event_bus_types()
+        assert len(types) == 3  # BanxeEventType, DomainEvent, InMemoryEventBus
