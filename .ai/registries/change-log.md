@@ -6,6 +6,29 @@
 
 ## Migration changelog
 
+### 2026-04-13 — Sprint 12: CASS 15 Safeguarding + Tri-Party Recon API
+- Created `api/routers/safeguarding.py` — 6 CASS 15 endpoints (position, accounts, breaches, reconcile, resolution-pack, fca-return)
+- Created `api/routers/recon.py` — 3 tri-party recon endpoints (status, report, history)
+- Registered both routers in `api/main.py` (prefix `/v1`)
+- Created `src/products/emi_products.py` — EMI product catalogue (GAP-014)
+- Created `src/api/gateway.py` — API gateway with auth, rate-limiting, idempotency (GAP-023)
+- Created tests: `test_api_safeguarding.py` (44 tests), `test_api_recon.py` (27 tests), `test_src_products.py` (35 tests), `test_src_api.py` (40 tests), `test_src_billing.py` (36 tests), `test_src_safeguarding_agent.py` (30 tests)
+- Fixed CI: added `--cov=src` to pyproject.toml + quality-gate.yml; coverage now 80.92%
+- Added mypy `[tool.mypy]` config to pyproject.toml; added mypy hook to .pre-commit-config.yaml
+- Fixed Bandit B602: `shell=True` → list args in `services/design_pipeline/token_extractor.py`
+- Merged `refactor/claude-ai-scaffold` → `main` (179 commits, 590 files)
+- API total: 42 → 78 endpoints
+- Test total: 2227 passed, 3 skipped
+- Commit: `feat(safeguarding): CASS 15 API router + tri-party recon — Sprint 12`
+
+### 2026-04-12 — Sprint 11: Statements + Auth + Compliance KB + Experiments + Transaction Monitor
+- Added `api/routers/statements.py` — 2 statement download endpoints
+- Added `api/routers/auth.py` — JWT login endpoint
+- Added `api/routers/compliance_kb.py` — 8 RAG knowledge base endpoints
+- Added `api/routers/experiments.py` — 8 A/B experimentation endpoints
+- Added `api/routers/transaction_monitor.py` — 8 real-time monitoring endpoints
+- Repo verification: 14/14 BANXE repos ✅ all 5 criteria
+
 ### 2026-04-10 — Phase 3: Scaffold Creation (CP-1)
 - Created `.claude/rules/` — 7 modular policy files
 - Created `.claude/commands/` — 5 slash-command workflows

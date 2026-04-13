@@ -44,7 +44,9 @@ from api.routers import (
     mlro_notifications,
     notifications,
     payments,
+    recon,
     reporting,
+    safeguarding,
     sanctions_rescreen,
     statements,
     transaction_monitor,
@@ -123,3 +125,5 @@ app.include_router(
 app.include_router(compliance_kb.router)  # GET/POST /v1/kb/* (IL-CKS-01)
 app.include_router(experiments.router, prefix="/v1")  # GET/POST /v1/experiments/* (IL-CEC-01)
 app.include_router(transaction_monitor.router, prefix="/v1")  # GET/POST /v1/monitor/* (IL-RTM-01)
+app.include_router(safeguarding.router, prefix="/v1")  # CASS 15 safeguarding (6 endpoints)
+app.include_router(recon.router, prefix="/v1")  # Reconciliation (3 endpoints)

@@ -1,7 +1,7 @@
 # API Map — banxe-emi-stack
 # Source: api/routers/, api/models/, api/main.py, services/payment/openapi.yml
-# Created: 2026-04-10 | Updated: 2026-04-10 (Phase 5 intelligence pass)
-# Migration Phase: 5
+# Created: 2026-04-10 | Updated: 2026-04-13 (Sprint 12: safeguarding + recon routers)
+# Migration Phase: 12
 # Purpose: All API endpoints with exact paths, methods, models, auth
 
 ## Overview
@@ -9,7 +9,7 @@
 - Framework: FastAPI (IL-046)
 - Entrypoint: `api/main.py`
 - Dependencies: `api/deps.py`
-- Total endpoints: 42
+- Total endpoints: 78
 - Auth: Keycloak OIDC (7 roles, realm: banxe)
 - Base prefix: `/v1` (applied via `app.include_router(..., prefix="/v1")` for most routers)
 
@@ -127,6 +127,70 @@
 |---|--------|----------|---------|
 | 42 | POST | `/webhooks/watchman` | Receive watchman list update |
 
+### Auth (`api/routers/auth.py`) — prefix: `/v1`
+| # | Method | Full path | Purpose |
+|---|--------|----------|---------|
+| 43 | POST | `/v1/auth/login` | Authenticate, return JWT |
+
+### Statements (`api/routers/statements.py`) — prefix: `/v1`
+| # | Method | Full path | Purpose |
+|---|--------|----------|---------|
+| 44 | GET | `/v1/accounts/{account_id}/statement` | Download account statement (JSON) |
+| 45 | GET | `/v1/accounts/{account_id}/statement/csv` | Download account statement (CSV) |
+
+### Compliance KB (`api/routers/compliance_kb.py`) — prefix: `/v1`
+| # | Method | Full path | Purpose |
+|---|--------|----------|---------|
+| 46 | GET | `/v1/kb/search` | Search compliance knowledge base |
+| 47 | POST | `/v1/kb/ingest` | Ingest compliance document |
+| 48 | GET | `/v1/kb/documents` | List all KB documents |
+| 49 | GET | `/v1/kb/documents/{doc_id}` | Get KB document |
+| 50 | DELETE | `/v1/kb/documents/{doc_id}` | Delete KB document |
+| 51 | POST | `/v1/kb/ask` | Ask compliance question (RAG) |
+| 52 | GET | `/v1/kb/stats` | KB statistics |
+| 53 | POST | `/v1/kb/rebuild` | Rebuild KB embeddings |
+
+### Experiments (`api/routers/experiments.py`) — prefix: `/v1` (IL-CEC-01)
+| # | Method | Full path | Purpose |
+|---|--------|----------|---------|
+| 54 | GET | `/v1/experiments` | List experiments |
+| 55 | POST | `/v1/experiments` | Create experiment |
+| 56 | GET | `/v1/experiments/{experiment_id}` | Get experiment |
+| 57 | PUT | `/v1/experiments/{experiment_id}` | Update experiment |
+| 58 | DELETE | `/v1/experiments/{experiment_id}` | Delete experiment |
+| 59 | POST | `/v1/experiments/{experiment_id}/enroll` | Enroll customer in experiment |
+| 60 | GET | `/v1/experiments/{experiment_id}/results` | Get experiment results |
+| 61 | POST | `/v1/experiments/{experiment_id}/conclude` | Conclude experiment |
+
+### Transaction Monitor (`api/routers/transaction_monitor.py`) — prefix: `/v1` (IL-RTM-01)
+| # | Method | Full path | Purpose |
+|---|--------|----------|---------|
+| 62 | GET | `/v1/monitor/alerts` | List monitoring alerts |
+| 63 | POST | `/v1/monitor/alerts` | Create monitoring alert |
+| 64 | GET | `/v1/monitor/alerts/{alert_id}` | Get alert detail |
+| 65 | POST | `/v1/monitor/alerts/{alert_id}/resolve` | Resolve alert |
+| 66 | GET | `/v1/monitor/rules` | List monitoring rules |
+| 67 | POST | `/v1/monitor/rules` | Create monitoring rule |
+| 68 | PUT | `/v1/monitor/rules/{rule_id}` | Update monitoring rule |
+| 69 | DELETE | `/v1/monitor/rules/{rule_id}` | Delete monitoring rule |
+
+### Safeguarding (`api/routers/safeguarding.py`) — prefix: `/v1` (CASS 15)
+| # | Method | Full path | Purpose |
+|---|--------|----------|---------|
+| 70 | GET | `/v1/safeguarding/position` | Daily client funds position (CASS 7.15.17R) |
+| 71 | GET | `/v1/safeguarding/accounts` | Designated safeguarding accounts list (CASS 7.13) |
+| 72 | GET | `/v1/safeguarding/breaches` | Breach history log (CASS 7.15.29R) |
+| 73 | POST | `/v1/safeguarding/reconcile` | Trigger daily reconciliation (CASS 7.15.17R) |
+| 74 | GET | `/v1/safeguarding/resolution-pack` | Export resolution pack (CASS 15.12) |
+| 75 | POST | `/v1/safeguarding/fca-return` | Generate FIN060 monthly FCA return (CASS 15.12.4R) |
+
+### Reconciliation (`api/routers/recon.py`) — prefix: `/v1` (CASS 7.15)
+| # | Method | Full path | Purpose |
+|---|--------|----------|---------|
+| 76 | GET | `/v1/recon/status` | Latest tri-party reconciliation status |
+| 77 | GET | `/v1/recon/report` | Full tri-party recon report (3 legs) |
+| 78 | GET | `/v1/recon/history` | Reconciliation history (last N days) |
+
 ## API models
 
 | File | Domain | Key models |
@@ -172,7 +236,14 @@
 | MLRO Notifications | 1 | /internal (router-level) |
 | Sanctions | 1 | /compliance (router-level) |
 | Webhooks | 1 | /webhooks (router-level) |
-| **Total** | **42** | |
+| Auth | 1 | /v1 |
+| Statements | 2 | /v1 |
+| Compliance KB | 8 | /v1 |
+| Experiments | 8 | /v1 |
+| Transaction Monitor | 8 | /v1 |
+| **Safeguarding (Sprint 12)** | **6** | /v1 |
+| **Reconciliation (Sprint 12)** | **3** | /v1 |
+| **Total** | **78** | |
 
 ---
-*Last updated: 2026-04-10 (Phase 5 system intelligence pass)*
+*Last updated: 2026-04-13 (Sprint 12: safeguarding CASS 15 + tri-party recon API)*

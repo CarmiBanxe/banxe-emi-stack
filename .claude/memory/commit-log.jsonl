@@ -18,3 +18,4 @@
 {"ts":"2026-04-13T02:56:10Z","hash":"cc97e99","il":null,"type":null,"msg":"ops: add systemd user-service for compliance-api :8093","files_changed":1,"areas":[]}
 {"ts":"2026-04-13T03:43:42Z","hash":"6668d7d","il":null,"type":"feat","msg":"feat(safeguarding): implement CASS 15 src/safeguarding/ module — GAP-003, GAP-004 DONE","files_changed":6,"areas":["tests"]}
 {"ts":"2026-04-13T03:52:34Z","hash":"cabfb2f","il":null,"type":"feat","msg":"feat(settlement): tri-party reconciliation engine — GAP-010 D-recon DONE","files_changed":3,"areas":["tests"]}
+{"ts":"2026-04-13T04:23:25Z","hash":"f44251b","il":null,"type":"feat","msg":"feat: Sprint 12 fixup — GAP-051,017,019,014,023 completed","files_changed":13,"areas":["tests"]}
