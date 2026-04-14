@@ -1,14 +1,15 @@
 # Project Map — banxe-emi-stack
 # Source: Full repo scan (FUNCTION 1 — Architecture Skill Orchestrator)
-# Created: 2026-04-10 | Updated: 2026-04-13 (Sprint 14)
+# Created: 2026-04-10 | Updated: 2026-04-14 (Sprint 15)
 # Purpose: Living project structure and module map
 
-## Stats (2026-04-13 — Sprint 14)
+## Stats (2026-04-14 — Sprint 15)
 
-- Python files: ~120+ (services/ + api/ + src/) | LoC: ~18,000+
-- Service modules: 24 | Test files: 60+ | Tests: 2,619 | Coverage: 87.00%
-- API routers: 18 | Endpoints: 78 | Pydantic models: 30+
-- Service adapters: 14 (Mock/Jube/Sardine/Modulr/SendGrid/Balleryne/Marble/Keycloak/Midaz/Stub…)
+- Python files: ~125+ (services/ + api/ + src/) | LoC: ~19,000+
+- Service modules: 25 | Test files: 63+ | Tests: 2,700 | Coverage: 87%+ (target: 89%)
+- API routers: 18 | Endpoints: 83 | Pydantic models: 35+ (added SCA, refresh)
+- Service adapters: 15 (Mock/Jube/Sardine/Modulr/SendGrid/Balleryne/Marble/Keycloak/Midaz/Stub/OpenAI…)
+- New in S15: services/auth/sca_service.py, api/models/sca.py, token refresh, OpenAI embedding adapter
 - Docker compose files: 3 | Docker services: 8 (3 always-on + 5 on-demand)
 - Agents (swarm): 7 compliance agents + 1 coordinator
 - Python: 3.12 | FastAPI: 0.111+ | Pydantic: 2.0+

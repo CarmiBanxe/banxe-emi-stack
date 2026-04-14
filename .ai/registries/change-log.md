@@ -1,10 +1,32 @@
 # Change Log — AI Migration Tracking
 # Source: CHANGELOG.md reference + migration tracking
-# Created: 2026-04-10 | Updated: 2026-04-13 (Sprint 14)
-# Migration Phase: 14
+# Created: 2026-04-10 | Updated: 2026-04-14 (Sprint 15)
+# Migration Phase: 15
 # Purpose: Ongoing change tracking for AI-assisted development
 
 ## Migration changelog
+
+### 2026-04-14 — Sprint 15: PSD2 SCA Backend + Token Refresh + Stub Resolution + E2E Tests
+
+**S15-01: POST /auth/sca — PSD2 SCA Backend**
+- `services/auth/sca_service.py`: SCAService + InMemorySCAStore (OTP/biometric, dynamic linking, replay prevention, rate limiting)
+- `api/models/sca.py`: SCAInitiateRequest/Response, SCAVerifyRequest/Response, SCAMethodsResponse
+- `api/routers/auth.py`: POST /auth/sca/challenge (201), POST /auth/sca/verify (200/429), GET /auth/sca/methods/{id}
+- `tests/test_api_sca.py`: 17 tests
+- Commits: `feat(S15-01)`, `1ce9546`
+
+**S15-05: POST /auth/token/refresh — PSD2 RTS Token Rotation**
+- `api/models/auth.py`: refresh_token added to LoginResponse; TokenRefreshRequest/Response
+- `api/routers/auth.py`: Login issues refresh_token (7d, jti); POST /v1/auth/token/refresh (rotation)
+- `tests/test_api_token_refresh.py`: 8 tests (rotation, expiry, wrong type, bad signature)
+- Commits: `feat(S15-05)`, `f2939c5`
+
+**S15-06: 8/9 Stub Resolution**
+- `services/compliance_kb/embeddings/embedding_service.py`: OpenAIEmbeddingService + env-var factory (EMBEDDING_ADAPTER=openai|sentence_transformers|inmemory)
+- `services/experiment_copilot/agents/experiment_designer.py`: make_kb_port() factory (KB_ADAPTER=http → HTTPKBPort)
+- `services/transaction_monitor/store/alert_store.py`: get_alert_store() factory (ALERT_STORE=inmemory|db)
+- `docs/STUB-INVENTORY.md`: Sprint 15 Resolution Log (8 RESOLVED, 1 BLOCKED:EXTERNAL)
+- Commits: `feat(S15-06)`, `80b467c`
 
 ### 2026-04-13 — Sprint 14: Stub Inventory + E2E Tests + Coverage 87% + SCA + Platform Registries
 
