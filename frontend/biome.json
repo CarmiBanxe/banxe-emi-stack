@@ -28,7 +28,7 @@
       },
       "suspicious": {
         "noExplicitAny": "warn",
-        "noConsoleLog": "warn"
+        "noConsole": "warn"
       },
       "performance": {
         "noBarrelFile": "off"
