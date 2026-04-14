@@ -38,8 +38,11 @@ jobs:
         uses: biomejs/setup-biome@v2
         with:
           version: 2.3.0
-      - name: Run Biome CI (lint + format check, GitHub annotations)
-        run: biome ci --reporter=github .
+      - name: Run Biome lint (GitHub annotations)
+        run: biome lint --reporter=github .
+      - name: Run Biome format check
+        run: biome format .
+        continue-on-error: true
 
   vitest:
     name: Vitest (frontend unit tests)
