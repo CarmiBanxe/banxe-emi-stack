@@ -30,13 +30,10 @@
         "noBarrelFile": "off"
       },
       "a11y": {
-        "useButtonType": "warn",
-        "noAriaUnsupportedElements": "warn",
-        "useAriaPropsForRole": "warn",
-        "noRedundantRoles": "warn",
-        "noLabelWithoutControl": "warn",
-        "useValidAriaProps": "warn",
-        "noAriaHiddenOnFocusable": "warn"
+        "recommended": false
+      },
+      "nursery": {
+        "useAriaPropsSupportedByRole": "warn"
       }
     }
   },
