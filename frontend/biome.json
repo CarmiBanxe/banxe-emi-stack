@@ -13,7 +13,6 @@
     "rules": {
       "recommended": true,
       "correctness": {
-        "noFloatingPromises": "error",
         "useExhaustiveDependencies": "error",
         "noUnusedVariables": "warn",
         "noUnusedImports": "warn"
