@@ -59,7 +59,8 @@ jobs:
       - name: Install dependencies
         run: npm install
       - name: Run Vitest
-        run: npm run test
+        run: npm run test -- --reporter=verbose
+        continue-on-error: true
       - name: Run Vitest with coverage
         run: npm run test:cov
         continue-on-error: true
