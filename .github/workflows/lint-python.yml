@@ -14,19 +14,20 @@ on:
       - "**.py"
       - "pyproject.toml"
 
+permissions:
+  security-events: write
+  contents: read
+
 jobs:
   ruff:
     name: Ruff lint + format
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Ruff lint (check mode, GitHub annotations)
         uses: astral-sh/ruff-action@v3
         with:
           args: "check --output-format=github"
-
       - name: Ruff format (check only)
         uses: astral-sh/ruff-action@v3
         with:
@@ -35,16 +36,12 @@ jobs:
   semgrep:
     name: Semgrep security rules
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Install semgrep
         run: pip install semgrep
-
       - name: Run Semgrep (banxe custom rules)
         run: semgrep --config .semgrep/banxe-rules.yml --error --sarif-output=semgrep.sarif || true
-
       - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@v3
         if: always()
