@@ -31,9 +31,6 @@
       },
       "a11y": {
         "recommended": false
-      },
-      "nursery": {
-        "useAriaPropsSupportedByRole": "warn"
       }
     }
   },
