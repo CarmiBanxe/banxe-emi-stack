@@ -23,10 +23,20 @@
       },
       "suspicious": {
         "noExplicitAny": "warn",
-        "noConsole": "warn"
+        "noConsole": "warn",
+        "noArrayIndexKey": "warn"
       },
       "performance": {
         "noBarrelFile": "off"
+      },
+      "a11y": {
+        "useButtonType": "warn",
+        "noAriaUnsupportedElements": "warn",
+        "useAriaPropsForRole": "warn",
+        "noRedundantRoles": "warn",
+        "noLabelWithoutControl": "warn",
+        "useValidAriaProps": "warn",
+        "noAriaHiddenOnFocusable": "warn"
       }
     }
   },
