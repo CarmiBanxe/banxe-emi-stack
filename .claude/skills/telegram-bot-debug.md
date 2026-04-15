@@ -1,6 +1,8 @@
 ---
 name: telegram-bot-debug
 description: Diagnose and fix Telegram bot @mycarmi_moa_bot (OpenClaw MOA, port 18789)
+  user-invocable: false
+  disable-model-invocation: true
 context: fork
 agent: Explore
 allowed-tools: Bash(docker *), Bash(curl *), Bash(git *), Bash(cat *), Bash(grep *)
