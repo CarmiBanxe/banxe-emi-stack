@@ -168,9 +168,9 @@ Infrastructure Checklist: 15/15 ✅
 | 52 | Playbook Engine (YAML routing rules) | IL-ARL-01 | ✅ | config/playbooks/ |
 | 53 | ReasoningBank (vector store + case memory) | IL-ARL-01 | ✅ | services/reasoning_bank/ |
 | 54 | Swarm Orchestrator (star/hierarchy/ring) | IL-ARL-01 | ✅ | services/swarm/ |
-| 55 | Specialized Agents (5 agents) | IL-ARL-01 | ⏳ | services/swarm/agents/ |
-| 56 | Telemetry + Policy Engine | IL-ARL-01 | ⏳ | ClickHouse + Grafana |
-| 57 | MCP Tools (4 new tools) | IL-ARL-01 | ⏳ | banxe_mcp/tools/ |
+| 55 | Specialized Agents (5 agents) | IL-ARL-01 | ✅ | services/swarm/agents/ |
+| 56 | Telemetry + Policy Engine | IL-ARL-01 | ✅ | ClickHouse + Grafana |
+| 57 | MCP Tools (4 new tools) | IL-ARL-01 | ✅ | banxe_mcp/tools/ |
 | 58 | Agent Routing Tests 
 
 ## Phase 9 — Design-to-Code Pipeline PENDING
@@ -185,7 +185,7 @@ Infrastructure Checklist: 15/15 ✅
 | 64 | Visual QA Agent | IL-D2C-01 | PENDING | BackstopJS Loki |
 | 65 | BANXE UI Agents | IL-D2C-01 | PENDING | compliance txn report |
 | 66 | D2C MCP Tools 4 tools | IL-D2C-01 | PENDING | banxe_mcp tools |
-| 67 | D2C Tests 80 plus | IL-D2C-01 | PENDING | tests/test_design_pipeline/ |(120+) | IL-ARL-01 | ⏳ | tests/test_agent_routing/ |
+| 67 | D2C Tests 80 plus | IL-D2C-01 | PENDING | tests/test_design_pipeline/ |(120+) | IL-ARL-01 | ✅ | tests/test_agent_routing/ |
 ---
 
 *Last updated: 2026-04-14 by Claude Code + Moriel Carmi.*
@@ -260,18 +260,18 @@ FCA: Consumer Duty PS22/9 §4 (Consumer Support outcome)
 
 | # | Feature | IL | Status | Notes |
 |---|---------|-----|--------|-------|
-| 96 | Listmonk self-hosted (AGPL) — email campaigns | IL-MKT-01 | ⏳ | infra/listmonk/ |
-| 97 | Plausible Analytics self-hosted (MIT) — privacy-first web analytics | IL-MKT-01 | ⏳ | infra/plausible/ |
-| 98 | CampaignAgent — email/push campaign orchestration | IL-MKT-01 | ⏳ | services/marketing/ |
-| 99 | LeadScoringAgent — behavioral scoring (ClickHouse + scikit-learn) | IL-MKT-01 | ⏳ | services/marketing/ |
-| 100 | ContentAgent — compliance-safe content generation (Ollama) | IL-MKT-01 | ⏳ | services/marketing/ |
-| 101 | OnboardingNurtureAgent — incomplete KYC follow-up sequences | IL-MKT-01 | ⏳ | n8n + Notifications |
-| 102 | AnalyticsAgent — UTM, cohort analysis, conversion funnels | IL-MKT-01 | ⏳ | Plausible + ClickHouse |
-| 103 | Marketing ClickHouse schema (campaigns, leads, events) | IL-MKT-01 | ⏳ | scripts/schema/ |
-| 104 | FastAPI /v1/marketing endpoints (5+) | IL-MKT-01 | ⏳ | api/routers/marketing.py |
-| 105 | FCA COBS 4 compliance gate (financial promotions review) | IL-MKT-01 | ⏳ | HITL: MLRO review |
-| 106 | Agent passports + SOUL files (5 agents) | IL-MKT-01 | ⏳ | agents/passports/marketing/ |
-| 107 | Marketing Tests (60+) | IL-MKT-01 | ⏳ | tests/test_marketing/ |
+| 96 | Listmonk self-hosted (AGPL) — email campaigns | IL-MKT-01 | ✅ | infra/listmonk/ |
+| 97 | Plausible Analytics self-hosted (MIT) — privacy-first web analytics | IL-MKT-01 | ✅ | infra/plausible/ |
+| 98 | CampaignAgent — email/push campaign orchestration | IL-MKT-01 | ✅ | services/marketing/ |
+| 99 | LeadScoringAgent — behavioral scoring (ClickHouse + scikit-learn) | IL-MKT-01 | ✅ | services/marketing/ |
+| 100 | ContentAgent — compliance-safe content generation (Ollama) | IL-MKT-01 | ✅ | services/marketing/ |
+| 101 | OnboardingNurtureAgent — incomplete KYC follow-up sequences | IL-MKT-01 | ✅ | n8n + Notifications |
+| 102 | AnalyticsAgent — UTM, cohort analysis, conversion funnels | IL-MKT-01 | ✅ | Plausible + ClickHouse |
+| 103 | Marketing ClickHouse schema (campaigns, leads, events) | IL-MKT-01 | ✅ | scripts/schema/ |
+| 104 | FastAPI /v1/marketing endpoints (5+) | IL-MKT-01 | ✅ | api/routers/marketing.py |
+| 105 | FCA COBS 4 compliance gate (financial promotions review) | IL-MKT-01 | ✅ | HITL: MLRO review |
+| 106 | Agent passports + SOUL files (5 agents) | IL-MKT-01 | ✅ | agents/passports/marketing/ |
+| 107 | Marketing Tests (60+) | IL-MKT-01 | ✅ | tests/test_marketing/ |
 
 OSS Stack: Listmonk (AGPL) + Plausible (MIT) + Ollama + scikit-learn + n8n + ClickHouse
 FCA: COBS 4 (financial promotions), Consumer Duty PS22/9 
