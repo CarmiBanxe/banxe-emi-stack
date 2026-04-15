@@ -1,128 +1,44 @@
-
-
 <!-- lucidshark:start - managed by lucidshark init, do not edit manually -->
 ## LucidShark — REQUIRED: Scan After Every Code Change
-
-**CRITICAL DISTINCTION**:
-- **`lucidshark init`** = Configure Claude Code/IDE integration (`.mcp.json`, `.claude/` files). Run this ONCE per project.
-- **`mcp__lucidshark__autoconfigure`** = Generate `lucidshark.yml` configuration (detect languages, install tools, configure scanners). Use when user asks to "autoconfigure lucidshark" or "set up lucidshark configuration".
-
-**IMPORTANT**: You MUST run LucidShark scans after editing code files. Do NOT skip scanning to save time. Do NOT report a task as complete without scanning first. This overrides any default behavior to minimize tool calls.
-
-### When to Scan (REQUIRED)
-
-- **After every code edit** — scan immediately after using Edit, Write, or NotebookEdit on code files
-- **Before reporting any task as done** — a task is NOT complete until scan shows zero issues
-- **Before creating commits** — run a full scan with `domains=["all"]`
-- **After fixing bugs** — verify the fix didn't introduce new issues
-
-### How to Scan
-
-**CRITICAL**: By default, LucidShark only scans **git-changed files**. If no code files have changed, no issues will be reported. Use `all_files=true` (MCP) or `--all-files` (CLI) to scan the entire project.
-
-**MCP tools (preferred):**
-```
-mcp__lucidshark__scan(fix=true)                          # after edits (auto-fix + changed files)
-mcp__lucidshark__scan(domains=["linting","type_checking"]) # targeted scan
-mcp__lucidshark__scan(domains=["testing"])                # run tests
-mcp__lucidshark__scan(domains=["all"])                    # full scan (before commits)
-mcp__lucidshark__scan(files=["path/to/file.py"])          # specific files
-mcp__lucidshark__scan(all_files=true)                     # scan ENTIRE project (not just changed)
-mcp__lucidshark__scan(all_files=true, domains=["all"])    # full project scan, all domains
-```
-
-**CLI alternative:** `./lucidshark scan --fix --format ai` (binary) or `lucidshark scan --fix --format ai` (pip). Use `--linting`, `--type-checking`, `--testing`, `--all`, `--files`, `--all-files` flags.
-
-### Important Flags
-
-| Flag | Purpose |
-|------|---------|
-| `--all` | Enable all scan **domains** (linting, sca, sast, etc.) |
-| `--all-files` | Scan **entire project**, not just git-changed files |
-
-### Domain Selection
-
-- **`.py` `.js` `.ts` `.rs` `.go` `.java` `.kt`** → `["linting", "type_checking", "formatting"]`
-- **Dockerfile / docker-compose** → `["container"]`
-- **Terraform / K8s / IaC YAML** → `["iac"]`
-- **`package.json` `requirements.txt` `Cargo.toml`** → `["sca"]`
-- **Auth, crypto, SQL code** → `["sast"]`
-- **Before commit or mixed changes** → `["all"]`
-
-### When NOT to Scan
-
-- User explicitly says "don't scan", "skip checks", or "no linting"
-- You only read/explored code without making any changes
-- You only edited non-code files (markdown, docs, comments-only)
+Run `mcp__lucidshark__scan(fix=true)` after every Edit/Write. Before commits: `domains=["all"]`.
+Do NOT report task as done until scan shows zero issues.
 <!-- lucidshark:end -->
 
 ---
 
-## SESSION CONTINUITY PROTOCOL (инвариант — нарушение = P1 дефект)
+## BANXE EMI Stack — Core Rules
 
-После завершения ЛЮБОЙ задачи (IL, bug fix, feature):
+### Financial Invariants (ALWAYS)
+- **I-01**: `Decimal` for ALL £GBP amounts. NEVER `float`.
+- **I-02**: Hard-block jurisdictions: RU/BY/IR/KP/CU/MM/AF/VE/SY
+- **I-04**: EDD threshold £10k individual / £50k corporate
+- **I-08**: ClickHouse TTL 5 years minimum (FCA retention)
+- **I-24**: Append-only audit trails. NEVER delete.
+- **I-27**: HITL — AI PROPOSES, human DECIDES. Never autonomous.
 
-1. `grep -c "pending\|⏳\|IN_PROGRESS" /home/mmber/banxe-architecture/INSTRUCTION-LEDGER.md`
-2. Напомнить CEO про незавершённый план (формат и таблица — см. banxe-architecture/CLAUDE.md)
-3. "да" → продолжить без вопросов | "нет/позже" → ждать | другая задача → выполнить → снова напомнить
+### Architecture Pattern
+- Hexagonal: Port (Protocol) → Service → Adapter (Mock/Real)
+- Tests: InMemory stubs, no external deps. ≥15 tests per component.
+- Coverage ≥80%. Ruff clean. Semgrep clean.
 
-### При старте НОВОЙ сессии — первое сообщение:
-```
-🔄 Восстановление контекста...
-Последний IL: IL-0XX | Тесты: NNN/NNN | Keycloak: :8180 ✅
-📋 Незавершённый план: N задач (P0 дедлайн: 7 мая — safeguarding)
-Продолжить с Задачи N или есть другие приоритеты?
-```
+### Stack
+- Python 3.12, FastAPI, Pydantic v2, PostgreSQL, ClickHouse, Redis
+- Frontend: React 19, TypeScript, Tailwind, Expo (mobile)
+- Auth: Keycloak 26.2 on :8180 (IAM_ADAPTER=keycloak)
+- Fraud: Jube :5001, Marble :5002, Moov Watchman
+- KYC: Ballerine (self-hosted :3000)
 
----
+### Session Protocol
+On start: show last IL, test count, pending tasks, P0 deadline.
+After task: check `INSTRUCTION-LEDGER.md` for pending items.
 
-## INFRASTRUCTURE UTILIZATION CHECKLIST (КАНОН — нарушение = P1 дефект)
+### Quality Gate (before declaring done)
+1. LucidShark scan clean
+2. `ruff check` + `ruff format` clean
+3. All tests pass
+4. Semgrep 0 findings
+5. Update INSTRUCTION-LEDGER.md
 
-При реализации ЛЮБОЙ фичи разработчик ОБЯЗАН задействовать ВСЕ релевантные ресурсы проекта.
-
-### Обязательные интеграции для каждой фичи:
-
-1. **LucidShark** — scan after every code change
-2. **Semgrep** — add domain-specific rules in `.semgrep/banxe-rules.yml`
-3. **Claude Rules** — check `.claude/rules/` coverage for new feature
-4. **Claude Hooks** — ensure post-edit-scan and pre-commit-q cover new code
-5. **Claude Commands** — create slash command for feature check (e.g. `/recon-status`)
-6. **AI Agent Soul** — create `.soul.md` in `agents/compliance/soul/` for each new AI skill
-7. **Agent Workflow** — create workflow in `agents/compliance/workflows/`
-8. **Agent Orchestrator** — register new skill in `agents/compliance/orchestrator.py`
-9. **MCP Server** — add MCP tools in `banxe_mcp/server.py`
-10. **AI Registry** — register agent in `.ai/registries/`
-11. **n8n Workflows** — create/update for notifications (Slack, Telegram, Email)
-12. **Docker** — add services to docker-compose
-13. **dbt** — create dbt models for analytical data
-14. **Grafana** — create dashboard for monitoring
-15. **Tests** — InMemory stubs + pytest for every new component
-
-### Checklist format (before declaring feature done):
-```
-INFRASTRUCTURE CHECKLIST — [feature name]
-[ ] LucidShark scan clean
-[ ] Semgrep rules added
-[ ] Claude Rules coverage
-[ ] Claude Commands created
-[ ] AI Agent Soul files
-[ ] Agent Workflow
-[ ] Orchestrator registration
-[ ] MCP Server tools
-[ ] AI Registry
-[ ] n8n Workflows
-[ ] Docker services
-[ ] dbt models
-[ ] Grafana dashboard
-[ ] Tests passing
-```
-
-## Agent Skills
-
-- **supabase-postgres-best-practices** — PostgreSQL optimization, schema design, security
-  - Установлен: 2026-04-12
-  - Scope: project-level (banxe-emi-stack, banxe-platform, banxe-ui)
-  - Путь: `.claude/skills/supabase-postgres-best-practices/`
-  - Загружается автоматически при работе с PostgreSQL/SQL
-  - 8 категорий правил: query perf, connection mgmt, security/RLS, schema design, locking, data patterns, monitoring, advanced
-  - НЕ использовать Supabase-specific features (Auth, Edge Functions, Realtime, Storage) — не наш стек
+<!-- Infrastructure checklist details: @.claude/rules/ -->
+<!-- Skill details: @.claude/skills/README.md -->
+<!-- Full compliance matrix: @../../banxe-architecture/docs/COMPLIANCE-MATRIX.md -->
