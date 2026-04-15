@@ -1,12 +1,35 @@
 {
+  "model": "sonnet",
+  "env": {
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "60",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "haiku"
+  },
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ \"$(git branch --show-current)\" != \"main\" ] || { echo '{\"decision\": \"block\", \"reason\": \"Create a feature branch first.\"}' >&2; exit 2; }",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write|NotebookEdit",
         "hooks": [
           {
             "type": "command",
-            "command": "echo '[LucidShark] Code modified \u2014 scan before completing task (mcp__lucidshark__scan or lucidshark scan --fix --format ai)'"
+            "command": "FILE=$(echo $TOOL_INPUT | jq -r '.file_path // empty'); [ -z \"$FILE\" ] && exit 0; case \"$FILE\" in *.py) ruff format \"$FILE\" 2>/dev/null ;; esac; exit 0",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "echo '[LucidShark] Code modified \u2014 scan before completing task (mcp__lucidshark__scan or lucidshark scan --fix --format ai)'",
+            "timeout": 5
           }
         ]
       }
