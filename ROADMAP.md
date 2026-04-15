@@ -211,20 +211,20 @@ Tools: Google Stitch (free) + Ruflo (OSS) + OpenClaw (OSS) + Lucide React + Tail
 
 *Last updated: 2026-04-11 by 
 
-## Phase 11 — Compliance AI Copilot ⏳ PENDING
+## Phase 11 — Compliance AI Copilot ✅ DONE (Sprint 16 Block B — 2026-04-15)
 
 | # | Feature | IL | Status | Notes |
 |---|---------|------|--------|-------|
-| 76 | Compliance Knowledge Base (ChromaDB + RAG) | IL-CKS-01 | ⏳ | services/compliance_kb/ |
-| 77 | MCP Knowledge Tools (6 tools) | IL-CKS-01 | ⏳ | kb.query, kb.search, kb.compare_versions |
-| 78 | Compliance Notebooks (EU-AML, UK-FCA, SOP, Cases) | IL-CKS-01 | ⏳ | config/compliance_notebooks.yaml |
-| 79 | Experiment Copilot (4 agents) | IL-CEC-01 | ⏳ | designer, proposer, steward, reporter |
-| 80 | AML Experiment Store (YAML + Git PR) | IL-CEC-01 | ⏳ | compliance-experiments/ |
-| 81 | MCP Experiment Tools (4 tools) | IL-CEC-01 | ⏳ | experiment.design, experiment.propose_change |
-| 82 | Realtime Transaction Monitor (ML + Rules) | IL-RTM-01 | ⏳ | services/transaction_monitor/ |
-| 83 | Explainable AML Alerts + KB Citations | IL-RTM-01 | ⏳ | alerts/explanation_engine.py |
-| 84 | MCP Monitor Tools (5 tools) | IL-RTM-01 | ⏳ | monitor.score_transaction, monitor.get_alerts |
-| 85 | Compliance AI Tests (135+) | IL-CKS/CEC/RTM | ⏳ | 40+45+50 tests |
+| 76 | Compliance Knowledge Base (ChromaDB + RAG) | IL-CKS-01 | ✅ | services/compliance_kb/ |
+| 77 | MCP Knowledge Tools (6 tools) | IL-CKS-01 | ✅ | kb.query, kb.search, kb.compare_versions |
+| 78 | Compliance Notebooks (EU-AML, UK-FCA, SOP, Cases) | IL-CKS-01 | ✅ | config/compliance_notebooks.yaml |
+| 79 | Experiment Copilot (4 agents) | IL-CEC-01 | ✅ | designer, proposer, steward, reporter |
+| 80 | AML Experiment Store (YAML + Git PR) | IL-CEC-01 | ✅ | compliance-experiments/ |
+| 81 | MCP Experiment Tools (4 tools) | IL-CEC-01 | ✅ | experiment.design, experiment.propose_change |
+| 82 | Realtime Transaction Monitor (ML + Rules) | IL-RTM-01 | ✅ | services/transaction_monitor/ |
+| 83 | Explainable AML Alerts + KB Citations | IL-RTM-01 | ✅ | alerts/explanation_engine.py |
+| 84 | MCP Monitor Tools (5 tools) | IL-RTM-01 | ✅ | monitor.score_transaction, monitor.get_alerts |
+| 85 | Compliance AI Tests (284) | IL-CKS/CEC/RTM | ✅ | 88+91+105 tests — baseline 2987 total |
 
 Total: 15 new MCP tools | 24 new API endpoints | 135+ new tests
 All tools: ChromaDB + scikit-learn + SHAP + sentence-transformers (free/OSS)
