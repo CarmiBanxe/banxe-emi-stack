@@ -6,7 +6,7 @@ on:
 
 permissions:
   contents: read
-    id-token: write
+  id-token: write
   pull-requests: write
 
 jobs:
@@ -24,15 +24,15 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_args: "--max-turns 5"
           prompt: |
-            You are a senior engineer reviewing a PR for BANXE AI Bank — an FCA-authorised EMI.
+            You are a senior engineer reviewing a PR for BANXE AI Bank - an FCA-authorised EMI.
 
             Review this PR for:
-            1. **Correctness** — does the code do what the ticket says? Are edge cases handled?
-            2. **Security** — hardcoded secrets, SQL injection, unsafe eval, shell injection, PII in logs
-            3. **Regression** — could this break existing behaviour? Are existing tests still valid?
-            4. **Test sufficiency** — are new/changed tests meaningful? Negative cases covered?
-            5. **Documentation** — API.md updated? Runbooks? Compliance docs? ADR if needed?
-            6. **Compliance / Audit** — is every financial action logged? Is the audit trail intact?
+            1. **Correctness** - does the code do what the ticket says? Are edge cases handled?
+            2. **Security** - hardcoded secrets, SQL injection, unsafe eval, shell injection, PII in logs
+            3. **Regression** - could this break existing behaviour? Are existing tests still valid?
+            4. **Test sufficiency** - are new/changed tests meaningful? Negative cases covered?
+            5. **Documentation** - API.md updated? Runbooks? Compliance docs? ADR if needed?
+            6. **Compliance / Audit** - is every financial action logged? Is the audit trail intact?
 
             Focus especially on these high-risk areas:
             - Ledger operations (services/ledger/)
