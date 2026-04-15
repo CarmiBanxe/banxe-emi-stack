@@ -1,6 +1,6 @@
 ---
 name: cross-repo-sync
-description: Check sync status across all 14 BANXE repositories
+description: Check sync status across all 13 BANXE repositories
 context: fork
 agent: Explore
 allowed-tools: Bash(git *), Bash(ls *), Bash(cat *)
@@ -19,7 +19,6 @@ allowed-tools: Bash(git *), Bash(ls *), Bash(cat *)
 - MiroFish: `!cd /home/mmber/MiroFish && git log --oneline -1 && git status --short | wc -l | xargs echo "dirty:" 2>/dev/null || echo "not found"`
 - developer-core: `!cd /home/mmber/developer-core && git log --oneline -1 && git status --short | wc -l | xargs echo "dirty:" 2>/dev/null || echo "not found"`
 - vibe-coding: `!cd /home/mmber/vibe-coding && git log --oneline -1 && git status --short | wc -l | xargs echo "dirty:" 2>/dev/null || echo "not found"`
-- collaboration: `!cd /home/mmber/collaboration && git log --oneline -1 && git status --short | wc -l | xargs echo "dirty:" 2>/dev/null || echo "not found"`
 - obsidian-vault: `!cd /home/mmber/obsidian-vault && git log --oneline -1 && git status --short | wc -l | xargs echo "dirty:" 2>/dev/null || echo "not found"`
 - banxe-mirofish: `!cd /home/mmber/banxe-mirofish && git log --oneline -1 && git status --short | wc -l | xargs echo "dirty:" 2>/dev/null || echo "not found"`
 
@@ -34,3 +33,5 @@ Review the cross-repo state above:
 5. Suggest a sync plan: which repos need `git pull`, which need new commits pushed
 
 Output a per-repo table: **IN SYNC / DIRTY / STALE / MISSING**.
+
+> Note: collaboration repo was archived and removed from this list (previously 14 repos).
