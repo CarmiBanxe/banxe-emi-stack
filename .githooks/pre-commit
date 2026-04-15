@@ -1,0 +1,25 @@
+#!/bin/bash
+# LucidShark pre-commit quality scan
+# BUG-006 fix: prevent AI-generated code issues from reaching commit
+
+echo "🔍 Running LucidShark scan..."
+
+# Check if lucidshark is available
+if command -v lucidshark &> /dev/null; then
+    lucidshark scan --fail-on=critical
+    if [ $? -ne 0 ]; then
+        echo "❌ LucidShark found critical issues. Fix before committing."
+        exit 1
+    fi
+else
+    echo "⚠️ LucidShark not installed. Running semgrep fallback..."
+    if command -v semgrep &> /dev/null; then
+        semgrep scan --config=auto --error --severity=ERROR
+        if [ $? -ne 0 ]; then
+            echo "❌ Semgrep found critical issues. Fix before committing."
+            exit 1
+        fi
+    fi
+fi
+
+echo "✅ Quality scan passed"
