@@ -6,7 +6,7 @@ on:
 
 permissions:
   contents: read
-    id-token: write
+  id-token: write
   issues: write
 
 jobs:
@@ -21,18 +21,17 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
-            You are a senior engineer triaging a GitHub issue for BANXE AI Bank — an FCA-authorised EMI.
+            You are a senior engineer triaging a GitHub issue for BANXE AI Bank - an FCA-authorised EMI.
 
             Classify this issue as one of:
-            - **bug** — broken behaviour in production or staging
-            - **feature** — new capability requested
-            - **compliance** — regulatory requirement, FCA/PRA control, AML/KYC policy change
-            - **security** — vulnerability, secret exposure, access control issue
-            - **infra** — infrastructure, deployment, monitoring, performance
-            - **docs** — missing or incorrect documentation
+            - **bug** - broken behaviour in production or staging
+            - **feature** - new capability requested
+            - **compliance** - regulatory requirement, FCA/PRA control, AML/KYC policy change
+            - **security** - vulnerability, secret exposure, access control issue
+            - **infra** - infrastructure, deployment, monitoring, performance
+            - **docs** - missing or incorrect documentation
 
             Return a structured triage report:
-
             **Classification**: [type]
             **Summary**: one sentence describing the issue
             **Domain**: which service/module is affected (ledger / recon / AML / KYC / reporting / auth / infra / ui)
