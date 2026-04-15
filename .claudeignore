@@ -1,0 +1,60 @@
+# banxe-emi-stack/.claudeignore
+# 30-40% context savings — prevents Claude from reading build artifacts
+
+# Python bytecode & virtual env
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+
+# Build artifacts
+dist/
+build/
+coverage/
+htmlcov/
+.coverage
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Git internals
+.git/
+
+# Node/Frontend artifacts
+node_modules/
+.next/
+frontend/dist/
+frontend/node_modules/
+frontend/.next/
+
+# Logs
+*.log
+logs/
+
+# Alembic compiled
+alembic/versions/__pycache__/
+
+# Docker volumes & data
+data/
+*.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Test cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ChromaDB persistent data
+chroma_data/
+
+# Large binary/media files
+*.pdf
+*.zip
+*.tar.gz
