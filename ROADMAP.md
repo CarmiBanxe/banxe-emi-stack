@@ -274,4 +274,59 @@ FCA: Consumer Duty PS22/9 §4 (Consumer Support outcome)
 | 107 | Marketing Tests (60+) | IL-MKT-01 | ⏳ | tests/test_marketing/ |
 
 OSS Stack: Listmonk (AGPL) + Plausible (MIT) + Ollama + scikit-learn + n8n + ClickHouse
-FCA: COBS 4 (financial promotions), Consumer Duty PS22/9 §2 (Products & Services)
+FCA: COBS 4 (financial promotions), Consumer Duty PS22/9 
+
+## Sprint 16 — Customer Support + Compliance AI Merge + Agent Routing (2026-04-15)
+
+> **Scope:** 3 blocks — (A) Customer Support Block (Phase 12), (B) Compliance AI Copilot merge from `refactor/claude-ai-scaffold` (Phase 11), (C) Agent Routing Layer foundation (Phase 8). No BT blockers.§2 (Products &
+>
+> ### S16-A: Customer Support Block (Phase 12) — IL-CSB-01
+
+| # | Feature | Status | FCA ref |
+|---|---------|--------|---------|
+| 108 | Chatwoot docker-compose (MIT) | ⏳ | PS22/9 §4 |
+| 109 | TicketRoutingAgent — SLA assignment | ⏳ | PS22/9 |
+| 110 | CustomerSupportAgent — FAQ RAG bot | ⏳ | PS22/9 §4 |
+| 111 | EscalationAgent — SLA breach HITL | ⏳ | DISP 1.3 |
+| 112 | ComplaintTriageAgent — DISP link | ⏳ | DISP 1.6 |
+| 113 | FeedbackAnalyticsAgent — NPS/CSAT | ⏳ | PS22/9 §10 |
+| 114 | ClickHouse schema (tickets, CSAT) | ⏳ | — |
+| 115 | FastAPI /v1/support (5+ endpoints) | ⏳ | — |
+| 116 | Agent passports + SOUL (5 agents) | ⏳ | — |
+| 117 | MCP Support Tools (4 tools) | ⏳ | — |
+| 118 | Support Tests (60+) | ⏳ | — |Services)
+
+### S16-B: Compliance AI Copilot — merge to main (Phase 11)
+
+| # | Feature | IL | Status |
+|---|---------|----|---------|
+| 119 | Merge Compliance Knowledge Base (88 tests) | IL-CKS-01 | ⏳ |
+| 120 | Merge Experiment Copilot (91 tests) | IL-CEC-01 | ⏳ |
+| 121 | Merge Realtime Transaction Monitor (105 tests) | IL-RTM-01 | ⏳ |
+| 122 | Resolve merge conflicts + rebase | — | ⏳ |
+| 123 | Full suite green after merge (2900+) | — | ⏳ |
+
+### S16-C: Agent Routing Layer Foundation (Phase 8)
+
+| # | Feature | IL | Status |
+|---|---------|----|---------|
+| 124 | Agent Gateway + 3-Tier Worker | IL-ARL-01 | ⏳ |
+| 125 | Playbook Engine (YAML rules) | IL-ARL-01 | ⏳ |
+| 126 | ReasoningBank (vector + memory) | IL-ARL-01 | ⏳ |
+| 127 | Swarm Orchestrator (3 topologies) | IL-ARL-01 | ⏳ |
+| 128 | 5 Specialized Agents | IL-ARL-01 | ⏳ |
+| 129 | Telemetry + Policy Engine | IL-ARL-01 | ⏳ |
+| 130 | MCP Routing Tools (4 tools) | IL-ARL-01 | ⏳ |
+| 131 | Agent Routing Tests (80+) | IL-ARL-01 | ⏳ |
+
+### Sprint 16 Targets
+
+| Metric | S15 | S16 Target |
+|--------|-----|------------|
+| Tests | 2700 | 3100+ |
+| Coverage | 87% | 88%+ |
+| MCP tools | 28 | 36+ |
+| API endpoints | 80+ | 90+ |
+| Agent passports | 9 | 14+ |
+
+No BT blockers. BT-001..BT-007 remain BLOCKED (CEO action).
