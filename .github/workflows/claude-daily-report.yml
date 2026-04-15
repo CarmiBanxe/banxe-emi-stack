@@ -2,12 +2,12 @@ name: Claude Daily Engineering Report
 
 on:
   schedule:
-    - cron: "0 7 * * 1-5"   # 07:00 UTC, Monday–Friday
-  workflow_dispatch:          # allow manual trigger
+    - cron: "0 7 * * 1-5"    # 07:00 UTC, Monday-Friday
+  workflow_dispatch:            # allow manual trigger
 
 permissions:
   contents: read
-    id-token: write
+  id-token: write
   pull-requests: read
   issues: read
 
@@ -26,22 +26,19 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
             You are a senior engineering lead summarising recent activity for BANXE AI Bank.
-
             Produce a daily engineering report covering the last 24 hours (or since last business day).
 
             Include:
-
-            1. **Merged PRs** — title, author, domains affected, any compliance/security/ledger impact
-            2. **Open PRs awaiting review** — title, age, domains, any blockers
-            3. **Risky work** — changes to AML/KYC, ledger, reporting, auth, migrations, secrets
-            4. **Missing docs or tests** — PRs merged without doc updates or test coverage
-            5. **Compliance / security flags** — anything that touches FCA controls, financial invariants,
-               or audit trail integrity
-            6. **P0 deadline progress** — CASS 15 safeguarding items (deadline: 7 May 2026)
+            1. **Merged PRs** - title, author, domains affected, any compliance/security/ledger impact
+            2. **Open PRs awaiting review** - title, age, domains, any blockers
+            3. **Risky work** - changes to AML/KYC, ledger, reporting, auth, migrations, secrets
+            4. **Missing docs or tests** - PRs merged without doc updates or test coverage
+            5. **Compliance / security flags** - anything that touches FCA controls, financial invariants, or audit trail integrity
+            6. **P0 deadline progress** - CASS 15 safeguarding items (deadline: 7 May 2026)
 
             Format as a concise bullet-point report. Flag items as:
-            - 🔴 URGENT — needs immediate attention
-            - 🟡 WATCH — monitor closely
-            - 🟢 OK — no action needed
+            - URGENT - needs immediate attention
+            - WATCH - monitor closely
+            - OK - no action needed
 
             End with: overall health status (green / amber / red) and top 3 priorities for today.
