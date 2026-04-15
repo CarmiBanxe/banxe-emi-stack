@@ -6,7 +6,7 @@
 
 ## Phase 1 — Core EMI Platform ✅ COMPLETE
 
-2700 tests green, ruff clean, coverage 87%.
+2987 tests green, ruff clean, coverage 89.01%.
 
 | # | Feature | IL | Status | FCA ref |
 |---|---------|-----|--------|---------|

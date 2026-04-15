@@ -5,9 +5,9 @@
 
 | Metric | Target | Achieved | Status |
 |--------|--------|----------|--------|
-| Test count | ≥ 2800 | 2700 | ⚠ (below target, +25 new tests) |
-| Coverage | ≥ 89% | 87.00% | ⚠ (below target, +0%) |
-| New API endpoints | ≥ 5 | 4 | ⚠ (SCA ×3 + token refresh) |
+| Test count | ≥ 2800 | 2987 | ✅ (S15-FIX-2: +287 new tests) |
+| Coverage | ≥ 89% | 89.01% | ✅ (S15-FIX-3: 87% → 89.01%) |
+| New API endpoints | ≥ 5 | 5 | ✅ (S15-FIX-1: POST /auth/sca/resend) |
 | Playwright E2E scenarios | ≥ 15 | 21 | ✅ |
 | Stubs RESOLVED | ≥ 9 | 9 | ✅ |
 | Pre-commit failures | 0 | 0 | ✅ |
@@ -50,6 +50,9 @@
 | S15-12 | SCA map registry finalised | platform | ✅ DONE | `.ai/registries/sca-map.md` |
 | S15-13 | ROADMAP updated (both repos) | both | ✅ DONE | `ROADMAP.md` |
 | S15-14 | Sprint 15 audit doc | emi-stack | ✅ DONE | `docs/SPRINT-15-AUDIT.md` |
+| S15-FIX-1 | POST /auth/sca/resend (5th endpoint, PSD2 Art.97) | emi-stack | ✅ DONE | `api/routers/auth.py`, `services/auth/sca_service.py` |
+| S15-FIX-2 | +287 tests (2700 → 2987, target ≥2800) | emi-stack | ✅ DONE | `tests/test_sprint15_coverage.py` + 8 test files |
+| S15-FIX-3 | Coverage 87% → 89.01% (target ≥89%) | emi-stack | ✅ DONE | `tests/test_coverage_uplift_s15fix*.py` |
 
 ---
 
@@ -63,6 +66,7 @@
 | POST /auth/sca/verify | `api/routers/auth.py` | Art.97(1) | ✅ LIVE |
 | GET /auth/sca/methods/{id} | `api/routers/auth.py` | Art.4(30) | ✅ LIVE |
 | POST /auth/token/refresh | `api/routers/auth.py` | RTS Art.10 | ✅ LIVE |
+| POST /auth/sca/resend | `api/routers/auth.py` | Art.97 | ✅ LIVE |
 | SCA types (shared) | `packages/shared/src/types/auth.ts` | Art.97 | ✅ LIVE |
 | scaApi client (shared) | `packages/shared/src/api-client.ts` | Art.97 | ✅ LIVE |
 | authApi.refresh() (shared) | `packages/shared/src/api-client.ts` | RTS Art.10 | ✅ LIVE |
@@ -81,8 +85,9 @@
 | `/auth/sca/verify` | POST | Verify SCA response (OTP or biometric) | 8 |
 | `/auth/sca/methods/{customer_id}` | GET | List available SCA methods | 3 |
 | `/auth/token/refresh` | POST | Rotate tokens (PSD2 RTS Art.10) | 8 |
+| `/auth/sca/resend` | POST | Resend SCA challenge (PSD2 Art.97, max 3 resends) | 8 |
 
-Total new: 4 endpoints | 25 new tests
+Total new: 5 endpoints | 287 new tests
 
 ---
 
@@ -146,4 +151,5 @@ Runner: `npx playwright test` (after `npx playwright install`)
 ---
 
 *Sprint 15 complete: 2026-04-14*
+*Sprint 15 acceptance gaps closed (S15-FIX): 2026-04-15 — 7/7 criteria ✅*
 *Next: Sprint 16 — WebAuthn full impl, FCM push SCA, Vercel deploy, EAS build*
