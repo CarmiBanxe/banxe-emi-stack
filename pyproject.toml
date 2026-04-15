@@ -88,7 +88,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py"                   = ["S", "ANN"]
+"tests/**/*.py"                   = ["S", "ANN", "E402"]
 "**/migrations/**"                = ["E", "F"]
 # S310: URL audit — these are mock/internal adapters, not accepting user URLs
 "services/iam/**"                 = ["S310"]

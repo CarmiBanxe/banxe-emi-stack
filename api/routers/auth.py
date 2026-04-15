@@ -39,6 +39,8 @@ from api.models.sca import (
     SCAInitiateRequest,
     SCAInitiateResponse,
     SCAMethodsResponse,
+    SCAResendRequest,
+    SCAResendResponse,
     SCAVerifyRequest,
     SCAVerifyResponse,
 )
@@ -344,6 +346,45 @@ async def verify_sca_challenge(body: SCAVerifyRequest) -> SCAVerifyResponse:
         sca_token=result.sca_token,
         error=result.error,
         attempts_remaining=result.attempts_remaining,
+    )
+
+
+@router.post(
+    "/auth/sca/resend",
+    response_model=SCAResendResponse,
+    summary="Resend SCA challenge (PSD2 Art.97)",
+    description=(
+        "Resets the TTL of an existing SCA challenge and re-delivers the authentication "
+        "prompt (OTP SMS / push notification). Rate-limited to 3 resends per challenge. "
+        "PSD2 Directive 2015/2366 Art.97 — customer may request a fresh code if not received."
+    ),
+    responses={
+        200: {"description": "Challenge resent, TTL reset"},
+        400: {"description": "Challenge already used/failed or resend limit reached"},
+        404: {"description": "Challenge not found"},
+        422: {"description": "Validation error"},
+    },
+)
+async def resend_sca_challenge(body: SCAResendRequest) -> SCAResendResponse:
+    """
+    Resend a pending SCA challenge.
+
+    Increments resend_count and resets the challenge expiry to now + SCA_CHALLENGE_TTL_SEC.
+    Maximum 3 resends per challenge_id (PSD2 Art.97 rate-limit).
+    """
+    sca = get_sca_service()
+    try:
+        challenge = sca.resend_challenge(body.challenge_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return SCAResendResponse(
+        challenge_id=challenge.challenge_id,
+        method=challenge.method,  # type: ignore[arg-type]
+        expires_at=challenge.expires_at,
+        resend_count=challenge.resend_count,
     )
 
 

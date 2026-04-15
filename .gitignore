@@ -22,3 +22,6 @@ logs/
 CLAUDE.local.md
 .claude/settings.local.json
 banxe_dev.db
+
+# Auto-generated experiment index (written by ExperimentStore on every pytest run)
+compliance-experiments/index.json

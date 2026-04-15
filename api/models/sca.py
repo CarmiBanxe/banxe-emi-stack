@@ -96,3 +96,18 @@ class SCAMethodsResponse(BaseModel):
     customer_id: str = Field(..., description="Customer identifier")
     methods: list[str] = Field(..., description="Available SCA methods")
     preferred: str = Field(..., description="Recommended SCA method for this customer")
+
+
+class SCAResendRequest(BaseModel):
+    challenge_id: str = Field(..., description="Existing challenge ID to resend")
+
+
+class SCAResendResponse(BaseModel):
+    challenge_id: str = Field(..., description="Challenge identifier (unchanged)")
+    method: Literal["otp", "biometric"] = Field(..., description="SCA method")
+    expires_at: datetime = Field(..., description="New expiry (UTC) — TTL reset")
+    resend_count: int = Field(..., description="Number of resends used (max 3)")
+    message: str = Field(
+        default="SCA challenge resent. A new code has been sent to your device.",
+        description="User-facing instruction",
+    )

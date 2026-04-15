@@ -35,3 +35,12 @@
 {"ts":"2026-04-13T19:53:43Z","hash":"32de43e","il":null,"type":"feat","msg":"feat(S13-06-FIX-3): experiments router tests — 24 tests, coverage 43%→93%","files_changed":1,"areas":["tests"]}
 {"ts":"2026-04-13T19:54:14Z","hash":"215f18f","il":null,"type":"feat","msg":"feat(S13-06-FIX-4): consumer_duty router tests — 12 tests, coverage 46%→97%","files_changed":1,"areas":["tests"]}
 {"ts":"2026-04-13T19:56:26Z","hash":"126392a","il":null,"type":"docs","msg":"docs(S13-06-FIX): update SPRINT-13-AUDIT — router coverage uplift results","files_changed":1,"areas":[]}
+{"ts":"2026-04-13T21:26:42Z","hash":"929e702","il":null,"type":"feat","msg":"feat(S14): Sprint 14 — stub inventory, E2E tests, coverage 87%, registry sync","files_changed":33,"areas":["services","config","tests"]}
+{"ts":"2026-04-13T21:41:17Z","hash":"895f4a8","il":null,"type":"test","msg":"test(S14-FIX-1): +56 tests — pass ≥2650 gate (total 2675)","files_changed":1,"areas":["tests"]}
+{"ts":"2026-04-13T21:42:05Z","hash":"7d7b108","il":null,"type":"docs","msg":"docs(S14-FIX-2): ROADMAP.md — Phase 7 IN PROGRESS, test matrix 995→2675","files_changed":1,"areas":[]}
+{"ts":"2026-04-13T21:43:54Z","hash":"c3fd90d","il":null,"type":"docs","msg":"docs(S14-FIX-4): SPRINT-14-AUDIT — gap closure recorded, criteria all ✅","files_changed":1,"areas":[]}
+{"ts":"2026-04-13T22:01:38Z","hash":"1ce9546","il":null,"type":"feat","msg":"feat(S15-01): POST /auth/sca — PSD2 SCA challenge + verify + methods","files_changed":5,"areas":["services","api","tests"]}
+{"ts":"2026-04-13T22:14:15Z","hash":"f2939c5","il":null,"type":"feat","msg":"feat(S15-05): POST /auth/token/refresh — PSD2 RTS token rotation + inactivity","files_changed":4,"areas":["api","tests"]}
+{"ts":"2026-04-13T22:18:46Z","hash":"80b467c","il":null,"type":"feat","msg":"feat(S15-06): 8/9 stub→production adapters resolved","files_changed":4,"areas":["services"]}
+{"ts":"2026-04-14T07:32:42Z","hash":"4571733","il":null,"type":"docs","msg":"docs(S15-12): sync emi-stack registries to Sprint 15 state","files_changed":2,"areas":[]}
+{"ts":"2026-04-14T07:42:00Z","hash":"9f3762c","il":null,"type":null,"msg":"S15-13/14: ROADMAP Sprint 15 update + Sprint 15 audit doc","files_changed":2,"areas":[]}

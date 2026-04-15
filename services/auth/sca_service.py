@@ -44,6 +44,7 @@ SCA_TOKEN_TTL_SEC = int(os.environ.get("SCA_TOKEN_TTL_SEC", "300"))  # PSD2 RTS 
 SCA_CHALLENGE_TTL_SEC = int(os.environ.get("SCA_CHALLENGE_TTL_SEC", "120"))  # 2 min
 SCA_MAX_ATTEMPTS = int(os.environ.get("SCA_MAX_ATTEMPTS", "5"))
 SCA_MAX_CONCURRENT = int(os.environ.get("SCA_MAX_CONCURRENT", "3"))
+SCA_MAX_RESENDS = int(os.environ.get("SCA_MAX_RESENDS", "3"))  # PSD2 Art.97 resend cap
 SCA_SECRET_KEY = os.environ.get("SCA_SECRET_KEY", "dev-sca-secret-change-in-prod")
 SCA_ALGORITHM = "HS256"
 
@@ -68,6 +69,7 @@ class SCAChallenge:
     amount: str | None = None  # Decimal string for PSD2 dynamic linking
     payee: str | None = None  # Payee name for PSD2 dynamic linking
     attempt_count: int = 0
+    resend_count: int = 0  # How many times the challenge has been resent (max 3)
 
 
 @dataclass
@@ -317,6 +319,47 @@ class SCAService:
             methods=methods,
             preferred=preferred,
         )
+
+    def resend_challenge(self, challenge_id: str) -> SCAChallenge:
+        """
+        Resend an existing SCA challenge: reset TTL and increment resend counter.
+
+        PSD2 Art.97 — customers may request a new OTP if the previous one expired or
+        was not received.  Rate-limited to SCA_MAX_RESENDS per challenge_id.
+
+        Raises:
+            KeyError: if challenge_id does not exist
+            ValueError: if challenge is already used, failed, or resend limit exceeded
+        """
+        challenge = self._store.get(challenge_id)
+        if challenge is None:
+            raise KeyError(f"Challenge {challenge_id!r} not found")
+
+        if challenge.status in ("used", "failed"):
+            raise ValueError(
+                f"Challenge {challenge_id!r} is {challenge.status!r} and cannot be resent. "
+                "Request a new challenge."
+            )
+
+        if challenge.resend_count >= SCA_MAX_RESENDS:
+            raise ValueError(
+                f"Resend limit reached ({SCA_MAX_RESENDS}) for challenge {challenge_id!r}. "
+                "Request a new challenge."
+            )
+
+        now = datetime.now(tz=UTC)
+        challenge.expires_at = now + timedelta(seconds=SCA_CHALLENGE_TTL_SEC)
+        challenge.status = "pending"
+        challenge.resend_count += 1
+        self._store.save(challenge)
+
+        logger.info(
+            "sca.challenge_resent challenge_id=%s customer=%s resend=%d",
+            challenge_id,
+            challenge.customer_id,
+            challenge.resend_count,
+        )
+        return challenge
 
     def register_otp_secret(self, customer_id: str, secret: str) -> None:
         """Register a TOTP secret for a customer (used by TOTPService integration)."""
