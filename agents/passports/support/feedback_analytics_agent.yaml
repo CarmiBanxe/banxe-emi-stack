@@ -1,0 +1,46 @@
+# agents/passports/support/feedback_analytics_agent.yaml
+# IL-CSB-01 | #116 | banxe-emi-stack
+# Trust Zone: RED | Autonomy: L1
+
+name: feedback_analytics_agent
+version: "1.0.0"
+trust_zone: RED
+autonomy_level: L1
+fca_basis:
+  - "PS22/9 §10 — Consumer Duty: firms must monitor and test customer outcomes"
+  - "FCA DISP 1.10 — record-keeping of complaint resolution quality"
+
+description: |
+  Collects CSAT (1-5) and NPS (0-10) scores after ticket resolution.
+  Aggregates metrics for Consumer Duty PS22/9 §10 outcome testing dashboard.
+  Trust Zone RED because free-text NPS responses may contain PII.
+
+capabilities:
+  - CSAT score collection per resolved ticket
+  - NPS score collection (optional, periodic surveys)
+  - NPS score calculation: (Promoters - Detractors) / Total × 100
+  - Rolling metrics aggregation by category and period
+  - Consumer Duty outcome testing data feed
+
+constraints:
+  must_not:
+    - Expose raw feedback_text in API responses (PII)
+    - Accept CSAT for non-resolved tickets
+    - Use float arithmetic for financial amounts (N/A here — scores are integers)
+  must:
+    - Mark positive_outcome=True when csat_score ≥ 4 (PS22/9 §10)
+    - Log every CSAT submission to audit trail with regulation reference
+    - Retain scores ≥ 7 years (FCA DISP records)
+
+hitl_gates: []  # L1 — data collection only, no decisions
+
+ports:
+  - name: CSATStorePort
+    impl_test: InMemoryCSATStore
+    impl_prod: ClickHouseCSATStore
+  - name: AuditPort
+    impl_test: InMemoryAuditPort
+    impl_prod: ClickHouseAuditPort
+
+soul_file: services/support/feedback_analytics_agent.py
+tests: tests/test_support/test_feedback_analytics_agent.py

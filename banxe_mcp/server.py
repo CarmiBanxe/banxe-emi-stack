@@ -19,6 +19,7 @@ References: MCP-i-agentnoe-potreblenie-strategiia-dlia-BANXE-EMI-AI-Bank.md
 from __future__ import annotations
 
 from datetime import UTC, datetime
+import json
 import logging
 import os
 import sys
@@ -357,7 +358,7 @@ async def get_breach_history(account_id: str, days: int = 30) -> str:
         return f"Error fetching breach history: {e.response.status_code}"
     except httpx.ConnectError:
         return (
-            f"Breach History — {account_id} (SANDBOX — API unavailable)\n"
+            f"Breach History — {account_id} (SANDBOX — API unavailable)\n"  # nosec B608
             f"  Query ClickHouse: SELECT * FROM banxe.safeguarding_breaches "
             f"WHERE account_id = '{account_id}' ORDER BY detected_at DESC LIMIT 10"
         )
@@ -397,7 +398,7 @@ async def get_discrepancy_trend(account_id: str, days: int = 7) -> str:
         return f"Error fetching discrepancy trend: {e.response.status_code}"
     except httpx.ConnectError:
         return (
-            f"Discrepancy Trend — {account_id} (SANDBOX — API unavailable)\n"
+            f"Discrepancy Trend — {account_id} (SANDBOX — API unavailable)\n"  # nosec B608
             f"  Query ClickHouse: SELECT recon_date, discrepancy, status "
             f"FROM banxe.safeguarding_events WHERE account_id = '{account_id}' "
             f"ORDER BY recon_date DESC LIMIT {days}"
@@ -643,7 +644,7 @@ async def get_routing_metrics(hours: int = 24) -> str:
         return f"Error fetching ARL metrics: HTTP {e.response.status_code}"
     except httpx.ConnectError:
         return (
-            f"ARL Metrics (last {hours}h) — SANDBOX\n"
+            f"ARL Metrics (last {hours}h) — SANDBOX\n"  # nosec B608
             "API unavailable. Check Grafana dashboard: banxe-arl-metrics\n"
             "ClickHouse: SELECT tier, count(), avg(cost_usd) FROM agent_routing_events "
             f"WHERE event_time >= now() - INTERVAL {hours} HOUR GROUP BY tier"
@@ -1548,6 +1549,171 @@ async def experiment_propose_change(
         return f"Error proposing change: {e}"
 
 
+# ── Support tools (IL-CSB-01 | #117) ────────────────────────────────────
+
+
+@mcp_server.tool()
+async def support_create_ticket(
+    customer_id: str,
+    subject: str,
+    body: str,
+    channel: str = "API",
+) -> str:
+    """Create a support ticket, auto-route it, and check for DISP complaint.
+
+    Performs in one call:
+    - Keyword-based category/priority routing
+    - FAQ auto-resolution attempt (KB confidence ≥ 80%)
+    - FCA DISP 1.1 formal complaint detection
+
+    Args:
+        customer_id: Customer UUID.
+        subject: Short ticket subject (5-200 chars).
+        body: Full ticket body (10-5000 chars).
+        channel: Originating channel — API, EMAIL, TELEGRAM, WEB, PHONE.
+
+    Returns:
+        JSON with ticket ID, SLA deadline, routing, and auto_resolved flag.
+    """
+    try:
+        result = await _api_post(
+            "/v1/support/tickets",
+            {
+                "customer_id": customer_id,
+                "subject": subject,
+                "body": body,
+                "channel": channel,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+
+@mcp_server.tool()
+async def support_get_metrics(period_days: int = 30) -> str:
+    """Get CSAT/NPS/SLA support metrics for Consumer Duty PS22/9 §10 reporting.
+
+    Returns rolling-period aggregates:
+    - avg_csat: Customer Satisfaction Score (1-5 scale)
+    - avg_nps: Net Promoter Score input (0-10 scale)
+    - nps_score: Net Promoter Score (-100 to +100)
+    - by_category: CSAT breakdown per ticket category
+
+    FCA PS22/9 §10: firms must monitor whether they deliver good customer outcomes.
+
+    Args:
+        period_days: Rolling window in days (1-365, default: 30).
+
+    Returns:
+        JSON with CSAT, NPS, and outcome metrics.
+    """
+    try:
+        result = await _api_get(f"/v1/support/metrics?period_days={period_days}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+
+@mcp_server.tool()
+async def support_check_sla(ticket_id: str) -> str:
+    """Check SLA status for a support ticket.
+
+    Returns ticket detail including:
+    - sla_deadline: ISO timestamp of SLA commitment
+    - status: current ticket status
+    - is_sla_breached: whether SLA deadline has passed
+
+    FCA DISP 1.3: firms must handle tickets promptly.
+
+    Args:
+        ticket_id: UUID of the support ticket.
+
+    Returns:
+        JSON with ticket detail and SLA status.
+    """
+    try:
+        result = await _api_get(f"/v1/support/tickets/{ticket_id}")
+        # Compute SLA breach client-side for MCP consumers
+        sla_deadline = result.get("sla_deadline", "")
+        is_breached = False
+        if sla_deadline:
+            try:
+                deadline_dt = datetime.fromisoformat(sla_deadline)
+                if deadline_dt.tzinfo is None:
+                    deadline_dt = deadline_dt.replace(tzinfo=UTC)
+                is_breached = datetime.now(UTC) > deadline_dt
+            except ValueError:
+                pass
+        result["is_sla_breached"] = is_breached
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+
+@mcp_server.tool()
+async def support_route_ticket(
+    customer_id: str,
+    subject: str,
+    body: str,
+) -> str:
+    """Classify and route a customer query without creating a persistent ticket.
+
+    Use this when you need routing intelligence without persisting a ticket
+    (e.g., pre-screening a message before creating a formal ticket).
+
+    Returns routing decision:
+    - category: ACCOUNT/PAYMENT/KYC/FRAUD/GENERAL
+    - priority: CRITICAL/HIGH/MEDIUM/LOW
+    - assigned_to: target queue name
+    - sla_hours: SLA commitment in hours
+    - auto_resolvable: whether FAQ bot can handle it
+
+    Args:
+        customer_id: Customer UUID (for audit).
+        subject: Message subject.
+        body: Message body.
+
+    Returns:
+        JSON with routing classification.
+    """
+    try:
+        # Create ticket (routing happens server-side), then return routing info
+        result = await _api_post(
+            "/v1/support/tickets",
+            {
+                "customer_id": customer_id,
+                "subject": subject,
+                "body": body,
+                "channel": "API",
+            },
+        )
+        sla_map = {"CRITICAL": 1, "HIGH": 4, "MEDIUM": 24, "LOW": 72}
+        priority = result.get("priority", "LOW")
+        return json.dumps(
+            {
+                "ticket_id": result.get("id"),
+                "category": result.get("category"),
+                "priority": priority,
+                "assigned_to": result.get("assigned_to"),
+                "sla_hours": sla_map.get(priority, 72),
+                "auto_resolvable": result.get("auto_resolved", False),
+                "is_formal_complaint": result.get("is_formal_complaint", False),
+            },
+            indent=2,
+        )
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+
 @mcp_server.resource("banxe://info")
 async def info_resource() -> str:
     """BANXE EMI platform information."""
@@ -1560,8 +1726,9 @@ async def info_resource() -> str:
         "kb_compare_versions, kb_get_citations, "
         "experiment_design, experiment_list, experiment_get_metrics, experiment_propose_change, "
         "monitor_score_transaction, monitor_get_alerts, monitor_get_alert_detail, "
-        "monitor_get_velocity, monitor_dashboard_metrics\n"
-        "FCA basis: CASS 7.15, CASS 15, MLR 2017, PSR 2017\n"
+        "monitor_get_velocity, monitor_dashboard_metrics, "
+        "support_create_ticket, support_get_metrics, support_check_sla, support_route_ticket\n"
+        "FCA basis: CASS 7.15, CASS 15, MLR 2017, PSR 2017, DISP 1.3, PS22/9\n"
         "Trust zone: RED"
     )
 

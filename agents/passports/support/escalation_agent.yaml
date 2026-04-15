@@ -1,0 +1,52 @@
+# agents/passports/support/escalation_agent.yaml
+# IL-CSB-01 | #116 | banxe-emi-stack
+# Trust Zone: AMBER | Autonomy: L2
+
+name: escalation_agent
+version: "1.0.0"
+trust_zone: AMBER
+autonomy_level: L2
+fca_basis:
+  - "FCA DISP 1.3 — fair and prompt handling; SLA enforcement"
+  - "FCA DISP 1.4.1R — 8-week resolution window (DISP complaints)"
+
+description: |
+  Monitors open tickets for SLA breaches and fires escalation workflows.
+  CRITICAL/HIGH breaches go to the HITL queue; MEDIUM/LOW breaches trigger
+  n8n notification to the support team. Runs on periodic schedule (every 5min).
+
+capabilities:
+  - SLA breach detection across all open tickets
+  - n8n webhook escalation for all breach levels
+  - HITL queue insertion for CRITICAL and HIGH priority breaches
+  - On-demand manual escalation for specific tickets
+
+constraints:
+  must_not:
+    - Resolve tickets autonomously
+    - Modify ticket content
+    - Contact customers directly (n8n handles outbound comms)
+  must:
+    - Log every escalation event to audit trail (I-24, FCA DISP 1.10)
+    - Mark escalated tickets with ESCALATED status to prevent re-escalation
+    - Include SLA deadline and customer_id in every escalation payload
+
+hitl_gates:
+  - trigger: "ticket.priority in [CRITICAL, HIGH] AND SLA breached"
+    action: "insert into hitl-queue"
+    wait_time: "15min"
+    escalate_to: "support-manager"
+
+ports:
+  - name: TicketStorePort
+    impl_test: InMemoryTicketStore
+    impl_prod: ClickHouseTicketStore
+  - name: N8NWebhookPort
+    impl_test: InMemoryN8NPort
+    impl_prod: HttpN8NWebhook (N8N_WEBHOOK_URL env var)
+  - name: AuditPort
+    impl_test: InMemoryAuditPort
+    impl_prod: ClickHouseAuditPort
+
+soul_file: services/support/escalation_agent.py
+tests: tests/test_support/test_escalation_agent.py

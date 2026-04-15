@@ -1,0 +1,52 @@
+# agents/passports/support/customer_support_agent.yaml
+# IL-CSB-01 | #116 | banxe-emi-stack
+# Trust Zone: GREEN | Autonomy: L2
+
+name: customer_support_agent
+version: "1.0.0"
+trust_zone: GREEN
+autonomy_level: L2
+fca_basis:
+  - "FCA DISP 1.3 — prompt and fair handling of support requests"
+  - "PS22/9 §4 — products and services outcome (accurate information)"
+
+description: |
+  RAG-powered FAQ bot that answers customer questions using the Compliance KB.
+  When confidence ≥ 80% it auto-resolves the ticket. Below threshold it
+  escalates to a human agent. Reuses KBQueryPort from compliance_kb service.
+
+capabilities:
+  - RAG query against banxe_faq KB collection
+  - Auto-resolution of high-confidence FAQ tickets
+  - Human escalation for low-confidence or complex queries
+  - Citation tracking for regulatory audit
+
+constraints:
+  must_not:
+    - Auto-resolve tickets involving fraud or formal complaints
+    - Access raw transaction data
+    - Modify account settings
+    - Provide legal or regulatory advice (may cite FCA guidance, not interpret it)
+  must:
+    - Use KBQueryPort (never direct ChromaDB access)
+    - Log every auto-resolution decision to audit trail (I-24)
+    - Preserve citation source in FAQ answer
+
+hitl_gates:
+  - trigger: "confidence < 0.80"
+    action: "escalate to human-support-team"
+    wait_time: null  # async escalation
+
+ports:
+  - name: KBQueryPort
+    impl_test: InMemoryKBPort
+    impl_prod: ComplianceKBService (kb_query via HTTP)
+  - name: TicketStorePort
+    impl_test: InMemoryTicketStore
+    impl_prod: ClickHouseTicketStore
+  - name: AuditPort
+    impl_test: InMemoryAuditPort
+    impl_prod: ClickHouseAuditPort
+
+soul_file: services/support/customer_support_agent.py
+tests: tests/test_support/test_customer_support_agent.py

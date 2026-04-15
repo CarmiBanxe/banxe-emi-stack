@@ -44,3 +44,7 @@
 {"ts":"2026-04-13T22:18:46Z","hash":"80b467c","il":null,"type":"feat","msg":"feat(S15-06): 8/9 stub→production adapters resolved","files_changed":4,"areas":["services"]}
 {"ts":"2026-04-14T07:32:42Z","hash":"4571733","il":null,"type":"docs","msg":"docs(S15-12): sync emi-stack registries to Sprint 15 state","files_changed":2,"areas":[]}
 {"ts":"2026-04-14T07:42:00Z","hash":"9f3762c","il":null,"type":null,"msg":"S15-13/14: ROADMAP Sprint 15 update + Sprint 15 audit doc","files_changed":2,"areas":[]}
+{"ts":"2026-04-15T09:10:12Z","hash":"e35cbf0","il":null,"type":"feat","msg":"feat(claude): add .claude/rules/findev-constraints.md, cass15.md, reflection, PROFILE","files_changed":4,"areas":[]}
+{"ts":"2026-04-15T09:56:44Z","hash":"0091c61","il":null,"type":"fix","msg":"fix(quality): BUG-006 add LucidShark/Semgrep pre-commit hook","files_changed":1,"areas":[]}
+{"ts":"2026-04-15T10:04:25Z","hash":"da1808c","il":null,"type":"feat","msg":"feat(commands): add /project:agent-audit recurring audit command","files_changed":1,"areas":[]}
+{"ts":"2026-04-15T17:22:23Z","hash":"d8a55ca","il":null,"type":"docs","msg":"docs(sprint-16): Block B DONE — Phase 11 Compliance AI Copilot on main","files_changed":1,"areas":[]}

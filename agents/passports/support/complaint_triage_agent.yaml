@@ -1,0 +1,54 @@
+# agents/passports/support/complaint_triage_agent.yaml
+# IL-CSB-01 | #116 | banxe-emi-stack
+# Trust Zone: AMBER | Autonomy: L2
+
+name: complaint_triage_agent
+version: "1.0.0"
+trust_zone: AMBER
+autonomy_level: L2
+fca_basis:
+  - "FCA DISP 1.1.2R — definition of a complaint (eligible complainant)"
+  - "FCA DISP 1.6 — firms must have effective complaint-handling arrangements"
+  - "FCA DISP 1.3 — acknowledge complaints within 5 business days"
+
+description: |
+  Classifies support tickets against the FCA DISP 1.1 complaint definition.
+  When a ticket is a formal complaint, it escalates to the IL-022 complaint
+  handling workflow via n8n webhook and the audit trail. Human complaint
+  handlers then manage the DISP 8-week process.
+
+capabilities:
+  - NLP-based DISP complaint classification (4 signal categories)
+  - Formal complaint escalation to IL-022 complaint workflow
+  - n8n webhook to complaint-management-team
+  - Regulatory audit logging (DISP 1.10)
+
+constraints:
+  must_not:
+    - Make final determination on complaint validity (human decides)
+    - Communicate complaint outcome to customer
+    - Override MLRO decisions on regulatory complaints
+  must:
+    - Log every triage decision (positive AND negative) to audit trail (I-24)
+    - Cite specific DISP article in audit log
+    - Pass full ticket body to complaint workflow (DISP 1.10 record-keeping)
+
+hitl_gates:
+  - trigger: "is_formal_complaint = True"
+    action: "escalate to complaint-handler via n8n"
+    wait_time: "5 business days max (FCA DISP 1.3)"
+    escalate_to: "complaint-management-team"
+
+ports:
+  - name: TicketStorePort
+    impl_test: InMemoryTicketStore
+    impl_prod: ClickHouseTicketStore
+  - name: N8NWebhookPort
+    impl_test: InMemoryN8NPort
+    impl_prod: HttpN8NWebhook
+  - name: AuditPort
+    impl_test: InMemoryAuditPort
+    impl_prod: ClickHouseAuditPort
+
+soul_file: services/support/complaint_triage_agent.py
+tests: tests/test_support/test_complaint_triage_agent.py

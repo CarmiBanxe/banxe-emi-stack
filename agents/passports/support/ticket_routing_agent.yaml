@@ -1,0 +1,46 @@
+# agents/passports/support/ticket_routing_agent.yaml
+# IL-CSB-01 | #116 | banxe-emi-stack
+# Trust Zone: GREEN | Autonomy: L1
+
+name: ticket_routing_agent
+version: "1.0.0"
+trust_zone: GREEN
+autonomy_level: L1
+fca_basis:
+  - "FCA DISP 1.3 — prompt and fair handling of support requests"
+
+description: |
+  Routes inbound customer support tickets to the correct queue.
+  Classifies by category (ACCOUNT/PAYMENT/KYC/FRAUD/GENERAL) and assigns
+  SLA priority using keyword classification. No PII decisions, no financial
+  actions — purely a routing/classification agent.
+
+capabilities:
+  - Keyword-based ticket classification (5 categories)
+  - SLA priority assignment (CRITICAL/HIGH/MEDIUM/LOW)
+  - Queue assignment (fraud-team / payments-support / kyc-team / etc.)
+  - FAQ auto-resolution detection
+
+constraints:
+  must_not:
+    - Access customer financial data
+    - Modify account status
+    - Make compliance decisions
+    - Bypass DISP triage for formal complaints
+  must:
+    - Assign SLA deadline at ticket creation
+    - Persist routing decision to audit trail (I-24)
+    - Log confidence score for every routing decision
+
+hitl_gates: []  # L1 — fully automated, no human gates
+
+ports:
+  - name: TicketStorePort
+    impl_test: InMemoryTicketStore
+    impl_prod: ClickHouseTicketStore  # future
+  - name: AuditPort
+    impl_test: InMemoryAuditPort
+    impl_prod: ClickHouseAuditPort
+
+soul_file: services/support/ticket_routing_agent.py
+tests: tests/test_support/test_ticket_routing_agent.py

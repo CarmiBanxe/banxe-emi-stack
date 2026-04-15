@@ -53,6 +53,7 @@ from api.routers import (
     safeguarding,
     sanctions_rescreen,
     statements,
+    support,
     transaction_monitor,
     watchman_webhook,
 )
@@ -131,3 +132,4 @@ app.include_router(experiments.router, prefix="/v1")  # GET/POST /v1/experiments
 app.include_router(transaction_monitor.router, prefix="/v1")  # GET/POST /v1/monitor/* (IL-RTM-01)
 app.include_router(safeguarding.router, prefix="/v1")  # CASS 15 safeguarding (6 endpoints)
 app.include_router(recon.router, prefix="/v1")  # Reconciliation (3 endpoints)
+app.include_router(support.router, prefix="/v1")  # Customer Support Block (IL-CSB-01)

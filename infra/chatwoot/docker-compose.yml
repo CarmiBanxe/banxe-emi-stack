@@ -1,0 +1,123 @@
+# infra/chatwoot/docker-compose.yml — Chatwoot Self-Hosted Customer Support
+# IL-CSB-01 | #108 | banxe-emi-stack
+#
+# Chatwoot (MIT licence) — omnichannel support platform
+# PostgreSQL + Redis + Sidekiq workers
+#
+# Usage:
+#   cp .env.example .env && docker compose up -d
+#
+# FCA DISP 1.3: all customer communications logged and retained ≥ 5 years (I-08)
+
+services:
+
+  # ── PostgreSQL for Chatwoot ──────────────────────────────────────────────
+  chatwoot-postgres:
+    image: postgres:17-alpine
+    container_name: chatwoot-postgres
+    environment:
+      POSTGRES_DB: ${CHATWOOT_DB_NAME:-chatwoot_production}
+      POSTGRES_USER: ${CHATWOOT_DB_USER:-chatwoot}
+      POSTGRES_PASSWORD: ${CHATWOOT_DB_PASSWORD:?CHATWOOT_DB_PASSWORD required}
+    volumes:
+      - chatwoot-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CHATWOOT_DB_USER:-chatwoot}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - chatwoot-internal
+
+  # ── Redis for Chatwoot jobs + ActionCable ────────────────────────────────
+  chatwoot-redis:
+    image: redis:7-alpine
+    container_name: chatwoot-redis
+    command: redis-server --requirepass ${CHATWOOT_REDIS_PASSWORD:?CHATWOOT_REDIS_PASSWORD required}
+    volumes:
+      - chatwoot-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${CHATWOOT_REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - chatwoot-internal
+
+  # ── Chatwoot Web (Rails + Vite) ──────────────────────────────────────────
+  chatwoot-web:
+    image: chatwoot/chatwoot:v3.15.0
+    container_name: chatwoot-web
+    command: bundle exec rails s -b 0.0.0.0 -p 3000
+    environment:
+      # Database
+      DATABASE_URL: postgresql://${CHATWOOT_DB_USER:-chatwoot}:${CHATWOOT_DB_PASSWORD}@chatwoot-postgres:5432/${CHATWOOT_DB_NAME:-chatwoot_production}
+      # Redis
+      REDIS_URL: redis://:${CHATWOOT_REDIS_PASSWORD}@chatwoot-redis:6379
+      # Rails
+      RAILS_ENV: production
+      SECRET_KEY_BASE: ${CHATWOOT_SECRET_KEY_BASE:?CHATWOOT_SECRET_KEY_BASE required}
+      # SMTP (FCA DISP 1.3 — email notifications)
+      SMTP_ADDRESS: ${SMTP_ADDRESS:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_AUTHENTICATION: ${SMTP_AUTHENTICATION:-plain}
+      SMTP_ENABLE_STARTTLS_AUTO: "true"
+      MAILER_SENDER_EMAIL: ${MAILER_SENDER_EMAIL:-support@banxe.com}
+      # App
+      DEFAULT_LOCALE: en
+      FORCE_SSL: "false"
+      ENABLE_ACCOUNT_SIGNUP: "false"
+      # Webhook to BANXE API (ticket routing integration)
+      BANXE_WEBHOOK_URL: ${BANXE_API_BASE:-http://banxe-api:8000}/v1/support/chatwoot-webhook
+    ports:
+      - "${CHATWOOT_PORT:-3010}:3000"
+    depends_on:
+      chatwoot-postgres:
+        condition: service_healthy
+      chatwoot-redis:
+        condition: service_healthy
+    volumes:
+      - chatwoot-storage:/app/storage
+      - chatwoot-public:/app/public
+    restart: unless-stopped
+    networks:
+      - chatwoot-internal
+      - banxe-default
+
+  # ── Chatwoot Sidekiq (background jobs) ──────────────────────────────────
+  chatwoot-sidekiq:
+    image: chatwoot/chatwoot:v3.15.0
+    container_name: chatwoot-sidekiq
+    command: bundle exec sidekiq -C config/sidekiq.yml
+    environment:
+      DATABASE_URL: postgresql://${CHATWOOT_DB_USER:-chatwoot}:${CHATWOOT_DB_PASSWORD}@chatwoot-postgres:5432/${CHATWOOT_DB_NAME:-chatwoot_production}
+      REDIS_URL: redis://:${CHATWOOT_REDIS_PASSWORD}@chatwoot-redis:6379
+      RAILS_ENV: production
+      SECRET_KEY_BASE: ${CHATWOOT_SECRET_KEY_BASE}
+    depends_on:
+      chatwoot-postgres:
+        condition: service_healthy
+      chatwoot-redis:
+        condition: service_healthy
+    volumes:
+      - chatwoot-storage:/app/storage
+    restart: unless-stopped
+    networks:
+      - chatwoot-internal
+
+volumes:
+  chatwoot-postgres-data:
+  chatwoot-redis-data:
+  chatwoot-storage:
+  chatwoot-public:
+
+networks:
+  chatwoot-internal:
+    driver: bridge
+  banxe-default:
+    external: true
+    name: banxe-default
