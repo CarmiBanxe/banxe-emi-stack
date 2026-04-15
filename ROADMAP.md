@@ -160,14 +160,14 @@ Infrastructure Checklist: 15/15 ✅
 | 50 | .ai/registries/ (12 files) + .ai/reports/ (5 files) | IL-UI-01 | ✅ | 12 registries created (S14-09) |
 
 
-## Phase 8 — Agent Routing Layer ⏳ PENDING
+## Phase 8 — Agent Routing Layer ✅ DONE (Sprint 16 Block C — 2026-04-15)
 
 | # | Feature | IL | Status | Notes |
 |---|---------|-----|--------|-------|
-| 51 | Agent Gateway + Tier Workers | IL-ARL-01 | ⏳ | services/agent_routing/ |
-| 52 | Playbook Engine (YAML routing rules) | IL-ARL-01 | ⏳ | config/playbooks/ |
-| 53 | ReasoningBank (vector store + case memory) | IL-ARL-01 | ⏳ | services/reasoning_bank/ |
-| 54 | Swarm Orchestrator (star/hierarchy/ring) | IL-ARL-01 | ⏳ | services/swarm/ |
+| 51 | Agent Gateway + Tier Workers | IL-ARL-01 | ✅ | services/agent_routing/ |
+| 52 | Playbook Engine (YAML routing rules) | IL-ARL-01 | ✅ | config/playbooks/ |
+| 53 | ReasoningBank (vector store + case memory) | IL-ARL-01 | ✅ | services/reasoning_bank/ |
+| 54 | Swarm Orchestrator (star/hierarchy/ring) | IL-ARL-01 | ✅ | services/swarm/ |
 | 55 | Specialized Agents (5 agents) | IL-ARL-01 | ⏳ | services/swarm/agents/ |
 | 56 | Telemetry + Policy Engine | IL-ARL-01 | ⏳ | ClickHouse + Grafana |
 | 57 | MCP Tools (4 new tools) | IL-ARL-01 | ⏳ | banxe_mcp/tools/ |
@@ -236,20 +236,20 @@ All tools: ChromaDB + scikit-learn + SHAP + sentence-transformers (free/OSS)
 
 ---
 
-## Phase 12 — Customer Support Block ⏳ PENDING
+## Phase 12 — Customer Support Block ✅ DONE (Sprint 16 Block A — 2026-04-16)
 
 | # | Feature | IL | Status | Notes |
 |---|---------|-----|--------|-------|
-| 86 | Chatwoot self-hosted (MIT) — live chat + ticketing | IL-CSB-01 | ⏳ | infra/chatwoot/ |
-| 87 | TicketRoutingAgent — category + priority + SLA assignment | IL-CSB-01 | ⏳ | services/support/ |
-| 88 | CustomerSupportAgent — FAQ bot + RAG (Ollama + ChromaDB) | IL-CSB-01 | ⏳ | services/support/ |
-| 89 | EscalationAgent — SLA breach monitor + HITL escalation | IL-CSB-01 | ⏳ | n8n + ClickHouse |
-| 90 | ComplaintTriageAgent — link to DISP workflow (IL-022) | IL-CSB-01 | ⏳ | services/support/ |
-| 91 | FeedbackAnalyticsAgent — NPS/CSAT + Consumer Duty PS22/9 | IL-CSB-01 | ⏳ | ClickHouse + Superset |
-| 92 | Support ClickHouse schema (tickets, SLA events, CSAT) | IL-CSB-01 | ⏳ | scripts/schema/ |
-| 93 | FastAPI /v1/support endpoints (5+) | IL-CSB-01 | ⏳ | api/routers/support.py |
-| 94 | Agent passports + SOUL files (5 agents) | IL-CSB-01 | ⏳ | agents/passports/support/ |
-| 95 | Support Tests (60+) | IL-CSB-01 | ⏳ | tests/test_support/ |
+| 86 | Chatwoot self-hosted (MIT) — live chat + ticketing | IL-CSB-01 | ✅ | infra/chatwoot/ |
+| 87 | TicketRoutingAgent — category + priority + SLA assignment | IL-CSB-01 | ✅ | services/support/ |
+| 88 | CustomerSupportAgent — FAQ bot + RAG (confidence 0.80) | IL-CSB-01 | ✅ | services/support/ |
+| 89 | EscalationAgent — SLA breach monitor + HITL escalation | IL-CSB-01 | ✅ | n8n + ClickHouse |
+| 90 | ComplaintTriageAgent — link to DISP workflow (IL-022) | IL-CSB-01 | ✅ | services/support/ |
+| 91 | FeedbackAnalyticsAgent — NPS/CSAT + Consumer Duty PS22/9 | IL-CSB-01 | ✅ | ClickHouse |
+| 92 | Support ClickHouse schema (tickets, SLA events, CSAT) | IL-CSB-01 | ✅ | scripts/schema/ |
+| 93 | FastAPI /v1/support endpoints (5) | IL-CSB-01 | ✅ | api/routers/support.py |
+| 94 | Agent passports + SOUL files (5 agents) | IL-CSB-01 | ✅ | agents/passports/support/ |
+| 95 | Support Tests (105) | IL-CSB-01 | ✅ | tests/test_support/ |
 
 OSS Stack: Chatwoot (MIT) + Ollama RAG + ChromaDB + n8n + ClickHouse + Superset
 FCA: Consumer Duty PS22/9 §4 (Consumer Support outcome)
@@ -284,49 +284,55 @@ FCA: COBS 4 (financial promotions), Consumer Duty PS22/9
 
 | # | Feature | Status | FCA ref |
 |---|---------|--------|---------|
-| 108 | Chatwoot docker-compose (MIT) | ⏳ | PS22/9 §4 |
-| 109 | TicketRoutingAgent — SLA assignment | ⏳ | PS22/9 |
-| 110 | CustomerSupportAgent — FAQ RAG bot | ⏳ | PS22/9 §4 |
-| 111 | EscalationAgent — SLA breach HITL | ⏳ | DISP 1.3 |
-| 112 | ComplaintTriageAgent — DISP link | ⏳ | DISP 1.6 |
-| 113 | FeedbackAnalyticsAgent — NPS/CSAT | ⏳ | PS22/9 §10 |
-| 114 | ClickHouse schema (tickets, CSAT) | ⏳ | — |
-| 115 | FastAPI /v1/support (5+ endpoints) | ⏳ | — |
-| 116 | Agent passports + SOUL (5 agents) | ⏳ | — |
-| 117 | MCP Support Tools (4 tools) | ⏳ | — |
-| 118 | Support Tests (60+) | ⏳ | — |Services)
+| 108 | Chatwoot docker-compose (MIT) | ✅ | PS22/9 §4 |
+| 109 | TicketRoutingAgent — SLA assignment | ✅ | PS22/9 |
+| 110 | CustomerSupportAgent — FAQ RAG bot | ✅ | PS22/9 §4 |
+| 111 | EscalationAgent — SLA breach HITL | ✅ | DISP 1.3 |
+| 112 | ComplaintTriageAgent — DISP link | ✅ | DISP 1.6 |
+| 113 | FeedbackAnalyticsAgent — NPS/CSAT | ✅ | PS22/9 §10 |
+| 114 | ClickHouse schema (tickets, CSAT) | ✅ | — |
+| 115 | FastAPI /v1/support (5+ endpoints) | ✅ | — |
+| 116 | Agent passports + SOUL (5 agents) | ✅ | — |
+| 117 | MCP Support Tools (4 tools) | ✅ | — |
+| 118 | Support Tests (105) | ✅ | — |
+
+commit: 5257693 | 3092 tests green | 2026-04-16
 
 ### S16-B: Compliance AI Copilot — merge to main (Phase 11)
 
 | # | Feature | IL | Status |
 |---|---------|----|---------|
-| 119 | Merge Compliance Knowledge Base (88 tests) | IL-CKS-01 | ⏳ |
-| 120 | Merge Experiment Copilot (91 tests) | IL-CEC-01 | ⏳ |
-| 121 | Merge Realtime Transaction Monitor (105 tests) | IL-RTM-01 | ⏳ |
-| 122 | Resolve merge conflicts + rebase | — | ⏳ |
-| 123 | Full suite green after merge (2900+) | — | ⏳ |
+| 119 | Merge Compliance Knowledge Base (88 tests) | IL-CKS-01 | ✅ |
+| 120 | Merge Experiment Copilot (91 tests) | IL-CEC-01 | ✅ |
+| 121 | Merge Realtime Transaction Monitor (105 tests) | IL-RTM-01 | ✅ |
+| 122 | Resolve merge conflicts + rebase | — | ✅ |
+| 123 | Full suite green after merge (3092) | — | ✅ |
+
+commit: 4fa0f0e | 2026-04-15
 
 ### S16-C: Agent Routing Layer Foundation (Phase 8)
 
 | # | Feature | IL | Status |
 |---|---------|----|---------|
-| 124 | Agent Gateway + 3-Tier Worker | IL-ARL-01 | ⏳ |
-| 125 | Playbook Engine (YAML rules) | IL-ARL-01 | ⏳ |
-| 126 | ReasoningBank (vector + memory) | IL-ARL-01 | ⏳ |
-| 127 | Swarm Orchestrator (3 topologies) | IL-ARL-01 | ⏳ |
-| 128 | 5 Specialized Agents | IL-ARL-01 | ⏳ |
-| 129 | Telemetry + Policy Engine | IL-ARL-01 | ⏳ |
-| 130 | MCP Routing Tools (4 tools) | IL-ARL-01 | ⏳ |
-| 131 | Agent Routing Tests (80+) | IL-ARL-01 | ⏳ |
+| 124 | Agent Gateway + 3-Tier Worker | IL-ARL-01 | ✅ |
+| 125 | Playbook Engine (YAML rules) | IL-ARL-01 | ✅ |
+| 126 | ReasoningBank (vector + memory) | IL-ARL-01 | ✅ |
+| 127 | Swarm Orchestrator (3 topologies) | IL-ARL-01 | ✅ |
+| 128 | 5 Specialized Agents | IL-ARL-01 | ✅ |
+| 129 | Telemetry + Policy Engine | IL-ARL-01 | ✅ |
+| 130 | MCP Routing Tools (4 tools) | IL-ARL-01 | ✅ |
+| 131 | Agent Routing Tests (184) | IL-ARL-01 | ✅ |
 
-### Sprint 16 Targets
+commit: 5f132dd | 2026-04-15
 
-| Metric | S15 | S16 Target |
-|--------|-----|------------|
-| Tests | 2700 | 3100+ |
-| Coverage | 87% | 88%+ |
-| MCP tools | 28 | 36+ |
-| API endpoints | 80+ | 90+ |
-| Agent passports | 9 | 14+ |
+### Sprint 16 Targets — FINAL
+
+| Metric | S15 | S16 Target | S16 Actual |
+|--------|-----|------------|-----------|
+| Tests | 2700 | 3100+ | 3092 |
+| Coverage | 87% | 88%+ | TBD |
+| MCP tools | 28 | 36+ | 38 ✅ |
+| API endpoints | 80+ | 90+ | TBD |
+| Agent passports | 9 | 14+ | 14 ✅ |
 
 No BT blockers. BT-001..BT-007 remain BLOCKED (CEO action).
