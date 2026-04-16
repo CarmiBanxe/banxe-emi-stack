@@ -54,3 +54,4 @@
 {"ts":"2026-04-16T22:56:26Z","hash":"573ab09","il":null,"type":"chore","msg":"chore: resolve stash conflict in claude memory log","files_changed":1,"areas":[]}
 {"ts":"2026-04-16T23:00:24Z","hash":"9c140ef","il":null,"type":"feat","msg":"feat(payments): wire PaymentService+LedgerPort in DI, align router type hints — Phase 2 P0","files_changed":1,"areas":["api"]}
 {"hash": "9c140ef", "full_hash": "9c140ef412b980486bbce91a575dfac5f141972b", "message": "feat(payments): wire PaymentService+LedgerPort in DI, align router type hints — Phase 2 P0", "author": "Moriel Carmi", "date": "2026-04-17 01:00:24 +0200", "il_id": null, "type": "feat", "changed_files": ["api/deps.py"]}
+{"ts":"2026-04-16T23:09:44Z","hash":"76a54f6","il":null,"type":"fix","msg":"fix(payments): restore readiness health check for PaymentService","files_changed":3,"areas":["services"]}
