@@ -37,6 +37,7 @@ from fastapi.responses import JSONResponse
 from api.routers import (
     audit_dashboard,
     auth,
+    card_issuing,
     compliance_kb,
     consumer_duty,
     customers,
@@ -46,6 +47,7 @@ from api.routers import (
     hitl,
     kyc,
     ledger,
+    merchant_acquiring,
     mlro_notifications,
     notifications,
     notifications_hub,
@@ -143,3 +145,7 @@ app.include_router(open_banking.router, prefix="/v1")  # Open Banking PSD2 Gatew
 app.include_router(audit_dashboard.router, prefix="/v1")  # Audit & Governance Dashboard (IL-AGD-01)
 app.include_router(treasury.router, prefix="/v1")  # Treasury & Liquidity Management (IL-TLM-01)
 app.include_router(notifications_hub.router, prefix="/v1")  # Notification Hub (IL-NHB-01)
+app.include_router(card_issuing.router, prefix="/v1")  # Card Issuing & Management (IL-CIM-01)
+app.include_router(
+    merchant_acquiring.router, prefix="/v1"
+)  # Merchant Acquiring Gateway (IL-MAG-01)

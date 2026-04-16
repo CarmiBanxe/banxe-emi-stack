@@ -1,0 +1,101 @@
+id: card-agent
+name: Card Issuing & Management Agent
+version: "1.0.0"
+il_ref: IL-CIM-01
+phase: 19
+sprint: 20
+created: "2026-04-16"
+
+identity:
+  description: >
+    AI agent for card lifecycle management — issue, activate, freeze, block, and
+    spend-control for BANXE EMI virtual and physical payment cards.
+  trust_zone: AMBER
+  autonomy_level: L2  # L4 for irreversible ops (block, replace)
+
+capabilities:
+  - issue_virtual_card
+  - issue_physical_card
+  - activate_card
+  - set_pin           # PIN hashed SHA-256 (I-12 — never plain)
+  - freeze_card
+  - unfreeze_card
+  - block_card        # HITL L4 gate — irreversible
+  - replace_card      # HITL L4 gate — irreversible
+  - set_spend_limits
+  - authorise_transaction
+  - list_transactions
+  - fraud_assessment  # risk_score: float 0–100 (not Decimal — analytical)
+
+networks:
+  - MASTERCARD  # BIN 531604, GB, GBP
+  - VISA        # BIN 427316, GB, GBP
+
+hitl_gates:
+  block_card:
+    requires: "Compliance Officer or Head of Cards"
+    reason: "Irreversible operation — permanent block cannot be undone"
+    timeout_hours: 4
+  replace_card:
+    requires: "Head of Cards"
+    reason: "Physical card replacement incurs cost and customer impact"
+    timeout_hours: 24
+
+regulatory_basis:
+  - "PSR 2017 / PSI 2017 — payment instrument safeguards"
+  - "PSD2 Art.63 — payment instrument liability"
+  - "FCA BCOBS 5 — payment services protections"
+  - "PCI-DSS v4 — card data security (PIN never plain, I-12)"
+  - "GDPR Art.5 — data minimisation in card records"
+  - "3DS2 / PSD2 SCA RTS Art.11 — contactless threshold"
+
+invariants:
+  I-01: "Decimal for all monetary amounts (limits, authorisation amounts)"
+  I-05: "Amounts serialised as strings at API boundary"
+  I-12: "PIN hashed with SHA-256 — never stored or logged in plain text"
+  I-24: "Append-only audit trail for all card events"
+  I-27: "HITL for card block and card replace (irreversible)"
+
+protocol_di_ports:
+  CardStorePort:
+    production: PostgresCardStore
+    test: InMemoryCardStore
+  SpendLimitStorePort:
+    production: PostgresSpendLimitStore
+    test: InMemorySpendLimitStore
+  TransactionStorePort:
+    production: PostgresTransactionStore
+    test: InMemoryTransactionStore
+  CardAuditPort:
+    production: ClickHouseCardAudit
+    test: InMemoryCardAudit
+
+mcp_tools:
+  - card_issue
+  - card_freeze
+  - card_get_status
+  - card_set_limits
+  - card_list_transactions
+
+api_endpoints:
+  - "POST /v1/cards/issue"
+  - "POST /v1/cards/{id}/activate"
+  - "POST /v1/cards/{id}/pin"
+  - "POST /v1/cards/{id}/freeze"
+  - "POST /v1/cards/{id}/unfreeze"
+  - "POST /v1/cards/{id}/block"
+  - "POST /v1/cards/{id}/limits"
+  - "POST /v1/cards/{id}/authorise"
+  - "GET  /v1/cards/{id}"
+  - "GET  /v1/cards/{id}/transactions"
+
+test_coverage:
+  total: 126
+  files:
+    - tests/test_card_issuing/test_models.py          # 23 tests
+    - tests/test_card_issuing/test_card_issuer.py     # 21 tests
+    - tests/test_card_issuing/test_card_lifecycle.py  # 19 tests
+    - tests/test_card_issuing/test_spend_control.py   # 17 tests
+    - tests/test_card_issuing/test_fraud_shield.py    # 14 tests
+    - tests/test_card_issuing/test_agent.py           # 17 tests
+    - tests/test_card_issuing/test_api.py             # 15 tests

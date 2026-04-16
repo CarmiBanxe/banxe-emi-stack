@@ -1,0 +1,116 @@
+id: merchant-acquiring-agent
+name: Merchant Acquiring Gateway Agent
+version: "1.0.0"
+il_ref: IL-MAG-01
+phase: 20
+sprint: 20
+created: "2026-04-16"
+
+identity:
+  description: >
+    AI agent for merchant lifecycle management — KYB onboarding, payment acceptance
+    (with 3DS2 SCA), settlement batching, chargeback handling, and risk scoring
+    for the BANXE EMI acquiring gateway.
+  trust_zone: AMBER
+  autonomy_level: L2  # L4 for suspend/terminate (irreversible)
+
+capabilities:
+  - onboard_merchant       # PENDING_KYB → approved/rejected
+  - approve_kyb            # KYB review (HITL for HIGH_RISK tier)
+  - accept_payment         # 3DS2 for ≥ £30 (PSD2 SCA RTS Art.11)
+  - complete_3ds           # finalize 3DS2 challenge
+  - void_payment           # cancel before settlement
+  - create_settlement_batch  # FEE_RATE = 1.5%
+  - handle_chargeback      # full lifecycle with evidence submission
+  - score_merchant         # risk_score: float 0–100 (analytical, not Decimal)
+  - suspend_merchant       # HITL L4 gate
+  - terminate_merchant     # HITL L4 gate
+
+prohibited_mccs:
+  - "7995"  # gambling
+  - "9754"  # online gambling
+  - "7801"  # internet gambling
+
+high_risk_mccs:
+  - "6011"  # cash disbursements
+  - "5912"  # drug stores/pharmacies
+  - "7011"  # hotels/motels
+
+sca_threshold: "30.00"  # GBP — PSD2 RTS Art.11 contactless exemption
+settlement_fee_rate: "0.015"  # 1.5% acquiring fee
+
+hitl_gates:
+  suspend_merchant:
+    requires: "Head of Acquiring or Compliance Officer"
+    reason: "Merchant suspension interrupts business — requires human judgment"
+    timeout_hours: 4
+  terminate_merchant:
+    requires: "Head of Acquiring and MLRO"
+    reason: "Irreversible termination — permanent offboarding"
+    timeout_hours: 24
+  high_risk_kyb_approval:
+    requires: "Head of Acquiring"
+    reason: "HIGH_RISK tier merchants require enhanced due diligence (EDD)"
+    timeout_hours: 48
+
+regulatory_basis:
+  - "PSR 2017 / PSD2 — payment service provider obligations"
+  - "PSD2 Art.97 + RTS Art.11 — SCA (3DS2) threshold £30"
+  - "MLR 2017 Reg.28 — KYB due diligence for merchant onboarding"
+  - "FCA BCOBS — payment acceptance standards"
+  - "VISA/Mastercard scheme rules — chargeback lifecycle, evidence"
+  - "GDPR Art.5 — data minimisation in merchant records"
+
+invariants:
+  I-01: "Decimal for all monetary amounts (payments, settlements, chargebacks)"
+  I-05: "Amounts serialised as strings at API boundary"
+  I-24: "Append-only audit trail for all acquiring events"
+  I-27: "HITL for merchant suspend/terminate and high-risk KYB"
+  I-28: "All agent decisions logged in execution trace"
+
+protocol_di_ports:
+  MerchantStorePort:
+    production: PostgresMerchantStore
+    test: InMemoryMerchantStore
+  PaymentStorePort:
+    production: PostgresPaymentStore
+    test: InMemoryPaymentStore
+  SettlementStorePort:
+    production: PostgresSettlementStore
+    test: InMemorySettlementStore
+  DisputeStorePort:
+    production: PostgresDisputeStore
+    test: InMemoryDisputeStore
+  MAAuditPort:
+    production: ClickHouseMAAudit
+    test: InMemoryMAAudit
+
+mcp_tools:
+  - merchant_onboard
+  - merchant_accept_payment
+  - merchant_get_settlements
+  - merchant_handle_chargeback
+  - merchant_risk_score
+
+api_endpoints:
+  - "POST /v1/merchants/onboard"
+  - "POST /v1/merchants/{id}/approve-kyb"
+  - "GET  /v1/merchants/{id}"
+  - "GET  /v1/merchants"
+  - "POST /v1/merchants/{id}/payments"
+  - "POST /v1/merchants/payments/{payment_id}/3ds"
+  - "GET  /v1/merchants/{id}/settlements"
+  - "POST /v1/merchants/{id}/settlements"
+  - "POST /v1/merchants/{id}/chargebacks"
+  - "GET  /v1/merchants/{id}/risk-score"
+
+test_coverage:
+  total: 120
+  files:
+    - tests/test_merchant_acquiring/test_models.py           # 22 tests
+    - tests/test_merchant_acquiring/test_onboarding.py      # 20 tests
+    - tests/test_merchant_acquiring/test_payment_gateway.py # 20 tests
+    - tests/test_merchant_acquiring/test_settlement_engine.py # 15 tests
+    - tests/test_merchant_acquiring/test_chargeback_handler.py # 14 tests
+    - tests/test_merchant_acquiring/test_agent.py           # 16 tests
+    - tests/test_merchant_acquiring/test_api.py             # 14 tests (standalone app)

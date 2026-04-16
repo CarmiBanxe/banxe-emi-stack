@@ -2376,6 +2376,279 @@ async def notify_delivery_status(record_id: str) -> str:
         return json.dumps({"error": str(exc)})
 
 
+@mcp_server.tool()
+async def card_issue(
+    entity_id: str,
+    card_type: str,
+    network: str,
+    name_on_card: str,
+    actor: str,
+) -> str:
+    """Issue a new virtual or physical payment card for a customer.
+
+    Card is issued in PENDING status — must be activated before use.
+    PIN must be set separately via card_set_pin. (I-12: PIN never stored plain)
+
+    Args:
+        entity_id: Customer entity ID
+        card_type: VIRTUAL or PHYSICAL
+        network: MASTERCARD or VISA
+        name_on_card: Cardholder name as it will appear on the card
+        actor: Operator issuing the card (for audit trail)
+    """
+    try:
+        result = await _api_post(
+            "/v1/cards/issue",
+            {
+                "entity_id": entity_id,
+                "card_type": card_type,
+                "network": network,
+                "name_on_card": name_on_card,
+                "actor": actor,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def card_freeze(card_id: str, actor: str, reason: str = "") -> str:
+    """Freeze a card — blocks all transactions immediately (reversible).
+
+    Use for suspected fraud or customer request. Card stays FROZEN until
+    unfrozen. For permanent block, use card block endpoint (requires HITL L4).
+
+    Args:
+        card_id: Card ID to freeze
+        actor: Operator performing the freeze (for audit trail)
+        reason: Optional reason for the freeze
+    """
+    try:
+        result = await _api_post(
+            f"/v1/cards/{card_id}/freeze",
+            {"actor": actor, "reason": reason},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def card_get_status(card_id: str) -> str:
+    """Get current card status, limits, BIN, and metadata.
+
+    Returns card details including status (PENDING/ACTIVE/FROZEN/BLOCKED/EXPIRED),
+    network, BIN range, expiry, and spend limits.
+
+    Args:
+        card_id: Card ID to retrieve
+    """
+    try:
+        result = await _api_get(f"/v1/cards/{card_id}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def card_set_limits(
+    card_id: str,
+    period: str,
+    limit_amount: str,
+    currency: str,
+    actor: str,
+) -> str:
+    """Set per-card spend limit for a given period (DAILY, WEEKLY, MONTHLY).
+
+    Limits are enforced at authorisation time. Amount must be a decimal string.
+    (I-05: amounts always as strings, I-01: Decimal arithmetic)
+
+    Args:
+        card_id: Card ID to configure
+        period: DAILY, WEEKLY, or MONTHLY
+        limit_amount: Maximum spend amount as decimal string (e.g. "500.00")
+        currency: ISO 4217 currency code (e.g. "GBP")
+        actor: Operator setting the limit (for audit trail)
+    """
+    try:
+        result = await _api_post(
+            f"/v1/cards/{card_id}/limits",
+            {
+                "period": period,
+                "limit_amount": limit_amount,
+                "currency": currency,
+                "actor": actor,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def card_list_transactions(card_id: str) -> str:
+    """List cleared transactions for a card.
+
+    Returns chronological transaction history including amount, merchant,
+    MCC, authorisation reference, and settlement status.
+
+    Args:
+        card_id: Card ID to query
+    """
+    try:
+        result = await _api_get(f"/v1/cards/{card_id}/transactions")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def merchant_onboard(
+    merchant_id: str,
+    name: str,
+    mcc: str,
+    daily_volume_limit: str,
+    currency: str,
+    actor: str,
+) -> str:
+    """Onboard a new merchant — initiates KYB risk assessment.
+
+    Merchant is PENDING_KYB until approved. Prohibited MCCs (7995, 9754, 7801)
+    are rejected immediately. High-risk MCCs require HITL approval. (I-27)
+
+    Args:
+        merchant_id: Unique merchant identifier
+        name: Legal merchant name
+        mcc: Merchant Category Code (ISO 18245)
+        daily_volume_limit: Expected daily volume as decimal string
+        currency: ISO 4217 currency code
+        actor: Operator performing onboarding
+    """
+    try:
+        result = await _api_post(
+            "/v1/merchants/onboard",
+            {
+                "merchant_id": merchant_id,
+                "name": name,
+                "mcc": mcc,
+                "daily_volume_limit": daily_volume_limit,
+                "currency": currency,
+                "actor": actor,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def merchant_accept_payment(
+    merchant_id: str,
+    amount: str,
+    currency: str,
+    payment_method: str,
+    actor: str,
+) -> str:
+    """Accept a card payment for a merchant.
+
+    Payments ≥ £30 require 3DS2 (PSD2 SCA — returns PENDING_3DS status).
+    Payments < £30 are APPROVED immediately. Amounts must be decimal strings.
+    (I-05: amounts as strings, 3DS2 threshold: Decimal("30.00"))
+
+    Args:
+        merchant_id: Merchant ID accepting the payment
+        amount: Payment amount as decimal string (e.g. "99.99")
+        currency: ISO 4217 currency code
+        payment_method: Payment method description
+        actor: System or operator initiating the payment
+    """
+    try:
+        result = await _api_post(
+            f"/v1/merchants/{merchant_id}/payments",
+            {
+                "amount": amount,
+                "currency": currency,
+                "payment_method": payment_method,
+                "actor": actor,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def merchant_get_settlements(merchant_id: str) -> str:
+    """List settlement batches for a merchant.
+
+    Returns all settlement batches with gross amount, fees (1.5%),
+    net payout, and settlement status (PENDING/PROCESSING/SETTLED/FAILED).
+
+    Args:
+        merchant_id: Merchant ID to query
+    """
+    try:
+        result = await _api_get(f"/v1/merchants/{merchant_id}/settlements")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def merchant_handle_chargeback(
+    merchant_id: str,
+    payment_id: str,
+    reason: str,
+    amount: str,
+    currency: str,
+) -> str:
+    """Receive and register a chargeback dispute for a merchant payment.
+
+    Creates a DisputeCase in RECEIVED status. Lifecycle:
+    RECEIVED → UNDER_INVESTIGATION → REPRESENTED → RESOLVED_WIN/RESOLVED_LOSS.
+    All amounts as decimal strings. (I-05, I-24: append-only audit trail)
+
+    Args:
+        merchant_id: Merchant ID receiving the chargeback
+        payment_id: Original payment ID being disputed
+        reason: Chargeback reason code (e.g. FRAUD, NOT_RECEIVED)
+        amount: Disputed amount as decimal string
+        currency: ISO 4217 currency code
+    """
+    try:
+        result = await _api_post(
+            f"/v1/merchants/{merchant_id}/chargebacks",
+            {
+                "payment_id": payment_id,
+                "reason": reason,
+                "amount": amount,
+                "currency": currency,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def merchant_risk_score(merchant_id: str) -> str:
+    """Get the current risk score for a merchant.
+
+    Risk score is a float 0–100 (analytical metric, not monetary).
+    Incorporates chargeback ratio, MCC risk, volume anomaly, and velocity.
+    HIGH risk (score ≥ 70) triggers HITL review. (I-27)
+
+    Args:
+        merchant_id: Merchant ID to score
+    """
+    try:
+        result = await _api_get(f"/v1/merchants/{merchant_id}/risk-score")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
 @mcp_server.resource("banxe://info")
 async def info_resource() -> str:
     """BANXE EMI platform information."""
@@ -2397,7 +2670,10 @@ async def info_resource() -> str:
         "audit_query_events, audit_generate_report, audit_risk_score, audit_governance_status, "
         "treasury_get_positions, treasury_forecast, treasury_propose_sweep, treasury_reconcile, "
         "treasury_pending_sweeps, "
-        "notify_send, notify_list_templates, notify_get_preferences, notify_delivery_status\n"
+        "notify_send, notify_list_templates, notify_get_preferences, notify_delivery_status, "
+        "card_issue, card_freeze, card_get_status, card_set_limits, card_list_transactions, "
+        "merchant_onboard, merchant_accept_payment, merchant_get_settlements, "
+        "merchant_handle_chargeback, merchant_risk_score\n"
         "FCA basis: CASS 7.15, CASS 15, MLR 2017, PSR 2017, DISP 1.3, PS22/9, SUP 16, PSD2 RTS\n"
         "Trust zone: RED"
     )

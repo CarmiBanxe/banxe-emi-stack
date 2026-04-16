@@ -546,3 +546,85 @@ FCA refs: DISP 1.3 (complaint notifications), PS22/9 §4 (consumer communication
 
 commit: IL-TLM-01 + IL-NHB-01 | 3615 tests green | 2026-04-16
 
+---
+
+## Phase 19 — Card Issuing & Management ✅ DONE (Sprint 20 — 2026-04-16)
+
+> IL-CIM-01 | Full card lifecycle: issue, activate, PIN (I-12), freeze/block, spend limits, 3DS2 authorisation
+
+| # | Feature | IL | Status | Notes |
+|---|---------|-----|--------|-------|
+| 184 | models.py — Protocol DI ports + InMemory stubs | IL-CIM-01 | ✅ | BINs: MC 531604, Visa 427316 |
+| 185 | card_issuer.py — issue VIRTUAL/PHYSICAL, activate, PIN hash (I-12) | IL-CIM-01 | ✅ | SHA-256 PIN, never plain |
+| 186 | card_lifecycle.py — freeze/unfreeze/block/replace/expire | IL-CIM-01 | ✅ | block/replace = HITL L4 |
+| 187 | spend_control.py — per-card limits (Decimal), MCC block, geo-restrict | IL-CIM-01 | ✅ | DAILY/WEEKLY/MONTHLY |
+| 188 | card_transaction_processor.py — authorise + clear transactions | IL-CIM-01 | ✅ | spend limit enforcement |
+| 189 | fraud_shield.py — velocity check + MCC risk (risk_score: float 0–100) | IL-CIM-01 | ✅ | 5+ auths/hr = HIGH_VELOCITY |
+| 190 | card_agent.py — L2/L4 orchestration | IL-CIM-01 | ✅ | I-27 HITL for block/replace |
+| 191 | api/routers/card_issuing.py — 10 endpoints | IL-CIM-01 | ✅ | /v1/cards/* |
+| 192 | 5 MCP tools (card_issue..card_list_transactions) | IL-CIM-01 | ✅ | banxe_mcp/server.py |
+| 193 | Agent passport + SOUL.md | IL-CIM-01 | ✅ | agents/passports/cards/ |
+| 194 | 126 tests across 7 test files | IL-CIM-01 | ✅ | tests/test_card_issuing/ |
+
+FCA refs: PSR 2017 / PSD2 Art.63, PCI-DSS v4 (I-12), FCA BCOBS 5, GDPR Art.5
+
+---
+
+## Phase 20 — Merchant Acquiring Gateway ✅ DONE (Sprint 20 — 2026-04-16)
+
+> IL-MAG-01 | KYB onboarding, payment acceptance with 3DS2 SCA, settlement (1.5% fee), chargeback handling, risk scoring
+
+| # | Feature | IL | Status | Notes |
+|---|---------|-----|--------|-------|
+| 195 | models.py — Protocol DI ports + InMemory stubs | IL-MAG-01 | ✅ | 5 ports, prohibited MCC list |
+| 196 | merchant_onboarding.py — KYB risk tier (LOW/MEDIUM/HIGH/PROHIBITED) | IL-MAG-01 | ✅ | MCCs 7995/9754/7801 blocked |
+| 197 | payment_gateway.py — 3DS2 routing (≥ £30.00) | IL-MAG-01 | ✅ | PSD2 SCA RTS Art.11 |
+| 198 | settlement_engine.py — batch settlement (FEE_RATE = 1.5%) | IL-MAG-01 | ✅ | Decimal gross/fees/net |
+| 199 | chargeback_handler.py — full lifecycle with evidence | IL-MAG-01 | ✅ | RECEIVED→RESOLVED_WIN/LOSS |
+| 200 | merchant_risk_scorer.py — score 0–100 (float — analytical) | IL-MAG-01 | ✅ | chargeback_ratio: float |
+| 201 | merchant_agent.py — L2/L4 orchestration | IL-MAG-01 | ✅ | I-27 HITL for suspend/terminate |
+| 202 | api/routers/merchant_acquiring.py — 10 endpoints | IL-MAG-01 | ✅ | /v1/merchants/* |
+| 203 | 5 MCP tools (merchant_onboard..merchant_risk_score) | IL-MAG-01 | ✅ | banxe_mcp/server.py |
+| 204 | Agent passport + SOUL.md | IL-MAG-01 | ✅ | agents/passports/merchant/ |
+| 205 | 120 tests across 7 test files | IL-MAG-01 | ✅ | tests/test_merchant_acquiring/ |
+
+FCA refs: PSR 2017 / PSD2 Art.97+RTS Art.11, MLR 2017 Reg.28, FCA SUP 16, VISA/MC scheme rules
+
+---
+
+## Sprint 20 — Card Issuing + Merchant Acquiring (2026-04-16)
+
+> **Scope:** 4 blocks — (A) Phase 19 Card Issuing, (B) Phase 20 Merchant Acquiring,
+> (C) ROADMAP Phase 19+20 sections, (D) IL-098. P0 deadline 7 May 2026.
+
+### S20-A: Phase 19 — Card Issuing & Management (IL-CIM-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 184 | services/card_issuing/ — 7 modules | IL-CIM-01 | ✅ |
+| 185 | api/routers/card_issuing.py — 10 endpoints | IL-CIM-01 | ✅ |
+| 186 | 5 MCP tools: card_issue, card_freeze, card_get_status, card_set_limits, card_list_transactions | IL-CIM-01 | ✅ |
+| 187 | Agent passport + SOUL.md | IL-CIM-01 | ✅ |
+| 188 | 126 tests | IL-CIM-01 | ✅ |
+
+### S20-B: Phase 20 — Merchant Acquiring Gateway (IL-MAG-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 189 | services/merchant_acquiring/ — 7 modules | IL-MAG-01 | ✅ |
+| 190 | api/routers/merchant_acquiring.py — 10 endpoints | IL-MAG-01 | ✅ |
+| 191 | 5 MCP tools: merchant_onboard, merchant_accept_payment, merchant_get_settlements, merchant_handle_chargeback, merchant_risk_score | IL-MAG-01 | ✅ |
+| 192 | Agent passport + SOUL.md | IL-MAG-01 | ✅ |
+| 193 | 120 tests | IL-MAG-01 | ✅ |
+
+### S20-C: Sprint 20 Targets
+
+| Metric | S19 Actual | S20 Target | S20 Actual |
+|--------|-----------|------------|-----------|
+| Tests | 3615 | 3830+ | 3861 ✅ |
+| MCP tools | 61 | 71+ | 71 ✅ |
+| API endpoints | 129 | 149+ | 149 ✅ |
+| Agent passports | 19 | 21+ | 21 ✅ |
+
+commit: IL-CIM-01 + IL-MAG-01 | 3861 tests green | 2026-04-16
+
