@@ -48,7 +48,6 @@
 {"ts":"2026-04-15T09:56:44Z","hash":"0091c61","il":null,"type":"fix","msg":"fix(quality): BUG-006 add LucidShark/Semgrep pre-commit hook","files_changed":1,"areas":[]}
 {"ts":"2026-04-15T10:04:25Z","hash":"da1808c","il":null,"type":"feat","msg":"feat(commands): add /project:agent-audit recurring audit command","files_changed":1,"areas":[]}
 {"ts":"2026-04-15T17:22:23Z","hash":"d8a55ca","il":null,"type":"docs","msg":"docs(sprint-16): Block B DONE — Phase 11 Compliance AI Copilot on main","files_changed":1,"areas":[]}
-{"ts":"2026-04-16T09:50:43Z","hash":"e42f71e","il":"IL-RRA-01","type":"feat","msg":"feat(regulatory-reporting): Phase 14 — Regulatory Reporting Automation [IL-RRA-01]","files_changed":20,"areas":["services","api","tests"]}
-{"ts":"2026-04-16T11:18:31Z","hash":"62880f7","il":"IL-OBK-01","type":"feat","msg":"feat(open-banking+audit-dashboard): Phase 15+16 — PSD2 gateway + governance dashboard [IL-OBK-01 + IL-AGD-01]","files_changed":37,"areas":["services","api","tests"]}
-{"ts":"2026-04-16T17:10:44Z","hash":"273d289","il":"IL-TLM-01","type":"feat","msg":"feat(treasury+notification-hub): Phase 17+18 — liquidity management + notification hub [IL-TLM-01 + IL-NHB-01]","files_changed":38,"areas":["services","api","tests"]}
-{"ts":"2026-04-16T21:50:02Z","hash":"1845758","il":"IL-CIM-01","type":"feat","msg":"feat(card-issuing+merchant-acquiring): Phase 19+20 [IL-CIM-01 + IL-MAG-01]","files_changed":42,"areas":["services","api","tests"]}
+{"ts":"2026-04-15T22:04:39Z","hash":"5257693","il":"IL-CSB-01","type":"feat","msg":"feat(IL-CSB-01): Customer Support Block — all 11 items (#108-#118)","files_changed":27,"areas":["services","api","tests"]}
+{"ts":"2026-04-15T23:00:58Z","hash":"a8a22ac","il":null,"type":"docs","msg":"docs(sprint-16): Sprint 16 DONE — all blocks ✅ + 12 MCP support tool tests","files_changed":2,"areas":["tests"]}
+{"ts":"2026-04-16T09:46:09Z","hash":"7f95da5","il":"IL-RRA-01","type":"feat","msg":"feat(regulatory-reporting): Phase 14 — Regulatory Reporting Automation [IL-RRA-01]","files_changed":20,"areas":["services","api","tests"]}
