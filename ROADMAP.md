@@ -382,3 +382,86 @@ FCA refs: SUP 16.12, SYSC 9.1.1R, POCA 2002 s.330, BoE Statistical Notice, ACPR 
 
 commit: IL-RRA-01 | 3190 tests green | 2026-04-16
 
+---
+
+## Phase 15 — Open Banking PSD2 Gateway ✅ DONE (Sprint 18 — 2026-04-16)
+
+> IL-OBK-01 | PSD2 AISP/PISP gateway — consents, payments, SCA, token management
+
+| # | Feature | IL | Status | Notes |
+|---|---------|-----|--------|-------|
+| 142 | models.py — Protocol DI ports + InMemory stubs | IL-OBK-01 | ✅ | 6 enums, 6 dataclasses, 5 ports |
+| 143 | consent_manager.py — 90-day lifecycle (PSD2 RTS Art.10) | IL-OBK-01 | ✅ | create/authorise/revoke |
+| 144 | pisp_service.py — PISP single + bulk (PSR 2017 / Art.66) | IL-OBK-01 | ✅ | I-01: Decimal amounts |
+| 145 | aisp_service.py — AISP balances/txns (PSD2 Art.67) | IL-OBK-01 | ✅ | permission validation |
+| 146 | aspsp_adapter.py — Berlin Group + UK OBIE 3.1 | IL-OBK-01 | ✅ | NextGenPSD2 + OBIE |
+| 147 | sca_orchestrator.py — redirect/decoupled/embedded (RTS Art.4) | IL-OBK-01 | ✅ | 10-min challenge TTL |
+| 148 | token_manager.py — OAuth2/PKCE/mTLS/OIDC FAPI | IL-OBK-01 | ✅ | cached tokens |
+| 149 | open_banking_agent.py — L2/L4 orchestration (I-27) | IL-OBK-01 | ✅ | HITL for payment |
+| 150 | api/routers/open_banking.py — 8 endpoints | IL-OBK-01 | ✅ | POST/GET /v1/open-banking/* |
+| 151 | 5 MCP tools (ob_create_consent..ob_list_aspsps) | IL-OBK-01 | ✅ | banxe_mcp/server.py |
+| 152 | Agent passport + SOUL.md | IL-OBK-01 | ✅ | agents/passports/open_banking/ |
+| 153 | 113 tests across 5 test files | IL-OBK-01 | ✅ | tests/test_open_banking/ |
+
+ASPSPs: barclays-uk (OBIE), hsbc-uk (OBIE), bnp-fr (Berlin Group)
+Regulatory: PSD2 Art.66+67, RTS Art.4+10, PSR 2017, UK OB OBIE 3.1, FCA PS19/4
+
+---
+
+## Phase 16 — Audit & Governance Dashboard ✅ DONE (Sprint 18 — 2026-04-16)
+
+> IL-AGD-01 | Unified audit aggregation, risk scoring, board governance reports
+
+| # | Feature | IL | Status | Notes |
+|---|---------|-----|--------|-------|
+| 154 | models.py — Protocol DI ports + InMemory stubs | IL-AGD-01 | ✅ | 4 enums, 5 dataclasses, 4 ports |
+| 155 | audit_aggregator.py — unified event ingestion + query | IL-AGD-01 | ✅ | 8 categories, ClickHouse-ready |
+| 156 | risk_scorer.py — AML+fraud+operational+regulatory scoring | IL-AGD-01 | ✅ | 0–100 float scale |
+| 157 | governance_reporter.py — JSON/PDF board reports | IL-AGD-01 | ✅ | SYSC 9 compliance |
+| 158 | dashboard_api.py — live metrics + governance status | IL-AGD-01 | ✅ | WebSocket-ready |
+| 159 | api/routers/audit_dashboard.py — 8 endpoints | IL-AGD-01 | ✅ | GET/POST /v1/audit/* |
+| 160 | 4 MCP tools (audit_query_events..audit_governance_status) | IL-AGD-01 | ✅ | banxe_mcp/server.py |
+| 161 | Agent passport + SOUL.md | IL-AGD-01 | ✅ | agents/passports/audit/ |
+| 162 | 88 tests across 5 test files | IL-AGD-01 | ✅ | tests/test_audit_dashboard/ |
+
+Risk levels: LOW (<25) | MEDIUM (25–49) | HIGH (50–74) | CRITICAL (≥75)
+Regulatory: SYSC 9.1.1R, SYSC 4.1.1R, PS22/9, MLR 2017 Reg.28, EU AI Act Art.14
+
+---
+
+## Sprint 18 — Open Banking + Audit Dashboard (2026-04-16)
+
+> **Scope:** 4 blocks — (A) Phase 15 Open Banking PSD2 Gateway, (B) Phase 16 Audit Dashboard,
+> (C) ROADMAP Phase 15+16 sections, (D) IL-096. P0 deadline 7 May 2026.
+
+### S18-A: Phase 15 — Open Banking PSD2 Gateway (IL-OBK-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 142 | services/open_banking/ — 8 modules | IL-OBK-01 | ✅ |
+| 143 | api/routers/open_banking.py — 8 endpoints | IL-OBK-01 | ✅ |
+| 144 | 5 MCP tools: ob_create_consent, ob_initiate_payment, ob_get_accounts, ob_revoke_consent, ob_list_aspsps | IL-OBK-01 | ✅ |
+| 145 | Agent passport + SOUL.md | IL-OBK-01 | ✅ |
+| 146 | 113 tests | IL-OBK-01 | ✅ |
+
+### S18-B: Phase 16 — Audit & Governance Dashboard (IL-AGD-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 147 | services/audit_dashboard/ — 5 modules | IL-AGD-01 | ✅ |
+| 148 | api/routers/audit_dashboard.py — 8 endpoints | IL-AGD-01 | ✅ |
+| 149 | 4 MCP tools: audit_query_events, audit_generate_report, audit_risk_score, audit_governance_status | IL-AGD-01 | ✅ |
+| 150 | Agent passport + SOUL.md | IL-AGD-01 | ✅ |
+| 151 | 88 tests | IL-AGD-01 | ✅ |
+
+### S18-C: Sprint 18 Targets
+
+| Metric | S17 Actual | S18 Target | S18 Actual |
+|--------|-----------|------------|-----------|
+| Tests | 3190 | 3400+ | 3391 ✅ |
+| MCP tools | 43 | 52+ | 52 ✅ |
+| API endpoints | 97 | 111+ | 113 ✅ |
+| Agent passports | 15 | 17+ | 17 ✅ |
+
+commit: IL-OBK-01 + IL-AGD-01 | 3391 tests green | 2026-04-16
+

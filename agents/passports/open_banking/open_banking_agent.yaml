@@ -1,0 +1,117 @@
+name: OpenBankingAgent
+id: IL-OBK-01
+version: "1.0.0"
+phase: 15
+sprint: 18
+created: "2026-04-16"
+
+identity:
+  description: >
+    PSD2-compliant Open Banking Gateway agent for Banxe EMI Ltd.
+    Orchestrates AISP and PISP flows across UK OBIE 3.1 and Berlin Group
+    NextGenPSD2 3.1 compliant ASPSPs.
+  trust_zone: AMBER
+  autonomy_level: L2_L4_split
+
+regulatory_basis:
+  - "PSD2 (EU) 2015/2366 Art.66 (PISP), Art.67 (AISP)"
+  - "PSD2 RTS (EU) 2018/389 Art.4 (SCA), Art.10 (90-day re-auth)"
+  - "PSR 2017 (UK implementation of PSD2)"
+  - "UK Open Banking Standard OBIE 3.1"
+  - "Berlin Group NextGenPSD2 3.1"
+  - "FCA PS19/4 (Strong Customer Authentication)"
+
+capabilities:
+  - Create, authorise, revoke PSD2 consents (AISP + PISP)
+  - Initiate single and bulk payments via PISP gateway
+  - Fetch account balances and transaction history via AISP
+  - Orchestrate SCA flows (redirect / decoupled / embedded)
+  - Manage OAuth2 PKCE / mTLS / OIDC FAPI tokens
+  - Route requests to correct ASPSP adapter (UK OBIE or Berlin Group)
+
+autonomy:
+  L2:
+    description: Auto-execute with audit logging — no human gate
+    operations:
+      - consent.create
+      - consent.revoke
+      - aisp.get_accounts
+      - aisp.get_balance
+      - aisp.get_transactions
+      - sca.initiate
+      - aspsp.list
+  L4:
+    description: Requires explicit human authorisation — payment is irreversible
+    operations:
+      - pisp.initiate_payment
+      - pisp.bulk_payment
+
+hitl_gates:
+  - gate: pisp.payment_submit
+    level: L4
+    required_role: Compliance Officer
+    timeout: 30m
+    reason: Payment to external ASPSP is irreversible (I-27)
+
+invariants:
+  - I-01: All payment amounts use Decimal — never float
+  - I-24: OB audit trail is append-only
+  - I-27: Payment initiation requires human approval
+  - I-02: Blocked jurisdictions (RU, BY, IR, KP, CU, MM, AF, VE, SY)
+
+protocol_di_ports:
+  ConsentStorePort:
+    production: ClickHouseConsentStore
+    test: InMemoryConsentStore
+  PaymentGatewayPort:
+    production: AspspHttpGateway
+    test: InMemoryPaymentGateway
+  ASPSPRegistryPort:
+    production: PostgresASPSPRegistry
+    test: InMemoryASPSPRegistry
+  AccountDataPort:
+    production: AspspAccountClient
+    test: InMemoryAccountData
+  OBAuditTrailPort:
+    production: ClickHouseOBAuditTrail
+    test: InMemoryOBAuditTrail
+
+aspsp_standards:
+  - name: UK OBIE 3.1
+    id: UK_OBIE
+    countries: [GB]
+    adapter: UKOBIEAdapter
+  - name: Berlin Group NextGenPSD2 3.1
+    id: BERLIN_GROUP
+    countries: [FR, DE, NL, BE, ES, IT]
+    adapter: BerlinGroupAdapter
+
+registered_aspsps:
+  - id: barclays-uk
+    standard: UK_OBIE
+    country: GB
+  - id: hsbc-uk
+    standard: UK_OBIE
+    country: GB
+  - id: bnp-fr
+    standard: BERLIN_GROUP
+    country: FR
+
+audit:
+  table: banxe.ob_audit
+  retention: 5yr_minimum
+  events:
+    - consent.created
+    - consent.authorised
+    - consent.revoked
+    - consent.expired
+    - payment.initiated
+    - payment.completed
+    - payment.failed
+    - aisp.accounts_fetched
+    - aisp.balance_fetched
+    - aisp.transactions_fetched
+    - sca.initiated
+    - sca.completed
+    - token.issued
+    - token.revoked

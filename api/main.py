@@ -1,6 +1,6 @@
 """
 api/main.py — Banxe EMI FastAPI REST API Layer
-IL-046 | S17-01 | banxe-emi-stack
+IL-046 | S17-01 | S18-01 | banxe-emi-stack
 
 Single entry point for all REST API routes. Exposes:
   GET  /health                   — liveness + readiness
@@ -35,6 +35,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from api.routers import (
+    audit_dashboard,
     auth,
     compliance_kb,
     consumer_duty,
@@ -47,6 +48,7 @@ from api.routers import (
     ledger,
     mlro_notifications,
     notifications,
+    open_banking,
     payments,
     recon,
     regulatory,
@@ -135,3 +137,5 @@ app.include_router(safeguarding.router, prefix="/v1")  # CASS 15 safeguarding (6
 app.include_router(recon.router, prefix="/v1")  # Reconciliation (3 endpoints)
 app.include_router(support.router, prefix="/v1")  # Customer Support Block (IL-CSB-01)
 app.include_router(regulatory.router, prefix="/v1")  # Regulatory Reporting (IL-RRA-01)
+app.include_router(open_banking.router, prefix="/v1")  # Open Banking PSD2 Gateway (IL-OBK-01)
+app.include_router(audit_dashboard.router, prefix="/v1")  # Audit & Governance Dashboard (IL-AGD-01)

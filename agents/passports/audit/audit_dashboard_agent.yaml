@@ -1,0 +1,95 @@
+name: AuditDashboardAgent
+id: IL-AGD-01
+version: "1.0.0"
+phase: 16
+sprint: 18
+created: "2026-04-16"
+
+identity:
+  description: >
+    Audit & Governance Dashboard Agent for Banxe EMI Ltd.
+    Aggregates audit events from all services, computes risk scores,
+    generates board governance reports, and provides live dashboard metrics.
+  trust_zone: AMBER
+  autonomy_level: L2
+
+regulatory_basis:
+  - "FCA SYSC 9.1.1R (adequate records of regulatory submissions)"
+  - "FCA SYSC 4.1.1R (governance systems and controls)"
+  - "PS22/9 Consumer Duty (monitoring and board reporting)"
+  - "MLR 2017 Reg.28 (risk assessment records)"
+  - "FCA SUP 15.3 (notification of significant events)"
+  - "EU AI Act Art.14 (human oversight of high-risk AI)"
+
+capabilities:
+  - Ingest and unify audit events from AML, KYC, payment, ledger, auth services
+  - Query events by category, entity, date range, and risk level
+  - Compute multi-dimensional risk scores (AML + fraud + operational + regulatory)
+  - Generate JSON and PDF governance reports for board review
+  - Provide live dashboard metrics (WebSocket + HTTP polling)
+  - Monitor platform-wide compliance status (COMPLIANT / REQUIRES_ATTENTION / NON_COMPLIANT)
+
+autonomy:
+  L2:
+    description: Auto-execute all dashboard and reporting operations
+    operations:
+      - audit.ingest_event
+      - audit.query_events
+      - audit.get_event_summary
+      - risk.score_entity
+      - risk.score_batch
+      - report.generate
+      - dashboard.get_live_metrics
+      - dashboard.get_governance_status
+
+invariants:
+  - I-24: Audit trail is append-only — no UPDATE or DELETE
+  - I-08: ClickHouse TTL minimum 5 years for all audit tables
+  - I-27: AI proposes risk scores — human decides remediation
+  - I-28: All agent decisions logged in execution trace
+
+risk_scoring:
+  dimensions:
+    - aml_score: float (0–100), based on AML audit events
+    - fraud_score: float (0–100), based on PAYMENT/LEDGER events
+    - operational_score: float (0–100), based on AUTH/operational events
+    - regulatory_score: float (0–100), based on COMPLIANCE/REGULATORY events
+    - overall_score: float (0–100), weighted average
+  thresholds:
+    LOW: "overall < 25"
+    MEDIUM: "25 ≤ overall < 50"
+    HIGH: "50 ≤ overall < 75"
+    CRITICAL: "overall ≥ 75"
+
+protocol_di_ports:
+  EventStorePort:
+    production: ClickHouseEventStore
+    test: InMemoryEventStore
+  ReportStorePort:
+    production: PostgresReportStore
+    test: InMemoryReportStore
+  RiskEnginePort:
+    production: MLRiskEngine
+    test: InMemoryRiskEngine
+  MetricsStorePort:
+    production: RedisMetricsStore
+    test: InMemoryMetricsStore
+
+event_categories:
+  - AML
+  - KYC
+  - PAYMENT
+  - LEDGER
+  - AUTH
+  - COMPLIANCE
+  - SAFEGUARDING
+  - REGULATORY
+
+audit:
+  table: banxe.governance_audit
+  retention: 5yr_minimum
+  events:
+    - audit.event_ingested
+    - audit.report_generated
+    - risk.score_computed
+    - dashboard.metrics_refreshed

@@ -1878,6 +1878,258 @@ async def report_list_templates() -> str:
         return json.dumps({"error": str(exc)})
 
 
+@mcp_server.tool()
+async def ob_create_consent(
+    entity_id: str,
+    aspsp_id: str,
+    consent_type: str,
+    permissions: str,
+    actor: str,
+    redirect_uri: str = "",
+) -> str:
+    """Create a PSD2 Open Banking consent (AISP or PISP) for a customer.
+
+    Args:
+        entity_id: Customer or firm identifier
+        aspsp_id: Target bank ID (e.g. barclays-uk, hsbc-uk, bnp-fr)
+        consent_type: AISP or PISP
+        permissions: Comma-separated list (ACCOUNTS,BALANCES,TRANSACTIONS,BENEFICIARIES)
+        actor: Identity of the requestor
+        redirect_uri: Optional redirect URI for REDIRECT SCA flow
+
+    Returns:
+        JSON with consent id, status, and expires_at.
+    """
+    try:
+        payload: dict[str, object] = {
+            "entity_id": entity_id,
+            "aspsp_id": aspsp_id,
+            "consent_type": consent_type,
+            "permissions": [p.strip() for p in permissions.split(",") if p.strip()],
+            "actor": actor,
+        }
+        if redirect_uri:
+            payload["redirect_uri"] = redirect_uri
+        result = await _api_post("/v1/open-banking/consents", payload)
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+
+@mcp_server.tool()
+async def ob_initiate_payment(
+    consent_id: str,
+    entity_id: str,
+    aspsp_id: str,
+    amount: str,
+    currency: str,
+    creditor_iban: str,
+    creditor_name: str,
+    actor: str,
+    debtor_iban: str = "",
+    reference: str = "",
+) -> str:
+    """Initiate a PSD2 PISP payment via an authorised consent (L4 — HITL gate, I-27).
+
+    Args:
+        consent_id: Authorised PISP consent ID
+        entity_id: Customer identifier
+        aspsp_id: Target ASPSP bank ID
+        amount: Payment amount as decimal string (e.g. "100.00")
+        currency: ISO 4217 currency code (e.g. GBP)
+        creditor_iban: Beneficiary IBAN
+        creditor_name: Beneficiary name
+        actor: Identity of the requestor
+        debtor_iban: Optional debtor IBAN
+        reference: Optional payment reference
+
+    Returns:
+        JSON with payment id, status, and aspsp_payment_id.
+    """
+    try:
+        payload: dict[str, object] = {
+            "consent_id": consent_id,
+            "entity_id": entity_id,
+            "aspsp_id": aspsp_id,
+            "amount": amount,
+            "currency": currency,
+            "creditor_iban": creditor_iban,
+            "creditor_name": creditor_name,
+            "actor": actor,
+        }
+        if debtor_iban:
+            payload["debtor_iban"] = debtor_iban
+        if reference:
+            payload["reference"] = reference
+        result = await _api_post("/v1/open-banking/payments", payload)
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+
+@mcp_server.tool()
+async def ob_get_accounts(consent_id: str, actor: str) -> str:
+    """Fetch account list via an authorised AISP consent (PSD2 Art.67).
+
+    Args:
+        consent_id: Authorised AISP consent ID
+        actor: Identity of the requestor
+
+    Returns:
+        JSON list of accounts with IBAN, currency, and balance.
+    """
+    try:
+        result = await _api_get(f"/v1/open-banking/accounts?consent_id={consent_id}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+
+@mcp_server.tool()
+async def ob_revoke_consent(consent_id: str, actor: str) -> str:
+    """Revoke an existing Open Banking consent (AISP or PISP).
+
+    Args:
+        consent_id: Consent ID to revoke
+        actor: Identity of the requestor
+
+    Returns:
+        JSON with consent id and updated status REVOKED.
+    """
+    try:
+        result = await _api_post(f"/v1/open-banking/consents/{consent_id}/revoke", {"actor": actor})
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+
+@mcp_server.tool()
+async def ob_list_aspsps() -> str:
+    """List all registered ASPSPs (banks) available for Open Banking connections.
+
+    Returns:
+        JSON list of ASPSPs with id, name, country, and standard (UK_OBIE / BERLIN_GROUP).
+    """
+    try:
+        result = await _api_get("/v1/open-banking/aspsps")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+
+@mcp_server.tool()
+async def audit_query_events(
+    category: str = "",
+    entity_id: str = "",
+    limit: int = 50,
+) -> str:
+    """Query unified audit events across all Banxe services.
+
+    Args:
+        category: Optional filter — AML, KYC, PAYMENT, LEDGER, AUTH, COMPLIANCE,
+                  SAFEGUARDING, REGULATORY (empty = all)
+        entity_id: Optional filter by customer/firm entity ID
+        limit: Max events to return (default 50)
+
+    Returns:
+        JSON list of audit events with event_type, risk_level, actor, created_at.
+    """
+    try:
+        params: list[str] = [f"limit={limit}"]
+        if category:
+            params.append(f"category={category}")
+        if entity_id:
+            params.append(f"entity_id={entity_id}")
+        qs = "&".join(params)
+        result = await _api_get(f"/v1/audit/events?{qs}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+
+@mcp_server.tool()
+async def audit_generate_report(
+    title: str,
+    period_start: str,
+    period_end: str,
+    actor: str = "system",
+) -> str:
+    """Generate a governance and compliance report for a given period.
+
+    Args:
+        title: Report title (e.g. "Q1 2025 Governance Report")
+        period_start: ISO 8601 start datetime (e.g. 2025-01-01T00:00:00Z)
+        period_end: ISO 8601 end datetime (e.g. 2025-03-31T23:59:59Z)
+        actor: Identity of the requestor
+
+    Returns:
+        JSON GovernanceReport with compliance_score, risk_summary, and total_events.
+    """
+    try:
+        payload = {
+            "title": title,
+            "period_start": period_start,
+            "period_end": period_end,
+            "actor": actor,
+        }
+        result = await _api_post("/v1/audit/reports", payload)
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+
+@mcp_server.tool()
+async def audit_risk_score(entity_id: str, lookback_days: int = 30) -> str:
+    """Compute multi-dimensional risk score for an entity.
+
+    Args:
+        entity_id: Customer or firm identifier
+        lookback_days: Lookback window in days (default 30)
+
+    Returns:
+        JSON RiskScore with aml_score, fraud_score, operational_score,
+        regulatory_score, overall_score, and contributing_factors.
+    """
+    try:
+        result = await _api_get(f"/v1/audit/risk/score/{entity_id}?lookback_days={lookback_days}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+
+@mcp_server.tool()
+async def audit_governance_status() -> str:
+    """Get current platform-wide governance and compliance status.
+
+    Returns:
+        JSON with status (COMPLIANT / REQUIRES_ATTENTION / NON_COMPLIANT),
+        checked_at timestamp, and details dict.
+    """
+    try:
+        result = await _api_get("/v1/audit/governance/status")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+
 @mcp_server.resource("banxe://info")
 async def info_resource() -> str:
     """BANXE EMI platform information."""
@@ -1893,8 +2145,11 @@ async def info_resource() -> str:
         "monitor_get_velocity, monitor_dashboard_metrics, "
         "support_create_ticket, support_get_metrics, support_check_sla, support_route_ticket, "
         "report_generate, report_validate, report_schedule, report_audit_log, "
-        "report_list_templates\n"
-        "FCA basis: CASS 7.15, CASS 15, MLR 2017, PSR 2017, DISP 1.3, PS22/9, SUP 16\n"
+        "report_list_templates, "
+        "ob_create_consent, ob_initiate_payment, ob_get_accounts, ob_revoke_consent, "
+        "ob_list_aspsps, "
+        "audit_query_events, audit_generate_report, audit_risk_score, audit_governance_status\n"
+        "FCA basis: CASS 7.15, CASS 15, MLR 2017, PSR 2017, DISP 1.3, PS22/9, SUP 16, PSD2 RTS\n"
         "Trust zone: RED"
     )
 
