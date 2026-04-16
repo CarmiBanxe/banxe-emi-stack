@@ -96,6 +96,12 @@ class PaymentService:
         self._ledger = ledger_port
         self._event_bus = event_bus
 
+    def health_check(self) -> bool:
+        """Delegate health check to underlying rail adapter."""
+        if hasattr(self._rail, "health_check"):
+            return bool(self._rail.health_check())
+        return True
+
     # ── Public API ────────────────────────────────────────────────────────────
 
     def send_fps(

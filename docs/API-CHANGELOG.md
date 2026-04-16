@@ -1,0 +1,1 @@
+- 2026-04-17 [9c140ef] feat(payments): wire PaymentService+LedgerPort in DI, align router type hints — Phase 2 P0

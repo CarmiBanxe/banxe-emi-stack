@@ -51,3 +51,6 @@
 {"ts":"2026-04-15T22:04:39Z","hash":"5257693","il":"IL-CSB-01","type":"feat","msg":"feat(IL-CSB-01): Customer Support Block — all 11 items (#108-#118)","files_changed":27,"areas":["services","api","tests"]}
 {"ts":"2026-04-15T23:00:58Z","hash":"a8a22ac","il":null,"type":"docs","msg":"docs(sprint-16): Sprint 16 DONE — all blocks ✅ + 12 MCP support tool tests","files_changed":2,"areas":["tests"]}
 {"ts":"2026-04-16T09:46:09Z","hash":"7f95da5","il":"IL-RRA-01","type":"feat","msg":"feat(regulatory-reporting): Phase 14 — Regulatory Reporting Automation [IL-RRA-01]","files_changed":20,"areas":["services","api","tests"]}
+{"ts":"2026-04-16T22:56:26Z","hash":"573ab09","il":null,"type":"chore","msg":"chore: resolve stash conflict in claude memory log","files_changed":1,"areas":[]}
+{"ts":"2026-04-16T23:00:24Z","hash":"9c140ef","il":null,"type":"feat","msg":"feat(payments): wire PaymentService+LedgerPort in DI, align router type hints — Phase 2 P0","files_changed":1,"areas":["api"]}
+{"hash": "9c140ef", "full_hash": "9c140ef412b980486bbce91a575dfac5f141972b", "message": "feat(payments): wire PaymentService+LedgerPort in DI, align router type hints — Phase 2 P0", "author": "Moriel Carmi", "date": "2026-04-17 01:00:24 +0200", "il_id": null, "type": "feat", "changed_files": ["api/deps.py"]}
