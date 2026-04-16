@@ -173,19 +173,21 @@ Infrastructure Checklist: 15/15 ✅
 | 57 | MCP Tools (4 new tools) | IL-ARL-01 | ✅ | banxe_mcp/tools/ |
 | 58 | Agent Routing Tests 
 
-## Phase 9 — Design-to-Code Pipeline PENDING
+## Phase 9 — Design-to-Code Pipeline ✅ DONE (Sprint 16 — 2026-04-12)
 
 | # | Feature | IL | Status | Notes |
 |---|---------|-----|--------|-------|
-| 59 | Penpot self-hosted Docker | IL-D2C-01 | PENDING | infra/penpot/ |
-| 60 | Penpot MCP Client | IL-D2C-01 | PENDING | services/design_pipeline/ |
-| 61 | Design Token Pipeline | IL-D2C-01 | PENDING | config/design-tokens/ |
-| 62 | AI Orchestrator FastAPI LangChain | IL-D2C-01 | PENDING | Penpot to code generation |
-| 63 | Code Generator Mitosis | IL-D2C-01 | PENDING | React Vue RN output |
-| 64 | Visual QA Agent | IL-D2C-01 | PENDING | BackstopJS Loki |
-| 65 | BANXE UI Agents | IL-D2C-01 | PENDING | compliance txn report |
-| 66 | D2C MCP Tools 4 tools | IL-D2C-01 | PENDING | banxe_mcp tools |
-| 67 | D2C Tests 80 plus | IL-D2C-01 | PENDING | tests/test_design_pipeline/ |(120+) | IL-ARL-01 | ✅ | tests/test_agent_routing/ |
+| 59 | Penpot self-hosted Docker | IL-D2C-01 | ✅ | infra/penpot/ |
+| 60 | Penpot MCP Client | IL-D2C-01 | ✅ | services/design_pipeline/ |
+| 61 | Design Token Pipeline | IL-D2C-01 | ✅ | config/design-tokens/ |
+| 62 | AI Orchestrator FastAPI LangChain | IL-D2C-01 | ✅ | Penpot to code generation |
+| 63 | Code Generator Mitosis | IL-D2C-01 | ✅ | React Vue RN output |
+| 64 | Visual QA Agent | IL-D2C-01 | ✅ | BackstopJS Loki |
+| 65 | BANXE UI Agents | IL-D2C-01 | ✅ | compliance txn report |
+| 66 | D2C MCP Tools 4 tools | IL-D2C-01 | ✅ | banxe_mcp tools |
+| 67 | D2C Tests 80 plus | IL-D2C-01 | ✅ | tests/test_design_pipeline/ |
+
+commit: 9b8fb48 | 207 tests green | 2026-04-12
 ---
 
 *Last updated: 2026-04-14 by Claude Code + Moriel Carmi.*
@@ -256,7 +258,7 @@ FCA: Consumer Duty PS22/9 §4 (Consumer Support outcome)
 
 ---
 
-## Phase 13 — Marketing & Growth Block ⏳ PENDING
+## Phase 13 — Marketing & Growth Block ✅ DONE (Sprint 16 — 2026-04-15)
 
 | # | Feature | IL | Status | Notes |
 |---|---------|-----|--------|-------|
@@ -336,3 +338,47 @@ commit: 5f132dd | 2026-04-15
 | Agent passports | 9 | 14+ | 14 ✅ |
 
 No BT blockers. BT-001..BT-007 remain BLOCKED (CEO action).
+
+---
+
+## Sprint 17 — Regulatory Reporting Automation (2026-04-16)
+
+> **Scope:** 3 blocks — (A) ROADMAP cleanup (Phase 9 + 13), (B) Regulatory Reporting Automation (Phase 14 — IL-RRA-01), (C) Sprint 17 targets. P0 deadline 7 May 2026.
+
+### S17-A: ROADMAP Cleanup
+
+| Item | Action |
+|------|--------|
+| Phase 9 header | PENDING → ✅ DONE (Sprint 16 — 2026-04-12), commit 9b8fb48 |
+| Phase 9 table items | All PENDING → ✅ |
+| Phase 13 header | ⏳ PENDING → ✅ DONE (Sprint 16 — 2026-04-15) |
+| Phase 13 table items | All ⏳ → ✅ |
+
+### S17-B: Phase 14 — Regulatory Reporting Automation (IL-RRA-01)
+
+| # | Feature | IL | Status | Notes |
+|---|---------|-----|--------|-------|
+| 132 | models.py — Protocol DI ports + InMemory stubs | IL-RRA-01 | ✅ | services/regulatory_reporting/ |
+| 133 | xml_generator.py — FIN060/FIN071/FSA076/SAR/BoE/ACPR | IL-RRA-01 | ✅ | I-01: Decimal only |
+| 134 | validators.py — StructuralValidator + XSDValidator | IL-RRA-01 | ✅ | FCA SUP 16 schema checks |
+| 135 | audit_trail.py — ClickHouseAuditTrail (I-24) | IL-RRA-01 | ✅ | SYSC 9.1.1R, 5yr TTL |
+| 136 | scheduler.py — N8nScheduler cron workflows | IL-RRA-01 | ✅ | n8n :5678 |
+| 137 | regulatory_reporting_agent.py — L2/L4 orchestration | IL-RRA-01 | ✅ | I-27: HITL for submission |
+| 138 | api/routers/regulatory.py — 7 endpoints | IL-RRA-01 | ✅ | POST/GET regulatory/* |
+| 139 | 5 MCP tools (report_generate..report_list_templates) | IL-RRA-01 | ✅ | banxe_mcp/server.py |
+| 140 | Agent passport + SOUL.md | IL-RRA-01 | ✅ | agents/passports/reporting/ |
+| 141 | 86 tests across 5 test files | IL-RRA-01 | ✅ | tests/test_regulatory_reporting/ |
+
+FCA refs: SUP 16.12, SYSC 9.1.1R, POCA 2002 s.330, BoE Statistical Notice, ACPR 2014-P-01
+
+### S17-C: Sprint 17 Targets
+
+| Metric | S16 Actual | S17 Target | S17 Actual |
+|--------|-----------|------------|-----------|
+| Tests | 3092 | 3200+ | 3190 ✅ |
+| MCP tools | 38 | 43+ | 43 ✅ |
+| API endpoints | 90+ | 96+ | 97 ✅ |
+| Agent passports | 14 | 15+ | 15 ✅ |
+
+commit: IL-RRA-01 | 3190 tests green | 2026-04-16
+

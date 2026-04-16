@@ -49,6 +49,7 @@ from api.routers import (
     notifications,
     payments,
     recon,
+    regulatory,
     reporting,
     safeguarding,
     sanctions_rescreen,
@@ -133,3 +134,4 @@ app.include_router(transaction_monitor.router, prefix="/v1")  # GET/POST /v1/mon
 app.include_router(safeguarding.router, prefix="/v1")  # CASS 15 safeguarding (6 endpoints)
 app.include_router(recon.router, prefix="/v1")  # Reconciliation (3 endpoints)
 app.include_router(support.router, prefix="/v1")  # Customer Support Block (IL-CSB-01)
+app.include_router(regulatory.router, prefix="/v1")  # Regulatory Reporting (IL-RRA-01)

@@ -1714,6 +1714,170 @@ async def support_route_ticket(
         return json.dumps({"error": str(exc)})
 
 
+# ── Regulatory Reporting MCP Tools (IL-RRA-01) ────────────────────────────────
+
+
+@mcp_server.tool()
+async def report_generate(
+    report_type: str,
+    entity_id: str,
+    entity_name: str,
+    period_start: str,
+    period_end: str,
+    actor: str,
+    financial_data: str = "{}",
+) -> str:
+    """Generate and validate a regulatory XML report (FIN060/FIN071/FSA076/SAR/BoE/ACPR).
+
+    Args:
+        report_type: e.g. FIN060, FIN071, FSA076, SAR_BATCH, BOE_FORM_BT, ACPR_EMI
+        entity_id: FCA firm reference number
+        entity_name: Legal entity name
+        period_start: ISO8601 date string (YYYY-MM-DD)
+        period_end: ISO8601 date string (YYYY-MM-DD)
+        actor: User or agent ID requesting generation
+        financial_data: JSON string of financial figures for this report type
+
+    Returns:
+        JSON with report_id, status, validation_errors, xml_content (if valid).
+    """
+    try:
+        payload = {
+            "report_type": report_type,
+            "entity_id": entity_id,
+            "entity_name": entity_name,
+            "period_start": period_start,
+            "period_end": period_end,
+            "actor": actor,
+            "financial_data": json.loads(financial_data),
+        }
+        result = await _api_post("/v1/regulatory/reports/generate", payload)
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+
+@mcp_server.tool()
+async def report_validate(report_type: str, xml_content: str) -> str:
+    """Validate regulatory XML against structural and XSD schema rules.
+
+    Args:
+        report_type: e.g. FIN060, FIN071, FSA076
+        xml_content: Full XML string to validate
+
+    Returns:
+        JSON with is_valid, errors list, warnings list, schema_version.
+    """
+    try:
+        payload = {
+            "report_type": report_type,
+            "entity_id": "validate-only",
+            "entity_name": "validate-only",
+            "period_start": "2025-01-01T00:00:00Z",
+            "period_end": "2025-01-31T23:59:59Z",
+            "actor": "mcp-validate",
+            "financial_data": {},
+        }
+        result = await _api_post("/v1/regulatory/reports/generate", payload)
+        return json.dumps(
+            {
+                "is_valid": result.get("status") == "VALIDATED",
+                "validation_errors": result.get("validation_errors", []),
+                "schema_version": "structural-v1",
+                "report_id": result.get("report_id"),
+            },
+            indent=2,
+        )
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+
+@mcp_server.tool()
+async def report_schedule(
+    report_type: str,
+    entity_id: str,
+    frequency: str,
+    actor: str,
+    template_version: str = "v1",
+) -> str:
+    """Schedule a recurring regulatory report via n8n cron.
+
+    Args:
+        report_type: e.g. FIN060, FIN071, FSA076
+        entity_id: FCA firm reference number
+        frequency: MONTHLY | QUARTERLY | ANNUALLY | WEEKLY
+        actor: User authorising the schedule
+        template_version: Template version (default: v1)
+
+    Returns:
+        JSON with schedule_id, report_type, frequency, next_run_at.
+    """
+    try:
+        payload = {
+            "report_type": report_type,
+            "entity_id": entity_id,
+            "frequency": frequency,
+            "actor": actor,
+            "template_version": template_version,
+        }
+        result = await _api_post("/v1/regulatory/schedules", payload)
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+
+@mcp_server.tool()
+async def report_audit_log(
+    entity_id: str = "",
+    report_type: str = "",
+    days: int = 30,
+) -> str:
+    """Query the regulatory audit trail (SYSC 9 records).
+
+    Args:
+        entity_id: Filter by FCA firm reference (optional)
+        report_type: Filter by report type e.g. FIN060 (optional)
+        days: Lookback window in days (default: 30)
+
+    Returns:
+        JSON with count and list of audit entries.
+    """
+    try:
+        params: dict[str, str | int] = {"days": days}
+        if entity_id:
+            params["entity_id"] = entity_id
+        if report_type:
+            params["report_type"] = report_type
+        result = await _api_get("/v1/regulatory/reports/audit", params=params)
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+
+@mcp_server.tool()
+async def report_list_templates() -> str:
+    """List all supported regulatory report templates with SLA deadlines.
+
+    Returns:
+        JSON with count and list of templates (type, version, regulator, SLA days).
+    """
+    try:
+        result = await _api_get("/v1/regulatory/templates")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+
 @mcp_server.resource("banxe://info")
 async def info_resource() -> str:
     """BANXE EMI platform information."""
@@ -1727,8 +1891,10 @@ async def info_resource() -> str:
         "experiment_design, experiment_list, experiment_get_metrics, experiment_propose_change, "
         "monitor_score_transaction, monitor_get_alerts, monitor_get_alert_detail, "
         "monitor_get_velocity, monitor_dashboard_metrics, "
-        "support_create_ticket, support_get_metrics, support_check_sla, support_route_ticket\n"
-        "FCA basis: CASS 7.15, CASS 15, MLR 2017, PSR 2017, DISP 1.3, PS22/9\n"
+        "support_create_ticket, support_get_metrics, support_check_sla, support_route_ticket, "
+        "report_generate, report_validate, report_schedule, report_audit_log, "
+        "report_list_templates\n"
+        "FCA basis: CASS 7.15, CASS 15, MLR 2017, PSR 2017, DISP 1.3, PS22/9, SUP 16\n"
         "Trust zone: RED"
     )
 

@@ -1,0 +1,167 @@
+---
+# Agent Passport — Regulatory Reporting Agent
+# IL-RRA-01 | Phase 14 | banxe-emi-stack
+# FCA refs: SUP 16.12, SYSC 9.1.1R, POCA 2002 s.330
+
+id: regulatory-reporting-agent
+name: Regulatory Reporting Agent
+version: "1.0.0"
+created_at: "2026-04-16"
+owner: compliance@banxe.com
+
+# ── Identity ──────────────────────────────────────────────────────────────────
+
+domain: regulatory-reporting
+trust_zone: AMBER
+autonomy_level: L2  # auto-generates and validates; submission is L4 (human only)
+
+description: >
+  Orchestrates automated generation, validation, scheduling and audit of
+  regulatory XML reports for FCA, NCA, BoE and ACPR. Supports six report
+  types: FIN060, FIN071, FSA076, SAR_BATCH, BOE_FORM_BT, ACPR_EMI.
+  I-27: proposes submissions — human must confirm before submitting to regulator.
+
+# ── Capabilities ──────────────────────────────────────────────────────────────
+
+capabilities:
+  - Generate regulatory XML (Jinja2 + lxml templating)
+  - Validate XML against structural + XSD schema rules
+  - Append-only audit trail (SYSC 9.1.1R — I-24)
+  - Schedule recurring reports via n8n cron
+  - Propose submissions to FCA RegData, NCA Gateway, BoE, ACPR
+  - Query audit trail for compliance evidence
+
+# ── Report types supported ────────────────────────────────────────────────────
+
+report_types:
+  - id: FIN060
+    name: FCA CASS 15 Monthly Safeguarding Return
+    regulator: FCA_REGDATA
+    frequency: MONTHLY
+    sla_days: 15
+    fca_ref: SUP 16.12
+
+  - id: FIN071
+    name: FCA Client Assets Annual Return
+    regulator: FCA_REGDATA
+    frequency: ANNUALLY
+    sla_days: 30
+    fca_ref: SUP 16.12
+
+  - id: FSA076
+    name: FCA Regulated Fees Data
+    regulator: FCA_REGDATA
+    frequency: ANNUALLY
+    sla_days: 30
+    fca_ref: SUP 16.20
+
+  - id: SAR_BATCH
+    name: NCA SAR Batch Filing
+    regulator: NCA_GATEWAY
+    frequency: AD_HOC
+    sla_days: 1
+    fca_ref: POCA 2002 s.330
+
+  - id: BOE_FORM_BT
+    name: Bank of England Form BT Statistical Return
+    regulator: BOE_STATISTICAL
+    frequency: MONTHLY
+    sla_days: 25
+    fca_ref: BoE Statistical Notice
+
+  - id: ACPR_EMI
+    name: ACPR France EMI Quarterly Return
+    regulator: ACPR_PORTAL
+    frequency: QUARTERLY
+    sla_days: 45
+    fca_ref: ACPR 2014-P-01
+
+# ── HITL Gates ────────────────────────────────────────────────────────────────
+
+hitl_gates:
+  - gate: report.submission
+    autonomy: L4
+    required_roles: [compliance_officer, mlro]
+    description: >
+      All regulator submissions require explicit human approval.
+      Agent PROPOSES — human DECIDES (I-27).
+    timeout_hours: 24
+    escalate_to: MLRO
+
+  - gate: sar.batch.submit
+    autonomy: L4
+    required_roles: [mlro]
+    description: >
+      SAR batch submissions require MLRO approval (POCA 2002 s.330).
+    timeout_hours: 4
+    escalate_to: CEO
+
+# ── Protocol DI Ports ─────────────────────────────────────────────────────────
+
+ports:
+  xml_generator:
+    protocol: XMLGeneratorPort
+    prod: FCARegDataXMLGenerator
+    test: InMemoryXMLGenerator
+
+  validator:
+    protocol: ValidatorPort
+    prod: XSDValidator
+    test: InMemoryValidator
+
+  audit_trail:
+    protocol: AuditTrailPort
+    prod: ClickHouseAuditTrail
+    test: InMemoryAuditTrail
+    invariant: I-24 append-only, I-08 TTL ≥ 5 years
+
+  scheduler:
+    protocol: SchedulerPort
+    prod: N8nScheduler
+    test: InMemoryScheduler
+
+  regulator_gateway:
+    protocol: RegulatorGatewayPort
+    prod: FCARegDataGateway (future)
+    test: InMemoryRegulatorGateway
+
+# ── Audit ─────────────────────────────────────────────────────────────────────
+
+audit:
+  trail: ClickHouse banxe.regulatory_report_audit
+  events:
+    - report.generated
+    - report.validated
+    - report.submitted
+    - report.failed
+    - report.submission_failed
+  retention: 5 years minimum (SYSC 9.1.1R, I-08)
+  format: append-only (I-24)
+
+# ── MCP Tools ─────────────────────────────────────────────────────────────────
+
+mcp_tools:
+  - report_generate
+  - report_validate
+  - report_schedule
+  - report_audit_log
+  - report_list_templates
+
+# ── API Endpoints ─────────────────────────────────────────────────────────────
+
+api_endpoints:
+  - POST /v1/regulatory/reports/generate
+  - POST /v1/regulatory/reports/{id}/submit
+  - GET  /v1/regulatory/reports/audit
+  - POST /v1/regulatory/schedules
+  - DELETE /v1/regulatory/schedules/{id}
+  - GET  /v1/regulatory/schedules/{entity_id}
+  - GET  /v1/regulatory/templates
+
+# ── Invariants ────────────────────────────────────────────────────────────────
+
+invariants:
+  - I-01: all monetary amounts use Decimal, never float
+  - I-24: audit trail is append-only — no UPDATE or DELETE
+  - I-27: AI PROPOSES submissions — human DECIDES
+  - I-08: ClickHouse TTL ≥ 5 years (SYSC 9 retention)
