@@ -48,6 +48,7 @@ from api.routers import (
     ledger,
     mlro_notifications,
     notifications,
+    notifications_hub,
     open_banking,
     payments,
     recon,
@@ -58,6 +59,7 @@ from api.routers import (
     statements,
     support,
     transaction_monitor,
+    treasury,
     watchman_webhook,
 )
 
@@ -139,3 +141,5 @@ app.include_router(support.router, prefix="/v1")  # Customer Support Block (IL-C
 app.include_router(regulatory.router, prefix="/v1")  # Regulatory Reporting (IL-RRA-01)
 app.include_router(open_banking.router, prefix="/v1")  # Open Banking PSD2 Gateway (IL-OBK-01)
 app.include_router(audit_dashboard.router, prefix="/v1")  # Audit & Governance Dashboard (IL-AGD-01)
+app.include_router(treasury.router, prefix="/v1")  # Treasury & Liquidity Management (IL-TLM-01)
+app.include_router(notifications_hub.router, prefix="/v1")  # Notification Hub (IL-NHB-01)

@@ -465,3 +465,84 @@ Regulatory: SYSC 9.1.1R, SYSC 4.1.1R, PS22/9, MLR 2017 Reg.28, EU AI Act Art.14
 
 commit: IL-OBK-01 + IL-AGD-01 | 3391 tests green | 2026-04-16
 
+---
+
+## Phase 17 — Treasury & Liquidity Management ✅ DONE (Sprint 19 — 2026-04-16)
+
+> IL-TLM-01 | Real-time liquidity monitoring, forecasting, sweeps, CASS 15 reconciliation
+
+| # | Feature | IL | Status | Notes |
+|---|---------|-----|--------|-------|
+| 163 | models.py — Protocol DI ports + InMemory stubs | IL-TLM-01 | ✅ | Decimal-only amounts, 5 ports |
+| 164 | liquidity_monitor.py — CASS 15.6 cash position monitor | IL-TLM-01 | ✅ | is_compliant flag |
+| 165 | cash_flow_forecaster.py — 7/14/30-day trend forecast | IL-TLM-01 | ✅ | shortfall_risk alert |
+| 166 | funding_optimizer.py — HOLD/SWEEP_OUT/DRAW_DOWN | IL-TLM-01 | ✅ | idle cash minimization |
+| 167 | safeguarding_reconciler.py — CASS 15.3 recon (1p tolerance) | IL-TLM-01 | ✅ | MATCHED/DISCREPANCY |
+| 168 | sweep_engine.py — surplus/deficit sweeps (L4 HITL) | IL-TLM-01 | ✅ | I-27: propose only |
+| 169 | treasury_agent.py — L2/L4 orchestration | IL-TLM-01 | ✅ | Decimal → str serialization |
+| 170 | api/routers/treasury.py — 8 endpoints | IL-TLM-01 | ✅ | GET/POST /v1/treasury/* |
+| 171 | 5 MCP tools (treasury_get_positions..treasury_pending_sweeps) | IL-TLM-01 | ✅ | banxe_mcp/server.py |
+| 172 | Agent passport + SOUL.md | IL-TLM-01 | ✅ | agents/passports/treasury/ |
+| 173 | 127 tests across 5 test files | IL-TLM-01 | ✅ | tests/test_treasury/ |
+
+FCA refs: CASS 15.3 (reconciliation), CASS 15.6 (liquidity), CASS 15.12 (reporting)
+
+---
+
+## Phase 18 — Notification Hub ✅ DONE (Sprint 19 — 2026-04-16)
+
+> IL-NHB-01 | Multi-channel notifications — Jinja2 templates, preference management, delivery tracking
+
+| # | Feature | IL | Status | Notes |
+|---|---------|-----|--------|-------|
+| 174 | models.py — Protocol DI ports + InMemory stubs (3 seed templates) | IL-NHB-01 | ✅ | 5 channels, 7 categories |
+| 175 | template_engine.py — Jinja2 multi-language (EN/FR/RU) | IL-NHB-01 | ✅ | soft undefined vars |
+| 176 | channel_dispatcher.py — 5-channel dispatch | IL-NHB-01 | ✅ | EMAIL/SMS/PUSH/TELEGRAM/WEBHOOK |
+| 177 | preference_manager.py — GDPR opt-in/opt-out defaults | IL-NHB-01 | ✅ | SECURITY/OPERATIONAL = default opt-in |
+| 178 | delivery_tracker.py — exp. backoff retry (max 3) | IL-NHB-01 | ✅ | base_delay_secs=0 in tests |
+| 179 | notification_agent.py — L2 orchestration | IL-NHB-01 | ✅ | template→pref→dispatch→track |
+| 180 | api/routers/notifications_hub.py — 7 endpoints | IL-NHB-01 | ✅ | /v1/notifications-hub/* |
+| 181 | 4 MCP tools (notify_send..notify_delivery_status) | IL-NHB-01 | ✅ | banxe_mcp/server.py |
+| 182 | Agent passport + SOUL.md | IL-NHB-01 | ✅ | agents/passports/notifications/ |
+| 183 | 97 tests across 5 test files | IL-NHB-01 | ✅ | tests/test_notification_hub/ |
+
+FCA refs: DISP 1.3 (complaint notifications), PS22/9 §4 (consumer communications), GDPR Art.7
+
+---
+
+## Sprint 19 — Treasury + Notification Hub (2026-04-16)
+
+> **Scope:** 4 blocks — (A) Phase 17 Treasury, (B) Phase 18 Notification Hub,
+> (C) ROADMAP Phase 17+18 sections, (D) IL-097. P0 deadline 7 May 2026.
+
+### S19-A: Phase 17 — Treasury & Liquidity Management (IL-TLM-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 163 | services/treasury/ — 7 modules | IL-TLM-01 | ✅ |
+| 164 | api/routers/treasury.py — 8 endpoints | IL-TLM-01 | ✅ |
+| 165 | 5 MCP tools: treasury_get_positions, treasury_forecast, treasury_propose_sweep, treasury_reconcile, treasury_pending_sweeps | IL-TLM-01 | ✅ |
+| 166 | Agent passport + SOUL.md | IL-TLM-01 | ✅ |
+| 167 | 127 tests | IL-TLM-01 | ✅ |
+
+### S19-B: Phase 18 — Notification Hub (IL-NHB-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 168 | services/notification_hub/ — 6 modules | IL-NHB-01 | ✅ |
+| 169 | api/routers/notifications_hub.py — 7 endpoints | IL-NHB-01 | ✅ |
+| 170 | 4 MCP tools: notify_send, notify_list_templates, notify_get_preferences, notify_delivery_status | IL-NHB-01 | ✅ |
+| 171 | Agent passport + SOUL.md | IL-NHB-01 | ✅ |
+| 172 | 97 tests | IL-NHB-01 | ✅ |
+
+### S19-C: Sprint 19 Targets
+
+| Metric | S18 Actual | S19 Target | S19 Actual |
+|--------|-----------|------------|-----------|
+| Tests | 3391 | 3580+ | 3615 ✅ |
+| MCP tools | 52 | 61+ | 61 ✅ |
+| API endpoints | 113 | 128+ | 129 ✅ |
+| Agent passports | 17 | 19+ | 19 ✅ |
+
+commit: IL-TLM-01 + IL-NHB-01 | 3615 tests green | 2026-04-16
+

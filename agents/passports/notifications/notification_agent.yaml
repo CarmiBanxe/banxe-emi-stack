@@ -1,0 +1,113 @@
+name: NotificationAgent
+id: IL-NHB-01
+version: "1.0.0"
+phase: 18
+sprint: 19
+created: "2026-04-16"
+
+identity:
+  description: >
+    Centralised Notification Hub Agent for Banxe EMI Ltd.
+    Orchestrates multi-channel notification dispatch (email, SMS, push, Telegram,
+    webhook) with Jinja2 template rendering, preference management, and delivery
+    tracking with exponential backoff retry.
+  trust_zone: GREEN
+  autonomy_level: L2
+
+regulatory_basis:
+  - "FCA DISP 1.3 (complaint acknowledgement notifications)"
+  - "PS22/9 §4 (Consumer Duty — clear and fair customer communications)"
+  - "GDPR Art.7 (consent basis for MARKETING notifications)"
+  - "UK PECR (opt-in requirements for electronic communications)"
+
+capabilities:
+  - Multi-channel dispatch: EMAIL / SMS / PUSH / TELEGRAM / WEBHOOK
+  - Jinja2 template rendering with multi-language support (EN / FR / RU)
+  - GDPR-compliant preference management (SECURITY/OPERATIONAL opt-in by default)
+  - Delivery tracking with exponential backoff retry (max 3 attempts)
+  - Bulk notification dispatch to multiple entities
+  - Template version management and validation
+
+autonomy:
+  L2:
+    description: Fully automated notification orchestration — no HITL gate
+    operations:
+      - notification.send
+      - notification.send_bulk
+      - template.render
+      - preference.check
+      - preference.set
+      - delivery.track
+      - delivery.retry
+
+hitl_gates: []  # No HITL gates — notifications are informational, not financial
+
+invariants:
+  - GDPR default opt-out for MARKETING category
+  - GDPR default opt-in for SECURITY and OPERATIONAL categories
+  - No financial amounts in notification templates (notifications ≠ payments)
+  - Delivery failures logged immediately — no silent drops
+
+gdpr_defaults:
+  opt_in_by_default: [SECURITY, OPERATIONAL]
+  opt_out_by_default: [PAYMENT, KYC, AML, COMPLIANCE, MARKETING]
+  note: >
+    SECURITY and OPERATIONAL notifications are always delivered regardless
+    of preferences unless explicitly opted out (safety override).
+
+channels:
+  EMAIL:
+    adapter: SMTPChannelAdapter
+    stub: InMemoryChannelAdapter
+  SMS:
+    adapter: TwilioSMSAdapter
+    stub: InMemoryChannelAdapter
+  PUSH:
+    adapter: FCMPushAdapter
+    stub: InMemoryChannelAdapter
+  TELEGRAM:
+    adapter: TelegramBotAdapter
+    stub: InMemoryChannelAdapter
+  WEBHOOK:
+    adapter: WebhookHTTPAdapter
+    stub: InMemoryChannelAdapter
+
+protocol_di_ports:
+  TemplateStorePort:
+    production: PostgresTemplateStore
+    test: InMemoryTemplateStore (seeded with 3 templates)
+  PreferenceStorePort:
+    production: PostgresPreferenceStore
+    test: InMemoryPreferenceStore
+  DeliveryStorePort:
+    production: ClickHouseDeliveryStore
+    test: InMemoryDeliveryStore
+  ChannelAdapterPort:
+    production: (per-channel adapters)
+    test: InMemoryChannelAdapter
+
+seed_templates:
+  - id: tmpl-payment-confirmed
+    category: PAYMENT
+    channel: EMAIL
+    language: EN
+  - id: tmpl-kyc-approved
+    category: KYC
+    channel: EMAIL
+    language: EN
+  - id: tmpl-security-alert
+    category: SECURITY
+    channel: SMS
+    language: EN
+
+audit:
+  table: banxe.notification_delivery
+  retention: 5yr_minimum
+  tracked_fields:
+    - request_id
+    - entity_id
+    - channel
+    - status
+    - retry_count
+    - attempted_at
+    - delivered_at

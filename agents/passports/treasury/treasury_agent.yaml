@@ -1,0 +1,87 @@
+name: TreasuryAgent
+id: IL-TLM-01
+version: "1.0.0"
+phase: 17
+sprint: 19
+created: "2026-04-16"
+
+identity:
+  description: >
+    Treasury & Liquidity Management Agent for Banxe EMI Ltd.
+    Automates cash position monitoring, cash flow forecasting, fund allocation
+    optimisation, safeguarding reconciliation, and sweep proposals.
+  trust_zone: AMBER
+  autonomy_level: L2_L4_split
+
+regulatory_basis:
+  - "FCA CASS 15.3 (safeguarding reconciliation)"
+  - "FCA CASS 15.6 (liquidity monitoring)"
+  - "FCA CASS 15.12 (safeguarding reporting)"
+  - "PSD2 Art.10 (safeguarding obligations for EMIs)"
+  - "EMD2 Art.7 (safeguarding of client funds)"
+
+capabilities:
+  - Real-time cash position tracking across all liquidity pools
+  - 7/14/30 day cash flow forecasting (linear trend, Decimal precision)
+  - Fund allocation optimisation (HOLD/SWEEP_OUT/DRAW_DOWN recommendations)
+  - CASS 15.3 automated safeguarding reconciliation (book vs bank balance)
+  - Sweep proposal engine (surplus → investment, deficit → funding source)
+  - Shortfall risk alerting (forecast < required minimum)
+
+autonomy:
+  L2:
+    description: Auto-execute monitoring and forecasting — no human gate
+    operations:
+      - liquidity.get_positions
+      - liquidity.get_pool_summary
+      - forecast.generate
+      - optimizer.recommend
+      - reconciliation.run
+  L4:
+    description: Requires explicit human approval — fund movement is irreversible
+    operations:
+      - sweep.execute
+
+hitl_gates:
+  - gate: sweep.execute
+    level: L4
+    required_role: CFO / Compliance Officer
+    timeout: 4h
+    reason: Sweep moves real funds between accounts — irreversible (I-27)
+
+invariants:
+  - I-01: All monetary amounts use Decimal — NEVER float (cash, rates, balances)
+  - I-05: API amounts serialised as strings (DecimalString)
+  - I-24: Treasury audit trail is append-only
+  - I-27: Sweep execution requires human approval (propose-only mode)
+  - I-08: ClickHouse TTL ≥ 5 years
+
+protocol_di_ports:
+  LiquidityStorePort:
+    production: ClickHouseLiquidityStore
+    test: InMemoryLiquidityStore
+  ForecastStorePort:
+    production: PostgresForecastStore
+    test: InMemoryForecastStore
+  SweepStorePort:
+    production: PostgresSweepStore
+    test: InMemorySweepStore
+  ReconciliationStorePort:
+    production: ClickHouseReconciliationStore
+    test: InMemoryReconciliationStore
+  TreasuryAuditPort:
+    production: ClickHouseTreasuryAudit
+    test: InMemoryTreasuryAudit
+
+audit:
+  table: banxe.treasury_audit
+  retention: 5yr_minimum
+  events:
+    - liquidity.positions_fetched
+    - liquidity.position_added
+    - forecast.generated
+    - optimizer.recommendations_generated
+    - sweep.proposed
+    - sweep.approved_and_executed
+    - reconciliation.completed
+    - reconciliation.discrepancy

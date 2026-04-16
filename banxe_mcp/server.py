@@ -2130,6 +2130,252 @@ async def audit_governance_status() -> str:
         return json.dumps({"error": str(exc)})
 
 
+@mcp_server.tool()
+async def treasury_get_positions(pool_id: str = "") -> str:
+    """Get treasury cash positions for all pools or a specific liquidity pool.
+
+    Args:
+        pool_id: Optional pool ID — if empty returns all pools summary
+
+    Returns:
+        JSON with pool summary: current_balance, required_minimum, is_compliant.
+    """
+    try:
+        if pool_id:
+            result = await _api_get(f"/v1/treasury/positions/{pool_id}")
+        else:
+            result = await _api_get("/v1/treasury/positions")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+
+@mcp_server.tool()
+async def treasury_forecast(pool_id: str, horizon: str = "DAYS_7") -> str:
+    """Run a cash flow forecast for a liquidity pool (CASS 15.6).
+
+    Args:
+        pool_id: Pool ID to forecast (e.g. pool-001)
+        horizon: Forecast horizon — DAYS_7, DAYS_14, or DAYS_30 (default DAYS_7)
+
+    Returns:
+        JSON ForecastResult with forecast_amount, confidence, shortfall_risk.
+    """
+    try:
+        result = await _api_get(f"/v1/treasury/forecasts/{pool_id}?horizon={horizon}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+
+@mcp_server.tool()
+async def treasury_propose_sweep(
+    pool_id: str,
+    direction: str,
+    amount: str,
+    actor: str,
+    description: str = "",
+) -> str:
+    """Propose a treasury sweep — HITL gate required before execution (I-27).
+
+    Args:
+        pool_id: Source liquidity pool ID
+        direction: SURPLUS_OUT (move excess) or DEFICIT_IN (draw funds)
+        amount: Sweep amount as decimal string (e.g. "500000.00")
+        actor: Identity of the requestor
+        description: Optional description
+
+    Returns:
+        JSON SweepEvent with id and approved_by=null (awaiting human approval).
+    """
+    try:
+        payload: dict[str, object] = {
+            "pool_id": pool_id,
+            "direction": direction,
+            "amount": amount,
+            "actor": actor,
+            "description": description,
+        }
+        result = await _api_post("/v1/treasury/sweeps", payload)
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+
+@mcp_server.tool()
+async def treasury_reconcile(
+    institution: str,
+    iban: str,
+    balance: str,
+    client_money: str,
+    currency: str = "GBP",
+) -> str:
+    """Trigger CASS 15.3 safeguarding reconciliation for a safeguarding account.
+
+    Args:
+        institution: Bank name (e.g. Barclays)
+        iban: Safeguarding account IBAN
+        balance: Current book balance as decimal string (e.g. "2500000.00")
+        client_money: Client money held as decimal string
+        currency: Currency code (default GBP)
+
+    Returns:
+        JSON ReconciliationRecord with status (MATCHED or DISCREPANCY) and variance.
+    """
+    try:
+        payload: dict[str, object] = {
+            "institution": institution,
+            "iban": iban,
+            "balance": balance,
+            "client_money": client_money,
+            "currency": currency,
+        }
+        result = await _api_post("/v1/treasury/reconcile", payload)
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+
+@mcp_server.tool()
+async def treasury_pending_sweeps(pool_id: str = "") -> str:
+    """List treasury sweeps awaiting HITL approval.
+
+    Args:
+        pool_id: Optional pool ID filter (empty = all pools)
+
+    Returns:
+        JSON list of pending SweepEvents with amount, direction, proposed_at.
+    """
+    try:
+        url = "/v1/treasury/sweeps/pending"
+        if pool_id:
+            url += f"?pool_id={pool_id}"
+        result = await _api_get(url)
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+
+@mcp_server.tool()
+async def notify_send(
+    entity_id: str,
+    category: str,
+    channel: str,
+    template_id: str,
+    actor: str,
+    context: str = "{}",
+    priority: str = "NORMAL",
+) -> str:
+    """Send a notification to a customer via the Notification Hub (IL-NHB-01).
+
+    Args:
+        entity_id: Customer or firm ID
+        category: PAYMENT, KYC, AML, COMPLIANCE, SECURITY, OPERATIONAL, MARKETING
+        channel: EMAIL, SMS, PUSH, TELEGRAM, or WEBHOOK
+        template_id: Template ID (e.g. tmpl-payment-confirmed, tmpl-kyc-approved)
+        actor: Identity of the requestor
+        context: JSON string of template variables (e.g. '{"name":"John","amount":"100"}')
+        priority: LOW, NORMAL, HIGH, or CRITICAL (default NORMAL)
+
+    Returns:
+        JSON DeliveryRecord with status (SENT, FAILED, or OPT_OUT).
+    """
+    try:
+        ctx = json.loads(context) if context else {}
+        payload: dict[str, object] = {
+            "entity_id": entity_id,
+            "category": category,
+            "channel": channel,
+            "template_id": template_id,
+            "context": ctx,
+            "actor": actor,
+            "priority": priority,
+        }
+        result = await _api_post("/v1/notifications-hub/send", payload)
+        return json.dumps(result, indent=2)
+    except json.JSONDecodeError:
+        return json.dumps({"error": "Invalid JSON in context parameter"})
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+
+@mcp_server.tool()
+async def notify_list_templates(category: str = "", channel: str = "") -> str:
+    """List available notification templates in the Notification Hub.
+
+    Args:
+        category: Optional filter (PAYMENT, KYC, AML, SECURITY, etc.)
+        channel: Optional filter (EMAIL, SMS, PUSH, TELEGRAM, WEBHOOK)
+
+    Returns:
+        JSON list of templates with id, name, subject, language, version.
+    """
+    try:
+        params: list[str] = []
+        if category:
+            params.append(f"category={category}")
+        if channel:
+            params.append(f"channel={channel}")
+        qs = "&".join(params)
+        url = f"/v1/notifications-hub/templates?{qs}" if qs else "/v1/notifications-hub/templates"
+        result = await _api_get(url)
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+
+@mcp_server.tool()
+async def notify_get_preferences(entity_id: str) -> str:
+    """Get notification preferences for a customer.
+
+    Args:
+        entity_id: Customer or firm ID
+
+    Returns:
+        JSON list of NotificationPreference with channel, category, opt_in flag.
+    """
+    try:
+        result = await _api_get(f"/v1/notifications-hub/preferences/{entity_id}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+
+@mcp_server.tool()
+async def notify_delivery_status(record_id: str) -> str:
+    """Get delivery status for a notification.
+
+    Args:
+        record_id: Delivery record ID (returned from notify_send)
+
+    Returns:
+        JSON DeliveryRecord with status, attempted_at, delivered_at, retry_count.
+    """
+    try:
+        result = await _api_get(f"/v1/notifications-hub/delivery/{record_id}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except Exception as exc:
+        return json.dumps({"error": str(exc)})
+
+
 @mcp_server.resource("banxe://info")
 async def info_resource() -> str:
     """BANXE EMI platform information."""
@@ -2148,7 +2394,10 @@ async def info_resource() -> str:
         "report_list_templates, "
         "ob_create_consent, ob_initiate_payment, ob_get_accounts, ob_revoke_consent, "
         "ob_list_aspsps, "
-        "audit_query_events, audit_generate_report, audit_risk_score, audit_governance_status\n"
+        "audit_query_events, audit_generate_report, audit_risk_score, audit_governance_status, "
+        "treasury_get_positions, treasury_forecast, treasury_propose_sweep, treasury_reconcile, "
+        "treasury_pending_sweeps, "
+        "notify_send, notify_list_templates, notify_get_preferences, notify_delivery_status\n"
         "FCA basis: CASS 7.15, CASS 15, MLR 2017, PSR 2017, DISP 1.3, PS22/9, SUP 16, PSD2 RTS\n"
         "Trust zone: RED"
     )
