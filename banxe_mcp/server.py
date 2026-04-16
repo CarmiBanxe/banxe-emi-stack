@@ -2649,6 +2649,220 @@ async def merchant_risk_score(merchant_id: str) -> str:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
 
 
+@mcp_server.tool()
+async def fx_get_quote(
+    entity_id: str,
+    from_currency: str,
+    to_currency: str,
+    amount: str,
+) -> str:
+    """Get a real-time FX quote with bid/ask spread.
+
+    Quote is valid for 30 seconds. Compliance check runs automatically:
+    amounts ≥ £10k trigger EDD_REQUIRED; amounts ≥ £50k require HITL.
+    Sanctioned currencies (RUB, IRR, KPW, BYR, SYP, CUC) return BLOCKED.
+    All amounts as decimal strings. (I-01, I-05)
+
+    Args:
+        entity_id: Customer or entity requesting the quote
+        from_currency: Source currency ISO 4217 (e.g. "GBP")
+        to_currency: Target currency ISO 4217 (e.g. "EUR")
+        amount: Amount to exchange as decimal string (e.g. "1000.00")
+    """
+    try:
+        result = await _api_post(
+            "/v1/fx/quote",
+            {
+                "entity_id": entity_id,
+                "from_currency": from_currency,
+                "to_currency": to_currency,
+                "amount": amount,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def fx_execute(entity_id: str, quote_id: str) -> str:
+    """Execute an FX order against a previously obtained quote.
+
+    Quote must not be expired (30s TTL). Returns execution details including
+    debit/credit amounts, rate, and 0.1% fee. Returns HITL_REQUIRED (HTTP 202)
+    for orders above £50,000. (I-01, I-05, I-27)
+
+    Args:
+        entity_id: Customer executing the order
+        quote_id: Quote ID obtained from fx_get_quote
+    """
+    try:
+        result = await _api_post(
+            "/v1/fx/execute",
+            {"entity_id": entity_id, "quote_id": quote_id},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def fx_get_rates(pairs: str = "") -> str:
+    """Get current FX rates for all supported currency pairs.
+
+    Rates sourced from ECB reference data via Frankfurter. Supported pairs:
+    GBP/EUR, GBP/USD, GBP/CHF, GBP/PLN, GBP/CZK, EUR/USD.
+    Cache TTL: 60 seconds.
+
+    Args:
+        pairs: Optional comma-separated filter (e.g. "GBP/EUR,GBP/USD"). Empty = all pairs.
+    """
+    try:
+        path = "/v1/fx/rates"
+        if pairs:
+            path = f"{path}?pairs={pairs}"
+        result = await _api_get(path)
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def fx_get_spreads(from_currency: str = "", to_currency: str = "") -> str:
+    """Get FX spread configuration for currency pairs.
+
+    Returns spread_bps (basis points), min/max/VIP rates, and volume tier thresholds.
+    Majors (GBP/EUR, GBP/USD): 20 bps. Exotics (GBP/PLN, GBP/CZK): 50 bps.
+
+    Args:
+        from_currency: Filter by source currency (e.g. "GBP"). Empty = all spreads.
+        to_currency: Filter by target currency (e.g. "EUR"). Empty = all spreads.
+    """
+    try:
+        if from_currency and to_currency:
+            result = await _api_get(f"/v1/fx/spreads/{from_currency}/{to_currency}")
+        else:
+            result = await _api_get("/v1/fx/spreads")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def fx_history(entity_id: str) -> str:
+    """Get FX execution history for a customer entity.
+
+    Returns all executed FX orders with amounts, rates, fees, and timestamps.
+    Amounts serialised as strings. (I-05, I-24: append-only audit trail)
+
+    Args:
+        entity_id: Customer entity ID to query
+    """
+    try:
+        result = await _api_get(f"/v1/fx/history/{entity_id}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def mc_get_balances(account_id: str) -> str:
+    """Get all currency balances for a multi-currency account.
+
+    Returns per-currency available/reserved balances as decimal strings.
+    Up to 10 currencies per account. (I-01, I-05)
+
+    Args:
+        account_id: Multi-currency account ID
+    """
+    try:
+        result = await _api_get(f"/v1/mc-accounts/{account_id}/balances")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def mc_convert(
+    account_id: str,
+    from_currency: str,
+    to_currency: str,
+    amount: str,
+    rate: str,
+) -> str:
+    """Convert between currencies within a multi-currency account.
+
+    Debits from_currency and credits to_currency atomically.
+    0.2% conversion fee applied. Amounts as decimal strings. (I-01, I-05)
+
+    Args:
+        account_id: Multi-currency account ID
+        from_currency: Source currency (e.g. "GBP")
+        to_currency: Target currency (e.g. "EUR")
+        amount: Amount to convert as decimal string (e.g. "500.00")
+        rate: Exchange rate as decimal string (e.g. "1.1700")
+    """
+    try:
+        result = await _api_post(
+            f"/v1/mc-accounts/{account_id}/convert",
+            {
+                "from_currency": from_currency,
+                "to_currency": to_currency,
+                "amount": amount,
+                "rate": rate,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def mc_reconcile_nostro(nostro_id: str, their_balance: str) -> str:
+    """Reconcile a nostro/vostro account against correspondent bank's balance.
+
+    Tolerance: £1.00 (correspondent banking standard — broader than internal 1p).
+    MATCHED if |variance| ≤ £1.00, else DISCREPANCY. (I-24, CASS 15.3)
+
+    Args:
+        nostro_id: Nostro account ID (e.g. "nostro-gbp-001")
+        their_balance: Correspondent bank's reported balance as decimal string
+    """
+    try:
+        result = await _api_post(
+            f"/v1/nostro/{nostro_id}/reconcile",
+            {"their_balance": their_balance},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def mc_currency_report(account_id: str, rates: str) -> str:
+    """Generate consolidated multi-currency balance report in base currency.
+
+    Converts all currency balances to base currency using provided rates.
+    Rates format: JSON string {"EUR": "1.17", "USD": "1.27", ...}
+    (I-01: all amounts Decimal; I-05: serialised as strings)
+
+    Args:
+        account_id: Multi-currency account ID
+        rates: JSON string of exchange rates to base currency (e.g. '{"EUR":"1.17"}')
+    """
+    try:
+        rates_dict = json.loads(rates)
+        result = await _api_post(
+            f"/v1/mc-accounts/{account_id}/currency-report",
+            {"rates": rates_dict},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except json.JSONDecodeError as exc:
+        return json.dumps({"error": f"Invalid rates JSON: {exc}"})
+
+
 @mcp_server.resource("banxe://info")
 async def info_resource() -> str:
     """BANXE EMI platform information."""
@@ -2673,7 +2887,9 @@ async def info_resource() -> str:
         "notify_send, notify_list_templates, notify_get_preferences, notify_delivery_status, "
         "card_issue, card_freeze, card_get_status, card_set_limits, card_list_transactions, "
         "merchant_onboard, merchant_accept_payment, merchant_get_settlements, "
-        "merchant_handle_chargeback, merchant_risk_score\n"
+        "merchant_handle_chargeback, merchant_risk_score, "
+        "fx_get_quote, fx_execute, fx_get_rates, fx_get_spreads, fx_history, "
+        "mc_get_balances, mc_convert, mc_reconcile_nostro, mc_currency_report\n"
         "FCA basis: CASS 7.15, CASS 15, MLR 2017, PSR 2017, DISP 1.3, PS22/9, SUP 16, PSD2 RTS\n"
         "Trust zone: RED"
     )

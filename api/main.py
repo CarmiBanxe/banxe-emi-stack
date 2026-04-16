@@ -43,12 +43,14 @@ from api.routers import (
     customers,
     experiments,
     fraud,
+    fx_exchange,
     health,
     hitl,
     kyc,
     ledger,
     merchant_acquiring,
     mlro_notifications,
+    multi_currency,
     notifications,
     notifications_hub,
     open_banking,
@@ -149,3 +151,5 @@ app.include_router(card_issuing.router, prefix="/v1")  # Card Issuing & Manageme
 app.include_router(
     merchant_acquiring.router, prefix="/v1"
 )  # Merchant Acquiring Gateway (IL-MAG-01)
+app.include_router(fx_exchange.router)  # FX & Currency Exchange (IL-FXE-01) — /v1/fx/* embedded
+app.include_router(multi_currency.router, prefix="/v1")  # Multi-Currency Ledger (IL-MCL-01)

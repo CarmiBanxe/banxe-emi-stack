@@ -1,0 +1,112 @@
+id: multi-currency-ledger-agent
+name: Multi-Currency Ledger Agent
+version: "1.0.0"
+il_ref: IL-MCL-01
+phase: 22
+sprint: 21
+created: "2026-04-17"
+
+identity:
+  description: >
+    AI agent for multi-currency account management — up to 10 currencies per account,
+    real-time balances, intelligent currency routing, nostro/vostro reconciliation,
+    and consolidated reporting for BANXE EMI correspondent banking operations.
+  trust_zone: AMBER
+  autonomy_level: L2
+
+capabilities:
+  - create_multi_currency_account  # up to 10 currencies
+  - add_currency_to_account        # incremental currency addition
+  - get_balances                   # per-currency available/reserved
+  - credit_debit                   # atomic balance updates with ledger entries
+  - consolidated_balance           # sum all currencies in base (GBP) using rates
+  - find_cheapest_path             # intelligent currency routing (cheapest/fastest)
+  - record_conversion              # 0.2% fee, append-only log
+  - reconcile_nostro               # CASS 15.3 nostro/vostro reconciliation
+  - currency_report                # consolidated base-currency report
+
+supported_currencies:
+  - GBP  # base currency (default)
+  - EUR
+  - USD
+  - CHF
+  - PLN
+  - CZK
+  - SEK
+  - NOK
+  - DKK
+  - HUF
+
+limits:
+  max_currencies_per_account: 10
+  nostro_tolerance_gbp: "1.00"  # Decimal — £1 tolerance (correspondent banking)
+  conversion_fee_rate: "0.002"  # 0.2% conversion fee (Decimal)
+
+seeded_nostro_accounts:
+  - id: nostro-gbp-001
+    bank: Barclays
+    currency: GBP
+    our_balance: "5000000.00"
+    type: NOSTRO
+  - id: nostro-eur-001
+    bank: BNP Paribas
+    currency: EUR
+    our_balance: "3000000.00"
+    type: NOSTRO
+
+regulatory_basis:
+  - "CASS 15.3 — safeguarding reconciliation per currency (nostro reconciliation)"
+  - "CASS 15.6 — liquidity requirements per currency"
+  - "EMD Art.10 — e-money obligations for multi-currency issuance"
+  - "BoE Form BT — currency conversion reporting linkage"
+  - "GDPR Art.5 — data minimisation in account records"
+
+invariants:
+  I-01: "Decimal for ALL monetary amounts (balances, fees, rates, consolidated totals)"
+  I-05: "Amounts serialised as strings at API boundary"
+  I-24: "Append-only ledger entries and conversion records"
+  I-28: "All agent decisions logged in execution trace"
+
+protocol_di_ports:
+  AccountStorePort:
+    production: PostgresAccountStore
+    test: InMemoryAccountStore
+  LedgerEntryPort:
+    production: PostgresLedgerEntryStore
+    test: InMemoryLedgerEntryStore
+  ConversionStorePort:
+    production: ClickHouseConversionStore
+    test: InMemoryConversionStore
+  NostroStorePort:
+    production: PostgresNostroStore
+    test: InMemoryNostroStore
+  MCAuditPort:
+    production: ClickHouseMCAudit
+    test: InMemoryMCAudit
+
+mcp_tools:
+  - mc_get_balances
+  - mc_convert
+  - mc_reconcile_nostro
+  - mc_currency_report
+
+api_endpoints:
+  - "POST /v1/mc-accounts/create"
+  - "GET  /v1/mc-accounts/{id}/balances"
+  - "GET  /v1/mc-accounts/{id}/currencies"
+  - "POST /v1/mc-accounts/{id}/convert"
+  - "POST /v1/mc-accounts/{id}/currency-report"
+  - "GET  /v1/nostro"
+  - "GET  /v1/nostro/{nostro_id}"
+  - "POST /v1/nostro/{nostro_id}/reconcile"
+
+test_coverage:
+  total: 113
+  files:
+    - tests/test_multi_currency/test_models.py                # 21 tests
+    - tests/test_multi_currency/test_account_manager.py       # 16 tests
+    - tests/test_multi_currency/test_balance_engine.py        # 17 tests
+    - tests/test_multi_currency/test_nostro_reconciler.py     # 16 tests
+    - tests/test_multi_currency/test_currency_router.py       # 16 tests
+    - tests/test_multi_currency/test_conversion_tracker.py    # 14 tests
+    - tests/test_multi_currency/test_multicurrency_agent.py   # 13 tests

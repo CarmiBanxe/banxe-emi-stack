@@ -1,0 +1,112 @@
+id: fx-exchange-agent
+name: FX & Currency Exchange Agent
+version: "1.0.0"
+il_ref: IL-FXE-01
+phase: 21
+sprint: 21
+created: "2026-04-17"
+
+identity:
+  description: >
+    AI agent for FX quoting, execution, and compliance — real-time currency exchange
+    for BANXE EMI customers with ECB-based rates, configurable spreads, and
+    MLR 2017 §33 AML controls.
+  trust_zone: AMBER
+  autonomy_level: L2  # L4 HITL for orders >£50k
+
+capabilities:
+  - get_live_rates          # ECB reference rates, 60s Redis cache
+  - request_quote           # bid/ask from spread config, 30s TTL
+  - validate_quote          # expiry check before execution
+  - execute_fx              # debit source + credit target, 0.1% fee
+  - detect_structuring      # MLR 2017 §33 structuring detection
+  - manage_spreads          # per-pair spread config, VIP/volume tiers
+  - get_fx_history          # append-only execution log
+
+supported_pairs:
+  - GBP/EUR   # spread: 20 bps
+  - GBP/USD   # spread: 20 bps
+  - GBP/CHF   # spread: 20 bps
+  - GBP/PLN   # spread: 50 bps
+  - GBP/CZK   # spread: 50 bps
+  - EUR/USD   # spread: 20 bps
+
+fee_rate: "0.001"  # 0.1% FX execution fee (Decimal)
+
+compliance:
+  large_fx_threshold: "10000"  # GBP — MLR 2017 §33 EDD trigger
+  hitl_threshold: "50000"      # GBP — L4 HITL gate
+  blocked_currencies:
+    - RUB  # Russia — sanctioned (I-02)
+    - IRR  # Iran — sanctioned (I-02)
+    - KPW  # North Korea — sanctioned (I-02)
+    - BYR  # Belarus — sanctioned (I-02)
+    - SYP  # Syria — sanctioned (I-02)
+    - CUC  # Cuba — sanctioned (I-02)
+
+hitl_gates:
+  large_fx_execution:
+    threshold_gbp: "50000"
+    requires: "Compliance Officer"
+    reason: "MLR 2017 §33 EDD — large FX exceeds £50,000 automated limit"
+    timeout_hours: 4
+    response_field: "status: HITL_REQUIRED"
+
+regulatory_basis:
+  - "PSR 2017 — payment service currency conversion"
+  - "MLR 2017 §33 — EDD threshold £10k for FX transactions"
+  - "FCA PRIN 6 — treating customers fairly (spread transparency)"
+  - "EMD Art.10 — e-money currency obligations"
+  - "GDPR Art.5 — data minimisation in FX records"
+
+invariants:
+  I-01: "Decimal for ALL FX amounts (rate, bid, ask, fee, debit, credit, thresholds)"
+  I-02: "Hard-block sanctioned currency pairs (RUB, IRR, KPW, BYR, SYP, CUC)"
+  I-05: "Amounts serialised as strings at API boundary"
+  I-24: "Append-only FX audit trail"
+  I-27: "HITL for orders ≥ £50,000 — Compliance Officer approval required"
+
+protocol_di_ports:
+  RateStorePort:
+    production: RedisRateStore
+    test: InMemoryRateStore
+  QuoteStorePort:
+    production: PostgresQuoteStore
+    test: InMemoryQuoteStore
+  OrderStorePort:
+    production: PostgresOrderStore
+    test: InMemoryOrderStore
+  ExecutionStorePort:
+    production: ClickHouseExecutionStore
+    test: InMemoryExecutionStore
+  FXAuditPort:
+    production: ClickHouseFXAudit
+    test: InMemoryFXAudit
+
+mcp_tools:
+  - fx_get_quote
+  - fx_execute
+  - fx_get_rates
+  - fx_get_spreads
+  - fx_history
+
+api_endpoints:
+  - "POST /v1/fx/quote"
+  - "POST /v1/fx/execute"
+  - "GET  /v1/fx/rates"
+  - "GET  /v1/fx/rates/{from}/{to}"
+  - "GET  /v1/fx/history/{entity_id}"
+  - "GET  /v1/fx/spreads"
+  - "GET  /v1/fx/spreads/{from}/{to}"
+  - "POST /v1/fx/rates/refresh"
+
+test_coverage:
+  total: 129
+  files:
+    - tests/test_fx_exchange/test_models.py           # 20 tests
+    - tests/test_fx_exchange/test_rate_provider.py    # 18 tests
+    - tests/test_fx_exchange/test_quote_engine.py     # 18 tests
+    - tests/test_fx_exchange/test_fx_executor.py      # 16 tests
+    - tests/test_fx_exchange/test_spread_manager.py   # 14 tests
+    - tests/test_fx_exchange/test_fx_compliance.py    # 14 tests
+    - tests/test_fx_exchange/test_fx_agent.py         # 29 tests

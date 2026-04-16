@@ -628,3 +628,85 @@ FCA refs: PSR 2017 / PSD2 Art.97+RTS Art.11, MLR 2017 Reg.28, FCA SUP 16, VISA/M
 
 commit: IL-CIM-01 + IL-MAG-01 | 3861 tests green | 2026-04-16
 
+---
+
+## Phase 21 — FX & Currency Exchange ✅ DONE (Sprint 21 — 2026-04-17)
+
+> IL-FXE-01 | Real-time FX quotes, execution, spread management, MLR 2017 §33 AML controls
+
+| # | Feature | IL | Status | Notes |
+|---|---------|-----|--------|-------|
+| 206 | models.py — Protocol DI ports + InMemory stubs (6 pairs, 6 spread configs) | IL-FXE-01 | ✅ | Decimal-only amounts |
+| 207 | rate_provider.py — ECB rates aggregation (Frankfurter), auto-seed | IL-FXE-01 | ✅ | Redis TTL 60s in prod |
+| 208 | quote_engine.py — bid/ask from spread, quote TTL 30s | IL-FXE-01 | ✅ | half-spread on each side |
+| 209 | fx_executor.py — PENDING→EXECUTED, 0.1% fee (Decimal) | IL-FXE-01 | ✅ | dataclasses.replace() |
+| 210 | spread_manager.py — per-pair config, VIP prefix, volume tiers | IL-FXE-01 | ✅ | "vip-" entity → vip_bps |
+| 211 | fx_compliance.py — EDD £10k, HITL £50k, blocked currencies, structuring | IL-FXE-01 | ✅ | I-02: RUB/IRR/KPW/BYR/SYP/CUC |
+| 212 | fx_agent.py — L2/L4 orchestration, HITL_REQUIRED for ≥ £50k | IL-FXE-01 | ✅ | HTTP 202 for HITL |
+| 213 | api/routers/fx_exchange.py — 8 endpoints | IL-FXE-01 | ✅ | /v1/fx/* (embedded prefix) |
+| 214 | 5 MCP tools (fx_get_quote..fx_history) | IL-FXE-01 | ✅ | banxe_mcp/server.py |
+| 215 | Agent passport + SOUL.md | IL-FXE-01 | ✅ | agents/passports/fx/ |
+| 216 | 129 tests across 7 test files | IL-FXE-01 | ✅ | tests/test_fx_exchange/ |
+
+FCA refs: PSR 2017, MLR 2017 §33 (FX AML), FCA PRIN 6 (spread transparency), EMD Art.10
+
+---
+
+## Phase 22 — Multi-Currency Ledger Enhancement ✅ DONE (Sprint 21 — 2026-04-17)
+
+> IL-MCL-01 | Multi-currency accounts (10 currencies), nostro reconciliation, conversion routing, BoE Form BT
+
+| # | Feature | IL | Status | Notes |
+|---|---------|-----|--------|-------|
+| 217 | models.py — Protocol DI ports + InMemory stubs (10 currencies, 2 nostros) | IL-MCL-01 | ✅ | Decimal-only, nostro £1 tolerance |
+| 218 | account_manager.py — create/add/get accounts, max 10 currencies | IL-MCL-01 | ✅ | ValueError on overflow |
+| 219 | balance_engine.py — credit/debit, overdraft check, consolidated base-CCY | IL-MCL-01 | ✅ | I-24 ledger entries |
+| 220 | nostro_reconciler.py — CASS 15.3 nostro recon (£1.00 tolerance) | IL-MCL-01 | ✅ | MATCHED/DISCREPANCY |
+| 221 | currency_router.py — cheapest/fastest path, route cost in spread_bps | IL-MCL-01 | ✅ | stateless |
+| 222 | conversion_tracker.py — 0.2% fee, conversion summary | IL-MCL-01 | ✅ | Decimal fee rate |
+| 223 | multicurrency_agent.py — L2 orchestration | IL-MCL-01 | ✅ | str→Decimal→str serialization |
+| 224 | api/routers/multi_currency.py — 8 endpoints | IL-MCL-01 | ✅ | /v1/mc-accounts/* + /v1/nostro/* |
+| 225 | 4 MCP tools (mc_get_balances..mc_currency_report) | IL-MCL-01 | ✅ | banxe_mcp/server.py |
+| 226 | Agent passport + SOUL.md | IL-MCL-01 | ✅ | agents/passports/multicurrency/ |
+| 227 | 113 tests across 7 test files | IL-MCL-01 | ✅ | tests/test_multi_currency/ |
+
+FCA refs: CASS 15.3 (nostro recon), CASS 15.6 (per-CCY safeguarding), EMD Art.10, BoE Form BT
+
+---
+
+## Sprint 21 — FX Exchange + Multi-Currency Ledger (2026-04-17)
+
+> **Scope:** 4 blocks — (A) Phase 21 FX Exchange, (B) Phase 22 Multi-Currency Ledger,
+> (C) ROADMAP Phase 21+22 sections, (D) IL-099. P0 deadline 7 May 2026.
+
+### S21-A: Phase 21 — FX & Currency Exchange (IL-FXE-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 206 | services/fx_exchange/ — 7 modules | IL-FXE-01 | ✅ |
+| 207 | api/routers/fx_exchange.py — 8 endpoints | IL-FXE-01 | ✅ |
+| 208 | 5 MCP tools: fx_get_quote, fx_execute, fx_get_rates, fx_get_spreads, fx_history | IL-FXE-01 | ✅ |
+| 209 | Agent passport + SOUL.md | IL-FXE-01 | ✅ |
+| 210 | 129 tests | IL-FXE-01 | ✅ |
+
+### S21-B: Phase 22 — Multi-Currency Ledger Enhancement (IL-MCL-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 211 | services/multi_currency/ — 7 modules | IL-MCL-01 | ✅ |
+| 212 | api/routers/multi_currency.py — 8 endpoints | IL-MCL-01 | ✅ |
+| 213 | 4 MCP tools: mc_get_balances, mc_convert, mc_reconcile_nostro, mc_currency_report | IL-MCL-01 | ✅ |
+| 214 | Agent passport + SOUL.md | IL-MCL-01 | ✅ |
+| 215 | 113 tests | IL-MCL-01 | ✅ |
+
+### S21-C: Sprint 21 Targets
+
+| Metric | S20 Actual | S21 Target | S21 Actual |
+|--------|-----------|------------|-----------|
+| Tests | 3861 | 4070+ | 4103 ✅ |
+| MCP tools | 71 | 80+ | 80 ✅ |
+| API endpoints | 149 | 165+ | 165 ✅ |
+| Agent passports | 21 | 23+ | 23 ✅ |
+
+commit: IL-FXE-01 + IL-MCL-01 | 4103 tests green | 2026-04-17
+
