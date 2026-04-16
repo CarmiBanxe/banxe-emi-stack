@@ -710,3 +710,85 @@ FCA refs: CASS 15.3 (nostro recon), CASS 15.6 (per-CCY safeguarding), EMD Art.10
 
 commit: IL-FXE-01 + IL-MCL-01 | 4103 tests green | 2026-04-17
 
+---
+
+## Phase 23 — Compliance Automation Engine ✅ DONE (Sprint 22 — 2026-04-17)
+
+> IL-CAE-01 | Automated compliance rule evaluation, periodic reviews, breach detection, FCA notification, remediation tracking
+
+| # | Feature | IL | Status | Notes |
+|---|---------|-----|--------|-------|
+| 228 | models.py — Protocol DI ports + InMemory stubs (5 seed rules) | IL-CAE-01 | ✅ | 6 enums, 8 frozen dataclasses |
+| 229 | rule_engine.py — evaluate_entity, register_rule, get_rules | IL-CAE-01 | ✅ | sanctions_hit→FAIL logic |
+| 230 | policy_manager.py — DRAFT→REVIEW→ACTIVE→RETIRED, diff_versions | IL-CAE-01 | ✅ | dataclasses.replace() |
+| 231 | periodic_review.py — annual/180d/daily review schedules | IL-CAE-01 | ✅ | FAIL>WARNING>PASS aggregation |
+| 232 | breach_reporter.py — MATERIAL/SIGNIFICANT/MINOR + FCA pending | IL-CAE-01 | ✅ | SUP 15.3 24h deadline |
+| 233 | remediation_tracker.py — state machine, 6 statuses | IL-CAE-01 | ✅ | ValueError for invalid transitions |
+| 234 | compliance_automation_agent.py — L2/L4 orchestration | IL-CAE-01 | ✅ | FCA report always HITL L4 (I-27) |
+| 235 | api/routers/compliance_automation.py — 8 endpoints | IL-CAE-01 | ✅ | /v1/compliance/* embedded |
+| 236 | 5 MCP tools (compliance_evaluate..compliance_policy_diff) | IL-CAE-01 | ✅ | banxe_mcp/server.py |
+| 237 | Agent passport + SOUL.md | IL-CAE-01 | ✅ | agents/passports/compliance_auto/ |
+| 238 | 116 tests across 7 test files | IL-CAE-01 | ✅ | tests/test_compliance_automation/ |
+
+FCA refs: SUP 15.3 (breach reporting), SYSC 6.1 (compliance function), PRIN 11, MLR 2017 Reg.49
+
+---
+
+## Phase 24 — Document Management System ✅ DONE (Sprint 22 — 2026-04-17)
+
+> IL-DMS-01 | SHA-256 document integrity, RBAC access, version control, retention enforcement, full-text search
+
+| # | Feature | IL | Status | Notes |
+|---|---------|-----|--------|-------|
+| 239 | models.py — Protocol DI ports + InMemory stubs (6 retention policies seeded) | IL-DMS-01 | ✅ | 4 enums, 5 frozen dataclasses |
+| 240 | document_store.py — upload (SHA-256), get, archive, dedup-by-hash | IL-DMS-01 | ✅ | I-12: content integrity |
+| 241 | version_manager.py — create/rollback versions, sorted history | IL-DMS-01 | ✅ | SHA-256 per version |
+| 242 | retention_engine.py — policy check, days-stored, action_required | IL-DMS-01 | ✅ | PERMANENT=no action |
+| 243 | search_engine.py — keyword search, category/entity filter, relevance score | IL-DMS-01 | ✅ | float relevance (analytical) |
+| 244 | access_controller.py — 6-role RBAC, ACCESS_DENIED log, can_delete | IL-DMS-01 | ✅ | I-24: append-only access log |
+| 245 | document_agent.py — L2/L4 orchestration (delete=HITL L4) | IL-DMS-01 | ✅ | I-27: deletion HITL |
+| 246 | api/routers/document_management.py — 8 endpoints | IL-DMS-01 | ✅ | /v1/documents/* embedded |
+| 247 | 4 MCP tools (doc_upload..doc_retention_status) | IL-DMS-01 | ✅ | banxe_mcp/server.py |
+| 248 | Agent passport + SOUL.md | IL-DMS-01 | ✅ | agents/passports/documents/ |
+| 249 | 110 tests across 7 test files | IL-DMS-01 | ✅ | tests/test_document_management/ |
+
+FCA refs: MLR 2017 Reg.40 (retention 5yr), SYSC 9 (record keeping), GDPR Art.17 (erasure+AML override)
+
+---
+
+## Sprint 22 — Compliance Automation + Document Management (2026-04-17)
+
+> **Scope:** 4 blocks — (A) Phase 23 Compliance Automation, (B) Phase 24 Document Management,
+> (C) ROADMAP Phase 23+24 sections, (D) IL-100. P0 deadline 7 May 2026.
+
+### S22-A: Phase 23 — Compliance Automation Engine (IL-CAE-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 228 | services/compliance_automation/ — 7 modules | IL-CAE-01 | ✅ |
+| 229 | api/routers/compliance_automation.py — 8 endpoints | IL-CAE-01 | ✅ |
+| 230 | 5 MCP tools: compliance_evaluate, compliance_get_rules, compliance_report_breach, compliance_track_remediation, compliance_policy_diff | IL-CAE-01 | ✅ |
+| 231 | Agent passport + SOUL.md | IL-CAE-01 | ✅ |
+| 232 | 116 tests | IL-CAE-01 | ✅ |
+
+### S22-B: Phase 24 — Document Management System (IL-DMS-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 233 | services/document_management/ — 7 modules | IL-DMS-01 | ✅ |
+| 234 | api/routers/document_management.py — 8 endpoints | IL-DMS-01 | ✅ |
+| 235 | 4 MCP tools: doc_upload, doc_search, doc_get_versions, doc_retention_status | IL-DMS-01 | ✅ |
+| 236 | Agent passport + SOUL.md | IL-DMS-01 | ✅ |
+| 237 | 110 tests | IL-DMS-01 | ✅ |
+
+### S22-C: Sprint 22 Targets
+
+| Metric | S21 Actual | S22 Target | S22 Actual |
+|--------|-----------|------------|-----------|
+| Tests | 4103 | 4300+ | 4329 ✅ |
+| MCP tools | 80 | 89+ | 89 ✅ |
+| API endpoints | 165 | 181+ | 181 ✅ |
+| Agent passports | 23 | 25+ | 25 ✅ |
+
+commit: IL-CAE-01 + IL-DMS-01 | 4329 tests green | 2026-04-17
+

@@ -18,9 +18,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from services.customer.customer_service import InMemoryCustomerService
 from services.database import AsyncSessionLocal
 from services.kyc.mock_kyc_workflow import MockKYCWorkflow
+from services.ledger.midaz_adapter import MidazLedgerAdapter, StubLedgerAdapter
 from services.payment.mock_payment_adapter import MockPaymentAdapter
 from services.payment.payment_service import PaymentService
-from services.ledger.midaz_adapter import MidazLedgerAdapter, StubLedgerAdapter
 from services.statements.statement_service import (
     AccountStatementService,
     InMemoryTransactionRepository,
@@ -65,6 +65,7 @@ def get_payment_service() -> PaymentService:
         rail = MockPaymentAdapter()
     else:
         from services.payment.modulr_client import ModulrPaymentAdapter
+
         rail = ModulrPaymentAdapter()
 
     ledger_name = os.environ.get("LEDGER_ADAPTER", "stub")

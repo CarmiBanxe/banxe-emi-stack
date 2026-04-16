@@ -1,0 +1,121 @@
+id: document-management-agent
+name: Document Management System Agent
+version: "1.0.0"
+il_ref: IL-DMS-01
+phase: 24
+sprint: 22
+created: "2026-04-17"
+
+identity:
+  description: >
+    AI agent for compliance document lifecycle management — upload, version control,
+    RBAC access, full-text search, automated retention enforcement, and audit trail
+    for all FCA-required document records at BANXE EMI.
+  trust_zone: AMBER
+  autonomy_level: L2  # L4 HITL for document deletion
+
+capabilities:
+  - upload_document       # SHA-256 integrity hash on upload (I-12)
+  - version_control       # create/rollback versions, full history
+  - search_documents      # keyword search with category/entity filters
+  - access_control        # role-based access (6 roles), access log
+  - retention_check       # per-category policy enforcement
+  - archive_document      # ACTIVE→ARCHIVED (reversible)
+  - delete_document       # HITL L4 only — irreversible
+
+document_categories:
+  KYC:
+    retention: YEARS_5
+    basis: "MLR 2017 Reg.40 — 5yr post-relationship"
+  AML:
+    retention: YEARS_5
+    basis: "MLR 2017 Reg.40 — AML records 5yr"
+  POLICY:
+    retention: PERMANENT
+    basis: "SYSC 9 — permanent record"
+  REPORT:
+    retention: YEARS_7
+    basis: "SYSC 9 — regulatory reports 7yr"
+  CONTRACT:
+    retention: YEARS_7
+    basis: "Standard contract retention"
+  REGULATORY:
+    retention: PERMANENT
+    basis: "SYSC 9 — regulatory submissions"
+
+access_levels:
+  - PUBLIC       # accessible to all roles
+  - INTERNAL     # accessible to support+ roles
+  - CONFIDENTIAL # accessible to analyst+ roles
+  - RESTRICTED   # accessible to admin/compliance_officer/mlro only
+
+rbac:
+  admin: [PUBLIC, INTERNAL, CONFIDENTIAL, RESTRICTED]
+  compliance_officer: [PUBLIC, INTERNAL, CONFIDENTIAL, RESTRICTED]
+  mlro: [PUBLIC, INTERNAL, CONFIDENTIAL, RESTRICTED]
+  analyst: [PUBLIC, INTERNAL, CONFIDENTIAL]
+  support: [PUBLIC, INTERNAL]
+  customer: [PUBLIC]
+
+hitl_gates:
+  document_deletion:
+    requires: "Compliance Officer or Admin"
+    reason: "Document deletion is irreversible — regulatory records cannot be recovered"
+    timeout_hours: 24
+    gdpr_note: "GDPR Art.17 right to erasure has AML/MLR override for records ≤5yr"
+
+regulatory_basis:
+  - "MLR 2017 Reg.40 — record retention (5yr minimum for KYC/AML)"
+  - "SYSC 9 — FCA record keeping requirements"
+  - "GDPR Art.17 — right to erasure (with AML/regulatory override)"
+  - "GDPR Art.5 — data minimisation and storage limitation"
+  - "FCA COND 2.7 — suitability: record keeping"
+
+invariants:
+  I-12: "SHA-256 hash for every document on upload — content integrity"
+  I-24: "Append-only access log — no deletion of audit records"
+  I-27: "HITL for document deletion — Compliance Officer must approve"
+
+protocol_di_ports:
+  DocumentStorePort:
+    production: S3DocumentStore (MinIO)
+    test: InMemoryDocumentStore
+  VersionStorePort:
+    production: PostgresVersionStore
+    test: InMemoryVersionStore
+  RetentionStorePort:
+    production: PostgresRetentionStore
+    test: InMemoryRetentionStore (pre-seeded 6 policies)
+  AccessLogPort:
+    production: ClickHouseAccessLog
+    test: InMemoryAccessLog
+  SearchIndexPort:
+    production: WhooshSearchIndex
+    test: InMemorySearchIndex (keyword match)
+
+mcp_tools:
+  - doc_upload
+  - doc_search
+  - doc_get_versions
+  - doc_retention_status
+
+api_endpoints:
+  - "POST /v1/documents/upload"
+  - "GET  /v1/documents/{doc_id}"
+  - "POST /v1/documents/search"
+  - "GET  /v1/documents/{doc_id}/versions"
+  - "GET  /v1/documents/{doc_id}/access-log"
+  - "GET  /v1/documents/retention/{entity_id}"
+  - "GET  /v1/documents/retention-policies"
+  - "DELETE /v1/documents/{doc_id} (202 HITL)"
+
+test_coverage:
+  total: 110
+  files:
+    - tests/test_document_management/test_models.py           # 20 tests
+    - tests/test_document_management/test_document_store.py   # 16 tests
+    - tests/test_document_management/test_version_manager.py  # 14 tests
+    - tests/test_document_management/test_retention_engine.py # 14 tests
+    - tests/test_document_management/test_search_engine.py    # 12 tests
+    - tests/test_document_management/test_access_controller.py # 22 tests
+    - tests/test_document_management/test_document_agent.py   # 12 tests

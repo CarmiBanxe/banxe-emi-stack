@@ -38,9 +38,11 @@ from api.routers import (
     audit_dashboard,
     auth,
     card_issuing,
+    compliance_automation,
     compliance_kb,
     consumer_duty,
     customers,
+    document_management,
     experiments,
     fraud,
     fx_exchange,
@@ -153,3 +155,9 @@ app.include_router(
 )  # Merchant Acquiring Gateway (IL-MAG-01)
 app.include_router(fx_exchange.router)  # FX & Currency Exchange (IL-FXE-01) — /v1/fx/* embedded
 app.include_router(multi_currency.router, prefix="/v1")  # Multi-Currency Ledger (IL-MCL-01)
+app.include_router(
+    compliance_automation.router
+)  # Compliance Automation Engine (IL-CAE-01) — /v1/compliance/* embedded
+app.include_router(
+    document_management.router
+)  # Document Management System (IL-DMS-01) — /v1/documents/* embedded

@@ -1,0 +1,101 @@
+id: compliance-automation-agent
+name: Compliance Automation Engine Agent
+version: "1.0.0"
+il_ref: IL-CAE-01
+phase: 23
+sprint: 22
+created: "2026-04-17"
+
+identity:
+  description: >
+    AI agent for automated compliance workflow management — rule evaluation,
+    periodic reviews (AML/KYC/PEP/sanctions), breach detection, FCA notification,
+    remediation tracking, and policy lifecycle management for BANXE EMI.
+  trust_zone: AMBER
+  autonomy_level: L2  # L4 HITL for FCA breach reporting
+
+capabilities:
+  - evaluate_compliance          # evaluate all active rules for entity
+  - run_periodic_reviews         # annual KYC, 6-month PEP, daily sanctions
+  - detect_breaches              # MATERIAL/SIGNIFICANT/MINOR severity
+  - report_to_fca                # HITL L4 — SUP 15.3 breach notification
+  - track_remediations           # OPEN→ASSIGNED→IN_PROGRESS→RESOLVED→VERIFIED→CLOSED
+  - manage_policies              # DRAFT→REVIEW→ACTIVE→RETIRED lifecycle
+  - diff_policy_versions         # side-by-side content comparison
+  - register_rules               # add/update compliance rules
+
+seed_rules:
+  - id: rule-aml-001       # AML, CRITICAL — customer AML threshold check
+  - id: rule-kyc-001       # KYC, HIGH — annual KYC review
+  - id: rule-sanctions-001 # SANCTIONS, CRITICAL — daily sanctions screening
+  - id: rule-pep-001       # PEP, HIGH — semi-annual PEP re-screening
+  - id: rule-reporting-001 # REPORTING, HIGH — SUP 15.3 breach reporting
+
+review_schedule:
+  customer_risk_review: annual      # 365 days
+  pep_screening: semi_annual        # 180 days
+  sanctions_screening: daily        # 1 day
+
+hitl_gates:
+  fca_breach_reporting:
+    requires: "Compliance Officer"
+    reason: "FCA submission under SUP 15.3 — 1 business day deadline, irreversible"
+    timeout_hours: 4
+    deadline_hours: 24  # SUP 15.3: 1 business day
+
+regulatory_basis:
+  - "SUP 15.3 — FCA breach reporting (1 business day deadline)"
+  - "SYSC 6.1 — compliance function requirements"
+  - "PRIN 11 — relations with regulators (open and cooperative)"
+  - "MLR 2017 Reg.49 — record keeping (5yr minimum)"
+  - "FCA COND 2.7 — suitability: compliance obligations"
+
+invariants:
+  I-24: "Append-only compliance checks and remediation records"
+  I-27: "HITL for FCA breach reporting — Compliance Officer must approve"
+  I-28: "All agent decisions logged in execution trace"
+
+protocol_di_ports:
+  RuleStorePort:
+    production: PostgresRuleStore
+    test: InMemoryRuleStore
+  CheckStorePort:
+    production: ClickHouseCheckStore
+    test: InMemoryCheckStore
+  ReportStorePort:
+    production: PostgresReportStore
+    test: InMemoryReportStore
+  RemediationStorePort:
+    production: PostgresRemediationStore
+    test: InMemoryRemediationStore
+  PolicyStorePort:
+    production: PostgresPolicyStore
+    test: InMemoryPolicyStore
+
+mcp_tools:
+  - compliance_evaluate
+  - compliance_get_rules
+  - compliance_report_breach
+  - compliance_track_remediation
+  - compliance_policy_diff
+
+api_endpoints:
+  - "POST /v1/compliance/evaluate"
+  - "GET  /v1/compliance/rules"
+  - "GET  /v1/compliance/rules/{rule_id}"
+  - "POST /v1/compliance/breach/report (202 HITL)"
+  - "POST /v1/compliance/remediations"
+  - "GET  /v1/compliance/remediations"
+  - "POST /v1/compliance/policies"
+  - "POST /v1/compliance/policies/diff"
+
+test_coverage:
+  total: 116
+  files:
+    - tests/test_compliance_automation/test_models.py           # 25 tests
+    - tests/test_compliance_automation/test_rule_engine.py      # 18 tests
+    - tests/test_compliance_automation/test_policy_manager.py   # 16 tests
+    - tests/test_compliance_automation/test_periodic_review.py  # 16 tests
+    - tests/test_compliance_automation/test_breach_reporter.py  # 15 tests
+    - tests/test_compliance_automation/test_remediation_tracker.py # 15 tests
+    - tests/test_compliance_automation/test_compliance_agent.py # 11 tests

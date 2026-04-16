@@ -2863,6 +2863,232 @@ async def mc_currency_report(account_id: str, rates: str) -> str:
         return json.dumps({"error": f"Invalid rates JSON: {exc}"})
 
 
+@mcp_server.tool()
+async def compliance_evaluate(entity_id: str, rule_ids: str = "") -> str:
+    """Run compliance evaluation for a customer entity.
+
+    Evaluates all active compliance rules (AML, KYC, SANCTIONS, PEP, REPORTING)
+    against the entity. Returns per-rule check status (PASS/FAIL/WARNING) and
+    any detected breaches. FAIL on SANCTIONS/AML rules → MATERIAL breach.
+
+    Args:
+        entity_id: Customer entity ID to evaluate
+        rule_ids: Optional comma-separated rule IDs to evaluate (empty = all active rules)
+    """
+    try:
+        payload: dict = {"entity_id": entity_id}
+        if rule_ids:
+            payload["rule_ids"] = [r.strip() for r in rule_ids.split(",")]
+        result = await _api_post("/v1/compliance/evaluate", payload)
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def compliance_get_rules(rule_type: str = "") -> str:
+    """List active compliance rules, optionally filtered by type.
+
+    Rule types: AML, KYC, SANCTIONS, PEP, DATA_RETENTION, REPORTING, POLICY.
+    Returns rule ID, name, severity (CRITICAL/HIGH/MEDIUM/LOW), and description.
+
+    Args:
+        rule_type: Filter by rule type (empty = all active rules)
+    """
+    try:
+        path = "/v1/compliance/rules"
+        if rule_type:
+            path = f"{path}?rule_type={rule_type}"
+        result = await _api_get(path)
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def compliance_report_breach(breach_id: str, actor: str) -> str:
+    """Submit a compliance breach for FCA notification (SUP 15.3).
+
+    ALWAYS returns HITL_REQUIRED (HTTP 202) — FCA breach reporting requires
+    Compliance Officer approval. AI proposes, human decides. (I-27)
+    Deadline: 1 business day from detection (SUP 15.3).
+
+    Args:
+        breach_id: Breach event ID to report to FCA
+        actor: Compliance Officer requesting the submission
+    """
+    try:
+        result = await _api_post(
+            "/v1/compliance/breach/report",
+            {"breach_id": breach_id, "actor": actor},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def compliance_track_remediation(
+    check_id: str,
+    entity_id: str,
+    finding: str,
+    assigned_to: str,
+    due_days: int = 30,
+) -> str:
+    """Create a remediation action for a compliance finding.
+
+    Tracks remediation lifecycle: OPEN → ASSIGNED → IN_PROGRESS → RESOLVED → VERIFIED → CLOSED.
+    All findings are logged to append-only audit trail. (I-24)
+
+    Args:
+        check_id: Compliance check ID that triggered the finding
+        entity_id: Customer entity the finding relates to
+        finding: Description of the compliance finding
+        assigned_to: Person/team assigned to remediate
+        due_days: Days until remediation is due (default: 30)
+    """
+    try:
+        result = await _api_post(
+            "/v1/compliance/remediations",
+            {
+                "check_id": check_id,
+                "entity_id": entity_id,
+                "finding": finding,
+                "assigned_to": assigned_to,
+                "due_days": due_days,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def compliance_policy_diff(policy_id: str, v1: int, v2: int) -> str:
+    """Compare two versions of a compliance policy document.
+
+    Returns side-by-side content for v1 and v2, plus a 'changed' flag.
+    Useful for tracking policy amendments and audit trail. (SYSC 6.1)
+
+    Args:
+        policy_id: Policy identifier (e.g. "aml-policy", "kyc-policy")
+        v1: First version number to compare
+        v2: Second version number to compare
+    """
+    try:
+        result = await _api_post(
+            "/v1/compliance/policies/diff",
+            {"policy_id": policy_id, "v1": v1, "v2": v2},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def doc_upload(
+    name: str,
+    category: str,
+    content: str,
+    entity_id: str,
+    uploaded_by: str,
+    role: str,
+    access_level: str = "INTERNAL",
+) -> str:
+    """Upload a compliance document to the document management system.
+
+    Content is SHA-256 hashed for integrity verification on upload.
+    Categories: KYC, AML, POLICY, REPORT, CONTRACT, REGULATORY, AUDIT.
+    Access levels: PUBLIC, INTERNAL, CONFIDENTIAL, RESTRICTED. (I-12)
+
+    Args:
+        name: Document name / filename
+        category: Document category (KYC/AML/POLICY/REPORT/CONTRACT/REGULATORY/AUDIT)
+        content: Document text content
+        entity_id: Customer or entity the document belongs to
+        uploaded_by: User uploading the document
+        role: Uploader's role for access control
+        access_level: Access level (default: INTERNAL)
+    """
+    try:
+        result = await _api_post(
+            "/v1/documents/upload",
+            {
+                "name": name,
+                "category": category,
+                "content": content,
+                "entity_id": entity_id,
+                "uploaded_by": uploaded_by,
+                "role": role,
+                "access_level": access_level,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def doc_search(query: str, entity_id: str = "", category: str = "") -> str:
+    """Full-text search across compliance documents.
+
+    Searches document names and tags. Returns results sorted by relevance score.
+    Filter by entity_id and/or category for targeted searches.
+    Access control applied — only documents the caller can see are returned.
+
+    Args:
+        query: Search query (keywords)
+        entity_id: Optional filter by customer entity ID
+        category: Optional filter by document category (KYC/AML/POLICY/etc.)
+    """
+    try:
+        payload: dict = {"query": query}
+        if entity_id:
+            payload["entity_id"] = entity_id
+        if category:
+            payload["category"] = category
+        result = await _api_post("/v1/documents/search", payload)
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def doc_get_versions(doc_id: str) -> str:
+    """List all versions of a document with content hashes and change notes.
+
+    Returns version history sorted by version_number ascending.
+    Each version includes SHA-256 content hash for integrity verification.
+    (I-12: SHA-256 document integrity, I-24: append-only version history)
+
+    Args:
+        doc_id: Document ID to get version history for
+    """
+    try:
+        result = await _api_get(f"/v1/documents/{doc_id}/versions")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def doc_retention_status(entity_id: str) -> str:
+    """Check retention policy compliance for all documents belonging to an entity.
+
+    Returns per-document retention status: days stored, retention limit,
+    and whether action is required. Regulatory basis per category:
+    KYC/AML: 5yr (MLR 2017 Reg.40), POLICY/REGULATORY: PERMANENT (SYSC 9).
+
+    Args:
+        entity_id: Customer entity ID to check retention for
+    """
+    try:
+        result = await _api_get(f"/v1/documents/retention/{entity_id}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
 @mcp_server.resource("banxe://info")
 async def info_resource() -> str:
     """BANXE EMI platform information."""
@@ -2889,7 +3115,10 @@ async def info_resource() -> str:
         "merchant_onboard, merchant_accept_payment, merchant_get_settlements, "
         "merchant_handle_chargeback, merchant_risk_score, "
         "fx_get_quote, fx_execute, fx_get_rates, fx_get_spreads, fx_history, "
-        "mc_get_balances, mc_convert, mc_reconcile_nostro, mc_currency_report\n"
+        "mc_get_balances, mc_convert, mc_reconcile_nostro, mc_currency_report, "
+        "compliance_evaluate, compliance_get_rules, compliance_report_breach, "
+        "compliance_track_remediation, compliance_policy_diff, "
+        "doc_upload, doc_search, doc_get_versions, doc_retention_status\n"
         "FCA basis: CASS 7.15, CASS 15, MLR 2017, PSR 2017, DISP 1.3, PS22/9, SUP 16, PSD2 RTS\n"
         "Trust zone: RED"
     )
