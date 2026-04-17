@@ -53,6 +53,7 @@ from api.routers import (
     kyc,
     ledger,
     lending,
+    loyalty,
     merchant_acquiring,
     mlro_notifications,
     multi_currency,
@@ -61,6 +62,7 @@ from api.routers import (
     open_banking,
     payments,
     recon,
+    referral,
     regulatory,
     reporting,
     safeguarding,
@@ -173,3 +175,5 @@ app.include_router(
 app.include_router(
     webhook_orchestrator.router
 )  # Webhook Orchestrator (IL-WHO-01) — /v1/webhooks/* embedded
+app.include_router(loyalty.router)  # Loyalty & Rewards (IL-LRE-01) — /v1/loyalty/* embedded
+app.include_router(referral.router)  # Referral Program (IL-REF-01) — /v1/referral/* embedded

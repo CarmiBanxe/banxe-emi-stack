@@ -3537,6 +3537,182 @@ async def webhook_delivery_status(event_id: str) -> str:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
 
 
+@mcp_server.tool()
+async def loyalty_get_balance(customer_id: str) -> str:
+    """Get loyalty points balance and current tier for a customer.
+
+    Args:
+        customer_id: Customer identifier
+
+    Returns:
+        JSON with total_points, tier, pending_points, lifetime_points.
+    """
+    try:
+        result = await _api_get(f"/v1/loyalty/balance/{customer_id}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def loyalty_get_tier(customer_id: str) -> str:
+    """Evaluate and apply tier upgrade/downgrade for a customer based on lifetime points.
+
+    Args:
+        customer_id: Customer identifier
+
+    Returns:
+        JSON with old_tier, new_tier, lifetime_points, upgraded bool.
+    """
+    try:
+        result = await _api_get(f"/v1/loyalty/tier/{customer_id}/evaluate")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def loyalty_redeem(customer_id: str, option_id: str, quantity: int = 1) -> str:
+    """Redeem loyalty points for a reward option (cashback, FX discount, voucher).
+
+    Args:
+        customer_id: Customer identifier
+        option_id: Redemption option ID (opt-cashback, opt-fx-discount, opt-card-fee, opt-voucher)
+        quantity: Number of units to redeem (default: 1)
+
+    Returns:
+        JSON with redeemed_points, remaining_balance, reward details.
+    """
+    try:
+        result = await _api_post(
+            "/v1/loyalty/redeem",
+            {"customer_id": customer_id, "option_id": option_id, "quantity": quantity},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def loyalty_earn_history(customer_id: str, limit: int = 50) -> str:
+    """Get points transaction history for a customer (earn, redeem, bonus, expire).
+
+    Args:
+        customer_id: Customer identifier
+        limit: Maximum number of transactions to return (default: 50)
+
+    Returns:
+        JSON with transactions list (tx_type, points, balance_after, created_at, expires_at).
+    """
+    try:
+        result = await _api_get(f"/v1/loyalty/history/{customer_id}?limit={limit}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def loyalty_expiry_forecast(customer_id: str, days_ahead: int = 30) -> str:
+    """Get loyalty points expiring within days_ahead days for a customer.
+
+    Args:
+        customer_id: Customer identifier
+        days_ahead: Look-ahead window in days (default: 30)
+
+    Returns:
+        JSON with expiring_transactions list and total_expiring_points.
+    """
+    try:
+        result = await _api_get(f"/v1/loyalty/expiry/{customer_id}?days_ahead={days_ahead}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def referral_generate_code(
+    customer_id: str,
+    campaign_id: str = "camp-default",
+    vanity_suffix: str = "",
+) -> str:
+    """Generate a unique referral code for a customer.
+
+    Args:
+        customer_id: Customer who will share the code
+        campaign_id: Campaign ID (default: camp-default)
+        vanity_suffix: Optional suffix for vanity code (e.g. "JOHN" → "BANXEJOHN")
+
+    Returns:
+        JSON with code, code_id, campaign_id, is_vanity, created_at.
+    """
+    try:
+        result = await _api_post(
+            "/v1/referral/codes",
+            {
+                "customer_id": customer_id,
+                "campaign_id": campaign_id,
+                "vanity_suffix": vanity_suffix,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def referral_get_status(referral_id: str) -> str:
+    """Get current status and details of a referral.
+
+    Args:
+        referral_id: Referral identifier
+
+    Returns:
+        JSON with referral_id, referrer_id, referee_id, status, qualified_at, rewarded_at.
+    """
+    try:
+        result = await _api_get(f"/v1/referral/{referral_id}/status")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def referral_campaign_stats(campaign_id: str = "camp-default") -> str:
+    """Get referral campaign budget and statistics.
+
+    Args:
+        campaign_id: Campaign ID (default: camp-default)
+
+    Returns:
+        JSON with total_budget, spent_budget, remaining_budget, referrer_reward, referee_reward.
+    """
+    try:
+        result = await _api_get(f"/v1/referral/campaigns/{campaign_id}/stats")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def referral_fraud_report(referral_id: str) -> str:
+    """Get fraud check report for a referral.
+
+    Args:
+        referral_id: Referral identifier
+
+    Returns:
+        JSON with checked, is_fraudulent, fraud_reason, confidence_score, checked_at.
+    """
+    try:
+        result = await _api_post(
+            f"/v1/referral/{referral_id}/fraud-check",
+            {"referrer_id": "", "referee_id": "", "ip_address": "0.0.0.0"},  # nosec B104
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
 @mcp_server.resource("banxe://info")
 async def info_resource() -> str:
     """BANXE EMI platform information."""
@@ -3571,7 +3747,10 @@ async def info_resource() -> str:
         "insurance_get_quote, insurance_bind_policy, insurance_file_claim, insurance_list_products, "
         "gateway_create_key, gateway_get_usage, gateway_set_limits, gateway_revoke_key, "
         "gateway_request_analytics, "
-        "webhook_subscribe, webhook_list_events, webhook_retry_dlq, webhook_delivery_status\n"
+        "webhook_subscribe, webhook_list_events, webhook_retry_dlq, webhook_delivery_status, "
+        "loyalty_get_balance, loyalty_get_tier, loyalty_redeem, loyalty_earn_history, "
+        "loyalty_expiry_forecast, "
+        "referral_generate_code, referral_get_status, referral_campaign_stats, referral_fraud_report\n"
         "FCA basis: CASS 7.15, CASS 15, MLR 2017, PSR 2017, DISP 1.3, PS22/9, SUP 16, PSD2 RTS, ICOBS\n"
         "Trust zone: RED"
     )

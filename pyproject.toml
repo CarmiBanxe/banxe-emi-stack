@@ -94,7 +94,8 @@ ignore = [
 "services/iam/**"                 = ["S310"]
 "services/providers/**"           = ["S310"]
 # S608: ClickHouse queries — parameterised internally, no user-controlled input
-"banxe_mcp/server.py"             = ["S608"]
+# S104: 0.0.0.0 default in MCP tool signatures is a placeholder, not a real listener
+"banxe_mcp/server.py"             = ["S608", "S104"]
 # S602/S105: design pipeline uses subprocess + PASS is a status code, not password
 "services/design_pipeline/**"     = ["S602", "S105"]
 # E402: api/deps.py has block-appended IAM/Auth imports after module-level code (IL-SK-01)

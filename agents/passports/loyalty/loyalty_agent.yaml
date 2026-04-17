@@ -1,0 +1,96 @@
+id: loyalty-agent
+name: Loyalty & Rewards Agent
+version: "1.0.0"
+il_ref: IL-LRE-01
+phase: 29
+sprint: 25
+created: "2026-04-17"
+
+identity:
+  description: >
+    AI agent for loyalty & rewards programme management — points earning from card spend,
+    FX, and direct debit; tier evaluation (BRONZE/SILVER/GOLD/PLATINUM); points redemption
+    for cashback, FX discounts, card fee waivers, and vouchers; MCC-based cashback processing;
+    and 12-month rolling points expiry management.
+  trust_zone: AMBER
+  autonomy_level: L2  # L4 HITL for manual bonus >10,000 points (I-27)
+
+capabilities:
+  - points_earning        # CARD_SPEND, FX, DIRECT_DEBIT, SIGNUP_BONUS earn rules
+  - tier_management       # BRONZE/SILVER/GOLD/PLATINUM — lifetime points thresholds
+  - points_redemption     # CASHBACK, FX_DISCOUNT, CARD_FEE_WAIVER, VOUCHER options
+  - cashback_processing   # MCC-based cashback rates → loyalty points conversion
+  - expiry_management     # 12-month rolling expiry with extension (HITL >365 days)
+  - bonus_application     # manual points bonus (HITL if >10,000 — I-27)
+
+hitl_gates:
+  manual_bonus_large:
+    threshold: ">10,000 points"
+    requires: "Compliance Officer"
+    reason: "Large manual adjustments could constitute unfair commercial practice (PS22/9)"
+    timeout_hours: 24
+    regulatory_note: "FCA PS22/9 Consumer Duty — fair value of loyalty rewards"
+  expiry_extension_long:
+    threshold: ">365 days extension"
+    requires: "Compliance Officer"
+    reason: "Expiry extension beyond 1 year affects balance sheet provisioning"
+    timeout_hours: 48
+
+regulatory_basis:
+  - "FCA PS22/9 — Consumer Duty (fair value of rewards)"
+  - "BCOBS 5 — Post-sale engagement and loyalty fairness"
+  - "FCA PRIN 2A — Consumer Duty outcomes"
+
+tier_thresholds:
+  BRONZE: "0 lifetime points"
+  SILVER: "1,000 lifetime points"
+  GOLD: "5,000 lifetime points"
+  PLATINUM: "20,000 lifetime points"
+
+mcc_cashback_rates:
+  "5411": "2% (grocery)"
+  "5812": "3% (restaurant)"
+  "5541": "1% (fuel)"
+  "5912": "2% (pharmacy)"
+  "5311": "1.5% (department store)"
+  "4111": "1% (transport)"
+  default: "0.5%"
+
+invariants:
+  I-01: "Decimal for all points and cashback amounts — never float"
+  I-05: "All amounts returned as strings in API responses"
+  I-24: "PointsTransactionStore is append-only — no UPDATE or DELETE"
+  I-27: "HITL for manual bonus >10,000 points and expiry extension >365 days"
+
+protocol_di_ports:
+  PointsBalanceStorePort:
+    production: PostgresPointsBalanceStore
+    test: InMemoryPointsBalanceStore
+  EarnRuleStorePort:
+    production: PostgresEarnRuleStore
+    test: InMemoryEarnRuleStore (7 rules seeded)
+  RedeemOptionStorePort:
+    production: PostgresRedeemOptionStore
+    test: InMemoryRedeemOptionStore (4 options seeded)
+  PointsTransactionStorePort:
+    production: ClickHousePointsTransactionStore (append-only, I-24)
+    test: InMemoryPointsTransactionStore
+
+mcp_tools:
+  - loyalty_get_balance
+  - loyalty_get_tier
+  - loyalty_redeem
+  - loyalty_earn_history
+  - loyalty_expiry_forecast
+
+api_endpoints:
+  - "GET  /v1/loyalty/balance/{customer_id}"
+  - "POST /v1/loyalty/earn"
+  - "POST /v1/loyalty/bonus  (HITL >10k)"
+  - "GET  /v1/loyalty/history/{customer_id}"
+  - "POST /v1/loyalty/redeem"
+  - "GET  /v1/loyalty/options/{customer_id}"
+  - "GET  /v1/loyalty/tier/{customer_id}/evaluate"
+  - "GET  /v1/loyalty/tiers"
+  - "POST /v1/loyalty/cashback"
+  - "GET  /v1/loyalty/expiry/{customer_id}"

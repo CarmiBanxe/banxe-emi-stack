@@ -1,0 +1,93 @@
+id: referral-agent
+name: Referral Program Agent
+version: "1.0.0"
+il_ref: IL-REF-01
+phase: 30
+sprint: 25
+created: "2026-04-17"
+
+identity:
+  description: >
+    AI agent for referral programme management — code generation (random + vanity),
+    referral lifecycle tracking (INVITED→REGISTERED→KYC_COMPLETE→QUALIFIED→REWARDED),
+    bi-directional reward distribution, fraud detection (self-referral, velocity abuse),
+    and campaign lifecycle management (DRAFT→ACTIVE→PAUSED→ENDED).
+  trust_zone: AMBER
+  autonomy_level: L2  # L4 HITL for fraud-blocked reward distribution (I-27)
+
+capabilities:
+  - code_generation       # 8-char alphanumeric + vanity (BANXE+suffix), collision-safe
+  - referral_tracking     # INVITED→REGISTERED→KYC_COMPLETE→QUALIFIED→REWARDED lifecycle
+  - reward_distribution   # bi-directional (referrer + referee), PENDING→APPROVED→PAID
+  - fraud_detection       # self-referral (conf=1.0), velocity >5/IP/24h (conf=0.9)
+  - campaign_management   # DRAFT→ACTIVE→PAUSED→ENDED lifecycle with budget tracking
+
+hitl_gates:
+  fraud_blocked_rewards:
+    requires: "Compliance Officer"
+    reason: "Fraud-flagged referrals must not receive rewards without human review"
+    timeout_hours: 24
+    regulatory_note: "FCA COBS 4 — financial promotions must not incentivise fraud"
+
+regulatory_basis:
+  - "FCA COBS 4 — financial promotions compliance (referral campaigns are regulated marketing)"
+  - "FCA PS22/9 — Consumer Duty (fair value of referral rewards)"
+  - "BCOBS 2.2 — customer communications about promotions"
+
+fraud_detection:
+  self_referral:
+    trigger: "referrer_id == referee_id"
+    confidence: "1.0"
+    action: "HITL_REQUIRED on distribute_rewards"
+  velocity_abuse:
+    trigger: ">5 referrals from same IP in 24 hours"
+    confidence: "0.9"
+    action: "HITL_REQUIRED on distribute_rewards"
+
+default_campaign:
+  id: "camp-default"
+  name: "Standard Referral"
+  referrer_reward: "£25.00"
+  referee_reward: "£10.00"
+  total_budget: "£100,000.00"
+  status: "ACTIVE"
+
+invariants:
+  I-01: "Decimal for all reward amounts — never float"
+  I-05: "All amounts returned as strings in API responses"
+  I-24: "FraudCheckStore is append-only — no UPDATE or DELETE"
+  I-27: "HITL for fraud-blocked reward distribution — Compliance Officer must approve"
+
+protocol_di_ports:
+  ReferralCodeStorePort:
+    production: PostgresReferralCodeStore
+    test: InMemoryReferralCodeStore
+  ReferralStorePort:
+    production: PostgresReferralStore
+    test: InMemoryReferralStore
+  ReferralRewardStorePort:
+    production: PostgresReferralRewardStore
+    test: InMemoryReferralRewardStore
+  ReferralCampaignStorePort:
+    production: PostgresReferralCampaignStore
+    test: InMemoryReferralCampaignStore (default campaign seeded)
+  FraudCheckStorePort:
+    production: ClickHouseFraudCheckStore (append-only, I-24)
+    test: InMemoryFraudCheckStore
+
+mcp_tools:
+  - referral_generate_code
+  - referral_get_status
+  - referral_campaign_stats
+  - referral_fraud_report
+
+api_endpoints:
+  - "POST /v1/referral/codes"
+  - "POST /v1/referral/track"
+  - "POST /v1/referral/{referral_id}/advance"
+  - "POST /v1/referral/{referral_id}/rewards  (HITL if fraud)"
+  - "GET  /v1/referral/{referral_id}/status"
+  - "GET  /v1/referral/campaigns/{campaign_id}/stats"
+  - "GET  /v1/referral/campaigns"
+  - "GET  /v1/referral/rewards/{customer_id}/summary"
+  - "POST /v1/referral/{referral_id}/fraud-check"

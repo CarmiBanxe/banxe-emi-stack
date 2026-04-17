@@ -956,3 +956,85 @@ FCA refs: PS21/3 (notifications), PSD2 Art.96 (security of communications), COBS
 | Agent passports | 27 | 29+ | 29 ✅ |
 
 commit: IL-AGW-01 + IL-WHO-01 | 4833 tests green | 2026-04-17
+
+---
+
+## Phase 29 — Loyalty & Rewards Engine ✅ DONE (Sprint 25 — 2026-04-17)
+
+> **IL:** IL-LRE-01 | **FCA:** COBS 6.1, BCOBS 5, PS22/9 | **Trust Zone:** AMBER
+
+| # | Module | Description | Status |
+|---|--------|-------------|--------|
+| 294 | models.py | 4 enums (RewardTier, TransactionType, RedemptionType, ExpiryPolicy), 4 frozen dataclasses, 4 Protocols + InMemory stubs — 7 seeded earn rules, 4 redemption options | ✅ |
+| 295 | points_engine.py | Earn points (MCC × tier multiplier × rate), apply_bonus (HITL >10k, I-27), quantize(1) | ✅ |
+| 296 | tier_manager.py | BRONZE=0 / SILVER=1000 / GOLD=5000 / PLATINUM=20000 lifetime thresholds, evaluate_tier, get_tier_benefits | ✅ |
+| 297 | redemption_engine.py | cashback (100pts→£1), card_fee, fx_discount, voucher — quantity multiplier, balance guard | ✅ |
+| 298 | cashback_processor.py | MCC cashback rates (5411→2%, 5812→3%, 5541→1%, 5912→2%, 5311→1.5%, 4111→1%, default→0.5%), 100pts/£1 | ✅ |
+| 299 | expiry_manager.py | expire_points (floor 0), extend_expiry (HITL >365 days, I-27) | ✅ |
+| 300 | loyalty_agent.py | L2 orchestration — earn → tier → cashback facade | ✅ |
+| 301 | api/routers/loyalty.py — 10 REST endpoints | /v1/loyalty/* embedded prefix | ✅ |
+| 302 | 5 MCP tools: loyalty_get_balance, loyalty_get_tier, loyalty_redeem, loyalty_earn_history, loyalty_expiry_forecast | ✅ |
+| 303 | Agent passport + SOUL.md | agents/passports/loyalty/ | ✅ |
+| 304 | 197 tests across 6 test files | tests/test_loyalty/ | ✅ |
+
+FCA refs: COBS 6.1 (fair value), BCOBS 5 (interest/rewards transparency), PS22/9 §4 (consumer duty — outcomes)
+
+---
+
+## Phase 30 — Referral Program ✅ DONE (Sprint 25 — 2026-04-17)
+
+> **IL:** IL-REF-01 | **FCA:** COBS 4.2, FCA PRIN 6, PS22/9 | **Trust Zone:** AMBER
+
+| # | Module | Description | Status |
+|---|--------|-------------|--------|
+| 305 | models.py | 4 enums (ReferralStatus, RewardStatus, CampaignStatus, FraudReason), 4 frozen dataclasses, 4 Protocols + InMemory stubs — seeded camp-default (£25 referrer / £10 referee / £100k budget) | ✅ |
+| 306 | code_generator.py | 8-char random codes (A-Z0-9), vanity "BANXE"+suffix, 5-retry collision-safe (_MAX_RETRIES=5), validate_code | ✅ |
+| 307 | referral_tracker.py | track_referral (INVITED), advance_status state machine (INVITED→REGISTERED→KYC_COMPLETE→QUALIFIED→REWARDED/FRAUDULENT) | ✅ |
+| 308 | reward_distributor.py | distribute_rewards (budget check, REWARDED status), approve_reward (PENDING→APPROVED→PAID), get_reward_summary | ✅ |
+| 309 | fraud_detector.py | self-referral (conf=1.0), velocity >5/IP/24h (conf=0.9, _VELOCITY_MAX_REFERRALS=5, _VELOCITY_WINDOW_HOURS=24) | ✅ |
+| 310 | campaign_manager.py | DRAFT→ACTIVE→PAUSED→ENDED lifecycle, budget enforcement, list_active_campaigns | ✅ |
+| 311 | referral_agent.py | L2 orchestration — fraud-blocked rewards → HITL_REQUIRED (I-27, FCA COBS 4) | ✅ |
+| 312 | api/routers/referral.py — 9 REST endpoints | /v1/referral/* embedded prefix | ✅ |
+| 313 | 4 MCP tools: referral_generate_code, referral_get_status, referral_campaign_stats, referral_fraud_report | ✅ |
+| 314 | Agent passport + SOUL.md | agents/passports/referral/ | ✅ |
+| 315 | 103 tests across 5 test files | tests/test_referral/ | ✅ |
+
+FCA refs: COBS 4.2 (financial promotions — referral incentives), FCA PRIN 6 (customers' interests), PS22/9 (consumer duty — value)
+
+---
+
+## Sprint 25 — Loyalty & Rewards + Referral Program (2026-04-17)
+
+> **Scope:** 4 blocks — (A) Phase 29 Loyalty & Rewards, (B) Phase 30 Referral Program,
+> (C) ROADMAP Phase 29+30 sections, (D) IL-103. P0 deadline 7 May 2026.
+
+### S25-A: Phase 29 — Loyalty & Rewards Engine (IL-LRE-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 294 | services/loyalty/ — 7 modules | IL-LRE-01 | ✅ |
+| 295 | api/routers/loyalty.py — 10 endpoints | IL-LRE-01 | ✅ |
+| 296 | 5 MCP tools: loyalty_get_balance, loyalty_get_tier, loyalty_redeem, loyalty_earn_history, loyalty_expiry_forecast | IL-LRE-01 | ✅ |
+| 297 | Agent passport + SOUL.md | IL-LRE-01 | ✅ |
+| 298 | 197 tests | IL-LRE-01 | ✅ |
+
+### S25-B: Phase 30 — Referral Program (IL-REF-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 299 | services/referral/ — 7 modules | IL-REF-01 | ✅ |
+| 300 | api/routers/referral.py — 9 endpoints | IL-REF-01 | ✅ |
+| 301 | 4 MCP tools: referral_generate_code, referral_get_status, referral_campaign_stats, referral_fraud_report | IL-REF-01 | ✅ |
+| 302 | Agent passport + SOUL.md | IL-REF-01 | ✅ |
+| 303 | 103 tests | IL-REF-01 | ✅ |
+
+### S25-C: Sprint 25 Targets
+
+| Metric | S24 Actual | S25 Target | S25 Actual |
+|--------|-----------|------------|-----------|
+| Tests | 4833 | 5030+ | 5133 ✅ |
+| MCP tools | 107 | 116+ | 116 ✅ |
+| API endpoints | 217 | 233+ | 236 ✅ |
+| Agent passports | 29 | 31+ | 31 ✅ |
+
+commit: IL-LRE-01 + IL-REF-01 | 5133 tests green | 2026-04-17
