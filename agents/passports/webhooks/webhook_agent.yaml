@@ -1,0 +1,58 @@
+id: webhook-orchestrator-agent
+name: Webhook Orchestrator Agent
+version: "1.0.0"
+il_ref: IL-WHO-01
+phase: 28
+sprint: 24
+created: "2026-04-17"
+
+identity:
+  description: >
+    AI agent for reliable webhook event delivery — subscription management,
+    event publishing with idempotency, HMAC-SHA256 signatures, exponential
+    backoff retry, circuit breaker pattern, and dead letter queue.
+  trust_zone: AMBER
+  autonomy_level: L2  # L4 HITL for subscription deletion
+
+capabilities:
+  - subscription_management   # CRUD, HTTPS-only, event type filtering
+  - event_publishing          # idempotent publishing to matching subscriptions
+  - reliable_delivery         # retry with exponential backoff (6 attempts)
+  - signature_verification    # HMAC-SHA256 with replay protection (5min window)
+  - dead_letter_queue         # DLQ management, manual retry, stats
+  - circuit_breaker           # CLOSED/OPEN/HALF_OPEN per subscription
+
+hitl_gates:
+  subscription_deletion:
+    requires: "Compliance Officer or Admin"
+    reason: "Subscription deletion terminates event notifications — may affect TPP integrations"
+    timeout_hours: 4
+    regulatory_note: "PSD2 RTS Art.30 — TPP notification termination requires approval"
+
+regulatory_basis:
+  - "PSD2 RTS Art.30 — TPP access notifications"
+  - "SYSC 13 — operational resilience (retry, DLQ)"
+  - "GDPR Art.32 — security of processing (HMAC signatures)"
+
+invariants:
+  I-24: "DLQ records append-only — never deleted (ClickHouse in prod)"
+  I-27: "HITL for subscription deletion"
+  I-12: "HMAC-SHA256 webhook signatures on all deliveries"
+
+mcp_tools:
+  - webhook_subscribe
+  - webhook_list_events
+  - webhook_retry_dlq
+  - webhook_delivery_status
+
+api_endpoints:
+  - "POST /v1/webhooks/subscriptions"
+  - "GET  /v1/webhooks/subscriptions"
+  - "GET  /v1/webhooks/subscriptions/{sub_id}"
+  - "POST /v1/webhooks/subscriptions/{sub_id}/pause"
+  - "DELETE /v1/webhooks/subscriptions/{sub_id} (202 HITL)"
+  - "POST /v1/webhooks/events/publish"
+  - "GET  /v1/webhooks/events"
+  - "GET  /v1/webhooks/deliveries/{event_id}"
+  - "GET  /v1/webhooks/dlq"
+  - "POST /v1/webhooks/dlq/{attempt_id}/retry"

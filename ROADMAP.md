@@ -874,3 +874,85 @@ FCA refs: ICOBS (insurance conduct), IDD (Insurance Distribution Directive), FCA
 | Agent passports | 25 | 27+ | 27 ✅ |
 
 commit: IL-LCE-01 + IL-INS-01 | 4563 tests green | 2026-04-17
+
+---
+
+## Phase 27 — API Gateway & Rate Limiting ✅ DONE (Sprint 24 — 2026-04-17)
+
+> **IL:** IL-AGW-01 | **FCA:** COBS 2.1, PS21/3, PSD2 RTS | **Trust Zone:** AMBER
+
+| # | Module | Description | Status |
+|---|--------|-------------|--------|
+| 272 | models.py | 5 enums (UsageTier, KeyStatus, RateLimitWindow, GeoAction), 5 frozen dataclasses, 5 Protocols + InMemory stubs | ✅ |
+| 273 | api_key_manager.py | Create/rotate/revoke/verify keys — SHA-256 hash (I-12), raw key returned ONCE only | ✅ |
+| 274 | rate_limiter.py | Token-bucket rate limiting (FREE 1/s → ENTERPRISE 200/s), InMemory stub | ✅ |
+| 275 | quota_manager.py | Daily quota tracking per key/tier | ✅ |
+| 276 | ip_filter.py | Per-key CIDR allowlist/blocklist + blocked jurisdiction geo-filter (I-02) | ✅ |
+| 277 | request_logger.py | Append-only request log per key (I-24) | ✅ |
+| 278 | gateway_agent.py | L2/L4 orchestration — revocation always HITL_REQUIRED (I-27) | ✅ |
+| 279 | api/routers/api_gateway.py — 8 REST endpoints | /v1/gateway/* embedded prefix | ✅ |
+| 280 | 5 MCP tools: gateway_create_key, gateway_get_usage, gateway_set_limits, gateway_revoke_key, gateway_request_analytics | ✅ |
+| 281 | Agent passport + SOUL.md | agents/passports/gateway/ | ✅ |
+| 282 | 125 tests across 7 test files | tests/test_api_gateway/ | ✅ |
+
+FCA refs: COBS 2.1 (fair treatment), PS21/3 (pricing), PSD2 RTS Art.30 (access logs)
+
+---
+
+## Phase 28 — Webhook Orchestrator ✅ DONE (Sprint 24 — 2026-04-17)
+
+> **IL:** IL-WHO-01 | **FCA:** PS21/3, COBS, PSD2 Art.96 | **Trust Zone:** AMBER
+
+| # | Module | Description | Status |
+|---|--------|-------------|--------|
+| 283 | models.py | 20 EventTypes, 4 enums (SubscriptionStatus, DeliveryStatus, CircuitState), 4 frozen dataclasses, 4 Protocols + InMemory stubs | ✅ |
+| 284 | subscription_manager.py | HTTPS-only URL validation, HMAC secret generation, HITL deletion (I-27) | ✅ |
+| 285 | event_publisher.py | Fan-out to matching subscriptions, idempotency dedup by key | ✅ |
+| 286 | delivery_engine.py | Exponential backoff retry [1s, 5s, 30s, 5m, 30m, 2h], circuit breaker | ✅ |
+| 287 | signature_engine.py | HMAC-SHA256 `t={ts},v1={sig}` format, 300s replay window (I-12) | ✅ |
+| 288 | dead_letter_queue.py | Append-only DLQ, retry creates new attempt (I-24) | ✅ |
+| 289 | webhook_agent.py | L2 orchestration — subscribe, publish, deliver, retry | ✅ |
+| 290 | api/routers/webhook_orchestrator.py — 10 REST endpoints | /v1/webhooks/* embedded prefix | ✅ |
+| 291 | 4 MCP tools: webhook_subscribe, webhook_list_events, webhook_retry_dlq, webhook_delivery_status | ✅ |
+| 292 | Agent passport + SOUL.md | agents/passports/webhooks/ | ✅ |
+| 293 | 145 tests across 7 test files | tests/test_webhook_orchestrator/ | ✅ |
+
+FCA refs: PS21/3 (notifications), PSD2 Art.96 (security of communications), COBS (event integrity)
+
+---
+
+## Sprint 24 — API Gateway + Webhook Orchestrator (2026-04-17)
+
+> **Scope:** 4 blocks — (A) Phase 27 API Gateway, (B) Phase 28 Webhook Orchestrator,
+> (C) ROADMAP Phase 27+28 sections, (D) IL-102. P0 deadline 7 May 2026.
+
+### S24-A: Phase 27 — API Gateway & Rate Limiting (IL-AGW-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 272 | services/api_gateway/ — 7 modules | IL-AGW-01 | ✅ |
+| 273 | api/routers/api_gateway.py — 8 endpoints | IL-AGW-01 | ✅ |
+| 274 | 5 MCP tools: gateway_create_key, gateway_get_usage, gateway_set_limits, gateway_revoke_key, gateway_request_analytics | IL-AGW-01 | ✅ |
+| 275 | Agent passport + SOUL.md | IL-AGW-01 | ✅ |
+| 276 | 125 tests | IL-AGW-01 | ✅ |
+
+### S24-B: Phase 28 — Webhook Orchestrator (IL-WHO-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 277 | services/webhook_orchestrator/ — 8 modules | IL-WHO-01 | ✅ |
+| 278 | api/routers/webhook_orchestrator.py — 10 endpoints | IL-WHO-01 | ✅ |
+| 279 | 4 MCP tools: webhook_subscribe, webhook_list_events, webhook_retry_dlq, webhook_delivery_status | IL-WHO-01 | ✅ |
+| 280 | Agent passport + SOUL.md | IL-WHO-01 | ✅ |
+| 281 | 145 tests | IL-WHO-01 | ✅ |
+
+### S24-C: Sprint 24 Targets
+
+| Metric | S23 Actual | S24 Target | S24 Actual |
+|--------|-----------|------------|-----------|
+| Tests | 4563 | 4760+ | 4833 ✅ |
+| MCP tools | 98 | 107+ | 107 ✅ |
+| API endpoints | 199 | 215+ | 217 ✅ |
+| Agent passports | 27 | 29+ | 29 ✅ |
+
+commit: IL-AGW-01 + IL-WHO-01 | 4833 tests green | 2026-04-17

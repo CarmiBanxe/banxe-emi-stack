@@ -1,8 +1,10 @@
 """
 api/routers/audit_dashboard.py
 IL-AGD-01 | Phase 16
+from api.deps import require_auth
 
 Audit & Governance Dashboard REST endpoints.
+from api.deps import require_auth
 
 GET  /audit/events                      — query events
 POST /audit/events                      — ingest event
@@ -12,6 +14,7 @@ GET  /audit/reports                     — list reports
 GET  /audit/reports/{report_id}         — get report by id
 GET  /audit/dashboard/metrics           — live dashboard metrics
 GET  /audit/governance/status           — governance/compliance status
+from api.deps import require_auth
 
 FCA ref: SYSC 9 — record-keeping.
 I-24: All audit events are append-only (never deleted).

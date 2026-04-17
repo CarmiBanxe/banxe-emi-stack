@@ -1,6 +1,7 @@
 """
 api/routers/document_management.py — Document Management System endpoints
 IL-DMS-01 | Phase 24 | banxe-emi-stack
+from api.deps import require_auth
 
 POST   /v1/documents/upload                  — upload document
 GET    /v1/documents/retention-policies      — list retention policies

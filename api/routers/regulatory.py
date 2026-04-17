@@ -1,8 +1,10 @@
 """
 api/routers/regulatory.py — Regulatory Reporting Automation endpoints
 IL-RRA-01 | Phase 14 | banxe-emi-stack
+from api.deps import require_auth
 
 Automated regulatory report generation, validation, submission, and scheduling.
+from api.deps import require_auth
 
 Endpoints:
   POST /v1/regulatory/reports/generate       — generate + validate a report
@@ -12,6 +14,7 @@ Endpoints:
   DELETE /v1/regulatory/schedules/{id}       — cancel scheduled report
   GET  /v1/regulatory/schedules/{entity_id}  — list active schedules
   GET  /v1/regulatory/templates              — list supported report templates
+from api.deps import require_auth
 
 FCA refs: SUP 16.12, SYSC 9.1.1R
 I-27: submission endpoints are L4 — human MUST confirm.

@@ -1,0 +1,75 @@
+id: gateway-agent
+name: API Gateway & Rate Limiting Agent
+version: "1.0.0"
+il_ref: IL-AGW-01
+phase: 27
+sprint: 24
+created: "2026-04-17"
+
+identity:
+  description: >
+    AI agent for centralised API gateway management — API key lifecycle,
+    rate limiting (token bucket), quota management, IP filtering, and
+    request analytics. Ensures secure third-party access per PSD2 RTS Art.30-36.
+  trust_zone: AMBER
+  autonomy_level: L2  # L4 HITL for key revocation
+
+capabilities:
+  - api_key_management   # create, rotate, list keys (SHA-256 hashed, I-12)
+  - rate_limiting        # token bucket per-key/tier
+  - quota_management     # daily/monthly quotas with soft/hard limits
+  - ip_filtering         # key-scoped allowlists + geo-restriction (I-02)
+  - request_logging      # ClickHouse append-only request analytics (I-24)
+
+hitl_gates:
+  key_revocation:
+    requires: "Compliance Officer or Admin"
+    reason: "API key revocation terminates TPP access — irreversible without new key"
+    timeout_hours: 4
+    regulatory_note: "PSD2 RTS Art.30 — TPP access termination requires audit trail"
+
+regulatory_basis:
+  - "PSD2 RTS Art.30-36 — TPP access security requirements"
+  - "FCA PS3/19 — API security standards"
+  - "SYSC 13 — operational resilience"
+  - "GDPR Art.32 — security of processing (key hashing)"
+
+invariants:
+  I-12: "API keys hashed with SHA-256 on creation — raw key returned once, never stored"
+  I-24: "Request logs append-only — no UPDATE or DELETE"
+  I-27: "HITL for key revocation — Compliance Officer must approve"
+  I-02: "Blocked jurisdictions enforced in IP geo-filter"
+
+protocol_di_ports:
+  APIKeyStorePort:
+    production: PostgresAPIKeyStore
+    test: InMemoryAPIKeyStore
+  RateLimitPolicyStorePort:
+    production: RedisRateLimitPolicyStore
+    test: InMemoryRateLimitPolicyStore (4 tier policies seeded)
+  QuotaStorePort:
+    production: PostgresQuotaStore
+    test: InMemoryQuotaStore
+  RequestLogStorePort:
+    production: ClickHouseRequestLogStore (append-only, I-24)
+    test: InMemoryRequestLogStore
+  IPAllowlistStorePort:
+    production: PostgresIPAllowlistStore
+    test: InMemoryIPAllowlistStore
+
+mcp_tools:
+  - gateway_create_key
+  - gateway_get_usage
+  - gateway_set_limits
+  - gateway_revoke_key
+  - gateway_request_analytics
+
+api_endpoints:
+  - "POST /v1/gateway/keys"
+  - "GET  /v1/gateway/keys"
+  - "GET  /v1/gateway/keys/{key_id}"
+  - "POST /v1/gateway/keys/{key_id}/rotate"
+  - "DELETE /v1/gateway/keys/{key_id} (202 HITL)"
+  - "GET  /v1/gateway/usage/{key_id}"
+  - "POST /v1/gateway/ip-allowlist"
+  - "GET  /v1/gateway/analytics/{key_id}"

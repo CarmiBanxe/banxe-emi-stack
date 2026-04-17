@@ -1,6 +1,7 @@
 """
 api/routers/card_issuing.py
 IL-CIM-01 | Phase 19
+from api.deps import require_auth
 
 Card Issuing & Management REST API.
 Endpoints:
@@ -14,6 +15,7 @@ Endpoints:
   POST /cards/{id}/authorise         — authorise transaction
   GET  /cards/{id}                   — get card details
   GET  /cards/{id}/transactions      — list card transactions
+from api.deps import require_auth
 
 FCA compliance:
   - Amounts as strings (I-05)

@@ -35,6 +35,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from api.routers import (
+    api_gateway,
     audit_dashboard,
     auth,
     card_issuing,
@@ -69,6 +70,7 @@ from api.routers import (
     transaction_monitor,
     treasury,
     watchman_webhook,
+    webhook_orchestrator,
 )
 
 logger = logging.getLogger("banxe.api")
@@ -165,3 +167,9 @@ app.include_router(
 )  # Document Management System (IL-DMS-01) — /v1/documents/* embedded
 app.include_router(lending.router)  # Lending & Credit Engine (IL-LCE-01) — /v1/lending/* embedded
 app.include_router(insurance.router)  # Insurance Integration (IL-INS-01) — /v1/insurance/* embedded
+app.include_router(
+    api_gateway.router
+)  # API Gateway & Rate Limiting (IL-AGW-01) — /v1/gateway/* embedded
+app.include_router(
+    webhook_orchestrator.router
+)  # Webhook Orchestrator (IL-WHO-01) — /v1/webhooks/* embedded

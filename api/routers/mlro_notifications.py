@@ -1,19 +1,23 @@
 """
 api/routers/mlro_notifications.py — Internal MLRO notification endpoint
 IL-068 | AML/Compliance block | banxe-emi-stack
+from api.deps import require_auth
 
 POST /internal/notifications/mlro — receive AML/sanctions alert for MLRO
+from api.deps import require_auth
 
 Called by:
   - n8n watchman_list_update workflow
   - n8n watchman_rescreen_high_risk workflow
   - banxe_aml_orchestrator (via n8n glue)
+from api.deps import require_auth
 
 Pipeline:
   1. Validate X-Internal-Token header against env INTERNAL_API_TOKEN
   2. Log notification to audit store (I-24)
   3. Forward to notification service (Telegram / Slack / email via NotificationService)
   4. Return 202 Accepted
+from api.deps import require_auth
 
 FCA basis: JMLSG 3.10 — MLRO must receive timely information for oversight.
            SMF17 personal accountability: MLRO must be informed of material AML events.

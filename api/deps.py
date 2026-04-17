@@ -88,3 +88,91 @@ def get_statement_service() -> AccountStatementService:
     In production: swap InMemoryTransactionRepository for ClickHouseTransactionRepository.
     """
     return AccountStatementService(repo=InMemoryTransactionRepository())
+
+
+# --- Append to api/deps.py ---
+# ── IAM / Auth / 2FA DI (P0 closure — auth/IAM/2FA wiring) ──────────────────
+
+from fastapi import Header, HTTPException
+from fastapi import Security as FastAPISecurity
+
+from services.auth.sca_service import InMemorySCAStore, SCAService
+from services.auth.two_factor import TOTPService
+from services.iam.iam_port import IAMPort, Permission, UserIdentity
+from services.iam.mock_iam_adapter import get_iam_adapter
+
+
+@lru_cache(maxsize=1)
+def get_iam() -> IAMPort:
+    """IAM adapter — MockIAMAdapter (default) or KeycloakAdapter (IAM_ADAPTER=keycloak)."""
+    return get_iam_adapter()
+
+
+@lru_cache(maxsize=1)
+def get_totp_service() -> TOTPService:
+    """TOTP 2FA service (RFC 6238)."""
+    return TOTPService()
+
+
+@lru_cache(maxsize=1)
+def get_sca_service_di() -> SCAService:
+    """PSD2 SCA challenge service — DI-managed singleton."""
+    return SCAService(store=InMemorySCAStore())
+
+
+async def require_auth(
+    authorization: str = Header(..., description="Bearer <token>"),
+) -> UserIdentity:
+    """
+    FastAPI dependency: extract Bearer token, validate via IAMPort.
+    Returns UserIdentity or raises 401.
+    Usage: user: UserIdentity = Depends(require_auth)
+    """
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+    token = authorization[7:]
+    iam = get_iam()
+    identity = iam.validate_token(token)
+    if identity is None:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    return identity
+
+
+def require_permission(perm: Permission):
+    """
+    Factory: returns a FastAPI dependency that checks a specific permission.
+    Usage: Depends(require_permission(Permission.FILE_SAR))
+    """
+
+    async def _check(
+        identity: UserIdentity = FastAPISecurity(require_auth),
+    ) -> UserIdentity:
+        iam = get_iam()
+        if not iam.authorize(identity, perm):
+            raise HTTPException(
+                status_code=403,
+                detail=f"Permission denied: {perm.value} required",
+            )
+        return identity
+
+    return _check
+
+
+def require_role(*roles):
+    """
+    Factory: returns a FastAPI dependency that checks role membership.
+    Usage: Depends(require_role(BanxeRole.MLRO, BanxeRole.CEO))
+    """
+
+    async def _check(
+        identity: UserIdentity = FastAPISecurity(require_auth),
+    ) -> UserIdentity:
+        if not any(identity.has_role(r) for r in roles):
+            role_names = ", ".join(r.value for r in roles)
+            raise HTTPException(
+                status_code=403,
+                detail=f"Role required: {role_names}",
+            )
+        return identity
+
+    return _check

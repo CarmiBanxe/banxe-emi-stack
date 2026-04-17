@@ -3324,6 +3324,219 @@ async def insurance_list_products(coverage_type: str = "") -> str:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
 
 
+# ── API Gateway tools (IL-AGW-01) ─────────────────────────────────────────
+
+
+@mcp_server.tool()
+async def gateway_create_key(
+    name: str,
+    owner_id: str,
+    scope: list[str],
+    tier: str = "BASIC",
+) -> str:
+    """Create a new API key for a customer or service.
+
+    Raw key returned ONCE — never stored (I-12 SHA-256). Store it immediately.
+    Tiers: FREE (1 rps), BASIC (10 rps), PREMIUM (50 rps), ENTERPRISE (200 rps).
+
+    Args:
+        name: Human-readable key name
+        owner_id: Customer or service ID that owns this key
+        scope: List of permitted scopes (e.g. ["payments:read", "kyc:write"])
+        tier: Usage tier — FREE/BASIC/PREMIUM/ENTERPRISE (default: BASIC)
+
+    Returns:
+        JSON with raw_key (one-time), key_id, tier
+    """
+    try:
+        result = await _api_post(
+            "/v1/gateway/keys",
+            {"name": name, "owner_id": owner_id, "scope": scope, "tier": tier},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def gateway_get_usage(key_id: str) -> str:
+    """Get request analytics and quota summary for an API key.
+
+    Args:
+        key_id: The API key ID to query
+
+    Returns:
+        JSON with analytics (request counts, status codes) and quota_summary
+    """
+    try:
+        result = await _api_get(f"/v1/gateway/keys/{key_id}/usage")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def gateway_set_limits(tier: str = "") -> str:
+    """Get current rate limit policies for all tiers (or a specific tier).
+
+    Use this to understand quota policies before provisioning API keys.
+
+    Args:
+        tier: Optional — FREE/BASIC/PREMIUM/ENTERPRISE. Empty = all tiers.
+
+    Returns:
+        JSON with list of policies (requests_per_second, per_minute, per_hour, burst_allowance)
+    """
+    try:
+        result = await _api_get("/v1/gateway/rate-limits")
+        if tier:
+            policies = [p for p in result.get("policies", []) if p["tier"] == tier]
+            return json.dumps({"policies": policies}, indent=2)
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def gateway_revoke_key(key_id: str, actor: str) -> str:
+    """Revoke an API key. Returns HITL_REQUIRED — Compliance Officer must approve (I-27).
+
+    Args:
+        key_id: The API key ID to revoke
+        actor: Identity of the requester (for audit trail)
+
+    Returns:
+        JSON with status=HITL_REQUIRED and key_id
+    """
+    try:
+        result = await _api_post(f"/v1/gateway/keys/{key_id}/revoke", {"actor": actor})
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def gateway_request_analytics(key_id: str) -> str:
+    """Get full request analytics for an API key — same as gateway_get_usage.
+
+    Alias kept for discoverability. Returns request history and quota usage.
+
+    Args:
+        key_id: The API key ID to query
+
+    Returns:
+        JSON with analytics object (total_requests, error_rate, latency_p99)
+    """
+    try:
+        result = await _api_get(f"/v1/gateway/keys/{key_id}/usage")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+# ── Webhook Orchestrator tools (IL-WHO-01) ────────────────────────────────
+
+
+@mcp_server.tool()
+async def webhook_subscribe(
+    owner_id: str,
+    url: str,
+    event_types: list[str],
+    description: str = "",
+) -> str:
+    """Subscribe to Banxe webhook events. URL must be HTTPS.
+
+    Event types: PAYMENT_CREATED, PAYMENT_COMPLETED, PAYMENT_FAILED,
+    CUSTOMER_CREATED, KYC_COMPLETED, KYC_FAILED, CARD_ISSUED, CARD_FROZEN,
+    CARD_TRANSACTION, LOAN_APPLIED, LOAN_APPROVED, LOAN_DECLINED, LOAN_DISBURSED,
+    INSURANCE_POLICY_BOUND, INSURANCE_CLAIM_FILED, INSURANCE_CLAIM_APPROVED,
+    FX_EXECUTED, COMPLIANCE_BREACH, DOCUMENT_UPLOADED, SAFEGUARDING_ALERT.
+
+    Args:
+        owner_id: Customer or service ID subscribing to events
+        url: HTTPS endpoint to receive webhook POST requests
+        event_types: List of event types to subscribe to
+        description: Optional human-readable description
+
+    Returns:
+        JSON with subscription_id, status=ACTIVE, and HMAC signing secret info
+    """
+    try:
+        result = await _api_post(
+            "/v1/webhooks/subscriptions",
+            {
+                "owner_id": owner_id,
+                "url": url,
+                "event_types": event_types,
+                "description": description,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def webhook_list_events(event_type: str = "", limit: int = 50) -> str:
+    """List recently published webhook events, optionally filtered by event type.
+
+    Args:
+        event_type: Optional filter — e.g. PAYMENT_COMPLETED. Empty = all types.
+        limit: Maximum number of events to return (default: 50)
+
+    Returns:
+        JSON with count and list of events (event_id, event_type, source_service, created_at)
+    """
+    try:
+        endpoint = "/v1/webhooks/events"
+        params = []
+        if event_type:
+            params.append(f"event_type={event_type}")
+        params.append(f"limit={limit}")
+        endpoint += "?" + "&".join(params)
+        result = await _api_get(endpoint)
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def webhook_retry_dlq(attempt_id: str) -> str:
+    """Retry a dead-lettered webhook delivery attempt.
+
+    The original DLQ record is preserved (append-only, I-24).
+    A new PENDING attempt is created for re-delivery.
+
+    Args:
+        attempt_id: The dead-lettered delivery attempt ID to retry
+
+    Returns:
+        JSON with new_attempt_id, event_id, subscription_id, status=PENDING
+    """
+    try:
+        result = await _api_post(f"/v1/webhooks/dlq/{attempt_id}/retry", {})
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def webhook_delivery_status(event_id: str) -> str:
+    """Get delivery status for all attempts for a webhook event.
+
+    Args:
+        event_id: The webhook event ID to check
+
+    Returns:
+        JSON with deliveries list (attempt_id, subscription_id, status, http_status, attempt_number)
+    """
+    try:
+        result = await _api_get(f"/v1/webhooks/events/{event_id}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
 @mcp_server.resource("banxe://info")
 async def info_resource() -> str:
     """BANXE EMI platform information."""
@@ -3355,7 +3568,10 @@ async def info_resource() -> str:
         "compliance_track_remediation, compliance_policy_diff, "
         "doc_upload, doc_search, doc_get_versions, doc_retention_status, "
         "lending_apply, lending_score, lending_get_schedule, lending_arrears_status, lending_provision_report, "
-        "insurance_get_quote, insurance_bind_policy, insurance_file_claim, insurance_list_products\n"
+        "insurance_get_quote, insurance_bind_policy, insurance_file_claim, insurance_list_products, "
+        "gateway_create_key, gateway_get_usage, gateway_set_limits, gateway_revoke_key, "
+        "gateway_request_analytics, "
+        "webhook_subscribe, webhook_list_events, webhook_retry_dlq, webhook_delivery_status\n"
         "FCA basis: CASS 7.15, CASS 15, MLR 2017, PSR 2017, DISP 1.3, PS22/9, SUP 16, PSD2 RTS, ICOBS\n"
         "Trust zone: RED"
     )

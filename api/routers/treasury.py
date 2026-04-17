@@ -1,6 +1,7 @@
 """
 api/routers/treasury.py
 IL-TLM-01 | Phase 17
+from api.deps import require_auth
 
 Treasury & Liquidity Management REST API.
 Endpoints:
@@ -12,6 +13,7 @@ Endpoints:
   POST /v1/treasury/sweeps/{sweep_id}/approve → approve sweep
   GET  /v1/treasury/reconciliations          → reconciliation list
   POST /v1/treasury/reconcile               → trigger reconciliation
+from api.deps import require_auth
 
 FCA compliance:
   - All amounts returned as strings (I-05, never float)

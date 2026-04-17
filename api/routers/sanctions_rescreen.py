@@ -1,12 +1,15 @@
 """
 api/routers/sanctions_rescreen.py — High-risk sanctions re-screen endpoint
 IL-068 | AML/Compliance block | banxe-emi-stack
+from api.deps import require_auth
 
 POST /compliance/sanctions/rescreen/high-risk — enqueue batch re-screen
+from api.deps import require_auth
 
 Called by:
   - n8n watchman_rescreen_high_risk workflow (after Watchman list update)
   - banxe_aml_orchestrator (manual trigger)
+from api.deps import require_auth
 
 Pipeline:
   1. Validate X-Internal-Token against env INTERNAL_API_TOKEN
@@ -14,6 +17,7 @@ Pipeline:
   3. Worker reads queue → calls sanctions_check_core / yente_adapter_agent per customer
   4. HITL gates (Sanctions_reversal, PEP_onboarding) enforced per-customer by OrgRoleChecker
   5. Return 202 Accepted with job_id
+from api.deps import require_auth
 
 FCA basis: MLR 2017 Reg.28(1) — screening must reflect current lists.
            JMLSG 3.10 — MLRO oversight of re-screening procedures.

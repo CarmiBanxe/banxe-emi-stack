@@ -97,6 +97,9 @@ ignore = [
 "banxe_mcp/server.py"             = ["S608"]
 # S602/S105: design pipeline uses subprocess + PASS is a status code, not password
 "services/design_pipeline/**"     = ["S602", "S105"]
+# E402: api/deps.py has block-appended IAM/Auth imports after module-level code (IL-SK-01)
+# ANN002: *roles variadic arg — acceptable pattern for dependency factory
+"api/deps.py"                     = ["E402", "ANN002"]
 # S: scripts and infra are not externally-callable services
 "scripts/**"                      = ["S"]
 "infra/**"                        = ["S"]

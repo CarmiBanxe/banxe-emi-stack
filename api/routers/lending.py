@@ -1,6 +1,7 @@
 """
 api/routers/lending.py — Lending & Credit Engine REST API
 IL-LCE-01 | Phase 25 | banxe-emi-stack
+from api.deps import require_auth
 
 POST   /v1/lending/apply                     — apply for a loan (202 HITL_REQUIRED, I-27)
 GET    /v1/lending/products                  — list loan products
@@ -12,6 +13,7 @@ GET    /v1/lending/{application_id}/schedule — get repayment schedule
 GET    /v1/lending/{application_id}/arrears  — get arrears history
 POST   /v1/lending/{application_id}/payment  — process repayment
 POST   /v1/lending/{application_id}/provision — compute ECL provision
+from api.deps import require_auth
 
 FCA compliance:
   - HITL gate for all credit decisions (I-27) → HTTP 202

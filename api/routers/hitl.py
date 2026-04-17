@@ -1,6 +1,7 @@
 """
 api/routers/hitl.py — HITL Review Queue endpoints
 IL-051 | Phase 2 #10 | banxe-emi-stack
+from api.deps import require_auth
 
 GET  /v1/hitl/queue              — list cases (filter by status)
 POST /v1/hitl/queue              — enqueue a case manually

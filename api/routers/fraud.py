@@ -1,8 +1,10 @@
 """
 api/routers/fraud.py — Fraud + AML Assessment endpoints
 IL-049 | S9-05 | banxe-emi-stack
+from api.deps import require_auth
 
 POST /v1/fraud/assess — pre-payment fraud and AML gate (operator/internal)
+from api.deps import require_auth
 
 FCA compliance:
   - PSR APP 2024: APP scam detection mandatory gate

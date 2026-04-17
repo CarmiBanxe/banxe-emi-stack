@@ -1,6 +1,7 @@
 """
 api/routers/merchant_acquiring.py
 IL-MAG-01 | Phase 20
+from api.deps import require_auth
 
 Merchant Acquiring Gateway REST API.
 Endpoints:
@@ -14,6 +15,7 @@ Endpoints:
   POST /v1/merchants/{id}/settlements         → create_settlement
   POST /v1/merchants/{id}/chargebacks         → receive_chargeback
   GET  /v1/merchants/{id}/risk-score          → score_merchant
+from api.deps import require_auth
 
 FCA compliance:
   - Amounts always as strings (I-05, never float)

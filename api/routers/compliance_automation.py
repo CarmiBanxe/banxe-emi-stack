@@ -1,8 +1,10 @@
 """
 api/routers/compliance_automation.py
 IL-CAE-01 | Phase 23
+from api.deps import require_auth
 
 Compliance Automation Engine REST API.
+from api.deps import require_auth
 
 POST /v1/compliance/evaluate            — evaluate entity compliance
 GET  /v1/compliance/rules               — list active rules (optional ?rule_type=)
@@ -12,6 +14,7 @@ POST /v1/compliance/remediations        — create remediation tracking item
 GET  /v1/compliance/remediations        — list open remediations
 POST /v1/compliance/policies            — create new policy (DRAFT)
 POST /v1/compliance/policies/diff       — diff two policy versions
+from api.deps import require_auth
 
 FCA compliance:
   - HITL gate for FCA breach submissions (I-27) → HTTP 202

@@ -25,3 +25,7 @@ banxe_dev.db
 
 # Auto-generated experiment index (written by ExperimentStore on every pytest run)
 compliance-experiments/index.json
+
+# Test artifacts written during pytest runs (must not be tracked)
+compliance-experiments/draft/
+data/

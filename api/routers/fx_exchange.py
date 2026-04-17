@@ -1,8 +1,10 @@
 """
 api/routers/fx_exchange.py
 IL-FX-01 | Phase 21
+from api.deps import require_auth
 
 FX & Currency Exchange REST API.
+from api.deps import require_auth
 
 POST /v1/fx/quote                       — request FX quote
 POST /v1/fx/execute                     — execute FX order
@@ -12,6 +14,7 @@ GET  /v1/fx/history/{entity_id}         — FX execution history
 GET  /v1/fx/spreads                     — all spread configs
 GET  /v1/fx/spreads/{from}/{to}         — single pair spread
 POST /v1/fx/rates/refresh               — trigger rate refresh (operator)
+from api.deps import require_auth
 
 FCA compliance:
   - Amounts as strings in all responses (I-05)
