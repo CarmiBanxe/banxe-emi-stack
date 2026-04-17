@@ -38,11 +38,13 @@ from api.routers import (
     api_gateway,
     audit_dashboard,
     auth,
+    batch_payments,
     beneficiary,
     card_issuing,
     compliance_automation,
     compliance_kb,
     consumer_duty,
+    crypto_custody,
     customers,
     dispute_resolution,
     document_management,
@@ -191,3 +193,9 @@ app.include_router(
 app.include_router(
     beneficiary.router
 )  # Beneficiary & Payee Management (IL-BPM-01) — /v1/beneficiaries/* embedded
+app.include_router(
+    crypto_custody.router
+)  # Crypto & Digital Assets Custody (IL-CDC-01) — /v1/crypto/* embedded
+app.include_router(
+    batch_payments.router
+)  # Batch Payment Processing (IL-BPP-01) — /v1/batch-payments/* embedded

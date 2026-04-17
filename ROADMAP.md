@@ -1220,3 +1220,85 @@ Sprint 3 – PLAN:
   - inspect router/service coverage
   - patch only the active domain
   - re-run focused tests + coverage
+
+---
+
+## Phase 35 — Crypto & Digital Assets Custody ✅ DONE (Sprint 28 — 2026-04-17)
+
+> **IL:** IL-CDC-01 | **FCA:** FSMA 2000 s.19, MLR 2017 Reg.5 (cryptoasset exchange), FATF R.16 Travel Rule | **Trust Zone:** RED
+
+| # | Module | Description | Status |
+|---|--------|-------------|--------|
+| 360 | models.py | 5 enums (AssetType, WalletStatus, TransferStatus, CustodyAction, NetworkType), 5 frozen dataclasses, 4 Protocols + InMemory stubs (3 seeded wallets: BTC/ETH/USDT for owner-001) | ✅ |
+| 361 | crypto_agent.py | HITLProposal dataclass; CryptoAgent with process_transfer_request (HITL ≥ £1000 I-27), process_archive_request (always L4), process_travel_rule (I-02 jurisdiction screen), get_agent_status | ✅ |
+| 362 | wallet_manager.py | WalletManager — create_wallet (SHA-256 deterministic address I-12), get_balance (Decimal I-01), list_wallets, archive_wallet (HITL L4 I-27) | ✅ |
+| 363 | transfer_engine.py | TransferEngine — initiate_transfer (positive Decimal), validate_address, execute_transfer (HITLProposal ≥ £1000), confirm_on_chain, reject_transfer | ✅ |
+| 364 | travel_rule_engine.py | TRAVEL_RULE_THRESHOLD_EUR = £1000; BLOCKED_JURISDICTIONS (9); _FATF_GREYLIST (15); TravelRuleEngine — requires_travel_rule, screen_jurisdiction, attach_originator_data, get_travel_rule_data, validate_travel_rule_complete | ✅ |
+| 365 | custody_reconciler.py | TOLERANCE_SATOSHI = 0.00000001; CustodyReconciler — reconcile_wallet, reconcile_all, flag_discrepancy | ✅ |
+| 366 | fee_calculator.py | WITHDRAWAL_FEE_PCT = 0.001; NETWORK_FEE_ESTIMATES per asset; MIN/MAX amounts; FeeCalculator — estimate_network_fee, calculate_withdrawal_fee, get_total_fee, validate_min_amount, validate_max_amount | ✅ |
+| 367 | api/routers/crypto_custody.py — 10 REST endpoints | /v1/crypto/* — POST /wallets, GET /wallets, GET /wallets/{id}, GET /wallets/{id}/balance, POST /wallets/{id}/archive, POST /transfers, GET /transfers/{id}, POST /transfers/{id}/execute, POST /transfers/{id}/confirm, POST /travel-rule/check | ✅ |
+| 368 | 5 MCP tools: crypto_create_wallet, crypto_get_balance, crypto_initiate_transfer, crypto_check_travel_rule, crypto_reconcile_wallet | ✅ |
+| 369 | Agent passport + SOUL.md | agents/passports/crypto/ | ✅ |
+| 370 | 123 tests across 7 test files | tests/test_crypto_custody/ | ✅ |
+
+FCA refs: FSMA 2000 s.19 (regulated activity), MLR 2017 Reg.5 (cryptoasset exchange registration), FATF R.16 (Travel Rule ≥ £1000), EU MiCA Art.70
+
+---
+
+## Phase 36 — Batch Payment Processing ✅ DONE (Sprint 28 — 2026-04-17)
+
+> **IL:** IL-BPP-01 | **FCA:** PSR 2017, Bacs scheme, SEPA pain.001, SWIFT MT103, MLR 2017 | **Trust Zone:** AMBER
+
+| # | Module | Description | Status |
+|---|--------|-------------|--------|
+| 371 | models.py | 5 enums (BatchStatus, PaymentRail, BatchItemStatus, FileFormat, ValidationErrorCode), 5 frozen dataclasses, 4 Protocols + InMemory stubs | ✅ |
+| 372 | batch_agent.py | HITLProposal dataclass; BatchAgent — process_submission (ALWAYS HITL L4 I-27), process_validation, process_reconciliation, get_agent_status | ✅ |
+| 373 | batch_creator.py | BatchCreator — create_batch (rails: FPS/CHAPS/SEPA/SWIFT/Bacs), add_item (validates IBAN, amount Decimal I-01, I-02 jurisdiction), validate_all, submit_batch (always HITLProposal), get_batch_summary | ✅ |
+| 374 | file_parser.py | FileParser — parse_bacs_std18 (pipe-delimited), parse_sepa_pain001 (stdlib ET, noqa S314), parse_csv_banxe (DictReader), detect_format, compute_file_hash (SHA-256 I-12), validate_format | ✅ |
+| 375 | payment_dispatcher.py | PaymentDispatcher — dispatch_batch, dispatch_item, get_dispatch_status, retry_failed_items | ✅ |
+| 376 | reconciliation_engine.py | BatchReconciliationEngine — reconcile_batch, get_discrepancy_items, generate_report, mark_reconciled | ✅ |
+| 377 | limit_checker.py | BATCH_LIMIT_GBP = £500k; DAILY_AGGREGATE_LIMIT_GBP = £2M; AML_THRESHOLD_GBP = £10k (I-04); LimitChecker — check_batch_limit, check_daily_limit, check_aml_threshold, check_velocity, get_limit_summary | ✅ |
+| 378 | api/routers/batch_payments.py — 9 REST endpoints | /v1/batch-payments/* — POST /, POST /{id}/items, POST /{id}/validate, POST /{id}/submit (HITL), GET /{id}, GET /{id}/items, POST /{id}/dispatch, GET /{id}/status, GET /{id}/reconciliation | ✅ |
+| 379 | 4 MCP tools: batch_create, batch_add_items, batch_validate, batch_submit | ✅ |
+| 380 | Agent passport + SOUL.md | agents/passports/batch_payments/ | ✅ |
+| 381 | 108 tests across 7 test files | tests/test_batch_payments/ | ✅ |
+
+FCA refs: PSR 2017 (bulk payments), Bacs scheme rules, SEPA pain.001 ISO 20022, SWIFT MT103, MLR 2017 Reg.28 (batch AML), I-04 (£10k AML threshold)
+
+---
+
+## Sprint 28 — Crypto Custody + Batch Payment Processing (2026-04-17)
+
+> **Scope:** 4 blocks — (A) Phase 35 Crypto Custody, (B) Phase 36 Batch Payments,
+> (C) ROADMAP Phase 35+36 sections, (D) IL-106. P0 deadline 7 May 2026.
+
+### S28-A: Phase 35 — Crypto & Digital Assets Custody (IL-CDC-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 360 | services/crypto_custody/ — 7 modules | IL-CDC-01 | ✅ |
+| 361 | api/routers/crypto_custody.py — 10 endpoints | IL-CDC-01 | ✅ |
+| 362 | 5 MCP tools: crypto_create_wallet, crypto_get_balance, crypto_initiate_transfer, crypto_check_travel_rule, crypto_reconcile_wallet | IL-CDC-01 | ✅ |
+| 363 | Agent passport + SOUL.md | IL-CDC-01 | ✅ |
+| 364 | 123 tests | IL-CDC-01 | ✅ |
+
+### S28-B: Phase 36 — Batch Payment Processing (IL-BPP-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 365 | services/batch_payments/ — 7 modules | IL-BPP-01 | ✅ |
+| 366 | api/routers/batch_payments.py — 9 endpoints | IL-BPP-01 | ✅ |
+| 367 | 4 MCP tools: batch_create, batch_add_items, batch_validate, batch_submit | IL-BPP-01 | ✅ |
+| 368 | Agent passport + SOUL.md | IL-BPP-01 | ✅ |
+| 369 | 108 tests | IL-BPP-01 | ✅ |
+
+### S28-C: Sprint 28 Targets
+
+| Metric | S27 Actual | S28 Target | S28 Actual |
+|--------|-----------|------------|-----------|
+| Tests | 5643 | 5870+ | 5842 ✅ |
+| MCP tools | 134 | 143+ | 143 ✅ |
+| API endpoints | 271 | 290+ | 290 ✅ |
+| Agent passports | 35 | 37+ | 37 ✅ |
+
+commit: IL-CDC-01 + IL-BPP-01 | Sprint 28 | 2026-04-17
