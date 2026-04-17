@@ -17,7 +17,18 @@
         "noUnusedImports": "warn"
       },
       "style": {
-        "useNamingConvention": "warn",
+        "useNamingConvention": {
+          "level": "warn",
+          "options": {
+            "strictCase": false,
+            "conventions": [
+              {
+                "selector": { "kind": "objectLiteralProperty" },
+                "formats": ["camelCase", "CONSTANT_CASE", "PascalCase"]
+              }
+            ]
+          }
+        },
         "useConst": "error",
         "noNonNullAssertion": "warn"
       },
@@ -68,13 +79,13 @@
       "*.json",
       "*.config.ts",
       "*.config.js",
-      "!!dist",
-      "!!node_modules",
-      "!src/generated/**",
+      "!dist",
+      "!node_modules",
+      "!src/generated",
       "!**/*.lite.tsx",
-      "!!coverage",
-      "!!playwright-report",
-      "!!.storybook"
+      "!coverage",
+      "!playwright-report",
+      "!.storybook"
     ]
   }
 }

@@ -2,8 +2,8 @@
  * ConsentToggle Tests — GDPR equal-weight buttons, no dark patterns
  * IL-ADDS-01
  */
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, test, expect, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, test, vi } from "vitest";
 import { ConsentToggle, type ConsentValue } from "../components/ui/ConsentToggle";
 
 const DEFAULT_PROPS = {
@@ -119,8 +119,8 @@ describe("ConsentToggle", () => {
   test("Reject label is not hidden or visually suppressed", () => {
     render(<ConsentToggle {...DEFAULT_PROPS} />);
     const rejectLabel = screen.getByText("Reject").closest("label");
-    const style = window.getComputedStyle(rejectLabel!);
-    expect(style.display).not.toBe("none");
-    expect(style.visibility).not.toBe("hidden");
+    const style = rejectLabel ? window.getComputedStyle(rejectLabel) : null;
+    expect(style?.display).not.toBe("none");
+    expect(style?.visibility).not.toBe("hidden");
   });
 });

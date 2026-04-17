@@ -3,7 +3,7 @@
  * Used by KYC Wizard (5 steps), Back/Next navigation, form validation
  * IL-ADDS-01
  */
-import { CheckCircle2, Circle, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 
 export interface WizardStep {
   id: string;
@@ -31,7 +31,7 @@ function StepIndicator({
   step,
   index,
   state,
-  current,
+  current: _current,
   total,
 }: {
   step: WizardStep;
@@ -80,9 +80,7 @@ function StepIndicator({
       )}
 
       {/* Circle */}
-      <div
-        className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${circleClass}`}
-      >
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${circleClass}`}>
         {isCompleted ? (
           <CheckCircle2 size={16} className="text-[#34d399]" aria-hidden="true" />
         ) : (

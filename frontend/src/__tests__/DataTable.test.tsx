@@ -2,9 +2,9 @@
  * DataTable Tests — sorting, zebra rows, batch actions
  * IL-ADDS-01
  */
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, test, expect, vi } from "vitest";
-import { DataTable, type Column } from "../components/ui/DataTable";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, test, vi } from "vitest";
+import { type Column, DataTable } from "../components/ui/DataTable";
 
 interface TestRow {
   id: string;

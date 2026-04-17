@@ -34,6 +34,10 @@ design_pipeline:
   llm:
     provider: ollama
     base_url: "${OLLAMA_BASE_URL:-http://localhost:11434}"
+    # Safe models for GMKtec (16 GB RAM) — issue #1: avoid OOM crashes
+    # TESTED OK:  qwen2.5-coder:7b (default), huihui_ai/qwen3.5-abliterated:9b, qwen3:30b-a3b
+    # OOM RISK:   qwen3.5-abliterated:35b (>14 GB VRAM), llama3.3:70b (>40 GB VRAM)
+    # See: docs/runbooks/ollama-model-config.md
     model: "${OLLAMA_MODEL:-qwen2.5-coder:7b}"
     temperature: 0.2
     max_tokens: 4096

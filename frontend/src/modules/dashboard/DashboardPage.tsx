@@ -5,107 +5,108 @@
  *
  * STYLE ONLY — business logic and API calls preserved as-is.
  */
-import { useState } from 'react'
-import { Sidebar } from '../../components/ui/Sidebar'
-import { KPICard } from '../../components/ui/KPICard'
-import { DataTable, type Column } from '../../components/ui/DataTable'
-import { AMLAlertPanel, type AMLAlert } from '../../components/ui/AMLAlertPanel'
-import { StatusBadge, type BadgeStatus } from '../../components/ui/StatusBadge'
-import { RefreshCw } from 'lucide-react'
+
+import { RefreshCw } from "lucide-react";
+import { useState } from "react";
+import { type AMLAlert, AMLAlertPanel } from "../../components/ui/AMLAlertPanel";
+import { type Column, DataTable } from "../../components/ui/DataTable";
+import { KPICard } from "../../components/ui/KPICard";
+import { Sidebar } from "../../components/ui/Sidebar";
+import { type BadgeStatus, StatusBadge } from "../../components/ui/StatusBadge";
 
 // ─── Mock data types ──────────────────────────────────────────────────────────
 
 interface Transaction {
-  id: string
-  date: string
-  account: string
-  description: string
-  amount: string
-  currency: string
-  status: BadgeStatus
+  id: string;
+  date: string;
+  account: string;
+  description: string;
+  amount: string;
+  currency: string;
+  status: BadgeStatus;
 }
 
 // ─── Mock data (replace with real API hooks) ──────────────────────────────────
 
 const mockTransactions: Transaction[] = [
   {
-    id: 'TX-001',
-    date: '2026-04-11 09:14 UTC',
-    account: 'ACC-7821',
-    description: 'Wire transfer — London HQ',
-    amount: '12,500.00',
-    currency: 'GBP',
-    status: 'APPROVED',
+    id: "TX-001",
+    date: "2026-04-11 09:14 UTC",
+    account: "ACC-7821",
+    description: "Wire transfer — London HQ",
+    amount: "12,500.00",
+    currency: "GBP",
+    status: "APPROVED",
   },
   {
-    id: 'TX-002',
-    date: '2026-04-11 08:51 UTC',
-    account: 'ACC-3409',
-    description: 'SEPA payment — Berlin',
-    amount: '3,200.00',
-    currency: 'EUR',
-    status: 'PENDING',
+    id: "TX-002",
+    date: "2026-04-11 08:51 UTC",
+    account: "ACC-3409",
+    description: "SEPA payment — Berlin",
+    amount: "3,200.00",
+    currency: "EUR",
+    status: "PENDING",
   },
   {
-    id: 'TX-003',
-    date: '2026-04-11 08:22 UTC',
-    account: 'ACC-9012',
-    description: 'Inbound FPS — Barclays',
-    amount: '850.00',
-    currency: 'GBP',
-    status: 'APPROVED',
+    id: "TX-003",
+    date: "2026-04-11 08:22 UTC",
+    account: "ACC-9012",
+    description: "Inbound FPS — Barclays",
+    amount: "850.00",
+    currency: "GBP",
+    status: "APPROVED",
   },
   {
-    id: 'TX-004',
-    date: '2026-04-11 07:45 UTC',
-    account: 'ACC-1123',
-    description: 'Outbound — flagged by AML',
-    amount: '55,000.00',
-    currency: 'USD',
-    status: 'FLAGGED',
+    id: "TX-004",
+    date: "2026-04-11 07:45 UTC",
+    account: "ACC-1123",
+    description: "Outbound — flagged by AML",
+    amount: "55,000.00",
+    currency: "USD",
+    status: "FLAGGED",
   },
   {
-    id: 'TX-005',
-    date: '2026-04-10 23:59 UTC',
-    account: 'ACC-4402',
-    description: 'Safeguarding pool top-up',
-    amount: '100,000.00',
-    currency: 'GBP',
-    status: 'APPROVED',
+    id: "TX-005",
+    date: "2026-04-10 23:59 UTC",
+    account: "ACC-4402",
+    description: "Safeguarding pool top-up",
+    amount: "100,000.00",
+    currency: "GBP",
+    status: "APPROVED",
   },
-]
+];
 
 const mockAlerts: AMLAlert[] = [
   {
-    id: 'AML-001',
-    severity: 'CRITICAL',
-    title: 'Large cross-border transfer exceeds threshold',
-    description: 'Transaction ACC-1123 — USD 55,000 to high-risk jurisdiction. EDD required.',
-    timestamp: '2026-04-11T07:45:00Z',
-    accountId: 'ACC-1123',
-    amount: '55,000.00',
-    currency: 'USD',
-    ruleId: 'AML-R-042',
+    id: "AML-001",
+    severity: "CRITICAL",
+    title: "Large cross-border transfer exceeds threshold",
+    description: "Transaction ACC-1123 — USD 55,000 to high-risk jurisdiction. EDD required.",
+    timestamp: "2026-04-11T07:45:00Z",
+    accountId: "ACC-1123",
+    amount: "55,000.00",
+    currency: "USD",
+    ruleId: "AML-R-042",
   },
   {
-    id: 'AML-002',
-    severity: 'HIGH',
-    title: 'Structuring pattern detected',
-    description: 'Multiple transactions just below £10,000 threshold within 24 hours.',
-    timestamp: '2026-04-11T06:30:00Z',
-    accountId: 'ACC-7891',
-    ruleId: 'AML-R-018',
+    id: "AML-002",
+    severity: "HIGH",
+    title: "Structuring pattern detected",
+    description: "Multiple transactions just below £10,000 threshold within 24 hours.",
+    timestamp: "2026-04-11T06:30:00Z",
+    accountId: "ACC-7891",
+    ruleId: "AML-R-018",
   },
   {
-    id: 'AML-003',
-    severity: 'MEDIUM',
-    title: 'PEP match — enhanced monitoring',
-    description: 'Customer flagged as Politically Exposed Person. Ongoing monitoring active.',
-    timestamp: '2026-04-10T14:20:00Z',
-    accountId: 'ACC-3301',
-    ruleId: 'AML-R-007',
+    id: "AML-003",
+    severity: "MEDIUM",
+    title: "PEP match — enhanced monitoring",
+    description: "Customer flagged as Politically Exposed Person. Ongoing monitoring active.",
+    timestamp: "2026-04-10T14:20:00Z",
+    accountId: "ACC-3301",
+    ruleId: "AML-R-007",
   },
-]
+];
 
 const mockSparkline = [
   { value: 80 },
@@ -115,41 +116,35 @@ const mockSparkline = [
   { value: 88 },
   { value: 95 },
   { value: 100 },
-]
+];
 
 // ─── Columns config ────────────────────────────────────────────────────────────
 
 const txColumns: Column<Transaction>[] = [
   {
-    key: 'date',
-    header: 'Date',
+    key: "date",
+    header: "Date",
     sortable: true,
-    width: '160px',
-    render: (v) => (
-      <span className="font-mono text-xs text-[oklch(65%_0_0)]">{String(v)}</span>
-    ),
+    width: "160px",
+    render: (v) => <span className="font-mono text-xs text-[oklch(65%_0_0)]">{String(v)}</span>,
   },
   {
-    key: 'account',
-    header: 'Account',
-    width: '110px',
-    render: (v) => (
-      <span className="font-mono text-xs text-[#60a5fa]">{String(v)}</span>
-    ),
+    key: "account",
+    header: "Account",
+    width: "110px",
+    render: (v) => <span className="font-mono text-xs text-[#60a5fa]">{String(v)}</span>,
   },
   {
-    key: 'description',
-    header: 'Description',
-    render: (v) => (
-      <span className="text-sm text-[oklch(95%_0_0)]">{String(v)}</span>
-    ),
+    key: "description",
+    header: "Description",
+    render: (v) => <span className="text-sm text-[oklch(95%_0_0)]">{String(v)}</span>,
   },
   {
-    key: 'amount',
-    header: 'Amount',
-    align: 'right',
+    key: "amount",
+    header: "Amount",
+    align: "right",
     sortable: true,
-    width: '130px',
+    width: "130px",
     render: (v, row) => (
       <span className="tabular-nums font-semibold text-sm text-[oklch(95%_0_0)]">
         {(row as Transaction).currency}&nbsp;{String(v)}
@@ -157,38 +152,30 @@ const txColumns: Column<Transaction>[] = [
     ),
   },
   {
-    key: 'status',
-    header: 'Status',
-    width: '130px',
-    render: (v) => (
-      <StatusBadge status={v as BadgeStatus} />
-    ),
+    key: "status",
+    header: "Status",
+    width: "130px",
+    render: (v) => <StatusBadge status={v as BadgeStatus} />,
   },
-]
+];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function DashboardPage() {
-  const [activeNav, setActiveNav] = useState('overview')
-  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [activeNav, setActiveNav] = useState("overview");
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = async () => {
-    setIsRefreshing(true)
+    setIsRefreshing(true);
     // Placeholder: replace with real data refresh
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    setIsRefreshing(false)
-  }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    setIsRefreshing(false);
+  };
 
   return (
-    <div
-      className="flex h-screen overflow-hidden"
-      style={{ background: 'oklch(10% 0 0)' }}
-    >
+    <div className="flex h-screen overflow-hidden" style={{ background: "oklch(10% 0 0)" }}>
       {/* Sidebar */}
-      <Sidebar
-        activeId={activeNav}
-        onNavigate={(item) => setActiveNav(item.id)}
-      />
+      <Sidebar activeId={activeNav} onNavigate={(item) => setActiveNav(item.id)} />
 
       {/* Main content */}
       <main className="flex-1 overflow-y-auto flex flex-col">
@@ -199,14 +186,12 @@ export function DashboardPage() {
             border-b border-[oklch(20%_0.01_240)]
             bg-[oklch(10%_0_0)]/80 backdrop-blur-sm
           "
-          style={{ height: '56px' }}
+          style={{ height: "56px" }}
         >
           <div>
-            <h1 className="text-base font-bold text-[oklch(95%_0_0)]">
-              Overview
-            </h1>
+            <h1 className="text-base font-bold text-[oklch(95%_0_0)]">Overview</h1>
             <p className="text-xs text-[oklch(45%_0_0)]">
-              Safeguarding Dashboard — {new Date().toLocaleDateString('en-GB', { timeZone: 'UTC' })} UTC
+              Safeguarding Dashboard — {new Date().toLocaleDateString("en-GB", { timeZone: "UTC" })} UTC
             </p>
           </div>
 
@@ -221,12 +206,8 @@ export function DashboardPage() {
             aria-label="Refresh dashboard data"
             disabled={isRefreshing}
           >
-            <RefreshCw
-              size={13}
-              className={isRefreshing ? 'animate-spin' : ''}
-              aria-hidden="true"
-            />
-            {isRefreshing ? 'Refreshing...' : 'Refresh'}
+            <RefreshCw size={13} className={isRefreshing ? "animate-spin" : ""} aria-hidden="true" />
+            {isRefreshing ? "Refreshing..." : "Refresh"}
           </button>
         </header>
 
@@ -271,15 +252,10 @@ export function DashboardPage() {
           </section>
 
           {/* Transactions + AML feed */}
-          <section
-            className="flex flex-col xl:flex-row gap-6"
-            aria-label="Recent activity"
-          >
+          <section className="flex flex-col xl:flex-row gap-6" aria-label="Recent activity">
             {/* Transactions table */}
             <div className="flex-1 flex flex-col gap-2">
-              <h2 className="text-sm font-semibold text-[oklch(95%_0_0)]">
-                Recent Transactions
-              </h2>
+              <h2 className="text-sm font-semibold text-[oklch(95%_0_0)]">Recent Transactions</h2>
               <DataTable
                 data={mockTransactions}
                 columns={txColumns}
@@ -289,19 +265,15 @@ export function DashboardPage() {
             </div>
 
             {/* AML Alert feed */}
-            <aside
-              className="xl:w-80 shrink-0 flex flex-col gap-2"
-              aria-label="AML alert feed"
-            >
-              <h2 className="text-sm font-semibold text-[oklch(95%_0_0)]">
-                AML Alerts
-              </h2>
+            <aside className="xl:w-80 shrink-0 flex flex-col gap-2" aria-label="AML alert feed">
+              <h2 className="text-sm font-semibold text-[oklch(95%_0_0)]">AML Alerts</h2>
               <div className="flex flex-col gap-3">
-                {mockAlerts.map(alert => (
+                {mockAlerts.map((alert) => (
                   <AMLAlertPanel
                     key={alert.id}
                     alert={alert}
-                    onReview={(id) => console.log('Review alert:', id)}
+                    // biome-ignore lint/suspicious/noConsole: mock placeholder — wire to review modal
+                    onReview={(id) => console.log("Review alert:", id)}
                   />
                 ))}
               </div>
@@ -310,7 +282,7 @@ export function DashboardPage() {
         </div>
       </main>
     </div>
-  )
+  );
 }
 
-export default DashboardPage
+export default DashboardPage;
