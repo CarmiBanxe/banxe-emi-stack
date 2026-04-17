@@ -48,8 +48,10 @@ from api.routers import (
     fx_exchange,
     health,
     hitl,
+    insurance,
     kyc,
     ledger,
+    lending,
     merchant_acquiring,
     mlro_notifications,
     multi_currency,
@@ -161,3 +163,5 @@ app.include_router(
 app.include_router(
     document_management.router
 )  # Document Management System (IL-DMS-01) — /v1/documents/* embedded
+app.include_router(lending.router)  # Lending & Credit Engine (IL-LCE-01) — /v1/lending/* embedded
+app.include_router(insurance.router)  # Insurance Integration (IL-INS-01) — /v1/insurance/* embedded

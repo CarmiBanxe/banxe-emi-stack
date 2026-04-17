@@ -3089,6 +3089,241 @@ async def doc_retention_status(entity_id: str) -> str:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
 
 
+@mcp_server.tool()
+async def lending_apply(
+    customer_id: str,
+    product_id: str,
+    requested_amount: str,
+    term_months: int,
+) -> str:
+    """Apply for a loan product — always returns HITL_REQUIRED (I-27: credit decisions require human approval).
+
+    Args:
+        customer_id: Customer ID applying for the loan
+        product_id: Loan product ID (e.g. product-001 micro-loan, product-002 personal)
+        requested_amount: Loan amount as decimal string (e.g. "1500.00")
+        term_months: Loan term in months
+
+    Returns:
+        JSON with status=HITL_REQUIRED + application_id + credit_score (always — FCA CONC)
+    """
+    try:
+        result = await _api_post(
+            "/v1/lending/apply",
+            {
+                "customer_id": customer_id,
+                "product_id": product_id,
+                "requested_amount": requested_amount,
+                "term_months": term_months,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def lending_score(
+    customer_id: str, income: str, account_age_months: int, aml_risk_score: str
+) -> str:
+    """Score a customer's creditworthiness (0-1000 Decimal scale).
+
+    Args:
+        customer_id: Customer ID to score
+        income: Annual income as decimal string
+        account_age_months: Number of months customer has held an account
+        aml_risk_score: AML risk score as decimal string (0=no risk, 100=max risk)
+
+    Returns:
+        JSON with credit score breakdown (income_factor, history_factor, aml_risk_factor, total)
+    """
+    try:
+        result = await _api_post(
+            "/v1/lending/score",
+            {
+                "customer_id": customer_id,
+                "income": income,
+                "account_age_months": account_age_months,
+                "aml_risk_score": aml_risk_score,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def lending_get_schedule(application_id: str) -> str:
+    """Retrieve the repayment schedule for an active loan.
+
+    Args:
+        application_id: Loan application ID
+
+    Returns:
+        JSON with monthly installments (payment, principal, interest, balance — all as strings)
+    """
+    try:
+        result = await _api_get(f"/v1/lending/{application_id}/schedule")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def lending_arrears_status(application_id: str) -> str:
+    """Get arrears history and current stage for a loan.
+
+    Returns the arrears stage timeline: CURRENT / DAYS_1_30 / DAYS_31_60 / DAYS_61_90 / DEFAULT_90_PLUS.
+
+    Args:
+        application_id: Loan application ID
+
+    Returns:
+        JSON list of arrears records with stage, days_overdue, outstanding_amount
+    """
+    try:
+        result = await _api_get(f"/v1/lending/{application_id}/arrears")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def lending_provision_report(application_id: str, ifrs_stage: str, exposure: str) -> str:
+    """Compute IFRS 9 Expected Credit Loss (ECL) provision for a loan.
+
+    IFRS 9 stages: STAGE_1 (PD=1%, 12-month ECL), STAGE_2 (PD=15%, lifetime),
+    STAGE_3 (PD=90%, credit-impaired). LGD=45% for Stage 1/2, 65% for Stage 3.
+
+    Args:
+        application_id: Loan application ID
+        ifrs_stage: IFRS 9 stage (STAGE_1, STAGE_2, or STAGE_3)
+        exposure: Exposure at default as decimal string
+
+    Returns:
+        JSON with ecl_amount, probability_of_default, LGD, ifrs_stage
+    """
+    try:
+        result = await _api_post(
+            f"/v1/lending/{application_id}/provision",
+            {"ifrs_stage": ifrs_stage, "exposure": exposure},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def insurance_get_quote(
+    customer_id: str,
+    product_id: str,
+    coverage_amount: str,
+    term_days: int,
+) -> str:
+    """Calculate premium and create a quoted insurance policy.
+
+    Returns a QUOTED policy with premium calculated from risk factors and coverage.
+    Use insurance_bind_policy to activate.
+
+    Args:
+        customer_id: Customer requesting the quote
+        product_id: Insurance product ID (e.g. ins-001 travel, ins-002 purchase)
+        coverage_amount: Coverage amount as decimal string (e.g. "5000.00")
+        term_days: Policy duration in days
+
+    Returns:
+        JSON with policy_id, premium (string), coverage_amount, status=QUOTED
+    """
+    try:
+        result = await _api_post(
+            "/v1/insurance/quote",
+            {
+                "customer_id": customer_id,
+                "product_id": product_id,
+                "coverage_amount": coverage_amount,
+                "term_days": term_days,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def insurance_bind_policy(policy_id: str) -> str:
+    """Bind and activate a quoted insurance policy (QUOTED→BOUND→ACTIVE).
+
+    Args:
+        policy_id: Policy ID from insurance_get_quote
+
+    Returns:
+        JSON with activated policy details (status=ACTIVE)
+    """
+    try:
+        result = await _api_post(f"/v1/insurance/policies/{policy_id}/bind", {})
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def insurance_file_claim(
+    policy_id: str,
+    customer_id: str,
+    claimed_amount: str,
+    description: str,
+) -> str:
+    """File an insurance claim against an active policy.
+
+    Claims ≤£1000 are processed automatically.
+    Claims >£1000 return {"status": "HITL_REQUIRED"} — Compliance Officer approval needed (I-27, FCA ICOBS 8.1).
+
+    Args:
+        policy_id: Active policy to claim against
+        customer_id: Customer filing the claim
+        claimed_amount: Claim amount as decimal string (e.g. "750.00")
+        description: Description of the claim event
+
+    Returns:
+        JSON with claim status. If >£1000: {"status": "HITL_REQUIRED", "claim_id": ...}
+    """
+    try:
+        result = await _api_post(
+            "/v1/insurance/claims/file",
+            {
+                "policy_id": policy_id,
+                "customer_id": customer_id,
+                "claimed_amount": claimed_amount,
+                "description": description,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def insurance_list_products(coverage_type: str = "") -> str:
+    """List available insurance products, optionally filtered by coverage type.
+
+    Coverage types: TRAVEL, PURCHASE, DEVICE, PAYMENT_PROTECTION
+
+    Args:
+        coverage_type: Optional filter (TRAVEL/PURCHASE/DEVICE/PAYMENT_PROTECTION). Empty = all products.
+
+    Returns:
+        JSON with list of products including base_premium, max_coverage (all as strings)
+    """
+    try:
+        endpoint = "/v1/insurance/products"
+        if coverage_type:
+            endpoint += f"?coverage_type={coverage_type}"
+        result = await _api_get(endpoint)
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
 @mcp_server.resource("banxe://info")
 async def info_resource() -> str:
     """BANXE EMI platform information."""
@@ -3118,8 +3353,10 @@ async def info_resource() -> str:
         "mc_get_balances, mc_convert, mc_reconcile_nostro, mc_currency_report, "
         "compliance_evaluate, compliance_get_rules, compliance_report_breach, "
         "compliance_track_remediation, compliance_policy_diff, "
-        "doc_upload, doc_search, doc_get_versions, doc_retention_status\n"
-        "FCA basis: CASS 7.15, CASS 15, MLR 2017, PSR 2017, DISP 1.3, PS22/9, SUP 16, PSD2 RTS\n"
+        "doc_upload, doc_search, doc_get_versions, doc_retention_status, "
+        "lending_apply, lending_score, lending_get_schedule, lending_arrears_status, lending_provision_report, "
+        "insurance_get_quote, insurance_bind_policy, insurance_file_claim, insurance_list_products\n"
+        "FCA basis: CASS 7.15, CASS 15, MLR 2017, PSR 2017, DISP 1.3, PS22/9, SUP 16, PSD2 RTS, ICOBS\n"
         "Trust zone: RED"
     )
 

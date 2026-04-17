@@ -1,0 +1,73 @@
+id: insurance-agent
+name: Insurance Integration Agent
+version: "1.0.0"
+il_ref: IL-INS-01
+phase: 26
+sprint: 23
+created: "2026-04-17"
+
+identity:
+  description: >
+    AI agent for embedded insurance product lifecycle — quote, bind, claim processing,
+    and renewal management for BANXE EMI customers. Integrates with external underwriters
+    via adapter pattern.
+  trust_zone: AMBER
+  autonomy_level: L2  # L4 HITL for claim payouts >£1000
+
+capabilities:
+  - product_catalog       # list and filter insurance products
+  - quote_policy          # calculate premium and create quote
+  - bind_policy           # activate policy and create premium record
+  - file_claim            # initiate claims workflow
+  - approve_claim         # approve claims ≤£1000 auto, >£1000 HITL L4
+  - process_payout        # pay approved claims
+  - underwriter_submit    # submit to underwriter adapter (stub: Lloyd's/Munich Re style)
+
+hitl_gates:
+  claim_payout_large:
+    requires: "Compliance Officer"
+    reason: "Claim payouts >£1000 require human approval"
+    threshold: "1000.00"
+    timeout_hours: 24
+    regulatory_note: "FCA ICOBS 8.1 — fair claims handling"
+
+regulatory_basis:
+  - "FCA ICOBS — insurance conduct of business"
+  - "IDD — Insurance Distribution Directive"
+  - "FCA PS21/3 — fair value assessment"
+  - "GDPR Art.5 — data minimisation"
+
+invariants:
+  I-01: "All premium, coverage, and claim amounts in Decimal — never float"
+  I-27: "HITL for claim payouts >£1000 — always return HITL_REQUIRED"
+  I-05: "API amounts serialized as strings (DecimalString)"
+
+protocol_di_ports:
+  InsuranceProductStorePort:
+    production: PostgresInsuranceProductStore
+    test: InMemoryInsuranceProductStore (4 seeded products)
+  PolicyStorePort:
+    production: PostgresPolicyStore
+    test: InMemoryPolicyStore
+  ClaimStorePort:
+    production: PostgresClaimStore
+    test: InMemoryClaimStore
+  PremiumStorePort:
+    production: PostgresPremiumStore
+    test: InMemoryPremiumStore
+
+mcp_tools:
+  - insurance_get_quote
+  - insurance_bind_policy
+  - insurance_file_claim
+  - insurance_list_products
+
+api_endpoints:
+  - "POST /v1/insurance/quote"
+  - "POST /v1/insurance/policies/{policy_id}/bind"
+  - "GET  /v1/insurance/policies/{policy_id}"
+  - "GET  /v1/insurance/policies (by customer_id query param)"
+  - "POST /v1/insurance/claims/file"
+  - "POST /v1/insurance/claims/{claim_id}/assess"
+  - "POST /v1/insurance/claims/{claim_id}/approve"
+  - "GET  /v1/insurance/products"

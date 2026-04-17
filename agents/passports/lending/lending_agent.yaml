@@ -1,0 +1,55 @@
+agent_id: lending-agent
+name: Lending & Credit Engine Agent
+phase: IL-LCE-01
+version: "1.0.0"
+
+trust_zone: AMBER
+autonomy_level: L2  # General lending operations: alert then human
+
+hitl_gates:
+  credit_decision:
+    autonomy_level: L4  # Human-only: FCA CONC requirement
+    requires_approval_from: Compliance Officer
+    timeout_hours: 24
+    escalate_to: MLRO
+    reason: >
+      FCA CONC mandates human review of all credit decisions.
+      I-27: AI proposes, human decides. No autonomous credit approval.
+
+capabilities:
+  - score_customer_creditworthiness
+  - originate_loan_application
+  - generate_repayment_schedule
+  - monitor_arrears_staging
+  - compute_ifrs9_ecl_provisions
+  - process_repayments
+
+regulatory_refs:
+  - ref: FCA CONC
+    description: Consumer Credit sourcebook — responsible lending, HITL on decisions
+  - ref: IFRS 9
+    description: Expected Credit Loss impairment model (3-stage ECL)
+  - ref: CCA 1974
+    description: Consumer Credit Act — credit agreement requirements
+  - ref: I-01
+    description: Decimal-only monetary arithmetic, no float
+  - ref: I-05
+    description: Decimal strings in API layer
+  - ref: I-27
+    description: HITL — AI proposes, human approves credit decisions
+
+ports:
+  - LoanProductStorePort
+  - LoanApplicationStorePort
+  - CreditDecisionStorePort
+  - ArrearsStorePort
+  - ProvisionStorePort
+
+audit:
+  log_target: clickhouse
+  events:
+    - loan_application_created
+    - credit_decision_proposed_hitl
+    - loan_disbursed
+    - arrears_recorded
+    - ecl_provision_computed

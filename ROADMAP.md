@@ -792,3 +792,85 @@ FCA refs: MLR 2017 Reg.40 (retention 5yr), SYSC 9 (record keeping), GDPR Art.17 
 
 commit: IL-CAE-01 + IL-DMS-01 | 4329 tests green | 2026-04-17
 
+
+---
+
+## Phase 25 — Lending & Credit Engine ✅ DONE (Sprint 23 — 2026-04-17)
+
+> IL-LCE-01 | Internal credit scoring, loan origination, repayment, arrears, IFRS 9 provisioning
+
+| # | Feature | IL | Status | Notes |
+|---|---------|-----|--------|-------|
+| 250 | models.py — Protocol DI ports + InMemory stubs (3 seeded products) | IL-LCE-01 | ✅ | 6 enums, 7 frozen dataclasses |
+| 251 | credit_scorer.py — Decimal 0-1000 scoring (income/history/AML factors) | IL-LCE-01 | ✅ | No float, pure Decimal |
+| 252 | loan_originator.py — apply/decide/disburse, ALL decisions HITL_REQUIRED (I-27) | IL-LCE-01 | ✅ | FCA CONC |
+| 253 | repayment_engine.py — ANNUITY + LINEAR amortization (pure Decimal, no numpy) | IL-LCE-01 | ✅ | installments as strings (I-05) |
+| 254 | arrears_manager.py — CURRENT/1-30/31-60/61-90/90+ staging | IL-LCE-01 | ✅ | IFRS 9 arrears stages |
+| 255 | provisioning_engine.py — IFRS 9 ECL (Stage1 PD=1%/LGD=45%, Stage3 PD=90%/LGD=65%) | IL-LCE-01 | ✅ | Decimal ECL |
+| 256 | lending_agent.py — L2/L4 orchestration | IL-LCE-01 | ✅ | HITL all credit decisions |
+| 257 | api/routers/lending.py — 10 REST endpoints | IL-LCE-01 | ✅ | /v1/lending/* embedded |
+| 258 | 5 MCP tools (lending_apply..lending_provision_report) | IL-LCE-01 | ✅ | banxe_mcp/server.py |
+| 259 | Agent passport + SOUL.md | IL-LCE-01 | ✅ | agents/passports/lending/ |
+| 260 | 128 tests across 7 test files | IL-LCE-01 | ✅ | tests/test_lending/ |
+
+FCA refs: CONC (consumer credit), CCA 1974, IFRS 9 (ECL provisioning)
+
+---
+
+## Phase 26 — Insurance Integration ✅ DONE (Sprint 23 — 2026-04-17)
+
+> IL-INS-01 | Embedded insurance — product catalog, quote/bind, claims pipeline, underwriter adapter
+
+| # | Feature | IL | Status | Notes |
+|---|---------|-----|--------|-------|
+| 261 | models.py — Protocol DI ports + InMemory stubs (4 seeded products) | IL-INS-01 | ✅ | 4 enums, 5 frozen dataclasses |
+| 262 | product_catalog.py — tier filtering (PREMIUM/STANDARD/basic) | IL-INS-01 | ✅ | 4 coverage types |
+| 263 | premium_calculator.py — risk-adjusted pricing, pure Decimal | IL-INS-01 | ✅ | quantize 0.01 |
+| 264 | policy_manager.py — QUOTED→BOUND→ACTIVE→CANCELLED state machine | IL-INS-01 | ✅ | dataclasses.replace() |
+| 265 | claims_processor.py — FILED→APPROVED/DECLINED→PAID, HITL >£1000 (I-27) | IL-INS-01 | ✅ | FCA ICOBS 8.1 |
+| 266 | underwriter_adapter.py — Lloyd's / Munich Re stub adapter pattern | IL-INS-01 | ✅ | Protocol DI |
+| 267 | insurance_agent.py — L2/L4 orchestration (claim payouts >£1000 HITL) | IL-INS-01 | ✅ | I-27 |
+| 268 | api/routers/insurance.py — 10 REST endpoints | IL-INS-01 | ✅ | /v1/insurance/* embedded |
+| 269 | 4 MCP tools (insurance_get_quote..insurance_list_products) | IL-INS-01 | ✅ | banxe_mcp/server.py |
+| 270 | Agent passport + SOUL.md | IL-INS-01 | ✅ | agents/passports/insurance/ |
+| 271 | 106 tests across 7 test files | IL-INS-01 | ✅ | tests/test_insurance/ |
+
+FCA refs: ICOBS (insurance conduct), IDD (Insurance Distribution Directive), FCA PS21/3 (fair value)
+
+---
+
+## Sprint 23 — Lending & Credit Engine + Insurance Integration (2026-04-17)
+
+> **Scope:** 4 blocks — (A) Phase 25 Lending, (B) Phase 26 Insurance,
+> (C) ROADMAP Phase 25+26 sections, (D) IL-101. P0 deadline 7 May 2026.
+
+### S23-A: Phase 25 — Lending & Credit Engine (IL-LCE-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 250 | services/lending/ — 7 modules | IL-LCE-01 | ✅ |
+| 251 | api/routers/lending.py — 10 endpoints | IL-LCE-01 | ✅ |
+| 252 | 5 MCP tools: lending_apply, lending_score, lending_get_schedule, lending_arrears_status, lending_provision_report | IL-LCE-01 | ✅ |
+| 253 | Agent passport + SOUL.md | IL-LCE-01 | ✅ |
+| 254 | 128 tests | IL-LCE-01 | ✅ |
+
+### S23-B: Phase 26 — Insurance Integration (IL-INS-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 255 | services/insurance/ — 7 modules | IL-INS-01 | ✅ |
+| 256 | api/routers/insurance.py — 10 endpoints | IL-INS-01 | ✅ |
+| 257 | 4 MCP tools: insurance_get_quote, insurance_bind_policy, insurance_file_claim, insurance_list_products | IL-INS-01 | ✅ |
+| 258 | Agent passport + SOUL.md | IL-INS-01 | ✅ |
+| 259 | 106 tests | IL-INS-01 | ✅ |
+
+### S23-C: Sprint 23 Targets
+
+| Metric | S22 Actual | S23 Target | S23 Actual |
+|--------|-----------|------------|-----------|
+| Tests | 4329 | 4540+ | 4563 ✅ |
+| MCP tools | 89 | 98+ | 98 ✅ |
+| API endpoints | 181 | 199+ | 199 ✅ |
+| Agent passports | 25 | 27+ | 27 ✅ |
+
+commit: IL-LCE-01 + IL-INS-01 | 4563 tests green | 2026-04-17
