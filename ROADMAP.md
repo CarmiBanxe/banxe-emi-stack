@@ -1203,3 +1203,20 @@ FCA refs: PSR 2017 (Confirmation of Payee), MLR 2017 Reg.28 (sanctions screening
 | Agent passports | 33 | 35+ | 35 ✅ |
 
 commit: IL-DRM-01 + IL-BPM-01 | Sprint 27 | 2026-04-17
+
+Sprint 2 – DONE:
+- Auth router → TokenManager (login/refresh)
+- Auth/IAM test suite green (auth_router + iam_* tests)
+- Global coverage ~40% (>=35% target)
+- SCA/TOTP coverage explicitly marked as tech debt for future waves
+
+Sprint 3 – PLAN:
+- Wave 1: notifications
+- Wave 2: openbanking
+- Wave 3: payments
+- Wave 4: compliance
+- For each wave:
+  - run domain tests
+  - inspect router/service coverage
+  - patch only the active domain
+  - re-run focused tests + coverage

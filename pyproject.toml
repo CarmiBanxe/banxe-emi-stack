@@ -29,7 +29,7 @@ exclude_lines = [
 line-length = 100       # existing project convention
 target-version = "py312"
 src = ["services", "api", "agents", "tests"]
-exclude = ["requirements*.txt", "*.txt"]
+exclude = ["requirements*.txt", "*.txt", "frontend/node_modules/**"]
 
 [tool.ruff.lint]
 select = [

@@ -3,19 +3,19 @@
  * Equal visual weight accept/reject — NO dark patterns
  * IL-ADDS-01
  */
-import { Check, X } from 'lucide-react'
+import { Check, X } from "lucide-react";
 
-export type ConsentValue = 'accepted' | 'rejected' | null
+export type ConsentValue = "accepted" | "rejected" | null;
 
 export interface ConsentToggleProps {
-  id: string
-  title: string
-  description: string
-  value: ConsentValue
-  onChange: (value: ConsentValue) => void
-  required?: boolean
-  disabled?: boolean
-  'aria-describedby'?: string
+  id: string;
+  title: string;
+  description: string;
+  value: ConsentValue;
+  onChange: (value: ConsentValue) => void;
+  required?: boolean;
+  disabled?: boolean;
+  "aria-describedby"?: string;
 }
 
 /**
@@ -34,11 +34,11 @@ export function ConsentToggle({
   onChange,
   required = false,
   disabled = false,
-  'aria-describedby': ariaDescribedby,
+  "aria-describedby": ariaDescribedby,
 }: ConsentToggleProps) {
-  const acceptId = `${id}-accept`
-  const rejectId = `${id}-reject`
-  const descId   = `${id}-desc`
+  const acceptId = `${id}-accept`;
+  const rejectId = `${id}-reject`;
+  const descId = `${id}-desc`;
 
   return (
     <fieldset
@@ -49,14 +49,13 @@ export function ConsentToggle({
       <legend className="text-sm font-semibold text-[oklch(95%_0_0)] mb-1">
         {title}
         {required && (
-          <span className="ml-1 text-[#f87171]" aria-label="required">*</span>
+          <span className="ml-1 text-[#f87171]" aria-label="required">
+            *
+          </span>
         )}
       </legend>
 
-      <p
-        id={descId}
-        className="text-xs text-[oklch(65%_0_0)] mb-4 leading-relaxed"
-      >
+      <p id={descId} className="text-xs text-[oklch(65%_0_0)] mb-4 leading-relaxed">
         {description}
       </p>
 
@@ -69,10 +68,11 @@ export function ConsentToggle({
             flex-1 flex items-center justify-center gap-2 cursor-pointer
             rounded-lg border-2 py-2.5 text-sm font-semibold
             transition-all duration-150 select-none
-            ${disabled ? 'cursor-not-allowed opacity-50' : ''}
-            ${value === 'accepted'
-              ? 'border-[#10b981] bg-[#10b981]/15 text-[#34d399]'
-              : 'border-[oklch(25%_0.01_240)] text-[oklch(65%_0_0)] hover:border-[#10b981]/50 hover:text-[#34d399]'
+            ${disabled ? "cursor-not-allowed opacity-50" : ""}
+            ${
+              value === "accepted"
+                ? "border-[#10b981] bg-[#10b981]/15 text-[#34d399]"
+                : "border-[oklch(25%_0.01_240)] text-[oklch(65%_0_0)] hover:border-[#10b981]/50 hover:text-[#34d399]"
             }
           `}
         >
@@ -81,8 +81,8 @@ export function ConsentToggle({
             id={acceptId}
             name={id}
             value="accepted"
-            checked={value === 'accepted'}
-            onChange={() => onChange('accepted')}
+            checked={value === "accepted"}
+            onChange={() => onChange("accepted")}
             disabled={disabled}
             className="sr-only"
             aria-label={`Accept: ${title}`}
@@ -98,10 +98,11 @@ export function ConsentToggle({
             flex-1 flex items-center justify-center gap-2 cursor-pointer
             rounded-lg border-2 py-2.5 text-sm font-semibold
             transition-all duration-150 select-none
-            ${disabled ? 'cursor-not-allowed opacity-50' : ''}
-            ${value === 'rejected'
-              ? 'border-[#f43f5e] bg-[#f43f5e]/15 text-[#f87171]'
-              : 'border-[oklch(25%_0.01_240)] text-[oklch(65%_0_0)] hover:border-[#f43f5e]/50 hover:text-[#f87171]'
+            ${disabled ? "cursor-not-allowed opacity-50" : ""}
+            ${
+              value === "rejected"
+                ? "border-[#f43f5e] bg-[#f43f5e]/15 text-[#f87171]"
+                : "border-[oklch(25%_0.01_240)] text-[oklch(65%_0_0)] hover:border-[#f43f5e]/50 hover:text-[#f87171]"
             }
           `}
         >
@@ -110,8 +111,8 @@ export function ConsentToggle({
             id={rejectId}
             name={id}
             value="rejected"
-            checked={value === 'rejected'}
-            onChange={() => onChange('rejected')}
+            checked={value === "rejected"}
+            onChange={() => onChange("rejected")}
             disabled={disabled}
             className="sr-only"
             aria-label={`Reject: ${title}`}
@@ -123,16 +124,12 @@ export function ConsentToggle({
 
       {/* Required + unset warning */}
       {required && value === null && (
-        <p
-          className="mt-2 text-xs text-[#fbbf24] flex items-center gap-1"
-          role="alert"
-          aria-live="polite"
-        >
+        <p className="mt-2 text-xs text-[#fbbf24] flex items-center gap-1" role="alert" aria-live="polite">
           This consent is required to proceed.
         </p>
       )}
     </fieldset>
-  )
+  );
 }
 
-export default ConsentToggle
+export default ConsentToggle;

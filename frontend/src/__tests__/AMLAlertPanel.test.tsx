@@ -2,9 +2,9 @@
  * AMLAlertPanel Tests — severity border colors, CTA
  * IL-ADDS-01
  */
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, test, expect, vi } from "vitest";
-import { AMLAlertPanel, type AMLAlert } from "../components/ui/AMLAlertPanel";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, test, vi } from "vitest";
+import { type AMLAlert, AMLAlertPanel } from "../components/ui/AMLAlertPanel";
 
 /**
  * Normalize CSS color to rgb() for comparison.

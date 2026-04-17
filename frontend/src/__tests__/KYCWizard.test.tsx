@@ -2,8 +2,8 @@
  * KYCWizard Tests — all 5 steps, file upload, responsive
  * IL-ADDS-01
  */
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { describe, test, expect } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, test } from "vitest";
 import { KYCWizard } from "../modules/kyc/KYCWizard";
 
 describe("KYCWizard", () => {
