@@ -68,13 +68,13 @@
       "*.json",
       "*.config.ts",
       "*.config.js",
-      "!!dist/**",
-      "!!node_modules/**",
+      "!!dist",
+      "!!node_modules",
       "!src/generated/**",
       "!**/*.lite.tsx",
-      "!!coverage/**",
-      "!!playwright-report/**",
-      "!!.storybook/**"
+      "!!coverage",
+      "!!playwright-report",
+      "!!.storybook"
     ]
   }
 }
