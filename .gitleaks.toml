@@ -1,0 +1,7 @@
+title = "banxe-emi-stack gitleaks config"
+
+[[allowlist]]
+description = "Test HMAC keys in test files"
+paths = [
+  '''tests/.*'''
+]
