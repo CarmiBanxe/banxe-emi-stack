@@ -1,0 +1,52 @@
+agent_id: dispute-agent
+name: DisputeAgent
+version: "1.0.0"
+phase: 33
+instruction_ledger: IL-DRM-01
+created: "2026-04-17"
+
+description: >
+  L2/L4 orchestration façade for Dispute Resolution & Chargeback Management.
+  Handles the full lifecycle of customer disputes (file, investigate, evidence,
+  resolve, escalate) and Visa/MC chargeback workflows. All resolution decisions
+  are HITL_REQUIRED (I-27, DISP 1.3/1.6, FCA DISP sourcebook). SLA deadline is
+  56 days (8 weeks) per DISP 1.3; FOS escalation triggered on SLA breach.
+
+capabilities:
+  - open_dispute: File a new dispute with amount, type, and description
+  - submit_evidence: Attach evidence with SHA-256 hash (I-12)
+  - get_dispute_status: Retrieve current dispute state and SLA deadline
+  - propose_resolution: HITL_REQUIRED — AI proposes, human decides (I-27)
+  - escalate: Escalate to LEVEL_1 / LEVEL_2 / FOS (DISP 1.6)
+  - get_resolution_report: Summary of all disputes for a customer
+  - initiate_chargeback: Raise Visa/MC chargeback (PSD2 Art.73)
+  - get_chargeback_status: Check chargeback scheme status
+
+autonomy_level: L2
+hitl_gates:
+  - trigger: "any resolution proposal (outcome: UPHELD / REJECTED / PARTIAL_REFUND / WITHDRAWN)"
+    action: HITL_REQUIRED
+    reason: "I-27 — AI proposes only; DISP 1.6 requires qualified person sign-off"
+  - trigger: "FOS escalation"
+    action: HITL_REQUIRED
+    reason: "DISP 1.6 — Financial Ombudsman Service referral requires human initiation"
+
+regulatory_refs:
+  - FCA DISP 1.3 (8-week SLA)
+  - FCA DISP 1.6 (FOS escalation)
+  - PSD2 Art.73 (chargeback liability)
+  - PS22/9 §4 (Consumer Duty — fair dispute resolution)
+
+ports:
+  - DisputePort → InMemoryDisputeStore
+  - EvidencePort → InMemoryEvidenceStore (append-only I-24)
+  - ResolutionPort → InMemoryResolutionStore
+  - ChargebackPort → InMemoryChargebackStore
+  - EscalationPort → InMemoryEscalationStore (append-only I-24)
+
+invariants:
+  - I-01: Decimal for all monetary amounts
+  - I-12: SHA-256 evidence hashing
+  - I-24: Append-only evidence and escalation stores
+  - I-27: HITL required for all resolution proposals
+  - I-28: IL ledger entry required

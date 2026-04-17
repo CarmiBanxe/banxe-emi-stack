@@ -38,11 +38,13 @@ from api.routers import (
     api_gateway,
     audit_dashboard,
     auth,
+    beneficiary,
     card_issuing,
     compliance_automation,
     compliance_kb,
     consumer_duty,
     customers,
+    dispute_resolution,
     document_management,
     experiments,
     fraud,
@@ -183,3 +185,9 @@ app.include_router(savings.router)  # Savings & Interest Engine (IL-SIE-01) — 
 app.include_router(
     scheduled_payments.router
 )  # Standing Orders & Direct Debits (IL-SOD-01) — /v1/standing-orders/* + /v1/direct-debits/* embedded
+app.include_router(
+    dispute_resolution.router
+)  # Dispute Resolution & Chargeback (IL-DRM-01) — /v1/disputes/* embedded
+app.include_router(
+    beneficiary.router
+)  # Beneficiary & Payee Management (IL-BPM-01) — /v1/beneficiaries/* embedded
