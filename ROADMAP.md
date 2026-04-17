@@ -1115,9 +1115,91 @@ FCA refs: PSR 2017 (payment services), Bacs Direct Debit scheme rules, PS25/12 (
 
 | Metric | S25 Actual | S26 Target | S26 Actual |
 |--------|-----------|------------|-----------|
-| Tests | 5133 | 5350+ | TBD |
+| Tests | 5133 | 5350+ | 5376 ✅ |
 | MCP tools | 116 | 125+ | 125 ✅ |
 | API endpoints | 236 | 254+ | 254 ✅ |
 | Agent passports | 31 | 33+ | 33 ✅ |
 
 commit: IL-SIE-01 + IL-SOD-01 | Sprint 26 | 2026-04-17
+
+---
+
+## Phase 33 — Dispute Resolution & Chargeback Management ✅ DONE (Sprint 27 — 2026-04-17)
+
+> **IL:** IL-DRM-01 | **FCA:** DISP 1.3/1.6, PSD2 Art.73, PS22/9 §4 | **Trust Zone:** RED
+
+| # | Module | Description | Status |
+|---|--------|-------------|--------|
+| 338 | models.py | 5 enums (DisputeType×5, DisputeStatus×6, EvidenceType×5, ResolutionOutcome×4, EscalationLevel×3), 5 frozen dataclasses, 5 Protocols + InMemory stubs, compute_evidence_hash (SHA-256 I-12) | ✅ |
+| 339 | dispute_intake.py | file_dispute (SLA 56d), attach_evidence (SHA-256 I-12), get_dispute, list_disputes | ✅ |
+| 340 | investigation_engine.py | assign_investigator, gather_evidence, assess_liability (MERCHANT/ISSUER/SHARED), request_additional_evidence | ✅ |
+| 341 | resolution_engine.py | propose_resolution → always HITL_REQUIRED (I-27), approve_resolution, execute_refund, close_dispute | ✅ |
+| 342 | escalation_manager.py | check_sla_breach, escalate_dispute, escalate_to_fos (DISP 1.6), get_escalations | ✅ |
+| 343 | chargeback_bridge.py | initiate_chargeback (VISA/MC), submit_representment, get_chargeback_status, list_chargebacks_for_dispute | ✅ |
+| 344 | dispute_agent.py | L2/L4 facade — open_dispute, submit_evidence, get_dispute_status, propose_resolution (HITL), escalate, get_resolution_report | ✅ |
+| 345 | api/routers/dispute_resolution.py — 9 REST endpoints | /v1/disputes/* + /v1/chargebacks/* embedded | ✅ |
+| 346 | 5 MCP tools: dispute_file, dispute_get_status, dispute_submit_evidence, dispute_escalate, dispute_resolution_report | ✅ |
+| 347 | Agent passport + SOUL.md | agents/passports/disputes/ | ✅ |
+| 348 | 115+ tests across 7 test files | tests/test_dispute_resolution/ | ✅ |
+
+FCA refs: DISP 1.3 (8-week SLA), DISP 1.6 (FOS escalation), PSD2 Art.73 (chargeback), PS22/9 §4 (Consumer Duty)
+
+---
+
+## Phase 34 — Beneficiary & Payee Management ✅ DONE (Sprint 27 — 2026-04-17)
+
+> **IL:** IL-BPM-01 | **FCA:** PSR 2017 (CoP), MLR 2017 Reg.28 (sanctions), FATF R.16 | **Trust Zone:** AMBER
+
+| # | Module | Description | Status |
+|---|--------|-------------|--------|
+| 349 | models.py | BLOCKED_JURISDICTIONS (9 I-02), FATF_GREYLIST (13 I-03), 4 enums, 5 frozen dataclasses, 4 Protocols + InMemory stubs | ✅ |
+| 350 | beneficiary_registry.py | add_beneficiary (blocks I-02), verify, activate, deactivate, delete → HITL_REQUIRED (I-27), get, list | ✅ |
+| 351 | sanctions_screener.py | screen (MATCH/PARTIAL/NO_MATCH via Moov Watchman stub, MLR 2017 Reg.28), append-only history (I-24) | ✅ |
+| 352 | payment_rail_router.py | route (FPS/CHAPS boundary £250k, SEPA 31 countries, SWIFT fallback), get_rail_details, list_rails | ✅ |
+| 353 | confirmation_of_payee.py | check (exact/close/no match, PSR 2017), append-only CoP history (I-24) | ✅ |
+| 354 | trusted_beneficiary.py | mark_trusted → HITL_REQUIRED (I-27), confirm_trust, revoke_trust, is_trusted, get_daily_limit | ✅ |
+| 355 | beneficiary_agent.py | L2/L4 facade — add, screen, delete (HITL), route_payment, check_payee, list_beneficiaries | ✅ |
+| 356 | api/routers/beneficiary.py — 8 REST endpoints | /v1/beneficiaries/* embedded | ✅ |
+| 357 | 4 MCP tools: beneficiary_add, beneficiary_screen, beneficiary_get_status, beneficiary_payment_rails | ✅ |
+| 358 | Agent passport + SOUL.md | agents/passports/beneficiary/ | ✅ |
+| 359 | 110+ tests across 7 test files | tests/test_beneficiary_management/ | ✅ |
+
+FCA refs: PSR 2017 (Confirmation of Payee), MLR 2017 Reg.28 (sanctions screening), FATF R.16 (wire transfer due diligence)
+
+---
+
+## Sprint 27 — Dispute Resolution + Beneficiary Management (2026-04-17)
+
+> **Scope:** 4 blocks — (A) Phase 33 Dispute Resolution, (B) Phase 34 Beneficiary Management,
+> (C) ROADMAP Phase 33+34, (D) IL-105. P0 deadline 7 May 2026.
+
+### S27-A: Phase 33 — Dispute Resolution & Chargeback Management (IL-DRM-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 338 | services/dispute_resolution/ — 7 modules | IL-DRM-01 | ✅ |
+| 339 | api/routers/dispute_resolution.py — 9 endpoints | IL-DRM-01 | ✅ |
+| 340 | 5 MCP tools: dispute_file, dispute_get_status, dispute_submit_evidence, dispute_escalate, dispute_resolution_report | IL-DRM-01 | ✅ |
+| 341 | Agent passport + SOUL.md | IL-DRM-01 | ✅ |
+| 342 | 115+ tests | IL-DRM-01 | ✅ |
+
+### S27-B: Phase 34 — Beneficiary & Payee Management (IL-BPM-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 343 | services/beneficiary_management/ — 7 modules | IL-BPM-01 | ✅ |
+| 344 | api/routers/beneficiary.py — 8 endpoints | IL-BPM-01 | ✅ |
+| 345 | 4 MCP tools: beneficiary_add, beneficiary_screen, beneficiary_get_status, beneficiary_payment_rails | IL-BPM-01 | ✅ |
+| 346 | Agent passport + SOUL.md | IL-BPM-01 | ✅ |
+| 347 | 110+ tests | IL-BPM-01 | ✅ |
+
+### S27-C: Sprint 27 Targets
+
+| Metric | S26 Actual | S27 Target | S27 Actual |
+|--------|-----------|------------|-----------|
+| Tests | 5376 | 5570+ | 5643 ✅ |
+| MCP tools | 125 | 134+ | 134 ✅ |
+| API endpoints | 254 | 271+ | 271 ✅ |
+| Agent passports | 33 | 35+ | 35 ✅ |
+
+commit: IL-DRM-01 + IL-BPM-01 | Sprint 27 | 2026-04-17

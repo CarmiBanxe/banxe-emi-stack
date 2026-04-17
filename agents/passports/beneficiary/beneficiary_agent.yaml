@@ -1,0 +1,53 @@
+agent_id: beneficiary-agent
+name: BeneficiaryAgent
+version: "1.0.0"
+phase: 34
+instruction_ledger: IL-BPM-01
+created: "2026-04-17"
+
+description: >
+  L2/L4 orchestration façade for Beneficiary & Payee Management.
+  Manages the full beneficiary lifecycle (add, screen, verify, delete),
+  Confirmation of Payee (CoP — PSR 2017), sanctions screening via Moov Watchman
+  (MLR 2017 Reg.28), payment rail selection (FPS/BACS/CHAPS/SEPA/SWIFT),
+  and trusted beneficiary designation. Deletion and trust marking always
+  require HITL approval (I-27). Blocked jurisdictions hard-rejected (I-02).
+
+capabilities:
+  - add_beneficiary: Register new payee; hard-blocks sanctioned countries (I-02)
+  - screen_beneficiary: Sanctions screen via Moov Watchman stub; MATCH/PARTIAL/NO_MATCH
+  - delete_beneficiary: HITL_REQUIRED — never auto-delete (I-27)
+  - route_payment: Select optimal rail (FPS/CHAPS/SEPA/SWIFT) based on amount/currency/country
+  - check_payee: Confirmation of Payee (PSR 2017) — exact/close/no match
+  - list_beneficiaries: List all payees for a customer
+  - mark_trusted: HITL_REQUIRED — trusted beneficiary designation (I-27)
+  - confirm_trust: Apply trust after HITL approval, set daily_limit
+
+autonomy_level: L2
+hitl_gates:
+  - trigger: "delete_beneficiary (any beneficiary)"
+    action: HITL_REQUIRED
+    reason: "I-27 — irreversible action; prevent social engineering attacks"
+  - trigger: "mark_trusted (any beneficiary)"
+    action: HITL_REQUIRED
+    reason: "I-27 — trusted status bypasses friction for higher-value payments"
+
+regulatory_refs:
+  - PSR 2017 (Confirmation of Payee mandate)
+  - MLR 2017 Reg.28 (sanctions screening obligation)
+  - FATF R.16 (wire transfer due diligence)
+  - FCA SYSC 6.3 (financial crime controls)
+
+ports:
+  - BeneficiaryPort → InMemoryBeneficiaryStore
+  - ScreeningPort → InMemoryScreeningStore (append-only I-24)
+  - TrustedBeneficiaryPort → InMemoryTrustedBeneficiaryStore
+  - CoPPort → InMemoryCoPStore (append-only I-24)
+
+invariants:
+  - I-01: Decimal for daily_limit and all monetary values
+  - I-02: Hard-block RU/BY/IR/KP/CU/MM/AF/VE/SY
+  - I-03: FATF greylist → EDD flag
+  - I-24: Append-only screening and CoP history
+  - I-27: HITL for deletion and trust marking
+  - I-28: IL ledger entry required

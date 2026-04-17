@@ -3929,6 +3929,254 @@ async def schedule_failure_report(customer_id: str) -> str:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
 
 
+# ── Phase 33: Dispute Resolution & Chargeback Management (IL-DRM-01) ─────────
+
+
+@mcp_server.tool()
+async def dispute_file(
+    customer_id: str,
+    payment_id: str,
+    dispute_type: str,
+    amount: str,
+    description: str = "",
+) -> str:
+    """File a new dispute for an unauthorised or incorrect payment (DISP 1.3).
+
+    Args:
+        customer_id: Customer identifier
+        payment_id: Original payment reference
+        dispute_type: UNAUTHORIZED_TRANSACTION | DUPLICATE_CHARGE | MERCHANDISE_NOT_RECEIVED | DEFECTIVE_MERCHANDISE | CREDIT_NOT_PROCESSED
+        amount: Amount in dispute (string decimal, I-01)
+        description: Optional description of the dispute
+
+    Returns:
+        JSON with dispute_id, status=OPENED, sla_deadline (56-day clock starts).
+    """
+    try:
+        result = await _api_post(
+            "/v1/disputes",
+            {
+                "customer_id": customer_id,
+                "payment_id": payment_id,
+                "dispute_type": dispute_type,
+                "amount": amount,
+                "description": description,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def dispute_get_status(dispute_id: str) -> str:
+    """Get current status of a dispute including SLA deadline.
+
+    Args:
+        dispute_id: Dispute identifier
+
+    Returns:
+        JSON with status, amount, sla_deadline, dispute_type.
+    """
+    try:
+        result = await _api_get(f"/v1/disputes/{dispute_id}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def dispute_submit_evidence(
+    dispute_id: str,
+    evidence_type: str,
+    file_content: str,
+    description: str = "",
+) -> str:
+    """Submit evidence for an active dispute (SHA-256 hashed, I-12).
+
+    Args:
+        dispute_id: Dispute identifier
+        evidence_type: RECEIPT | SCREENSHOT | BANK_STATEMENT | COMMUNICATION | PHOTO
+        file_content: File content as string (will be UTF-8 encoded and hashed)
+        description: Optional description
+
+    Returns:
+        JSON with evidence_id, file_hash (SHA-256, 64 chars).
+    """
+    try:
+        result = await _api_post(
+            f"/v1/disputes/{dispute_id}/evidence",
+            {
+                "evidence_type": evidence_type,
+                "file_content": file_content,
+                "description": description,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def dispute_escalate(
+    dispute_id: str,
+    reason: str,
+    level: str = "LEVEL_1",
+) -> str:
+    """Escalate a dispute (DISP 1.6 — use FOS level after 8-week SLA breach).
+
+    Args:
+        dispute_id: Dispute identifier
+        reason: Reason for escalation
+        level: LEVEL_1 | LEVEL_2 | FOS (use FOS after SLA breach per DISP 1.6)
+
+    Returns:
+        JSON with escalation_id, level, status=ESCALATED.
+    """
+    try:
+        result = await _api_post(
+            f"/v1/disputes/{dispute_id}/escalate",
+            {
+                "reason": reason,
+                "level": level,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def dispute_resolution_report(customer_id: str) -> str:
+    """Get all disputes and resolution status for a customer.
+
+    Args:
+        customer_id: Customer identifier
+
+    Returns:
+        JSON with count and list of disputes with status and amounts.
+    """
+    try:
+        result = await _api_get(f"/v1/disputes/customers/{customer_id}/report")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+# ── Phase 34: Beneficiary & Payee Management (IL-BPM-01) ─────────────────────
+
+
+@mcp_server.tool()
+async def beneficiary_add(
+    customer_id: str,
+    beneficiary_type: str,
+    name: str,
+    account_number: str = "",
+    sort_code: str = "",
+    iban: str = "",
+    bic: str = "",
+    currency: str = "GBP",
+    country_code: str = "GB",
+) -> str:
+    """Add a new beneficiary/payee for a customer (PSR 2017, MLR 2017 Reg.28).
+
+    Args:
+        customer_id: Customer identifier
+        beneficiary_type: INDIVIDUAL | BUSINESS | JOINT
+        name: Beneficiary display name
+        account_number: UK account number (for FPS/BACS/CHAPS)
+        sort_code: UK sort code
+        iban: IBAN for SEPA/international
+        bic: BIC/SWIFT code
+        currency: Payment currency (default GBP)
+        country_code: ISO 2-letter country — blocked: RU/BY/IR/KP/CU/MM/AF/VE/SY (I-02)
+
+    Returns:
+        JSON with beneficiary_id, status=PENDING. Raises 400 for blocked jurisdictions.
+    """
+    try:
+        result = await _api_post(
+            "/v1/beneficiaries",
+            {
+                "customer_id": customer_id,
+                "beneficiary_type": beneficiary_type,
+                "name": name,
+                "account_number": account_number,
+                "sort_code": sort_code,
+                "iban": iban,
+                "bic": bic,
+                "currency": currency,
+                "country_code": country_code,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def beneficiary_screen(beneficiary_id: str) -> str:
+    """Run sanctions screening on a beneficiary via Moov Watchman (MLR 2017 Reg.28).
+
+    Args:
+        beneficiary_id: Beneficiary identifier
+
+    Returns:
+        JSON with result: NO_MATCH | PARTIAL_MATCH | MATCH, record_id, details.
+    """
+    try:
+        result = await _api_post(f"/v1/beneficiaries/{beneficiary_id}/screen", {})
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def beneficiary_get_status(beneficiary_id: str) -> str:
+    """Get current status and details of a beneficiary.
+
+    Args:
+        beneficiary_id: Beneficiary identifier
+
+    Returns:
+        JSON with name, status, country_code, currency.
+    """
+    try:
+        result = await _api_get(f"/v1/beneficiaries/{beneficiary_id}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def beneficiary_payment_rails(
+    beneficiary_id: str,
+    amount: str,
+    currency: str = "GBP",
+) -> str:
+    """Select optimal payment rail for a beneficiary (FPS/CHAPS/SEPA/SWIFT).
+
+    Args:
+        beneficiary_id: Beneficiary identifier
+        amount: Payment amount as decimal string (I-01)
+        currency: ISO currency code (default GBP)
+
+    Returns:
+        JSON with rail, estimated_settlement, fee_indicator, max_amount.
+    """
+    try:
+        result = await _api_post(
+            f"/v1/beneficiaries/{beneficiary_id}/route",
+            {
+                "amount": amount,
+                "currency": currency,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
 @mcp_server.resource("banxe://info")
 async def info_resource() -> str:
     """BANXE EMI platform information."""
@@ -3970,7 +4218,10 @@ async def info_resource() -> str:
         "savings_open_account, savings_get_interest, savings_get_products, savings_calculate_maturity, "
         "savings_rate_history, "
         "schedule_create_standing_order, schedule_create_dd_mandate, schedule_get_upcoming, "
-        "schedule_failure_report\n"
+        "schedule_failure_report, "
+        "dispute_file, dispute_get_status, dispute_submit_evidence, dispute_escalate, "
+        "dispute_resolution_report, "
+        "beneficiary_add, beneficiary_screen, beneficiary_get_status, beneficiary_payment_rails\n"
         "FCA basis: CASS 7.15, CASS 15, MLR 2017, PSR 2017, DISP 1.3, PS22/9, SUP 16, PSD2 RTS, ICOBS\n"
         "Trust zone: RED"
     )
