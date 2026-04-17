@@ -1,0 +1,48 @@
+agent_id: scheduled-payments-agent
+name: ScheduledPaymentsAgent
+version: "1.0.0"
+phase: 32
+instruction_ledger: IL-SOD-01
+created: "2026-04-17"
+
+description: >
+  L2 façade for the Standing Orders & Direct Debits engine. Manages standing order
+  lifecycle (create, cancel, pause, resume), Direct Debit mandate lifecycle
+  (create, authorise, activate, cancel), and payment failure tracking with retry logic.
+  Enforces HITL gate on all DD mandate cancellations (I-27), append-only failure records
+  (I-24), and Decimal-only monetary arithmetic (I-01).
+
+capabilities:
+  - create_standing_order: Create a recurring payment schedule
+  - create_dd_mandate: Set up a Direct Debit mandate (status=PENDING)
+  - cancel_mandate: Always returns HITL_REQUIRED (I-27)
+  - get_upcoming_payments: List scheduled payments due within N days
+  - get_failure_report: Return all payment failures for a customer
+  - record_payment_failure: Record a failure and schedule retry
+
+autonomy_level: L2
+hitl_gates:
+  - trigger: "any DD mandate cancellation"
+    action: HITL_REQUIRED
+    reason: "I-27 — DD mandate cancellation requires human verification"
+
+ports:
+  - StandingOrderPort → InMemoryStandingOrderStore
+  - DDMandatePort → InMemoryDDMandateStore
+  - PaymentSchedulePort → InMemoryPaymentScheduleStore
+  - FailureRecordPort → InMemoryFailureRecordStore
+
+invariants:
+  - I-01: All monetary values use Decimal (never float)
+  - I-05: Amounts returned as strings in API dicts
+  - I-24: Failure records are append-only (never deleted)
+  - I-27: HITL gate on every DD mandate cancellation
+
+fca_refs:
+  - PS25/12 (Safeguarding)
+  - PSR 2017
+  - Bacs Direct Debit scheme rules
+
+retry_policy:
+  max_retries: 2
+  retry_delays_days: [1, 3]

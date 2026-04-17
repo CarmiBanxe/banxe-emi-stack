@@ -1,0 +1,118 @@
+"""
+services/scheduled_payments/schedule_executor.py — Batch payment execution (n8n cron 06:00 UTC)
+IL-SOD-01 | Phase 32 | banxe-emi-stack
+"""
+
+from __future__ import annotations
+
+import dataclasses
+from datetime import UTC, datetime, timedelta
+import uuid
+
+from services.scheduled_payments.models import (
+    InMemoryPaymentScheduleStore,
+    InMemoryStandingOrderStore,
+    PaymentFrequency,
+    PaymentSchedule,
+    PaymentSchedulePort,
+    PaymentType,
+    ScheduleStatus,
+    StandingOrderPort,
+)
+
+_FREQUENCY_DAYS: dict[str, int] = {
+    "DAILY": 1,
+    "WEEKLY": 7,
+    "FORTNIGHTLY": 14,
+    "MONTHLY": 30,
+    "QUARTERLY": 91,
+    "ANNUAL": 365,
+}
+
+
+class ScheduleExecutor:
+    def __init__(
+        self,
+        so_store: StandingOrderPort | None = None,
+        schedule_store: PaymentSchedulePort | None = None,
+    ) -> None:
+        self._so_store = so_store or InMemoryStandingOrderStore()
+        self._schedule_store = schedule_store or InMemoryPaymentScheduleStore()
+
+    def schedule_payment(
+        self,
+        payment_type: PaymentType,
+        payment_id: str,
+        scheduled_at: datetime,
+    ) -> dict[str, str]:
+        schedule = PaymentSchedule(
+            schedule_id=str(uuid.uuid4()),
+            payment_type=payment_type,
+            payment_id=payment_id,
+            scheduled_at=scheduled_at,
+            status=ScheduleStatus.ACTIVE,
+            created_at=datetime.now(UTC),
+        )
+        self._schedule_store.save(schedule)
+        return {
+            "schedule_id": schedule.schedule_id,
+            "payment_id": payment_id,
+            "scheduled_at": scheduled_at.isoformat(),
+            "status": ScheduleStatus.ACTIVE.value,
+        }
+
+    def execute_due_payments(self, as_of: datetime) -> dict[str, object]:
+        due = self._schedule_store.list_due(as_of)
+        executed = []
+        failed = []
+        for schedule in due:
+            try:
+                result = self._execute_single(schedule)
+                executed.append(result)
+            except ValueError as exc:
+                failed.append({"schedule_id": schedule.schedule_id, "error": str(exc)})
+        return {
+            "executed_count": len(executed),
+            "failed_count": len(failed),
+            "total_processed": len(executed) + len(failed),
+            "executed": executed,
+            "failed": failed,
+        }
+
+    def _execute_single(self, schedule: PaymentSchedule) -> dict[str, str]:
+        now = datetime.now(UTC)
+        updated = dataclasses.replace(schedule, status=ScheduleStatus.COMPLETED, executed_at=now)
+        self._schedule_store.update(updated)
+        return {
+            "schedule_id": schedule.schedule_id,
+            "payment_id": schedule.payment_id,
+            "executed_at": now.isoformat(),
+        }
+
+    def get_upcoming_payments(self, customer_id: str, days_ahead: int = 7) -> dict[str, object]:
+        so_list = self._so_store.list_by_customer(customer_id)
+        now = datetime.now(UTC)
+        cutoff = now + timedelta(days=days_ahead)
+        upcoming = []
+        for so in so_list:
+            if so.status == ScheduleStatus.ACTIVE and so.next_execution_date <= cutoff:
+                upcoming.append(
+                    {
+                        "payment_type": PaymentType.STANDING_ORDER.value,
+                        "payment_id": so.so_id,
+                        "amount": str(so.amount),
+                        "scheduled_at": so.next_execution_date.isoformat(),
+                        "frequency": so.frequency.value,
+                    }
+                )
+        return {
+            "customer_id": customer_id,
+            "days_ahead": days_ahead,
+            "upcoming": upcoming,
+            "count": len(upcoming),
+        }
+
+    def calculate_next_date(self, frequency: PaymentFrequency | str, from_date: datetime) -> datetime:
+        key = frequency.value if isinstance(frequency, PaymentFrequency) else frequency
+        days = _FREQUENCY_DAYS.get(key, 30)
+        return from_date + timedelta(days=days)

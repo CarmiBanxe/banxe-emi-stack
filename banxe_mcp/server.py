@@ -3713,6 +3713,222 @@ async def referral_fraud_report(referral_id: str) -> str:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
 
 
+@mcp_server.tool()
+async def savings_open_account(
+    customer_id: str,
+    product_id: str,
+    initial_deposit: str,
+) -> str:
+    """Open a new savings account for a customer.
+
+    Args:
+        customer_id: Customer identifier
+        product_id: Savings product ID (e.g. prod-easy-access, prod-fixed-12m)
+        initial_deposit: Opening deposit amount as decimal string (e.g. '1000.00')
+
+    Returns:
+        JSON with account_id, status, balance, maturity_date (if applicable).
+    """
+    try:
+        result = await _api_post(
+            "/v1/savings/open",
+            {
+                "customer_id": customer_id,
+                "product_id": product_id,
+                "initial_deposit": initial_deposit,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def savings_get_interest(account_id: str) -> str:
+    """Get interest summary for a savings account.
+
+    Args:
+        account_id: Savings account identifier
+
+    Returns:
+        JSON with balance, gross_rate, aer, daily_interest, tax_info.
+    """
+    try:
+        result = await _api_get(f"/v1/savings/{account_id}/interest")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def savings_get_products() -> str:
+    """List all available savings products.
+
+    Returns:
+        JSON with count and list of products (id, name, type, rates, limits).
+    """
+    try:
+        result = await _api_get("/v1/savings/products")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def savings_calculate_maturity(
+    principal: str,
+    gross_rate: str,
+    days: int,
+) -> str:
+    """Calculate maturity amount for a fixed-term savings scenario.
+
+    Args:
+        principal: Principal amount as decimal string (e.g. '10000.00')
+        gross_rate: Annual gross interest rate as decimal (e.g. '0.052')
+        days: Term length in days (e.g. 365 for 1-year fixed)
+
+    Returns:
+        JSON with maturity_amount, gross_interest, net_interest, tax_withheld.
+    """
+    try:
+        result = await _api_post(
+            "/v1/savings/calculate-maturity",
+            {"principal": principal, "gross_rate": gross_rate, "days": days},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def savings_rate_history(product_id: str) -> str:
+    """Get interest rate change history for a savings product.
+
+    Args:
+        product_id: Savings product identifier (e.g. prod-easy-access)
+
+    Returns:
+        JSON with count and list of historical rate records.
+    """
+    try:
+        result = await _api_get(f"/v1/savings/rates/{product_id}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def schedule_create_standing_order(
+    customer_id: str,
+    from_account: str,
+    to_account: str,
+    amount: str,
+    frequency: str,
+    start_date: str,
+) -> str:
+    """Create a new standing order for a customer.
+
+    Args:
+        customer_id: Customer identifier
+        from_account: Source account ID
+        to_account: Destination account ID
+        amount: Payment amount as decimal string (e.g. '250.00')
+        frequency: DAILY | WEEKLY | FORTNIGHTLY | MONTHLY | QUARTERLY | ANNUAL
+        start_date: ISO 8601 start date (e.g. '2026-05-01T00:00:00+00:00')
+
+    Returns:
+        JSON with so_id, status=ACTIVE, next_execution_date.
+    """
+    try:
+        result = await _api_post(
+            "/v1/standing-orders",
+            {
+                "customer_id": customer_id,
+                "from_account": from_account,
+                "to_account": to_account,
+                "amount": amount,
+                "frequency": frequency,
+                "start_date": start_date,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def schedule_create_dd_mandate(
+    customer_id: str,
+    creditor_id: str,
+    creditor_name: str,
+    scheme_ref: str,
+    service_user_number: str,
+) -> str:
+    """Create a new Direct Debit mandate.
+
+    Args:
+        customer_id: Customer identifier
+        creditor_id: Creditor/merchant identifier
+        creditor_name: Creditor display name (e.g. 'Utility Company Ltd')
+        scheme_ref: Unique scheme reference for the mandate
+        service_user_number: Bacs Service User Number (SUN)
+
+    Returns:
+        JSON with mandate_id, status=PENDING, creditor_name.
+    """
+    try:
+        result = await _api_post(
+            "/v1/direct-debits/mandate",
+            {
+                "customer_id": customer_id,
+                "creditor_id": creditor_id,
+                "creditor_name": creditor_name,
+                "scheme_ref": scheme_ref,
+                "service_user_number": service_user_number,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def schedule_get_upcoming(customer_id: str, days_ahead: int = 7) -> str:
+    """Get upcoming scheduled payments for a customer.
+
+    Args:
+        customer_id: Customer identifier
+        days_ahead: Look-ahead window in days (default: 7)
+
+    Returns:
+        JSON with count and list of upcoming payment schedules.
+    """
+    try:
+        result = await _api_get(
+            f"/v1/scheduled-payments/{customer_id}/upcoming?days_ahead={days_ahead}",
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def schedule_failure_report(customer_id: str) -> str:
+    """Get payment failure report for a customer.
+
+    Args:
+        customer_id: Customer identifier
+
+    Returns:
+        JSON with count of failures, retry status, and failure details.
+    """
+    try:
+        result = await _api_get(f"/v1/scheduled-payments/{customer_id}/failures")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
 @mcp_server.resource("banxe://info")
 async def info_resource() -> str:
     """BANXE EMI platform information."""
@@ -3750,7 +3966,11 @@ async def info_resource() -> str:
         "webhook_subscribe, webhook_list_events, webhook_retry_dlq, webhook_delivery_status, "
         "loyalty_get_balance, loyalty_get_tier, loyalty_redeem, loyalty_earn_history, "
         "loyalty_expiry_forecast, "
-        "referral_generate_code, referral_get_status, referral_campaign_stats, referral_fraud_report\n"
+        "referral_generate_code, referral_get_status, referral_campaign_stats, referral_fraud_report, "
+        "savings_open_account, savings_get_interest, savings_get_products, savings_calculate_maturity, "
+        "savings_rate_history, "
+        "schedule_create_standing_order, schedule_create_dd_mandate, schedule_get_upcoming, "
+        "schedule_failure_report\n"
         "FCA basis: CASS 7.15, CASS 15, MLR 2017, PSR 2017, DISP 1.3, PS22/9, SUP 16, PSD2 RTS, ICOBS\n"
         "Trust zone: RED"
     )

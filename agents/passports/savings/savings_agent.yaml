@@ -1,0 +1,39 @@
+agent_id: savings-agent
+name: SavingsAgent
+version: "1.0.0"
+phase: 31
+instruction_ledger: IL-SIE-01
+created: "2026-04-17"
+
+description: >
+  L2 façade for the Savings & Interest Engine. Manages savings account lifecycle
+  (open, deposit, withdraw), interest summaries, and product catalogue queries.
+  Enforces FCA PS25/12 rules on minimum/maximum deposits, HITL gate on large
+  fixed-term withdrawals ≥ £50,000 (I-27), and Decimal-only monetary arithmetic (I-01).
+
+capabilities:
+  - open_account: Open a new savings account against a product catalogue entry
+  - deposit: Credit funds, validate against product maximum balance
+  - withdraw: Debit funds; HITL_REQUIRED for fixed-term accounts ≥ £50k
+  - get_interest_summary: Daily interest, AER, tax withholding info
+  - get_account: Return full account details
+  - list_accounts: List all accounts for a customer
+
+autonomy_level: L2
+hitl_gates:
+  - trigger: "withdrawal >= £50,000 from FIXED_TERM_3M / FIXED_TERM_6M / FIXED_TERM_12M"
+    action: HITL_REQUIRED
+    reason: "I-27 — AI proposes, human decides on large early withdrawals"
+
+ports:
+  - SavingsProductPort → InMemorySavingsProductStore
+  - SavingsAccountPort → InMemorySavingsAccountStore
+
+invariants:
+  - I-01: All monetary values use Decimal (never float)
+  - I-05: Amounts returned as strings in API dicts
+  - I-27: HITL gate on early withdrawal ≥ £50k from fixed-term
+
+fca_refs:
+  - PS25/12 (Safeguarding)
+  - CASS 15

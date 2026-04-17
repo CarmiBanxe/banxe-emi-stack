@@ -1038,3 +1038,86 @@ FCA refs: COBS 4.2 (financial promotions — referral incentives), FCA PRIN 6 (c
 | Agent passports | 29 | 31+ | 31 ✅ |
 
 commit: IL-LRE-01 + IL-REF-01 | 5133 tests green | 2026-04-17
+
+
+---
+
+## Phase 31 — Savings & Interest Engine ✅ DONE (Sprint 26 — 2026-04-17)
+
+> **IL:** IL-SIE-01 | **FCA:** PS25/12, CASS 15, BCOBS 5, PS22/9 | **Trust Zone:** AMBER
+
+| # | Module | Description | Status |
+|---|--------|-------------|--------|
+| 316 | models.py | 5 enums (SavingsAccountType, AccountStatus, InterestBasis, InterestType, MaturityAction), 6 frozen dataclasses, 4 Protocols + InMemory stubs — 5 seeded products | ✅ |
+| 317 | product_catalog.py | list_products (filter by type), list_eligible_products (by deposit), get_product_count | ✅ |
+| 318 | interest_calculator.py | daily_interest (balance×rate/365, 8dp), calculate_aer, maturity_amount, tax_withholding (20%), penalty_amount | ✅ |
+| 319 | accrual_engine.py | accrue_daily (append-only I-24), capitalize_monthly, get_accrual_history | ✅ |
+| 320 | maturity_handler.py | set_preference (AUTO_RENEW/PAYOUT), process_maturity, calculate_penalty (3M=30d, 6M=60d, 12M=90d) | ✅ |
+| 321 | rate_manager.py | set_rate → always HITL_REQUIRED (I-27), apply_rate_change, get_current_rate, get_tiered_rate | ✅ |
+| 322 | savings_agent.py | L2 facade — open_account, deposit, withdraw (HITL ≥£50k from fixed-term, I-27) | ✅ |
+| 323 | api/routers/savings.py — 9 REST endpoints | /v1/savings/* embedded prefix | ✅ |
+| 324 | 5 MCP tools: savings_open_account, savings_get_interest, savings_get_products, savings_calculate_maturity, savings_rate_history | ✅ |
+| 325 | Agent passport + SOUL.md | agents/passports/savings/ | ✅ |
+| 326 | 110+ tests across 7 test files | tests/test_savings/ | ✅ |
+
+FCA refs: PS25/12 (safeguarding), BCOBS 5 (interest transparency), PS22/9 §4 (consumer duty — savings outcomes)
+
+---
+
+## Phase 32 — Standing Orders & Direct Debits ✅ DONE (Sprint 26 — 2026-04-17)
+
+> **IL:** IL-SOD-01 | **FCA:** PSR 2017, Bacs DD scheme, PS25/12 | **Trust Zone:** AMBER
+
+| # | Module | Description | Status |
+|---|--------|-------------|--------|
+| 327 | models.py | 5 enums (PaymentFrequency, ScheduleStatus, DDStatus, FailureCode, PaymentType), 5 frozen dataclasses, 4 Protocols + InMemory stubs | ✅ |
+| 328 | standing_order_engine.py | create, cancel, pause, resume, advance_next_execution (WEEKLY+7d, MONTHLY+30d), list | ✅ |
+| 329 | direct_debit_engine.py | create_mandate (PENDING), authorise, activate, cancel → always HITL_REQUIRED (I-27), confirm_cancel, collect, list | ✅ |
+| 330 | schedule_executor.py | schedule_payment, execute_due_payments, get_upcoming_payments, calculate_next_date | ✅ |
+| 331 | failure_handler.py | record_failure (append-only I-24), max 2 retries at T+1/T+3 days, get_failure_summary, get_customer_failures | ✅ |
+| 332 | notification_bridge.py | send_upcoming_reminder, send_failure_alert, send_mandate_change_notification (stub → QUEUED) | ✅ |
+| 333 | scheduled_payments_agent.py | L2 facade — create_so, create_dd_mandate, cancel_mandate (HITL I-27), get_upcoming, get_failure_report | ✅ |
+| 334 | api/routers/scheduled_payments.py — 9 REST endpoints | /v1/standing-orders/* + /v1/direct-debits/* embedded | ✅ |
+| 335 | 4 MCP tools: schedule_create_standing_order, schedule_create_dd_mandate, schedule_get_upcoming, schedule_failure_report | ✅ |
+| 336 | Agent passport + SOUL.md | agents/passports/scheduled_payments/ | ✅ |
+| 337 | 100+ tests across 5 test files | tests/test_scheduled_payments/ | ✅ |
+
+FCA refs: PSR 2017 (payment services), Bacs Direct Debit scheme rules, PS25/12 (safeguarding)
+
+---
+
+## Sprint 26 — Savings & Interest Engine + Scheduled Payments (2026-04-17)
+
+> **Scope:** 4 blocks — (A) Phase 31 Savings & Interest Engine, (B) Phase 32 Standing Orders & Direct Debits,
+> (C) ROADMAP Phase 31+32 sections, (D) IL-104. P0 deadline 7 May 2026.
+
+### S26-A: Phase 31 — Savings & Interest Engine (IL-SIE-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 316 | services/savings/ — 7 modules | IL-SIE-01 | ✅ |
+| 317 | api/routers/savings.py — 9 endpoints | IL-SIE-01 | ✅ |
+| 318 | 5 MCP tools: savings_open_account, savings_get_interest, savings_get_products, savings_calculate_maturity, savings_rate_history | IL-SIE-01 | ✅ |
+| 319 | Agent passport + SOUL.md | IL-SIE-01 | ✅ |
+| 320 | 110+ tests | IL-SIE-01 | ✅ |
+
+### S26-B: Phase 32 — Standing Orders & Direct Debits (IL-SOD-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 321 | services/scheduled_payments/ — 7 modules | IL-SOD-01 | ✅ |
+| 322 | api/routers/scheduled_payments.py — 9 endpoints | IL-SOD-01 | ✅ |
+| 323 | 4 MCP tools: schedule_create_standing_order, schedule_create_dd_mandate, schedule_get_upcoming, schedule_failure_report | IL-SOD-01 | ✅ |
+| 324 | Agent passport + SOUL.md | IL-SOD-01 | ✅ |
+| 325 | 100+ tests | IL-SOD-01 | ✅ |
+
+### S26-C: Sprint 26 Targets
+
+| Metric | S25 Actual | S26 Target | S26 Actual |
+|--------|-----------|------------|-----------|
+| Tests | 5133 | 5350+ | TBD |
+| MCP tools | 116 | 125+ | 125 ✅ |
+| API endpoints | 236 | 254+ | 254 ✅ |
+| Agent passports | 31 | 33+ | 33 ✅ |
+
+commit: IL-SIE-01 + IL-SOD-01 | Sprint 26 | 2026-04-17

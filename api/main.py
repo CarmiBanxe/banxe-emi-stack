@@ -67,6 +67,8 @@ from api.routers import (
     reporting,
     safeguarding,
     sanctions_rescreen,
+    savings,
+    scheduled_payments,
     statements,
     support,
     transaction_monitor,
@@ -177,3 +179,7 @@ app.include_router(
 )  # Webhook Orchestrator (IL-WHO-01) — /v1/webhooks/* embedded
 app.include_router(loyalty.router)  # Loyalty & Rewards (IL-LRE-01) — /v1/loyalty/* embedded
 app.include_router(referral.router)  # Referral Program (IL-REF-01) — /v1/referral/* embedded
+app.include_router(savings.router)  # Savings & Interest Engine (IL-SIE-01) — /v1/savings/* embedded
+app.include_router(
+    scheduled_payments.router
+)  # Standing Orders & Direct Debits (IL-SOD-01) — /v1/standing-orders/* + /v1/direct-debits/* embedded
