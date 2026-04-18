@@ -4427,6 +4427,9 @@ async def info_resource() -> str:
         "dispute_file, dispute_get_status, dispute_submit_evidence, dispute_escalate, "
         "dispute_resolution_report, "
         "beneficiary_add, beneficiary_screen, beneficiary_get_status, beneficiary_payment_rails, "
+        "crypto_get_balance, crypto_initiate_transfer, crypto_travel_rule_check, "
+        "crypto_reconcile, crypto_list_wallets, "
+        "batch_create, batch_submit, batch_get_status, batch_reconciliation_report, "
         "risk_score_entity, risk_portfolio_summary, risk_set_threshold, risk_mitigation_status, "
         "risk_generate_report, "
         "report_analytics_generate, report_analytics_schedule, report_analytics_list_templates, "
@@ -4434,6 +4437,205 @@ async def info_resource() -> str:
         "FCA basis: CASS 7.15, CASS 15, MLR 2017, PSR 2017, DISP 1.3, PS22/9, SUP 16, PSD2 RTS, ICOBS\n"
         "Trust zone: RED"
     )
+
+
+# ── Phase 35: Crypto Custody MCP Tools ───────────────────────────────────────
+
+
+@mcp_server.tool()
+async def crypto_get_balance(wallet_id: str) -> str:
+    """Get balance for a crypto custody wallet.
+
+    Args:
+        wallet_id: Wallet identifier (e.g. wallet-btc-001)
+
+    Returns:
+        JSON with wallet_id and balance as decimal string (I-05).
+    """
+    try:
+        result = await _api_get(f"/v1/crypto/wallets/{wallet_id}/balance")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable", "wallet_id": wallet_id})
+
+
+@mcp_server.tool()
+async def crypto_initiate_transfer(
+    from_wallet_id: str, to_address: str, amount: str, asset_type: str
+) -> str:
+    """Initiate a crypto transfer (IL-CDC-01). Amounts >= 1000 require HITL (I-27).
+
+    Args:
+        from_wallet_id: Source wallet ID
+        to_address: Destination address
+        amount: Transfer amount as decimal string (I-05)
+        asset_type: Asset type (BTC/ETH/USDT/USDC/SOL/XRP/DOGE)
+
+    Returns:
+        JSON with transfer record or HITL proposal.
+    """
+    try:
+        payload = {
+            "from_wallet_id": from_wallet_id,
+            "to_address": to_address,
+            "amount": amount,
+            "asset_type": asset_type,
+        }
+        result = await _api_post("/v1/crypto/transfers", payload)
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def crypto_travel_rule_check(transfer_id: str, amount_eur: str, jurisdiction: str) -> str:
+    """Check FATF R.16 travel rule requirements for a transfer (I-02, I-03).
+
+    Args:
+        transfer_id: Transfer identifier
+        amount_eur: Amount in EUR as decimal string
+        jurisdiction: ISO 3166-1 alpha-2 jurisdiction code
+
+    Returns:
+        JSON with screening result: PASS / BLOCKED / EDD_REQUIRED.
+    """
+    try:
+        payload = {
+            "transfer_id": transfer_id,
+            "amount_eur": amount_eur,
+            "jurisdiction": jurisdiction,
+        }
+        result = await _api_post("/v1/crypto/travel-rule/check", payload)
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def crypto_reconcile(wallet_id: str) -> str:
+    """Reconcile on-chain vs off-chain balance for a custody wallet (IL-CDC-01).
+
+    Args:
+        wallet_id: Wallet identifier to reconcile
+
+    Returns:
+        JSON with ReconciliationResult: MATCHED or DISCREPANCY with amounts.
+    """
+    try:
+        result = await _api_post(f"/v1/crypto/wallets/{wallet_id}/reconcile", {})
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable", "wallet_id": wallet_id})
+
+
+@mcp_server.tool()
+async def crypto_list_wallets(owner_id: str) -> str:
+    """List all crypto custody wallets for an owner (IL-CDC-01).
+
+    Args:
+        owner_id: Owner identifier
+
+    Returns:
+        JSON list of wallet records with balances as decimal strings.
+    """
+    try:
+        result = await _api_get(f"/v1/crypto/wallets?owner_id={owner_id}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable", "owner_id": owner_id})
+
+
+# ── Phase 36: Batch Payments MCP Tools ───────────────────────────────────────
+
+
+@mcp_server.tool()
+async def batch_create(name: str, rail: str, file_format: str, created_by: str) -> str:
+    """Create a new payment batch (IL-BPP-01).
+
+    Args:
+        name: Batch name
+        rail: Payment rail (FPS/BACS/CHAPS/SEPA/SWIFT)
+        file_format: File format (BACS_STD18/SEPA_PAIN001/CSV_BANXE/SWIFT_MT103)
+        created_by: Creator user ID
+
+    Returns:
+        JSON with batch record.
+    """
+    try:
+        payload = {"name": name, "rail": rail, "file_format": file_format, "created_by": created_by}
+        result = await _api_post("/v1/batch-payments/", payload)
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def batch_submit(batch_id: str) -> str:
+    """Submit a batch for processing — always returns HITL proposal (I-27).
+
+    Args:
+        batch_id: Batch identifier
+
+    Returns:
+        JSON with HITLProposal requiring human authorisation.
+    """
+    try:
+        result = await _api_post(f"/v1/batch-payments/{batch_id}/submit", {})
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable", "batch_id": batch_id})
+
+
+@mcp_server.tool()
+async def batch_get_status(batch_id: str) -> str:
+    """Get dispatch status for a batch (IL-BPP-01).
+
+    Args:
+        batch_id: Batch identifier
+
+    Returns:
+        JSON with dispatched/failed/confirmed item counts.
+    """
+    try:
+        result = await _api_get(f"/v1/batch-payments/{batch_id}/status")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable", "batch_id": batch_id})
+
+
+@mcp_server.tool()
+async def batch_reconciliation_report(batch_id: str) -> str:
+    """Generate reconciliation report for a batch (IL-BPP-01).
+
+    Args:
+        batch_id: Batch identifier
+
+    Returns:
+        JSON with BatchReconciliationReport including discrepancy_amount.
+    """
+    try:
+        result = await _api_get(f"/v1/batch-payments/{batch_id}/reconciliation")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable", "batch_id": batch_id})
 
 
 # ── Entry point ──────────────────────────────────────────────────────────
