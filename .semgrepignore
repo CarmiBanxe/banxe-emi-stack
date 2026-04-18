@@ -1,0 +1,11 @@
+# Docker compose hardening — accepted risk for dev environments
+docker/docker-compose.recon.yml
+docker/docker-compose.transaction-monitor.yml
+docker/docker-compose.mcp.yml
+docker/docker-compose.psd2.yml
+docker/docker-compose.reporting.yml
+docker/docker-compose.compliance-kb.yaml
+infra/ballerine/docker-compose.yml
+
+# Regulatory XML generator — internal tool, not exposed to user input
+services/regulatory_reporting/xml_generator.py
