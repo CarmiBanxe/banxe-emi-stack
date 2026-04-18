@@ -67,6 +67,8 @@ from api.routers import (
     referral,
     regulatory,
     reporting,
+    reporting_analytics,
+    risk_management,
     safeguarding,
     sanctions_rescreen,
     savings,
@@ -191,3 +193,9 @@ app.include_router(
 app.include_router(
     beneficiary.router
 )  # Beneficiary & Payee Management (IL-BPM-01) — /v1/beneficiaries/* embedded
+app.include_router(
+    risk_management.router, prefix=""
+)  # Risk Management & Scoring Engine (IL-RMS-01) — /v1/risk/*
+app.include_router(
+    reporting_analytics.router, prefix=""
+)  # Reporting & Analytics Platform (IL-RAP-01) — /v1/reports/*

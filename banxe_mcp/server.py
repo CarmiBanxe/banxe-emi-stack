@@ -4177,6 +4177,211 @@ async def beneficiary_payment_rails(
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
 
 
+# ── Phase 37: Risk Management & Scoring Engine (IL-RMS-01) ──────────────────
+
+
+@mcp_server.tool()
+async def risk_score_entity(entity_id: str, category: str, factors_json: str) -> str:
+    """Score an entity for a given risk category (IL-RMS-01).
+
+    Args:
+        entity_id: Entity identifier to score
+        category: Risk category (AML/CREDIT/FRAUD/OPERATIONAL/MARKET/LIQUIDITY/REPUTATIONAL)
+        factors_json: JSON string of factor name → value pairs
+
+    Returns:
+        JSON with entity_id, score (string I-05), level, category, model, assessed_at.
+    """
+    try:
+        import json as _json
+
+        factors = _json.loads(factors_json)
+        result = await _api_post(
+            "/v1/risk/score",
+            {"entity_id": entity_id, "category": category, "factors": factors},
+        )
+        return _json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def risk_portfolio_summary(entity_ids_json: str) -> str:
+    """Get portfolio risk heatmap for a list of entities (IL-RMS-01).
+
+    Args:
+        entity_ids_json: JSON array of entity ID strings
+
+    Returns:
+        JSON heatmap {entity_id: {category: level}}.
+    """
+    try:
+        import json as _json
+
+        entity_ids = _json.loads(entity_ids_json)
+        result = await _api_post(
+            "/v1/risk/portfolio/heatmap",
+            {"entity_ids": entity_ids},
+        )
+        return _json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def risk_set_threshold(category: str, low_max: str, medium_max: str, high_max: str) -> str:
+    """Propose a risk threshold change — always returns HITL proposal (I-27, IL-RMS-01).
+
+    Args:
+        category: Risk category to update
+        low_max: Low/medium boundary score as decimal string
+        medium_max: Medium/high boundary score as decimal string
+        high_max: High/critical boundary score as decimal string
+
+    Returns:
+        JSON HITL_REQUIRED proposal for Risk Officer approval.
+    """
+    try:
+        result = await _api_post(
+            f"/v1/risk/thresholds/{category}",
+            {"low_max": low_max, "medium_max": medium_max, "high_max": high_max},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def risk_mitigation_status(plan_id: str) -> str:
+    """Get risk mitigation plan status (IL-RMS-01).
+
+    Args:
+        plan_id: Mitigation plan identifier
+
+    Returns:
+        JSON with plan details, action, evidence_hash, completed_at.
+    """
+    try:
+        result = await _api_get(f"/v1/risk/mitigations/{plan_id}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def risk_generate_report(scope: str, period_start: str, period_end: str) -> str:
+    """Generate a risk report for a scope and period (IL-RMS-01).
+
+    Args:
+        scope: Report scope (e.g. 'global', 'portfolio')
+        period_start: Period start date (ISO 8601, e.g. '2026-01-01')
+        period_end: Period end date (ISO 8601, e.g. '2026-03-31')
+
+    Returns:
+        JSON with report id, distribution, top_risks, total_entities.
+    """
+    try:
+        result = await _api_post(
+            "/v1/risk/reports",
+            {"scope": scope, "period_start": period_start, "period_end": period_end},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+# ── Phase 38: Reporting & Analytics Platform (IL-RAP-01) ────────────────────
+
+
+@mcp_server.tool()
+async def report_analytics_generate(template_id: str, parameters_json: str) -> str:
+    """Generate a report from a template (IL-RAP-01).
+
+    Args:
+        template_id: Report template identifier
+        parameters_json: JSON string of report parameters
+
+    Returns:
+        JSON with job_id, template_id, status, output_path.
+    """
+    try:
+        import json as _json
+
+        parameters = _json.loads(parameters_json)
+        result = await _api_post(
+            "/v1/reports/generate",
+            {"template_id": template_id, "parameters": parameters},
+        )
+        return _json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def report_analytics_schedule(
+    template_id: str, frequency: str, delivery_json: str, created_by: str
+) -> str:
+    """Create a scheduled report (IL-RAP-01).
+
+    Args:
+        template_id: Report template to schedule
+        frequency: DAILY/WEEKLY/MONTHLY/QUARTERLY/ON_DEMAND
+        delivery_json: JSON string with delivery config (e.g. channel, email)
+        created_by: User/agent creating the schedule
+
+    Returns:
+        JSON with schedule id, next_run, frequency.
+    """
+    try:
+        import json as _json
+
+        delivery = _json.loads(delivery_json)
+        result = await _api_post(
+            "/v1/reports/schedules",
+            {
+                "template_id": template_id,
+                "frequency": frequency,
+                "delivery": delivery,
+                "created_by": created_by,
+            },
+        )
+        return _json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def report_analytics_list_templates() -> str:
+    """List all available report templates (IL-RAP-01).
+
+    Returns:
+        JSON array of template summaries (id, name, report_type, format).
+    """
+    try:
+        result = await _api_get("/v1/reports/templates")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def report_analytics_export(job_id: str, format: str = "json") -> str:
+    """Export a report job result (IL-RAP-01).
+
+    Args:
+        job_id: Report job identifier
+        format: Export format — 'json' or 'csv' (default: 'json')
+
+    Returns:
+        JSON with record_id, file_hash, pii_redacted, size_bytes.
+    """
+    try:
+        result = await _api_get(f"/v1/reports/jobs/{job_id}/export?format={format}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
 @mcp_server.resource("banxe://info")
 async def info_resource() -> str:
     """BANXE EMI platform information."""
@@ -4221,7 +4426,11 @@ async def info_resource() -> str:
         "schedule_failure_report, "
         "dispute_file, dispute_get_status, dispute_submit_evidence, dispute_escalate, "
         "dispute_resolution_report, "
-        "beneficiary_add, beneficiary_screen, beneficiary_get_status, beneficiary_payment_rails\n"
+        "beneficiary_add, beneficiary_screen, beneficiary_get_status, beneficiary_payment_rails, "
+        "risk_score_entity, risk_portfolio_summary, risk_set_threshold, risk_mitigation_status, "
+        "risk_generate_report, "
+        "report_analytics_generate, report_analytics_schedule, report_analytics_list_templates, "
+        "report_analytics_export\n"
         "FCA basis: CASS 7.15, CASS 15, MLR 2017, PSR 2017, DISP 1.3, PS22/9, SUP 16, PSD2 RTS, ICOBS\n"
         "Trust zone: RED"
     )

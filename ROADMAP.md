@@ -1204,6 +1204,88 @@ FCA refs: PSR 2017 (Confirmation of Payee), MLR 2017 Reg.28 (sanctions screening
 
 commit: IL-DRM-01 + IL-BPM-01 | Sprint 27 | 2026-04-17
 
+---
+
+## Phase 37 — Risk Management & Scoring Engine ✅ DONE (Sprint 29 — 2026-04-17)
+
+> **IL:** IL-RMS-01 | **FCA:** FCA SYSC 7, Basel III ICAAP, EBA/GL/2017/11 | **Trust Zone:** RED
+
+| # | Module | Description | Status |
+|---|--------|-------------|--------|
+| 360 | models.py | 5 enums (RiskCategory×7, RiskLevel×4, ScoreModel×4, AssessmentStatus×5, MitigationAction×5), 5 frozen dataclasses, 4 Protocols + InMemory stubs, 3 seeded scores (AML/CREDIT/FRAUD) | ✅ |
+| 361 | risk_scorer.py | score_entity (Decimal 0-100, I-01), compute_aggregate (weighted avg), classify_level (25/50/75 boundaries), batch_score | ✅ |
+| 362 | risk_aggregator.py | aggregate_entity, portfolio_heatmap {entity_id: {category: level}}, concentration_analysis (>20% flag), get_top_risks | ✅ |
+| 363 | threshold_manager.py | get_threshold, set_threshold → always HITL_REQUIRED (I-27), check_breach, get_alerts (alert_on_breach flag) | ✅ |
+| 364 | mitigation_tracker.py | create_plan (IDENTIFIED, sha256 I-12), update_action (sha256 on evidence), list_overdue, attach_evidence | ✅ |
+| 365 | risk_reporter.py | generate_report, export_json (Decimal as string), export_summary (board-level), get_trend (stub) | ✅ |
+| 366 | risk_agent.py | L1 auto-scoring, L4 threshold changes (I-27), L4 ACCEPTED/TRANSFERRED actions (I-27), get_agent_status | ✅ |
+| 367 | api/routers/risk_management.py — 9 REST endpoints | /v1/risk/* | ✅ |
+| 368 | 5 MCP tools: risk_score_entity, risk_portfolio_summary, risk_set_threshold, risk_mitigation_status, risk_generate_report | ✅ |
+| 369 | Agent passport + SOUL.md | agents/passports/risk/ | ✅ |
+| 370 | 115+ tests across 6 test files | tests/test_risk_management/ | ✅ |
+
+FCA refs: SYSC 7 (risk management controls), Basel III ICAAP, EBA/GL/2017/11 (internal governance)
+
+---
+
+## Phase 38 — Reporting & Analytics Platform ✅ DONE (Sprint 29 — 2026-04-17)
+
+> **IL:** IL-RAP-01 | **FCA:** SUP 16, SYSC 9, PS22/9 §6, GDPR Art.5(1)(f) | **Trust Zone:** AMBER
+
+| # | Module | Description | Status |
+|---|--------|-------------|--------|
+| 371 | models.py | 5 enums (ReportType×7, ReportFormat×4, ScheduleFrequency×5, DataSource×6, AggregationType×6), 5 frozen dataclasses, 4 Protocols + InMemory stubs, 3 seeded templates (COMPLIANCE/AML/TREASURY) | ✅ |
+| 372 | report_builder.py | build_report (COMPLETED stub, sha256 file_hash), render_json (Decimal as string), render_csv, get_job_status, list_recent_jobs | ✅ |
+| 373 | data_aggregator.py | aggregate (SUM/AVG/COUNT/MIN/MAX/P95 stub), multi_source_aggregate, time_series_rollup, get_available_sources | ✅ |
+| 374 | dashboard_metrics.py | get_kpi (stub: revenue/volume/compliance_rate/nps), get_all_kpis, get_sparkline (zeros), get_compliance_score | ✅ |
+| 375 | scheduled_reports.py | create_schedule (next_run by frequency), update_schedule → always HITL (I-27), run_due_reports, list_active_schedules, deactivate_schedule | ✅ |
+| 376 | export_engine.py | export_json (sha256 I-12), export_csv (sha256 I-12), redact_pii (IBAN+email regex), get_export_record, list_exports | ✅ |
+| 377 | analytics_agent.py | L1 auto-build/export, L4 schedule changes (I-27), get_agent_status | ✅ |
+| 378 | api/routers/reporting_analytics.py — 9 REST endpoints | /v1/reports/* | ✅ |
+| 379 | 4 MCP tools: report_analytics_generate, report_analytics_schedule, report_analytics_list_templates, report_analytics_export | ✅ |
+| 380 | Agent passport + SOUL.md | agents/passports/reporting_analytics/ | ✅ |
+| 381 | 105+ tests across 6 test files | tests/test_reporting_analytics/ | ✅ |
+
+FCA refs: SUP 16 (regulatory reporting), SYSC 9 (record-keeping 5yr), PS22/9 §6 (Consumer Duty monitoring), GDPR Art.5(1)(f) (data integrity)
+
+---
+
+## Sprint 29 — Risk Management + Reporting Analytics (2026-04-17)
+
+> **Scope:** 4 blocks — (A) Phase 37 Risk Management & Scoring Engine, (B) Phase 38 Reporting & Analytics Platform,
+> (C) ROADMAP Phase 37+38 sections, (D) P0 deadline 7 May 2026.
+
+### S29-A: Phase 37 — Risk Management & Scoring Engine (IL-RMS-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 360 | services/risk_management/ — 7 modules | IL-RMS-01 | ✅ |
+| 361 | api/routers/risk_management.py — 9 endpoints | IL-RMS-01 | ✅ |
+| 362 | 5 MCP tools: risk_score_entity, risk_portfolio_summary, risk_set_threshold, risk_mitigation_status, risk_generate_report | IL-RMS-01 | ✅ |
+| 363 | Agent passport + SOUL.md | IL-RMS-01 | ✅ |
+| 364 | 115+ tests | IL-RMS-01 | ✅ |
+
+### S29-B: Phase 38 — Reporting & Analytics Platform (IL-RAP-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 365 | services/reporting_analytics/ — 7 modules | IL-RAP-01 | ✅ |
+| 366 | api/routers/reporting_analytics.py — 9 endpoints | IL-RAP-01 | ✅ |
+| 367 | 4 MCP tools: report_analytics_generate, report_analytics_schedule, report_analytics_list_templates, report_analytics_export | IL-RAP-01 | ✅ |
+| 368 | Agent passport + SOUL.md | IL-RAP-01 | ✅ |
+| 369 | 105+ tests | IL-RAP-01 | ✅ |
+
+### S29-C: Sprint 29 Targets
+
+| Metric | S27 Actual | S29 Target | S29 Actual |
+|--------|-----------|------------|-----------|
+| Tests | 5643 | 5850+ | 5863 ✅ |
+| MCP tools | 134 | 143+ | 143 ✅ |
+| API endpoints | 271 | 289+ | 289 ✅ |
+| Agent passports | 35 | 37+ | 37 ✅ |
+
+commit: IL-RMS-01 + IL-RAP-01 | Sprint 29 | 2026-04-17
+
 Sprint 2 – DONE:
 - Auth router → TokenManager (login/refresh)
 - Auth/IAM test suite green (auth_router + iam_* tests)
