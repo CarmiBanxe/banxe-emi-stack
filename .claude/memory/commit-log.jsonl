@@ -61,3 +61,19 @@
 {"ts":"2026-04-16T23:39:35Z","hash":"07b8f43","il":"IL-CAE-01","type":"feat","msg":"feat(compliance-automation+document-management): Phase 23+24 [IL-CAE-01 + IL-DMS-01]","files_changed":42,"areas":["services","api","tests"]}
 {"ts":"2026-04-17T07:25:02Z","hash":"891ae4a","il":"IL-LCE-01","type":"feat","msg":"feat(lending+insurance): Phase 25+26 [IL-LCE-01 + IL-INS-01]","files_changed":42,"areas":["services","api","tests"]}
 {"ts":"2026-04-17T09:44:11Z","hash":"4133fbc","il":"IL-AGW-01","type":"feat","msg":"feat(sprint-24): API Gateway + Webhook Orchestrator [IL-AGW-01 + IL-WHO-01]","files_changed":58,"areas":["services","api","tests"]}
+{"ts":"2026-04-17T11:40:48Z","hash":"0e49b24","il":"IL-LRE-01","type":"feat","msg":"feat(sprint-25): Loyalty & Rewards Engine + Referral Program [IL-LRE-01 + IL-REF-01]","files_changed":45,"areas":["services","api","tests"]}
+{"ts":"2026-04-17T16:36:50Z","hash":"275eb45","il":"IL-AGW-01","type":"fix","msg":"fix(ci): gitleaks allowlist + retry_count fix + coverage threshold 35% [IL-AGW-01]","files_changed":3,"areas":["services"]}
+{"ts":"2026-04-17T16:44:12Z","hash":"1426a42","il":"IL-SIE-01","type":"feat","msg":"feat(sprint-26): Phase 31 Savings & Interest Engine + Phase 32 Standing Orders & Direct Debits [IL-SIE-01 + IL-SOD-01]","files_changed":43,"areas":["services","api","tests"]}
+{"ts":"2026-04-17T16:59:11Z","hash":"58d7ae4","il":"IL-AGW-01","type":"fix","msg":"fix(frontend): correct biome folder ignore patterns [IL-AGW-01]","files_changed":1,"areas":["frontend"]}
+{"ts":"2026-04-17T18:22:47Z","hash":"67c4613","il":"IL-DRM-01","type":"feat","msg":"feat(sprint-27): Phase 33 Dispute Resolution + Phase 34 Beneficiary Management [IL-DRM-01 + IL-BPM-01]","files_changed":44,"areas":["services","api","tests"]}
+{"ts":"2026-04-17T21:13:02Z","hash":"df82a06","il":null,"type":"fix","msg":"fix(hotfix-001): merge Sprint 27 + Biome lint fix + Ollama issue #1","files_changed":37,"areas":["config","frontend"]}
+{"ts":"2026-04-17T21:13:46Z","hash":"9359d52","il":null,"type":"docs","msg":"docs(auth): add refactor roadmap tasks for thin-router migration","files_changed":1,"areas":[]}
+{"ts":"2026-04-17T21:20:43Z","hash":"5d01566","il":null,"type":"docs","msg":"docs(auth): add refactor roadmap tasks for thin-router migration","files_changed":3,"areas":["tests"]}
+{"ts":"2026-04-17T21:42:38Z","hash":"a13ced5","il":null,"type":"docs","msg":"docs(auth): add auth/iam import architecture session-start docs","files_changed":2,"areas":[]}
+{"ts":"2026-04-17T21:52:09Z","hash":"fe5ecc5","il":null,"type":"docs","msg":"docs(auth): add phase A inventory for thin-router token manager extraction","files_changed":1,"areas":[]}
+{"ts":"2026-04-17T21:54:16Z","hash":"529f177","il":null,"type":"docs","msg":"docs(auth): define staged import order for router token iam sca 2fa","files_changed":1,"areas":[]}
+{"ts":"2026-04-18T00:57:51Z","hash":"f18a73e","il":null,"type":"feat","msg":"feat(sprint-29): Phase 37 Risk Management + Phase 38 Reporting Analytics","files_changed":41,"areas":["services","api","tests"]}
+{"ts":"2026-04-18T01:19:37Z","hash":"18edbe6","il":null,"type":null,"msg":"Merge remote-tracking branch 'origin/main' into feat/auth-router-thin-tokenmanager","files_changed":42,"areas":["services","api","tests"]}
+{"ts":"2026-04-19T01:29:33Z","hash":"e97f4b6","il":null,"type":"docs","msg":"docs(auth): define staged import order for router token iam sca 2fa","files_changed":1,"areas":[]}
+{"ts":"2026-04-19T12:15:34Z","hash":"7816c87","il":null,"type":"refactor","msg":"refactor(auth): add application service seam for thin router migration","files_changed":1,"areas":["services"]}
+{"hash": "7816c87", "full_hash": "7816c8780bff776cc6102f5a0d9d50f049ef1161", "message": "refactor(auth): add application service seam for thin router migration", "author": "Moriel Carmi", "date": "2026-04-19 14:15:13 +0200", "il_id": null, "type": "refactor", "changed_files": ["services/auth/auth_application_service.py"]}
