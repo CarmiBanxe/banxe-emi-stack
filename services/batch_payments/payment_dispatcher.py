@@ -5,7 +5,7 @@ IL-BPP-01 | Phase 36 | banxe-emi-stack
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from services.batch_payments.models import (
     AuditPort,
@@ -62,7 +62,7 @@ class PaymentDispatcher:
             dispatched=dispatched,
             failed=failed,
             rail=batch.rail,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
         )
 
     def dispatch_item(self, item: BatchItem, rail: PaymentRail) -> BatchItem:

@@ -87,7 +87,7 @@ def get_fraud_adapter() -> FraudScoringPort:
 
         return JubeAdapter()
     if adapter_name == "sardine":
-        from services.fraud.sardine_adapter import SardineFraudAdapter  # noqa
+        from services.fraud.sardine_adapter import SardineFraudAdapter  # noqa: PLC0415
 
         return SardineFraudAdapter()
     from services.fraud.mock_fraud_adapter import MockFraudAdapter

@@ -7,7 +7,7 @@ I-01: Decimal amounts. I-02: Jurisdiction blocking. I-27: Batch submission alway
 from __future__ import annotations
 
 import dataclasses
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 import hashlib
 import uuid
@@ -100,7 +100,7 @@ class BatchCreator:
     ) -> BatchRecord:
         """Create a new batch in DRAFT status."""
         batch_id = f"batch-{uuid.uuid4().hex[:12]}"
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         batch = BatchRecord(
             id=batch_id,
             name=name,
@@ -183,7 +183,7 @@ class BatchCreator:
             is_valid=is_valid,
             errors=errors,
             warnings=warnings,
-            validated_at=datetime.utcnow(),
+            validated_at=datetime.now(UTC),
         )
 
     def submit_batch(self, batch_id: str) -> HITLProposal:

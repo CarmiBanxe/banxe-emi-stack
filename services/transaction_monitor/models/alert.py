@@ -7,7 +7,7 @@ AMLAlert: core alert entity with explanation and routing info.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from enum import Enum
 from typing import Any
@@ -55,7 +55,7 @@ class AMLAlert(BaseModel):
         default="review",
         description="review | escalate | auto-close",
     )
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     assigned_to: str | None = None
     marble_case_id: str | None = None
     status: AlertStatus = AlertStatus.OPEN

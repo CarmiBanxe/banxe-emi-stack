@@ -6,7 +6,7 @@ I-01: Decimal amounts. I-04: EDD threshold £10k.
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from services.batch_payments.models import (
@@ -57,7 +57,7 @@ class LimitChecker:
         """True if batches submitted in window <= 10."""
         from datetime import timedelta  # noqa: PLC0415
 
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         cutoff = now - timedelta(hours=window_hours)
         timestamps = self._batch_timestamps.get(created_by, [])
         recent = [t for t in timestamps if t >= cutoff]

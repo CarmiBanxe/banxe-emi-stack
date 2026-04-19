@@ -7,7 +7,7 @@ I-01: Decimal amounts. I-24: Append-only audit.
 from __future__ import annotations
 
 import dataclasses
-from datetime import datetime
+from datetime import UTC, datetime
 
 from services.batch_payments.models import (
     AuditPort,
@@ -53,7 +53,7 @@ class BatchReconciliationEngine:
             partial=partial,
             failed=failed,
             discrepancy_amount=discrepancy,
-            generated_at=datetime.utcnow(),
+            generated_at=datetime.now(UTC),
         )
         self._audit.log("RECONCILE_BATCH", batch_id, f"matched={matched} failed={failed}", "OK")
         return report

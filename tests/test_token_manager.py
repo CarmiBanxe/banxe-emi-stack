@@ -108,7 +108,8 @@ class TestTokenManagerInactivity:
         assert tm.is_inactive(last) is True
 
     def test_naive_datetime_treated_as_utc(self, tm):
-        last = datetime.utcnow() - timedelta(seconds=400)
+        # naive datetime (no tzinfo) — treated as UTC by is_inactive
+        last = datetime.now(UTC).replace(tzinfo=None) - timedelta(seconds=400)
         assert tm.is_inactive(last) is True
 
 

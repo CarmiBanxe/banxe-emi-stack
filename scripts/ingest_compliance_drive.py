@@ -13,7 +13,7 @@ Usage:
 """
 
 import argparse
-from datetime import datetime
+from datetime import UTC, datetime
 import json
 import logging
 import os
@@ -300,7 +300,7 @@ def ingest_chunks(
             "domain": domain,
             "chunk_index": i,
             "total_chunks": len(chunks),
-            "ingested_at": datetime.utcnow().isoformat(),
+            "ingested_at": datetime.now(UTC).isoformat(),
         }
         for i in range(len(chunks))
     ]
@@ -326,7 +326,7 @@ def build_agent_context(
     for use in compliance agent SOUL files.
     """
     context = {
-        "generated_at": datetime.utcnow().isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "collection": COLLECTION_NAME,
         "embedding_model": EMBEDDING_MODEL,
         "total_documents": len(doc_index),
@@ -357,7 +357,7 @@ def build_agent_context(
 
 def run(local_only: bool = False, dry_run: bool = False) -> None:
     log.info("=" * 60)
-    log.info("BANXE Compliance KB Ingestion — %s", datetime.utcnow().isoformat())
+    log.info("BANXE Compliance KB Ingestion — %s", datetime.now(UTC).isoformat())
     log.info("=" * 60)
 
     DOCS_DIR.mkdir(parents=True, exist_ok=True)

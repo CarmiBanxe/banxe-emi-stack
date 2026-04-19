@@ -9,7 +9,7 @@ Location: data/audit/experiments.jsonl
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 import json
 import logging
 from pathlib import Path
@@ -25,7 +25,7 @@ class AuditEntry(BaseModel):
     """Single audit log entry — immutable once written."""
 
     entry_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     actor: str  # "claude-code" | "human:<name>" | "system"
     action: str  # "experiment.created" | "experiment.approved" | etc.
     experiment_id: str

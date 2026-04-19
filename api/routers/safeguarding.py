@@ -171,7 +171,7 @@ def get_safeguarding_position(
         target_date = date.fromisoformat(as_of) if as_of else date.today()
     except ValueError:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Invalid date: {as_of}"
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid date: {as_of}"
         )
 
     # Sandbox: fixed balances — production wires real Midaz + CAMT.053
@@ -268,7 +268,7 @@ def trigger_reconciliation(
         run_date = date.fromisoformat(request.run_date) if request.run_date else date.today()
     except ValueError:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Invalid date: {request.run_date}",
         )
 
@@ -330,7 +330,7 @@ def get_resolution_pack(
         target_date = date.fromisoformat(as_of) if as_of else date.today()
     except ValueError:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Invalid date: {as_of}"
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid date: {as_of}"
         )
 
     accounts = list_safeguarding_accounts()

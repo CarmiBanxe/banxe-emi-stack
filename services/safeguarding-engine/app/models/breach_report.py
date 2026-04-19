@@ -1,7 +1,7 @@
 """SQLAlchemy model for breach reports."""
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from sqlalchemy import Column, String, Boolean, DateTime, Numeric, Text
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -19,7 +19,7 @@ class BreachReport(Base):
     severity = Column(String(10), nullable=False)  # 'critical', 'major', 'minor'
     description = Column(Text, nullable=False)
     shortfall_amount = Column(Numeric(18, 2))
-    detected_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    detected_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
     fca_notified = Column(Boolean, default=False)
     fca_notified_at = Column(DateTime(timezone=True))
     resolved = Column(Boolean, default=False)

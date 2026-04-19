@@ -62,7 +62,7 @@ def test_reconcile_wallet_not_found_raises(reconciler):
 
 
 def test_reconcile_wallet_matched_when_on_chain_equals_off_chain(reconciler, wallet_store):
-    from datetime import datetime  # noqa: PLC0415
+    from datetime import UTC, datetime  # noqa: PLC0415
 
     from services.crypto_custody.models import (
         WalletRecord,  # noqa: PLC0415
@@ -76,8 +76,8 @@ def test_reconcile_wallet_matched_when_on_chain_equals_off_chain(reconciler, wal
         address="1A1zP1eP5QGefi2DMPTfTL5SLmv7Divf6n",
         balance=Decimal("1.00000000"),
         network=NetworkType.MAINNET,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
         owner_id="owner-test",
     )
     wallet_store.save_wallet(w)
@@ -86,7 +86,7 @@ def test_reconcile_wallet_matched_when_on_chain_equals_off_chain(reconciler, wal
 
 
 def test_reconcile_wallet_discrepancy_when_large_diff(reconciler, wallet_store):
-    from datetime import datetime  # noqa: PLC0415
+    from datetime import UTC, datetime  # noqa: PLC0415
 
     from services.crypto_custody.models import WalletRecord, WalletStatus  # noqa: PLC0415
 
@@ -97,8 +97,8 @@ def test_reconcile_wallet_discrepancy_when_large_diff(reconciler, wallet_store):
         address="0x" + "aa" * 20,
         balance=Decimal("5.00000000"),
         network=NetworkType.MAINNET,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
         owner_id="owner-test",
     )
     wallet_store.save_wallet(w)
@@ -131,7 +131,7 @@ def test_reconcile_wallet_discrepancy_non_negative(reconciler):
 
 
 def test_reconcile_within_satoshi_tolerance(reconciler, wallet_store):
-    from datetime import datetime  # noqa: PLC0415
+    from datetime import UTC, datetime  # noqa: PLC0415
 
     from services.crypto_custody.models import WalletRecord, WalletStatus  # noqa: PLC0415
 
@@ -142,8 +142,8 @@ def test_reconcile_within_satoshi_tolerance(reconciler, wallet_store):
         address="1A1zP1eP5QGefi2DMPTfTL5SLmv7Divf6n",
         balance=Decimal("1.00000000"),
         network=NetworkType.MAINNET,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
         owner_id="owner-tol",
     )
     wallet_store.save_wallet(w)

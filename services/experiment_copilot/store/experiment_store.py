@@ -9,7 +9,7 @@ Index:  compliance-experiments/index.json (auto-regenerated)
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 import json
 import logging
 from pathlib import Path
@@ -48,7 +48,7 @@ class ExperimentStore:
 
     def save(self, experiment: ComplianceExperiment) -> Path:
         """Persist experiment to YAML. Moves file if status changed."""
-        experiment.updated_at = datetime.utcnow()
+        experiment.updated_at = datetime.now(UTC)
         target_dir = self._root / _STATUS_DIRS[experiment.status]
         target_dir.mkdir(parents=True, exist_ok=True)
 

@@ -8,7 +8,7 @@ All monetary amounts use Decimal (I-01 invariant).
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from enum import Enum
 from typing import Any
@@ -35,7 +35,7 @@ class TransactionEvent(BaseModel):
     """
 
     transaction_id: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     amount: Decimal = Field(..., description="Transaction amount — always Decimal (I-01)")
     currency: str = Field(default="GBP", description="ISO 4217 currency code")
     sender_id: str
@@ -63,4 +63,4 @@ class RawEventPayload(BaseModel):
     event_type: str = "transaction"
     payload: dict[str, Any]
     source: str = "api"
-    received_at: datetime = Field(default_factory=datetime.utcnow)
+    received_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

@@ -7,7 +7,7 @@ Parses raw event payloads from RabbitMQ/Redis into TransactionEvent Pydantic mod
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 import logging
 from typing import Any
@@ -72,9 +72,9 @@ class TransactionParser:
                 elif isinstance(timestamp_raw, datetime):
                     timestamp = timestamp_raw
                 else:
-                    timestamp = datetime.utcnow()
+                    timestamp = datetime.now(UTC)
             else:
-                timestamp = datetime.utcnow()
+                timestamp = datetime.now(UTC)
 
             # Parse customer avg if provided
             avg_raw = payload.get("customer_avg_amount")

@@ -8,7 +8,7 @@ Persisted as YAML in compliance-experiments/{draft|active|finished|rejected}/.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -40,8 +40,8 @@ class ComplianceExperiment(BaseModel):
         default_factory=list,
         description="Citation IDs from the Compliance KB (Part 1)",
     )
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     created_by: str = Field(default="claude-code", description="'claude-code' | 'human'")
     metrics_baseline: dict[str, Any] = Field(default_factory=dict)
     metrics_target: dict[str, Any] = Field(default_factory=dict)

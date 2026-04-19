@@ -7,7 +7,7 @@ I-27: Transfers >= £1000 always require HITL.
 from __future__ import annotations
 
 import dataclasses
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 import uuid
 
@@ -65,7 +65,7 @@ class TransferEngine:
             network_fee=Decimal("0"),
             status=TransferStatus.PENDING,
             travel_rule_required=amount >= _HITL_THRESHOLD,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(UTC),
         )
         self._transfers.save_transfer(transfer)
         self._audit.log("INITIATE_TRANSFER", transfer_id, f"amount={amount}", "PENDING")

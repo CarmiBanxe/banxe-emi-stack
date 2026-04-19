@@ -7,7 +7,7 @@ RiskFactor and RiskScore are non-monetary (scores/weights are floats 0-1).
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -64,7 +64,7 @@ class RiskScore(BaseModel):
     classification: RiskClassification = "low"
     factors: list[RiskFactor] = Field(default_factory=list)
     model_version: str = "v1"
-    computed_at: datetime = Field(default_factory=datetime.utcnow)
+    computed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     rules_score: float = 0.0  # nosemgrep: banxe-float-money — non-monetary
     ml_score: float = 0.0  # nosemgrep: banxe-float-money — non-monetary
     velocity_score: float = 0.0  # nosemgrep: banxe-float-money — non-monetary

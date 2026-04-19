@@ -57,7 +57,7 @@ def generate_fin060(period_start: date, period_end: date) -> Path:
 def _fetch_period_data(period_start: date, period_end: date) -> FIN060Data:
     """Query ClickHouse safeguarding_events for the reporting period."""
     try:
-        import clickhouse_driver  # type: ignore
+        import clickhouse_driver  # type: ignore[import-untyped]
     except ImportError:
         raise RuntimeError("clickhouse-driver not installed. Run: pip install clickhouse-driver")
 
@@ -102,7 +102,7 @@ def _fetch_period_data(period_start: date, period_end: date) -> FIN060Data:
 def _render_pdf(data: FIN060Data) -> Path:
     """Render FIN060 HTML template → PDF via WeasyPrint."""
     try:
-        from weasyprint import HTML  # type: ignore
+        from weasyprint import HTML  # type: ignore[import-untyped]
     except ImportError:
         raise RuntimeError("weasyprint not installed. Run: pip install weasyprint")
 

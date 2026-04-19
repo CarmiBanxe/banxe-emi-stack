@@ -5,7 +5,7 @@ IL-CDC-01 | Phase 35 | banxe-emi-stack
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 import hashlib
 import uuid
@@ -62,7 +62,7 @@ class WalletManager:
             raise ValueError(f"Invalid wallet_type: {wallet_type}")
         wallet_id = f"wallet-{uuid.uuid4().hex[:12]}"
         address = _generate_address(owner_id, asset_type)
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         wallet = WalletRecord(
             id=wallet_id,
             asset_type=asset_type,

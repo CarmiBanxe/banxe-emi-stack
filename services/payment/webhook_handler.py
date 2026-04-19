@@ -121,7 +121,7 @@ def create_webhook_router(ch_client=None):
         except Exception as exc:
             logger.error("Modulr webhook: parse_webhook_event failed: %s", exc)
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=f"Could not parse webhook payload: {exc}",
             )
 

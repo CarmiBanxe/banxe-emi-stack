@@ -6,7 +6,7 @@ I-01: All amounts Decimal. I-24: Audit trail append-only.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from services.crypto_custody.models import (
@@ -50,7 +50,7 @@ class CustodyReconciler:
             off_chain_balance=off_chain,
             discrepancy=discrepancy,
             status=status,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(UTC),
         )
         self._audit.log("RECONCILE", wallet_id, f"status={status}", "OK")
         return result

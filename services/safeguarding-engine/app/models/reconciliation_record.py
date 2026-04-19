@@ -1,7 +1,7 @@
 """SQLAlchemy model for reconciliation records."""
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from sqlalchemy import Column, String, Date, DateTime, Numeric
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 
@@ -23,4 +23,4 @@ class ReconciliationRecord(Base):
     status = Column(String(20), nullable=False)  # 'matched', 'break', 'pending'
     break_items = Column(JSONB, default=[])
     resolved_at = Column(DateTime(timezone=True))
-    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))

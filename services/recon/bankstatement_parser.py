@@ -39,7 +39,7 @@ def parse_camt053(xml_path: Path) -> list[StatementBalance]:
     Falls back to empty list if library not installed (Phase 1 behaviour).
     """
     try:
-        from bankstatementparser import CamtParser  # type: ignore
+        from bankstatementparser import CamtParser  # type: ignore[import-untyped]
     except ImportError:
         # Phase 1 — library not yet installed, CSV path used instead
         return []
@@ -79,7 +79,7 @@ def parse_mt940(mt940_path: Path) -> list[StatementBalance]:
     Requires: pip install mt940
     """
     try:
-        import mt940  # type: ignore
+        import mt940  # type: ignore[import-untyped]
     except ImportError:
         return []
 

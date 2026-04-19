@@ -58,7 +58,7 @@ class ClickHouseReconClient:
         password: str = CLICKHOUSE_PASSWORD,
     ) -> None:
         try:
-            import clickhouse_driver  # type: ignore
+            import clickhouse_driver  # type: ignore[import-untyped]
 
             self._client = clickhouse_driver.Client(
                 host=host,

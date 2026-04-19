@@ -1,7 +1,7 @@
 """SQLAlchemy model for safeguarding bank accounts."""
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from sqlalchemy import Column, String, Boolean, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -25,7 +25,9 @@ class SafeguardingAccount(Base):
     status = Column(String(20), nullable=False, default="active")
     acknowledgement_letter_received = Column(Boolean, default=False)
     acknowledgement_date = Column(DateTime(timezone=True))
-    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    updated_at = Column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
+    )
 
     position_details = relationship("PositionDetail", back_populates="account")

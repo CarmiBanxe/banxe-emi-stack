@@ -1,7 +1,7 @@
 """Audit event model for ClickHouse immutable audit trail."""
 
 import uuid
-from datetime import datetime, date
+from datetime import UTC, datetime, date
 from decimal import Decimal
 from dataclasses import dataclass, field
 from typing import Optional
@@ -20,7 +20,7 @@ class AuditEvent:
     details: str = ""
     position_date: Optional[date] = None
     amount: Decimal = Decimal("0.00")
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def to_dict(self) -> dict:
         """Serialize for ClickHouse insertion."""

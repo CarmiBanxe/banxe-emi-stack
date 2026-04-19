@@ -8,7 +8,7 @@ and generates weekly summary reports.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 import logging
 
 from services.experiment_copilot.models.experiment import (
@@ -169,7 +169,7 @@ class ExperimentSteward:
 
     def generate_weekly_report(self) -> str:
         """Generate a markdown weekly summary of experiment activity."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         week_ago = now - timedelta(days=7)
 
         all_experiments = self._store.list_all()

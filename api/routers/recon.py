@@ -161,7 +161,7 @@ def get_recon_status(
         target_date = date.fromisoformat(as_of) if as_of else date.today()
     except ValueError:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Invalid date: {as_of}"
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid date: {as_of}"
         )
     reconciler = _get_reconciler()
     result = reconciler.reconcile(target_date)
@@ -198,7 +198,7 @@ def get_recon_report(
         target_date = date.fromisoformat(as_of) if as_of else date.today()
     except ValueError:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Invalid date: {as_of}"
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=f"Invalid date: {as_of}"
         )
     reconciler = _get_reconciler()
     result = reconciler.reconcile(target_date)

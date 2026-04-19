@@ -168,10 +168,10 @@ class AlertRouter:
 
     def _route_low(self, alert: AMLAlert) -> AMLAlert:
         """LOW: auto-close with audit log entry."""
-        from datetime import datetime
+        from datetime import UTC, datetime
 
         alert.status = AlertStatus.AUTO_CLOSED
-        alert.closed_at = datetime.utcnow()
+        alert.closed_at = datetime.now(UTC)
         alert.closure_reason = "Auto-closed: risk score below threshold (low risk)"
         alert.audit_trail.append(
             {

@@ -8,7 +8,7 @@ Queries Compliance KB (Part 1) → identifies coverage gaps → creates draft YA
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 import logging
 import re
 from typing import Any, Protocol, runtime_checkable
@@ -201,7 +201,7 @@ class ExperimentDesigner:
     # ── Helpers ────────────────────────────────────────────────────────────
 
     def _generate_id(self, scope: ExperimentScope, query: str) -> str:
-        date_str = datetime.utcnow().strftime("%Y-%m")
+        date_str = datetime.now(UTC).strftime("%Y-%m")
         slug = re.sub(r"[^a-z0-9]+", "-", query.lower())[:30].strip("-")
         short_scope = scope.value.split("_")[0][:4]
         return f"exp-{date_str}-{short_scope}-{slug}"

@@ -1,7 +1,7 @@
 """Common Pydantic schemas shared across Safeguarding Engine."""
 
 import uuid
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Generic, List, Optional, TypeVar
 
@@ -29,7 +29,7 @@ class StatusResponse(BaseModel):
 
     status: str
     message: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class PaginatedResponse(BaseModel, Generic[T]):
