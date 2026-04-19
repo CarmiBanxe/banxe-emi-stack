@@ -18,5 +18,3 @@
 - Router must become a transport boundary first
 - Token issuance/refresh must move before wider auth import
 - IAM contract should stabilize before adapter attachment
-- SCA should remain orchestration-level, not transport-level
-- 2FA should stay below SCA as implementation detail
