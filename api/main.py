@@ -37,6 +37,7 @@ from fastapi.responses import JSONResponse
 from api.routers import (
     api_gateway,
     audit_dashboard,
+    audit_trail,
     auth,
     batch_payments,
     beneficiary,
@@ -79,6 +80,7 @@ from api.routers import (
     support,
     transaction_monitor,
     treasury,
+    user_preferences,
     watchman_webhook,
     webhook_orchestrator,
 )
@@ -207,3 +209,9 @@ app.include_router(
 app.include_router(
     reporting_analytics.router, prefix=""
 )  # Reporting & Analytics Platform (IL-RAP-01) — /v1/reports/*
+app.include_router(
+    user_preferences.router, prefix="/v1"
+)  # User Preferences & Settings (IL-UPS-01) — /v1/preferences/*
+app.include_router(
+    audit_trail.router, prefix="/v1"
+)  # Audit Trail & Event Sourcing (IL-AES-01) — /v1/audit-trail/*

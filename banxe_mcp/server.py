@@ -4638,6 +4638,224 @@ async def batch_reconciliation_report(batch_id: str) -> str:
         return json.dumps({"error": "BANXE API unavailable", "batch_id": batch_id})
 
 
+# ── User Preferences Tools (IL-UPS-01) ───────────────────────────────────────
+
+
+@mcp_server.tool()
+async def prefs_get(user_id: str) -> str:
+    """Get all preferences for a user merged with defaults (IL-UPS-01).
+
+    Args:
+        user_id: User identifier
+
+    Returns:
+        JSON with preferences dict {category: {key: value}}.
+    """
+    try:
+        result = await _api_get(f"/v1/preferences/{user_id}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable", "user_id": user_id})
+
+
+@mcp_server.tool()
+async def prefs_set(user_id: str, category: str, key: str, value: str) -> str:
+    """Set a user preference value (IL-UPS-01).
+
+    Args:
+        user_id: User identifier
+        category: Preference category (DISPLAY, NOTIFICATIONS, PRIVACY, SECURITY, ACCESSIBILITY)
+        key: Preference key (must exist in defaults for that category)
+        value: New value to set
+
+    Returns:
+        JSON with updated preference details.
+    """
+    try:
+        result = await _api_post(
+            f"/v1/preferences/{user_id}/{category}/{key}",
+            {"value": value},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable", "user_id": user_id})
+
+
+@mcp_server.tool()
+async def prefs_consent_status(user_id: str) -> str:
+    """Get all GDPR consent records for a user (IL-UPS-01).
+
+    Args:
+        user_id: User identifier
+
+    Returns:
+        JSON with list of consent records including type, status, and timestamps.
+    """
+    try:
+        result = await _api_get(f"/v1/preferences/{user_id}/consents")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable", "user_id": user_id})
+
+
+@mcp_server.tool()
+async def prefs_export_data(user_id: str) -> str:
+    """Request a GDPR data export for a user (IL-UPS-01, GDPR Art.20).
+
+    Generates export with SHA-256 integrity hash (I-12).
+
+    Args:
+        user_id: User identifier
+
+    Returns:
+        JSON with export request ID, status, and SHA-256 hash.
+    """
+    try:
+        result = await _api_post(
+            f"/v1/preferences/{user_id}/export",
+            {"format": "json"},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable", "user_id": user_id})
+
+
+# ── Audit Trail Tools (IL-AES-01) ─────────────────────────────────────────────
+
+
+@mcp_server.tool()
+async def audit_log_event(
+    category: str,
+    action: str,
+    entity_id: str,
+    details_json: str,
+) -> str:
+    """Append an audit event with SHA-256 chain hash (IL-AES-01, I-12, I-24).
+
+    Args:
+        category: Event category (PAYMENT, COMPLIANCE, AUTH, ADMIN, SYSTEM, AML, CUSTOMER)
+        action: Audit action (CREATE, READ, UPDATE, DELETE, APPROVE, REJECT, ESCALATE, EXPORT)
+        entity_id: Entity being audited
+        details_json: JSON string with event details
+
+    Returns:
+        JSON with event_id and chain_hash.
+    """
+    try:
+        details = json.loads(details_json) if details_json else {}
+        result = await _api_post(
+            "/v1/audit-trail/events",
+            {
+                "category": category,
+                "action": action,
+                "entity_type": "generic",
+                "entity_id": entity_id,
+                "actor_id": "mcp_tool",
+                "details": details,
+                "source": "MCP_TOOL",
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable", "entity_id": entity_id})
+
+
+@mcp_server.tool()
+async def audit_search(
+    entity_id: str,
+    category: str = "",
+    limit: int = 20,
+) -> str:
+    """Search audit events for an entity (IL-AES-01).
+
+    Args:
+        entity_id: Entity to search for
+        category: Optional category filter (PAYMENT, AML, AUTH, etc.)
+        limit: Max results to return (default: 20)
+
+    Returns:
+        JSON with matching audit events.
+    """
+    try:
+        payload: dict = {"entity_id": entity_id, "page_size": limit}
+        if category:
+            payload["categories"] = [category]
+        result = await _api_post("/v1/audit-trail/search", payload)
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable", "entity_id": entity_id})
+
+
+@mcp_server.tool()
+async def audit_replay(entity_id: str, from_ts: str, to_ts: str) -> str:
+    """Replay audit events for an entity in a time range (IL-AES-01).
+
+    Args:
+        entity_id: Entity identifier
+        from_ts: Start timestamp ISO 8601 (e.g. 2024-01-01T00:00:00+00:00)
+        to_ts: End timestamp ISO 8601
+
+    Returns:
+        JSON with list of audit events in ascending order.
+    """
+    try:
+        result = await _api_get(
+            f"/v1/audit-trail/entities/{entity_id}/replay?from_ts={from_ts}&to_ts={to_ts}"
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable", "entity_id": entity_id})
+
+
+@mcp_server.tool()
+async def audit_verify_integrity(source: str) -> str:
+    """Verify SHA-256 chain integrity for an audit source (IL-AES-01, I-12).
+
+    Args:
+        source: Source system (API, MCP_TOOL, AGENT, SCHEDULER, MIGRATION, MANUAL)
+
+    Returns:
+        JSON with IntegrityReport: status CLEAN|COMPROMISED, tampered count, gaps.
+    """
+    try:
+        result = await _api_get(f"/v1/audit-trail/integrity/{source}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable", "source": source})
+
+
+@mcp_server.tool()
+async def audit_retention_status() -> str:
+    """List all audit retention rules (IL-AES-01, I-08).
+
+    Returns:
+        JSON with retention rules: policy, retention_days, category, purge_requires_hitl.
+    """
+    try:
+        result = await _api_get("/v1/audit-trail/retention/rules")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
 # ── Entry point ──────────────────────────────────────────────────────────
 
 

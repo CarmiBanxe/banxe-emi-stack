@@ -1286,6 +1286,88 @@ FCA refs: SUP 16 (regulatory reporting), SYSC 9 (record-keeping 5yr), PS22/9 §6
 
 commit: IL-RMS-01 + IL-RAP-01 | Sprint 29 | 2026-04-17
 
+---
+
+## Phase 39 — User Preferences & Settings ✅ DONE (Sprint 30 — 2026-04-17)
+
+> **IL:** IL-UPS-01 | **FCA:** GDPR Art.7, Art.17, Art.20, PS22/9 Consumer Duty | **Trust Zone:** AMBER
+
+| # | Module | Description | Status |
+|---|--------|-------------|--------|
+| 382 | models.py | 5 enums (PreferenceCategory×5, NotificationChannel×5, Language×7, Theme×4, ConsentType×5), 5 frozen dataclasses, 4 Protocols + InMemory stubs, 3 seeded prefs for USR-001 (DISPLAY/theme=DARK, NOTIFICATIONS/email_enabled=true, PRIVACY/analytics=false) | ✅ |
+| 383 | preference_store.py | DEFAULT_PREFERENCES (5 categories), PreferenceStore — get_preference (default fallback), set_preference (validates key, I-24 audit), reset_to_defaults, list_preferences (merged), get_all_user_prefs | ✅ |
+| 384 | consent_manager.py | ConsentManager — grant_consent (I-24), withdraw_consent → HITLProposal (I-27), confirm_withdrawal (I-24), get_consent_status, list_consents, is_essential_consent_active (GDPR legitimate interest) | ✅ |
+| 385 | notification_preferences.py | DAILY_FREQUENCY_CAPS per channel; NotificationPreferences — get_channel_prefs, set_channel_enabled, set_quiet_hours (validates 0-23), is_in_quiet_hours, check_frequency_cap, list_channel_prefs | ✅ |
+| 386 | locale_manager.py | FALLBACK_CHAIN (AR/ZH/RU→EN); LocaleManager — get_locale (EN/UTC/DD/MM/YYYY default), set_language, set_timezone, get_fallback_language, format_amount (Decimal I-01), list_supported_languages | ✅ |
+| 387 | data_export.py | DataExport — request_export (PENDING, I-24), generate_export (prefs+consents+notifications), complete_export (sha256 I-12, COMPLETED), request_erasure → HITLProposal (GDPR Art.17, I-27), get_export_status, list_exports | ✅ |
+| 388 | preferences_agent.py | HITLProposal dataclass; PreferencesAgent — process_preference_update (L1), process_consent_withdrawal (L4 HITL I-27), process_erasure_request (L4 HITL I-27), process_export_request (L1), get_agent_status | ✅ |
+| 389 | api/routers/user_preferences.py — 9 REST endpoints | /v1/preferences/* | ✅ |
+| 390 | 4 MCP tools: prefs_get, prefs_set, prefs_consent_status, prefs_export_data | ✅ |
+| 391 | Agent passport + SOUL.md | agents/passports/preferences/ | ✅ |
+| 392 | 100+ tests across 7 test files | tests/test_user_preferences/ | ✅ |
+
+FCA refs: GDPR Art.7 (consent conditions), Art.17 (right to erasure), Art.20 (data portability), PS22/9 (Consumer Duty — user control)
+
+---
+
+## Phase 40 — Audit Trail & Event Sourcing ✅ DONE (Sprint 30 — 2026-04-17)
+
+> **IL:** IL-AES-01 | **FCA:** FCA SYSC 9 (5yr retention), MLR 2017 (AML records), GDPR Art.5(1)(f) | **Trust Zone:** RED
+
+| # | Module | Description | Status |
+|---|--------|-------------|--------|
+| 393 | models.py | 5 enums (EventCategory×7, EventSeverity×5, RetentionPolicy×4, SourceSystem×6, AuditAction×8), 5 frozen dataclasses, 4 Protocols + InMemory stubs, 5 seeded events (2 PAYMENT/INFO, 1 AML/WARNING, 1 AUTH/ERROR, 1 ADMIN/INFO) | ✅ |
+| 394 | event_store.py | _compute_chain_hash (sha256 I-12); EventStore — append (chain_hash+prev_hash, I-24 append-only), get_event, list_by_entity, bulk_append, get_chain_head | ✅ |
+| 395 | event_replayer.py | EventReplayer — replay_entity (time range, ascending), replay_category, reconstruct_state (fold to dict), point_in_time_snapshot (metadata wrapper), get_event_timeline | ✅ |
+| 396 | retention_enforcer.py | DEFAULT_RULES (AML_5YR/FINANCIAL_7YR/OPERATIONAL_3YR/SYSTEM_1YR); RetentionEnforcer — get_retention_days, schedule_purge → HITLProposal (ALWAYS HITL I-27), list_due_for_purge (metadata only), get_rule, list_rules | ✅ |
+| 397 | search_engine.py | SearchEngine — search (category/severity/entity/actor/time filters, pagination), search_by_actor, search_by_entity, full_text_search (case-insensitive details), get_severity_summary | ✅ |
+| 398 | integrity_checker.py | IntegrityChecker — verify_chain (recompute sha256, count tampered/gaps), verify_event, detect_gaps (>1hr), generate_compliance_report, get_chain_status | ✅ |
+| 399 | audit_agent.py | HITLProposal dataclass; AuditAgent — process_log_request (L1), process_search_request (L1), process_replay_request (L1), process_purge_request (L4 HITL I-27), process_integrity_check (L1), get_agent_status | ✅ |
+| 400 | api/routers/audit_trail.py — 9 REST endpoints | /v1/audit-trail/* | ✅ |
+| 401 | 5 MCP tools: audit_log_event, audit_search, audit_replay, audit_verify_integrity, audit_retention_status | ✅ |
+| 402 | Agent passport + SOUL.md | agents/passports/audit_trail/ | ✅ |
+| 403 | 120+ tests across 7 test files | tests/test_audit_trail/ | ✅ |
+
+FCA refs: SYSC 9 (record-keeping 5yr), MLR 2017 (AML audit trail), GDPR Art.5(1)(f) (data integrity), I-12 (SHA-256 chain hash), I-24 (append-only), I-27 (HITL for purge)
+
+---
+
+## Sprint 30 — User Preferences + Audit Trail (2026-04-17)
+
+> **Scope:** 4 blocks — (A) Phase 39 User Preferences & Settings, (B) Phase 40 Audit Trail & Event Sourcing,
+> (C) ROADMAP Phase 39+40 sections, (D) P0 deadline 7 May 2026.
+
+### S30-A: Phase 39 — User Preferences & Settings (IL-UPS-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 382 | services/user_preferences/ — 7 modules | IL-UPS-01 | ✅ |
+| 383 | api/routers/user_preferences.py — 9 endpoints | IL-UPS-01 | ✅ |
+| 384 | 4 MCP tools: prefs_get, prefs_set, prefs_consent_status, prefs_export_data | IL-UPS-01 | ✅ |
+| 385 | Agent passport + SOUL.md | IL-UPS-01 | ✅ |
+| 386 | 100+ tests | IL-UPS-01 | ✅ |
+
+### S30-B: Phase 40 — Audit Trail & Event Sourcing (IL-AES-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 387 | services/audit_trail/ — 7 modules | IL-AES-01 | ✅ |
+| 388 | api/routers/audit_trail.py — 9 endpoints | IL-AES-01 | ✅ |
+| 389 | 5 MCP tools: audit_log_event, audit_search, audit_replay, audit_verify_integrity, audit_retention_status | IL-AES-01 | ✅ |
+| 390 | Agent passport + SOUL.md | IL-AES-01 | ✅ |
+| 391 | 120+ tests | IL-AES-01 | ✅ |
+
+### S30-C: Sprint 30 Targets
+
+| Metric | S29 Actual | S30 Target | S30 Actual |
+|--------|-----------|------------|-----------|
+| Tests | 5863 | 6083+ | 6100+ ✅ |
+| MCP tools | 143 | 152+ | 152 ✅ |
+| API endpoints | 289 | 307+ | 307 ✅ |
+| Agent passports | 37 | 39+ | 39 ✅ |
+
+commit: IL-UPS-01 + IL-AES-01 | Sprint 30 | 2026-04-17
+
 Sprint 2 – DONE:
 - Auth router → TokenManager (login/refresh)
 - Auth/IAM test suite green (auth_router + iam_* tests)
