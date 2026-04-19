@@ -43,6 +43,7 @@ from api.routers import (
     beneficiary,
     card_issuing,
     compliance_automation,
+    compliance_calendar,
     compliance_kb,
     consumer_duty,
     crypto_custody,
@@ -50,6 +51,7 @@ from api.routers import (
     dispute_resolution,
     document_management,
     experiments,
+    fee_management,
     fraud,
     fx_exchange,
     health,
@@ -215,3 +217,7 @@ app.include_router(
 app.include_router(
     audit_trail.router, prefix="/v1"
 )  # Audit Trail & Event Sourcing (IL-AES-01) — /v1/audit-trail/*
+app.include_router(fee_management.router)  # Fee Management Engine (IL-FME-01) — /v1/fees/*
+app.include_router(
+    compliance_calendar.router
+)  # Compliance Calendar & Deadline Tracker (IL-CCD-01) — /v1/compliance-calendar/*

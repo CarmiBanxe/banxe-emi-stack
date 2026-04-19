@@ -1368,6 +1368,88 @@ FCA refs: SYSC 9 (record-keeping 5yr), MLR 2017 (AML audit trail), GDPR Art.5(1)
 
 commit: IL-UPS-01 + IL-AES-01 | Sprint 30 | 2026-04-17
 
+---
+
+## Phase 41 — Fee Management Engine ✅ DONE (Sprint 31 — 2026-04-17)
+
+> **IL:** IL-FME-01 | **FCA:** PS21/3, BCOBS 5, PS22/9 §4 (Consumer Duty fee transparency) | **Trust Zone:** AMBER
+
+| # | Module | Description | Status |
+|---|--------|-------------|--------|
+| 404 | models.py | 5 enums (FeeType×6, FeeStatus×4, BillingCycle×4, WaiverReason×5, FeeCategory×5), 5 frozen dataclasses, 4 Protocols + InMemory stubs, 5 seeded rules (maintenance £4.99, ATM £1.50, FX 0.5%, SWIFT £25.00, card replacement £10.00) | ✅ |
+| 405 | fee_calculator.py | TIER_DISCOUNTS (STANDARD/GOLD/VIP/PREMIUM); TIERED_BRACKETS (3-tier: 0-1k@1%, 1k-10k@0.8%, 10k+@0.5%); FeeCalculator — calculate_fee (flat+pct+clamp I-01), calculate_tiered_fee, apply_discount, estimate_monthly_fees, get_fee_breakdown | ✅ |
+| 406 | billing_engine.py | BillingEngine — generate_invoice (period charges, totals, breakdown I-24), apply_charges (PENDING status I-24), get_outstanding, mark_paid (APPLIED+paid_at I-24), get_billing_history (limit N) | ✅ |
+| 407 | waiver_manager.py | WaiverManager — request_waiver → HITLProposal (ALWAYS I-27), approve_waiver (APPROVED+charge WAIVED I-24), reject_waiver (REJECTED I-24), list_active_waivers, check_waiver_eligibility (GOODWILL always, PROMOTION <3/90d) | ✅ |
+| 408 | fee_transparency.py | FeeTransparency — get_fee_schedule (public), compare_plans (side-by-side), estimate_annual_cost (12-month projection Decimal I-01), generate_disclosure (PS22/9 §4), get_regulatory_summary (PS21/3, BCOBS 5, PS22/9 §4) | ✅ |
+| 409 | fee_reconciler.py | OVERCHARGE_TOLERANCE=£0.01; FeeReconciler — reconcile_charges (matched/over/under/discrepancy), flag_overcharges (tolerance check), generate_refund_proposal → HITLProposal (ALWAYS I-27), get_reconciliation_report (CLEAN/DISCREPANCY) | ✅ |
+| 410 | fee_agent.py | FeeAgent — process_charge (auto L1), process_waiver_request (HITL L4 I-27), process_refund (HITL L4 I-27), process_schedule_change (HITL L4 I-27), get_agent_status | ✅ |
+| 411 | api/routers/fee_management.py — 9 REST endpoints | /v1/fees/* — GET /schedule, GET /schedule/compare, POST /estimate, GET|POST /accounts/{id}/charges, GET /accounts/{id}/outstanding, POST /accounts/{id}/waivers (HITL), GET /accounts/{id}/summary, POST /accounts/{id}/reconcile | ✅ |
+| 412 | 5 MCP tools: fee_calculate, fee_get_schedule, fee_request_waiver, fee_billing_summary, fee_reconcile | ✅ |
+| 413 | Agent passport + SOUL.md | agents/passports/fee_management/ | ✅ |
+| 414 | 110+ tests across 7 test files | tests/test_fee_management/ | ✅ |
+
+FCA refs: PS21/3 (fee transparency), BCOBS 5 (banking conduct), PS22/9 §4 (Consumer Duty value), I-01 (Decimal money), I-24 (append-only audit), I-27 (HITL for waivers/refunds)
+
+---
+
+## Phase 42 — Compliance Calendar & Deadline Tracker ✅ DONE (Sprint 31 — 2026-04-17)
+
+> **IL:** IL-CCD-01 | **FCA:** FIN060, MLR 2017, PS22/9, FCA CASS 15, SYSC 4 | **Trust Zone:** RED
+
+| # | Module | Description | Status |
+|---|--------|-------------|--------|
+| 415 | models.py | 5 enums (DeadlineType×6, DeadlineStatus×5, Priority×4, RecurrencePattern×5, ReminderChannel×4), 5 frozen dataclasses, 4 Protocols + InMemory stubs, 5 seeded deadlines (FIN060 Q1 CRITICAL, AML HIGH, Board HIGH, Consumer Duty MEDIUM, MLR CRITICAL) | ✅ |
+| 416 | deadline_manager.py | DeadlineManager — create_deadline (UPCOMING I-24), update_deadline → HITLProposal (ALWAYS I-27), complete_deadline (SHA-256 evidence I-12, I-24), miss_deadline (OVERDUE/ESCALATED for CRITICAL I-24), list_upcoming (days_ahead), get_overdue | ✅ |
+| 417 | reminder_engine.py | REMINDER_SCHEDULE_DAYS=[30,7,1]; ReminderEngine — schedule_reminders (T-30/7/1 per channel), send_reminder (stub), acknowledge_reminder (I-24), get_pending_reminders, configure_channels | ✅ |
+| 418 | recurrence_calculator.py | UK_TAX_YEAR Apr 6; RecurrenceCalculator — calculate_next (DAILY/WEEKLY/MONTHLY/QUARTERLY/ANNUAL), _add_months (overflow clamp), generate_series (N dates), get_fiscal_quarters (UK Apr6-Apr5), adjust_for_weekends (Sat/Sun→Mon), get_fca_reporting_dates (FIN060/AML/MLR) | ✅ |
+| 419 | task_tracker.py | TaskTracker — create_task (PENDING/0% I-24), assign_task, update_progress (0-100, auto-complete at 100), complete_task (I-24), get_tasks_by_deadline, get_workload_summary | ✅ |
+| 420 | calendar_reporter.py | CalendarReporter — generate_monthly_view, generate_quarterly_view (UK fiscal), get_compliance_score (completed/total*100 Decimal), export_ical (stub VCALENDAR+VEVENT), generate_board_calendar_report → HITLProposal (ALWAYS I-27) | ✅ |
+| 421 | calendar_agent.py | CalendarAgent — process_new_deadline (auto+reminders L1), process_deadline_update (HITL L4 I-27), process_reminder (auto L1), process_board_report (HITL L4 I-27), get_agent_status | ✅ |
+| 422 | api/routers/compliance_calendar.py — 9 REST endpoints | /v1/compliance-calendar/* — GET|POST /deadlines, GET /deadlines/{id}, POST /deadlines/{id}/complete, GET /deadlines/upcoming, GET /deadlines/overdue, POST|GET /tasks, GET /score | ✅ |
+| 423 | 4 MCP tools: calendar_list_deadlines, calendar_create_deadline, calendar_get_upcoming, calendar_compliance_score | ✅ |
+| 424 | Agent passport + SOUL.md | agents/passports/compliance_calendar/ | ✅ |
+| 425 | 110+ tests across 7 test files | tests/test_compliance_calendar/ | ✅ |
+
+FCA refs: FIN060 (quarterly returns), MLR 2017 (AML annual return), PS22/9 (Consumer Duty assessment), FCA CASS 15 (safeguarding calendar), SYSC 4 (compliance oversight), I-12 (SHA-256 evidence), I-24 (append-only), I-27 (HITL for deadline updates + board reports)
+
+---
+
+## Sprint 31 — Fee Management + Compliance Calendar (2026-04-17)
+
+> **Scope:** 4 blocks — (A) Phase 41 Fee Management Engine, (B) Phase 42 Compliance Calendar,
+> (C) ROADMAP Phase 41+42 sections, (D) P0 deadline 7 May 2026.
+
+### S31-A: Phase 41 — Fee Management Engine (IL-FME-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 404 | services/fee_management/ — 7 modules | IL-FME-01 | ✅ |
+| 405 | api/routers/fee_management.py — 9 endpoints | IL-FME-01 | ✅ |
+| 406 | 5 MCP tools: fee_calculate, fee_get_schedule, fee_request_waiver, fee_billing_summary, fee_reconcile | IL-FME-01 | ✅ |
+| 407 | Agent passport + SOUL.md | IL-FME-01 | ✅ |
+| 408 | 110+ tests | IL-FME-01 | ✅ |
+
+### S31-B: Phase 42 — Compliance Calendar & Deadline Tracker (IL-CCD-01)
+
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 409 | services/compliance_calendar/ — 7 modules | IL-CCD-01 | ✅ |
+| 410 | api/routers/compliance_calendar.py — 9 endpoints | IL-CCD-01 | ✅ |
+| 411 | 4 MCP tools: calendar_list_deadlines, calendar_create_deadline, calendar_get_upcoming, calendar_compliance_score | IL-CCD-01 | ✅ |
+| 412 | Agent passport + SOUL.md | IL-CCD-01 | ✅ |
+| 413 | 110+ tests | IL-CCD-01 | ✅ |
+
+### S31-C: Sprint 31 Targets
+
+| Metric | S30 Actual | S31 Target | S31 Actual |
+|--------|-----------|------------|-----------|
+| Tests | 6314 | 6534+ | 6534 ✅ |
+| MCP tools | 161 | 170+ | 170 ✅ |
+| API endpoints | 328 | 346+ | 346 ✅ |
+| Agent passports | 41 | 43+ | 43 ✅ |
+
+commit: IL-FME-01 + IL-CCD-01 | Sprint 31 | 2026-04-17
+
 Sprint 2 – DONE:
 - Auth router → TokenManager (login/refresh)
 - Auth/IAM test suite green (auth_router + iam_* tests)

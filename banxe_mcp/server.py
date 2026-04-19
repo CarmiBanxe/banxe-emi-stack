@@ -4856,6 +4856,207 @@ async def audit_retention_status() -> str:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
+# ── Phase 41: Fee Management Engine (IL-FME-01) ──────────────────────────────
+
+
+@mcp_server.tool()
+async def fee_calculate(rule_id: str, transaction_amount: str) -> str:
+    """Calculate fee for a rule and transaction amount (IL-FME-01, I-01).
+
+    Args:
+        rule_id: Fee rule ID (e.g. rule-maintenance-001)
+        transaction_amount: Transaction amount as decimal string (e.g. '500.00')
+
+    Returns:
+        JSON with calculated fee amount as string.
+    """
+    try:
+        result = await _api_post(
+            "/v1/fees/estimate",
+            {
+                "transactions": 1,
+                "avg_amount": transaction_amount,
+                "fx_volume": "0.00",
+                "tier": "STANDARD",
+            },
+        )
+        return json.dumps(
+            {"rule_id": rule_id, "transaction_amount": transaction_amount, "result": result},
+            indent=2,
+        )
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable", "rule_id": rule_id})
+
+
+@mcp_server.tool()
+async def fee_get_schedule() -> str:
+    """Get all active fee rules (public-facing schedule) (IL-FME-01).
+
+    Returns:
+        JSON with list of fee rules including amounts as strings.
+    """
+    try:
+        result = await _api_get("/v1/fees/schedule")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def fee_request_waiver(charge_id: str, account_id: str, reason: str) -> str:
+    """Request a fee waiver — always returns HITLProposal (IL-FME-01, I-27).
+
+    Args:
+        charge_id: The charge ID to waive
+        account_id: Account ID
+        reason: Waiver reason (GOODWILL, PROMOTION, ERROR_CORRECTION, VIP_TIER, REGULATORY)
+
+    Returns:
+        JSON with HITLProposal requiring human approval.
+    """
+    try:
+        result = await _api_post(
+            f"/v1/fees/accounts/{account_id}/waivers",
+            {"charge_id": charge_id, "reason": reason, "requested_by": "mcp_agent"},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable", "account_id": account_id})
+
+
+@mcp_server.tool()
+async def fee_billing_summary(account_id: str) -> str:
+    """Get fee billing summary for an account (IL-FME-01, I-01).
+
+    Args:
+        account_id: Account ID
+
+    Returns:
+        JSON with FeeSummary: total_charged, total_waived, outstanding (all as strings).
+    """
+    try:
+        result = await _api_get(f"/v1/fees/accounts/{account_id}/summary")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable", "account_id": account_id})
+
+
+@mcp_server.tool()
+async def fee_reconcile(account_id: str) -> str:
+    """Reconcile expected vs actual charges for account (IL-FME-01).
+
+    Args:
+        account_id: Account ID
+
+    Returns:
+        JSON with reconciliation report: status CLEAN|DISCREPANCY, discrepancy as string.
+    """
+    try:
+        result = await _api_post(f"/v1/fees/accounts/{account_id}/reconcile", {})
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable", "account_id": account_id})
+
+
+# ── Phase 42: Compliance Calendar & Deadline Tracker (IL-CCD-01) ─────────────
+
+
+@mcp_server.tool()
+async def calendar_list_deadlines() -> str:
+    """List all compliance deadlines (IL-CCD-01).
+
+    Returns:
+        JSON with all compliance deadlines and their statuses.
+    """
+    try:
+        result = await _api_get("/v1/compliance-calendar/deadlines")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def calendar_create_deadline(
+    title: str, deadline_type: str, priority: str, due_date: str, owner: str
+) -> str:
+    """Create a new compliance deadline (IL-CCD-01).
+
+    Args:
+        title: Deadline title
+        deadline_type: Type (FCA_RETURN, AML_REVIEW, BOARD_REPORT, AUDIT, LICENCE_RENEWAL, CUSTOM)
+        priority: Priority (LOW, MEDIUM, HIGH, CRITICAL)
+        due_date: Due date ISO format (e.g. 2026-06-30)
+        owner: Responsible owner (e.g. CFO, MLRO)
+
+    Returns:
+        JSON with created ComplianceDeadline.
+    """
+    try:
+        result = await _api_post(
+            "/v1/compliance-calendar/deadlines",
+            {
+                "title": title,
+                "deadline_type": deadline_type,
+                "priority": priority,
+                "due_date": due_date,
+                "owner": owner,
+                "description": "Created via MCP by calendar_create_deadline",
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def calendar_get_upcoming(days_ahead: int = 30) -> str:
+    """Get upcoming compliance deadlines within N days (IL-CCD-01).
+
+    Args:
+        days_ahead: Number of days to look ahead (default: 30)
+
+    Returns:
+        JSON with list of upcoming deadlines.
+    """
+    try:
+        result = await _api_get(f"/v1/compliance-calendar/deadlines/upcoming?days={days_ahead}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def calendar_compliance_score() -> str:
+    """Get current compliance score (completed / total * 100) (IL-CCD-01).
+
+    Returns:
+        JSON with compliance_score as string decimal (I-01).
+    """
+    try:
+        result = await _api_get("/v1/compliance-calendar/score")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
 # ── Entry point ──────────────────────────────────────────────────────────
 
 
