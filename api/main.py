@@ -53,6 +53,7 @@ from api.routers import (
     experiments,
     fee_management,
     fraud,
+    fx_engine,
     fx_exchange,
     health,
     hitl,
@@ -80,6 +81,7 @@ from api.routers import (
     scheduled_payments,
     statements,
     support,
+    swift_correspondent,
     transaction_monitor,
     treasury,
     user_preferences,
@@ -221,3 +223,7 @@ app.include_router(fee_management.router)  # Fee Management Engine (IL-FME-01) â
 app.include_router(
     compliance_calendar.router
 )  # Compliance Calendar & Deadline Tracker (IL-CCD-01) â€” /v1/compliance-calendar/*
+app.include_router(
+    swift_correspondent.router, prefix="/v1/swift"
+)  # SWIFT & Correspondent Banking (IL-SWF-01)
+app.include_router(fx_engine.router, prefix="/v1/fx")  # FX Engine (IL-FXE-01)
