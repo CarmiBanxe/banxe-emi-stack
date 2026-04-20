@@ -1593,3 +1593,77 @@ commit: IL-CDC-01 + IL-BPP-01 | Sprint 28 | 2026-04-17
 | Agent passports | 43+ | 45+ | 45 ✅ |
 
 commit: IL-MT-01 + IL-AVD-01 | Sprint 32 | 2026-04-20
+
+---
+
+## Phase 45 — KYB Business Onboarding ✅ DONE (Sprint 33 — 2026-04-20)
+
+> **IL:** IL-KYB-01 | **FCA:** MLR 2017 Reg.28, FCA SYSC 6.3, Companies House Act 2006, EU AMLD5 Art.30 | **Trust Zone:** RED
+
+| # | Module | Description | Status |
+|---|--------|-------------|--------|
+| 431 | models.py | 5 enums (BusinessType×6, KYBStatus×6, UBOVerification×4, RiskTier×4, DocumentType×6), 5 frozen dataclasses, 4 Protocols + InMemory stubs (3 seeded applications) | ✅ |
+| 432 | application_manager.py | submit (I-24 audit, I-02 jurisdiction block, SHA-256 app_id I-12), validate_documents (Companies House format), request_docs, update_status (HITL for APPROVED/REJECTED I-27) | ✅ |
+| 433 | ubo_registry.py | register_ubo (≥25% threshold Decimal I-01, PSC register), verify_identity (stub BT-002), screen_sanctions (I-02 block, I-03 FATF greylist → EDD), calculate_control_percentage (Decimal I-01) | ✅ |
+| 434 | companies_house_adapter.py | Protocol + InMemory (3 seeded: LTD active, LLP active, dissolved), live adapter raises NotImplementedError (BT-002) | ✅ |
+| 435 | risk_assessor.py | assess_risk (Decimal score 0-100 I-01, factors: jurisdiction/UBO count/business type/company age), classify_tier (LOW/MEDIUM/HIGH/PROHIBITED), batch_reassess | ✅ |
+| 436 | onboarding_workflow.py | 5-stage workflow (doc_check→ubo_verify→sanctions→risk→decision), SLA 5 business days, calculate_sla_remaining | ✅ |
+| 437 | kyb_agent.py | HITLProposal; L1 auto-validate, L4 HITL for decisions/suspension (I-27), process_decision ALWAYS HITL | ✅ |
+| 438 | api/routers/kyb_onboarding.py — 10 REST endpoints | /v1/kyb/* | ✅ |
+| 439 | 5 MCP tools: kyb_submit_application, kyb_get_status, kyb_screen_ubos, kyb_risk_assessment, kyb_get_decision | ✅ |
+| 440 | Agent passport + SOUL.md | agents/passports/kyb_onboarding/ | ✅ |
+| 441 | 120+ tests across 7 test files | tests/test_kyb_onboarding/ | ✅ |
+
+FCA refs: MLR 2017 Reg.28 (CDD on legal persons), FCA SYSC 6.3, Companies House Act 2006, EU AMLD5 Art.30 (UBO registry). I-02 hard-block, I-24 append-only decisions, I-27 HITL for APPROVED/REJECTED.
+
+---
+
+## Phase 46 — Sanctions Real-Time Screening Engine ✅ DONE (Sprint 33 — 2026-04-20)
+
+> **IL:** IL-SRS-01 | **FCA:** MLR 2017 Reg.28, OFSI, EU Regulation 269/2014, FATF R.6 | **Trust Zone:** RED
+
+| # | Module | Description | Status |
+|---|--------|-------------|--------|
+| 442 | models.py | 5 enums (ScreeningResult×4, ListSource×6, MatchConfidence×3, EntityType×3, AlertStatus×5), 5 frozen dataclasses, 4 Protocols + InMemory stubs (5 seeded OFSI+EU entries) | ✅ |
+| 443 | screening_engine.py | screen_entity (I-02 hard-block, fuzzy match, POSSIBLE/CONFIRMED thresholds), screen_transaction (I-04 EDD ≥£10k), batch_screen, calculate_match_score (Decimal I-01) | ✅ |
+| 444 | list_manager.py | load_list (SHA-256 checksum I-12), update_list (version check), compare_versions, schedule_refresh (stub) | ✅ |
+| 445 | fuzzy_matcher.py | match_name (difflib SequenceMatcher → Decimal I-01), composite_score (weighted Decimal), classify_confidence (LOW/MEDIUM/HIGH thresholds Decimal) | ✅ |
+| 446 | alert_handler.py | create_alert (I-24 append-only), escalate (HITLProposal I-27 → MLRO), resolve (I-24 new record), auto_block_confirmed (HITLProposal I-27), alert_stats | ✅ |
+| 447 | compliance_reporter.py | generate_sar (POCA 2002 s.330, ALWAYS HITL I-27), generate_ofsi_report, export_audit_trail (SHA-256 I-12), generate_board_summary (HITL I-27) | ✅ |
+| 448 | sanctions_agent.py | HITLProposal; L1 auto for CLEAR, L4 HITL for POSSIBLE/CONFIRMED (I-27), process_sar_filing ALWAYS HITL (POCA 2002 s.330), process_account_freeze HITL | ✅ |
+| 449 | api/routers/sanctions_screening.py — 9 REST endpoints | /v1/sanctions/* | ✅ |
+| 450 | 5 MCP tools: sanctions_screen_entity, sanctions_screen_transaction, sanctions_get_alerts, sanctions_resolve_alert, sanctions_screening_stats | ✅ |
+| 451 | Agent passport + SOUL.md | agents/passports/sanctions_screening/ | ✅ |
+| 452 | 115+ tests across 7 test files | tests/test_sanctions_screening/ | ✅ |
+
+FCA refs: MLR 2017 Reg.28 (sanctions DD), OFSI, EU Reg 269/2014 (asset freezing), FATF R.6, POCA 2002 s.330 (SAR filing). I-02 hard-block, I-04 EDD threshold, I-12 SHA-256 integrity, I-24 append-only, I-27 HITL.
+
+---
+
+## Sprint 33 — KYB Onboarding + Sanctions Screening (2026-04-20)
+
+### S33-A: Phase 45 KYB Business Onboarding (IL-KYB-01)
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 431-437 | services/kyb_onboarding/ — 7 modules | IL-KYB-01 | ✅ |
+| 438 | api/routers/kyb_onboarding.py — 10 endpoints | IL-KYB-01 | ✅ |
+| 439 | 5 MCP tools | IL-KYB-01 | ✅ |
+| 440-441 | Agent passport + 120+ tests | IL-KYB-01 | ✅ |
+
+### S33-B: Phase 46 Sanctions Real-Time Screening (IL-SRS-01)
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 442-448 | services/sanctions_screening/ — 7 modules | IL-SRS-01 | ✅ |
+| 449 | api/routers/sanctions_screening.py — 9 endpoints | IL-SRS-01 | ✅ |
+| 450 | 5 MCP tools | IL-SRS-01 | ✅ |
+| 451-452 | Agent passport + 115+ tests | IL-SRS-01 | ✅ |
+
+### S33-C: Sprint 33 Targets
+| Metric | S32 Actual | S33 Target | S33 Actual |
+|--------|-----------|------------|-----------|
+| Tests | 6732 | 6960+ | 6971 ✅ |
+| MCP tools | 179 | 189+ | 189 ✅ |
+| API endpoints | 365 | 384+ | 384 ✅ |
+| Agent passports | 45 | 47+ | 47 ✅ |
+
+commit: IL-KYB-01 + IL-SRS-01 | Sprint 33 | 2026-04-20

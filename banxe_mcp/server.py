@@ -5246,6 +5246,255 @@ async def version_get_changelog(version_from: str, version_to: str) -> str:
 # ── Entry point ──────────────────────────────────────────────────────────
 
 
+# ── KYB Business Onboarding MCP tools (IL-KYB-01) ───────────────────────────
+
+
+@mcp_server.tool()
+async def kyb_submit_application(
+    business_name: str,
+    business_type: str,
+    companies_house_number: str,
+    jurisdiction: str,
+) -> str:
+    """Submit KYB application for business onboarding. MLR 2017 Reg.28.
+
+    Args:
+        business_name: Legal name of the business
+        business_type: One of: sole_trader, ltd, llp, plc, partnership, charity
+        companies_house_number: Companies House registration number
+        jurisdiction: ISO country code (blocked: RU/BY/IR/KP/CU/MM/AF/VE/SY)
+
+    Returns:
+        JSON with application_id, status, submitted_at.
+    """
+    try:
+        result = await _api_post(
+            "/v1/kyb/applications",
+            {
+                "business_name": business_name,
+                "business_type": business_type,
+                "companies_house_number": companies_house_number,
+                "jurisdiction": jurisdiction,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def kyb_get_status(application_id: str) -> str:
+    """Get KYB application status and workflow stage.
+
+    Args:
+        application_id: Application ID (e.g. app_001)
+
+    Returns:
+        JSON with application details and current workflow stage.
+    """
+    try:
+        result = await _api_get(f"/v1/kyb/applications/{application_id}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def kyb_screen_ubos(application_id: str) -> str:
+    """Screen all UBOs against sanctions lists. I-02 hard-block applied.
+
+    Args:
+        application_id: KYB application ID
+
+    Returns:
+        JSON with screening result or HITLProposal if sanctions hit.
+    """
+    try:
+        result = await _api_post(f"/v1/kyb/applications/{application_id}/screen", {})
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def kyb_risk_assessment(application_id: str) -> str:
+    """Run KYB risk assessment and classify risk tier.
+
+    Args:
+        application_id: KYB application ID
+
+    Returns:
+        JSON with risk_score (Decimal), risk_tier (LOW/MEDIUM/HIGH/PROHIBITED), factors.
+    """
+    try:
+        result = await _api_post(f"/v1/kyb/applications/{application_id}/risk", {})
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def kyb_get_decision(application_id: str) -> str:
+    """Get latest KYB decision (HITL-required for APPROVED/REJECTED).
+
+    Args:
+        application_id: KYB application ID
+
+    Returns:
+        JSON with workflow status or HITLProposal requiring approval.
+    """
+    try:
+        result = await _api_get(f"/v1/kyb/applications/{application_id}/workflow")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+# ── Sanctions Real-Time Screening MCP tools (IL-SRS-01) ─────────────────────
+
+
+@mcp_server.tool()
+async def sanctions_screen_entity(
+    entity_name: str,
+    entity_type: str,
+    nationality: str,
+    date_of_birth: str = "",
+) -> str:
+    """Real-time entity screening against OFSI/EU/UN/OFAC sanctions lists. I-02 hard-block applied.
+
+    Args:
+        entity_name: Full name of individual or organisation
+        entity_type: One of: individual, organisation, vessel
+        nationality: ISO 2-letter country code
+        date_of_birth: YYYY-MM-DD format (optional)
+
+    Returns:
+        JSON with result (clear/possible_match/confirmed_match), report_id, hits count.
+    """
+    try:
+        payload: dict = {
+            "entity_name": entity_name,
+            "entity_type": entity_type,
+            "nationality": nationality,
+        }
+        if date_of_birth:
+            payload["date_of_birth"] = date_of_birth
+        result = await _api_post("/v1/sanctions/screen/entity", payload)
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def sanctions_screen_transaction(
+    counterparty_name: str,
+    amount_gbp: str,
+    nationality: str,
+) -> str:
+    """Screen transaction counterparty. EDD triggered if amount >= £10k (I-04).
+
+    Args:
+        counterparty_name: Name of transaction counterparty
+        amount_gbp: Transaction amount in GBP (string Decimal)
+        nationality: Counterparty ISO 2-letter country code
+
+    Returns:
+        JSON with screening result and EDD flag if threshold exceeded.
+    """
+    try:
+        result = await _api_post(
+            "/v1/sanctions/screen/transaction",
+            {
+                "counterparty_name": counterparty_name,
+                "amount_gbp": amount_gbp,
+                "nationality": nationality,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def sanctions_get_alerts(status: str = "open") -> str:
+    """Get sanctions alerts by status (open/under_review/escalated).
+
+    Args:
+        status: Alert status filter (default: open)
+
+    Returns:
+        JSON list of AlertCase objects.
+    """
+    try:
+        result = await _api_get(f"/v1/sanctions/alerts?status={status}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def sanctions_resolve_alert(
+    alert_id: str,
+    is_true_positive: bool,
+    notes: str = "",
+) -> str:
+    """Resolve sanctions alert as true/false positive. I-24 append-only.
+
+    Args:
+        alert_id: Alert ID to resolve
+        is_true_positive: True if confirmed sanctions match, False if false positive
+        notes: Resolution notes
+
+    Returns:
+        JSON with resolved AlertCase (new record, I-24 append-only).
+    """
+    try:
+        result = await _api_post(
+            f"/v1/sanctions/alerts/{alert_id}/resolve",
+            {"is_true_positive": is_true_positive, "notes": notes},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def sanctions_screening_stats(period: str = "daily") -> str:
+    """Get sanctions screening statistics (daily/weekly/monthly).
+
+    Args:
+        period: Reporting period (daily/weekly/monthly)
+
+    Returns:
+        JSON with total/clear/possible_match/confirmed_match/error counts.
+    """
+    try:
+        result = await _api_get(f"/v1/sanctions/stats?period={period}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
 def main() -> None:
     """Run MCP server."""
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")

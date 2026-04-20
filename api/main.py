@@ -58,6 +58,7 @@ from api.routers import (
     health,
     hitl,
     insurance,
+    kyb_onboarding,
     kyc,
     ledger,
     lending,
@@ -78,6 +79,7 @@ from api.routers import (
     risk_management,
     safeguarding,
     sanctions_rescreen,
+    sanctions_screening,
     savings,
     scheduled_payments,
     statements,
@@ -227,3 +229,9 @@ app.include_router(multi_tenancy.router)  # Multi-Tenancy Infrastructure (IL-MT-
 app.include_router(
     api_versioning.router
 )  # API Versioning & Deprecation (IL-AVD-01) — /v1/api-versions/*
+app.include_router(
+    kyb_onboarding.router, prefix="/v1/kyb"
+)  # KYB Business Onboarding (IL-KYB-01) — /v1/kyb/*
+app.include_router(
+    sanctions_screening.router, prefix="/v1/sanctions"
+)  # Sanctions Real-Time Screening (IL-SRS-01) — /v1/sanctions/*
