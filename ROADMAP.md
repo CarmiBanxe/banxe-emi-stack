@@ -1548,3 +1548,48 @@ FCA refs: PSR 2017 (bulk payments), Bacs scheme rules, SEPA pain.001 ISO 20022, 
 | Agent passports | 35 | 37+ | 37 ✅ |
 
 commit: IL-CDC-01 + IL-BPP-01 | Sprint 28 | 2026-04-17
+
+
+---
+
+## Phase 43 — Multi-Tenancy Infrastructure ✅ DONE (Sprint 32 — 2026-04-20)
+
+| # | Module | IL | Status |
+|---|--------|-----|--------|
+| 370 | services/multi_tenancy/models.py — Tenant/TenantContext/TenantQuota/HITLProposal + Protocols + InMemory stubs | IL-MT-01 | ✅ |
+| 371 | services/multi_tenancy/tenant_manager.py — provision/activate/suspend/terminate (HITL I-27), KYB, CASS 7 pool | IL-MT-01 | ✅ |
+| 372 | services/multi_tenancy/context_middleware.py — tenant context extraction + scope validation | IL-MT-01 | ✅ |
+| 373 | services/multi_tenancy/quota_enforcer.py — per-tier quota enforcement (Decimal I-01) | IL-MT-01 | ✅ |
+| 374 | services/multi_tenancy/data_isolator.py — row-level/schema/dedicated isolation | IL-MT-01 | ✅ |
+| 375 | services/multi_tenancy/billing_engine.py — monthly invoice + overage (Decimal I-01), HITL on payment failure | IL-MT-01 | ✅ |
+| 376 | services/multi_tenancy/isolation_validator.py — CASS 7 pool separation, GDPR Art.25 data residence | IL-MT-01 | ✅ |
+| 377 | api/routers/multi_tenancy.py — 10 endpoints | IL-MT-01 | ✅ |
+| 378 | 5 MCP tools: tenant_provision, tenant_get_status, tenant_suspend, tenant_check_quota, tenant_audit_log | IL-MT-01 | ✅ |
+| 379 | Agent passport: agents/passports/multi_tenancy/PASSPORT.md | IL-MT-01 | ✅ |
+| 380 | 107+ tests in tests/test_multi_tenancy/ (7 files) | IL-MT-01 | ✅ |
+
+## Phase 44 — API Versioning & Deprecation Management ✅ DONE (Sprint 32 — 2026-04-20)
+
+| # | Module | IL | Status |
+|---|--------|-----|--------|
+| 381 | services/api_versioning/models.py — ApiVersionSpec/BreakingChange/DeprecationNotice/HITLProposal | IL-AVD-01 | ✅ |
+| 382 | services/api_versioning/version_router.py — version registry, Accept-Version, RFC 8594 Sunset header | IL-AVD-01 | ✅ |
+| 383 | services/api_versioning/deprecation_manager.py — 90-day FCA notice, COND 2.2 format, HITL sunset | IL-AVD-01 | ✅ |
+| 384 | services/api_versioning/changelog_generator.py — breaking change log, markdown changelog, migration guides | IL-AVD-01 | ✅ |
+| 385 | services/api_versioning/compatibility_checker.py — backward compat check, field removal detection | IL-AVD-01 | ✅ |
+| 386 | services/api_versioning/version_analytics.py — usage tracking, sunset risk, migration pressure | IL-AVD-01 | ✅ |
+| 387 | api/routers/api_versioning.py — 9 endpoints | IL-AVD-01 | ✅ |
+| 388 | 4 MCP tools: version_list_active, version_get_deprecations, version_check_compatibility, version_get_changelog | IL-AVD-01 | ✅ |
+| 389 | Agent passport: agents/passports/api_versioning/PASSPORT.md | IL-AVD-01 | ✅ |
+| 390 | 91+ tests in tests/test_api_versioning/ (6 files) | IL-AVD-01 | ✅ |
+
+## Sprint 32 — Multi-Tenancy + API Versioning (2026-04-20)
+
+| Metric | S31 Actual | S32 Target | S32 Actual |
+|--------|-----------|------------|-----------|
+| Tests | 6534 | 6730+ | 6732 ✅ |
+| MCP tools | 170 | 179+ | 179 ✅ |
+| API endpoints | 346 | 364+ | 365 ✅ |
+| Agent passports | 43+ | 45+ | 45 ✅ |
+
+commit: IL-MT-01 + IL-AVD-01 | Sprint 32 | 2026-04-20

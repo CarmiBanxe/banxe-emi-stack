@@ -36,6 +36,7 @@ from fastapi.responses import JSONResponse
 
 from api.routers import (
     api_gateway,
+    api_versioning,
     audit_dashboard,
     audit_trail,
     auth,
@@ -64,6 +65,7 @@ from api.routers import (
     merchant_acquiring,
     mlro_notifications,
     multi_currency,
+    multi_tenancy,
     notifications,
     notifications_hub,
     open_banking,
@@ -221,3 +223,7 @@ app.include_router(fee_management.router)  # Fee Management Engine (IL-FME-01) �
 app.include_router(
     compliance_calendar.router
 )  # Compliance Calendar & Deadline Tracker (IL-CCD-01) — /v1/compliance-calendar/*
+app.include_router(multi_tenancy.router)  # Multi-Tenancy Infrastructure (IL-MT-01) — /v1/tenants/*
+app.include_router(
+    api_versioning.router
+)  # API Versioning & Deprecation (IL-AVD-01) — /v1/api-versions/*

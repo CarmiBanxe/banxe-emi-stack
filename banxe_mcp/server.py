@@ -5057,6 +5057,192 @@ async def calendar_compliance_score() -> str:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
+# ── Multi-Tenancy MCP tools (IL-MT-01) ──────────────────────────────────
+
+
+@mcp_server.tool()
+async def tenant_provision(name: str, tier: str, jurisdiction: str) -> str:
+    """Provision a new tenant (returns HITLProposal). IL-MT-01.
+
+    Args:
+        name: Tenant business name
+        tier: Tenant tier (basic / business / enterprise)
+        jurisdiction: ISO country code (e.g. GB)
+
+    Returns:
+        JSON with HITLProposal requiring approval before activation.
+    """
+    try:
+        result = await _api_post(
+            "/v1/tenants/",
+            {"name": name, "tier": tier, "jurisdiction": jurisdiction, "kyb_docs": []},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def tenant_get_status(tenant_id: str) -> str:
+    """Get tenant info + quota status. IL-MT-01.
+
+    Args:
+        tenant_id: Tenant ID (e.g. ten_abc12345)
+
+    Returns:
+        JSON with tenant details and quota report.
+    """
+    try:
+        tenant = await _api_get(f"/v1/tenants/{tenant_id}")
+        quota = await _api_get(f"/v1/tenants/{tenant_id}/quota")
+        return json.dumps({"tenant": tenant, "quota": quota}, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def tenant_suspend(tenant_id: str, reason: str) -> str:
+    """Suspend a tenant (returns HITLProposal). IL-MT-01.
+
+    Args:
+        tenant_id: Tenant ID to suspend
+        reason: Reason for suspension (e.g. AML concern)
+
+    Returns:
+        JSON with HITLProposal requiring compliance approval.
+    """
+    try:
+        result = await _api_post(
+            f"/v1/tenants/{tenant_id}/suspend",
+            {"reason": reason, "actor": "mcp"},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def tenant_check_quota(tenant_id: str, amount_gbp: str) -> str:
+    """Check if a transaction amount fits within tenant quota. IL-MT-01.
+
+    Args:
+        tenant_id: Tenant ID
+        amount_gbp: Transaction amount in GBP as string (e.g. '500.00')
+
+    Returns:
+        JSON with quota report including daily and monthly usage.
+    """
+    try:
+        result = await _api_get(f"/v1/tenants/{tenant_id}/quota")
+        return json.dumps(
+            {"tenant_id": tenant_id, "quota": result, "amount_gbp": amount_gbp}, indent=2
+        )
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def tenant_audit_log(tenant_id: str) -> str:
+    """Get audit log entries for a tenant. IL-MT-01 (I-24 append-only).
+
+    Args:
+        tenant_id: Tenant ID
+
+    Returns:
+        JSON with list of immutable audit entries.
+    """
+    try:
+        result = await _api_get(f"/v1/tenants/{tenant_id}/audit-log")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+# ── API Versioning MCP tools (IL-AVD-01) ─────────────────────────────────
+
+
+@mcp_server.tool()
+async def version_list_active() -> str:
+    """List all active (non-sunset) API versions. IL-AVD-01.
+
+    Returns:
+        JSON with list of ApiVersionSpec objects.
+    """
+    try:
+        result = await _api_get("/v1/api-versions/")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def version_get_deprecations() -> str:
+    """Get all API deprecation notices. IL-AVD-01 (FCA COND 2.2).
+
+    Returns:
+        JSON with list of DeprecationNotice objects including sunset dates.
+    """
+    try:
+        result = await _api_get("/v1/api-versions/deprecations")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def version_check_compatibility(version_from: str, version_to: str) -> str:
+    """Check API compatibility between two versions. IL-AVD-01.
+
+    Args:
+        version_from: Source version (e.g. v1)
+        version_to: Target version (e.g. v2)
+
+    Returns:
+        JSON with compatibility matrix and migration path validation.
+    """
+    try:
+        result = await _api_get("/v1/api-versions/compatibility")
+        return json.dumps({"from": version_from, "to": version_to, "matrix": result}, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def version_get_changelog(version_from: str, version_to: str) -> str:
+    """Get changelog and migration guide between API versions. IL-AVD-01.
+
+    Args:
+        version_from: Source version (e.g. v1)
+        version_to: Target version (e.g. v2)
+
+    Returns:
+        JSON with changelog markdown and migration steps.
+    """
+    try:
+        result = await _api_get(f"/v1/api-versions/changelog/{version_from}/{version_to}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
 # ── Entry point ──────────────────────────────────────────────────────────
 
 
