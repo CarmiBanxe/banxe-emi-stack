@@ -46,7 +46,9 @@ from api.routers import (
     compliance_automation,
     compliance_calendar,
     compliance_kb,
+    consent_management,
     consumer_duty,
+    consumer_duty_v2,
     crypto_custody,
     customers,
     dispute_resolution,
@@ -241,3 +243,9 @@ app.include_router(
     swift_correspondent.router, prefix="/v1/swift"
 )  # SWIFT & Correspondent Banking (IL-SWF-01) — /v1/swift/*
 app.include_router(fx_engine.router, prefix="/v1/fx")  # FX Engine (IL-FXE-01) — /v1/fx/*
+app.include_router(
+    consent_management.router, prefix="/v1"
+)  # Consent Management & TPP Registry (IL-CNS-01) — /v1/consent/*
+app.include_router(
+    consumer_duty_v2.router, prefix="/v1"
+)  # Consumer Duty Outcome Monitoring (IL-CDO-01) — /v1/consumer-duty/* (Phase 50)

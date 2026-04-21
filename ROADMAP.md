@@ -1746,3 +1746,78 @@ FCA refs: PS22/9 Consumer Duty (50/30/15bps tiers), EMIR (hedge reporting), MLR 
 | Agent passports | 47 | 49+ | 49 ✅ |
 
 commit: IL-SWF-01 + IL-FXE-01 | Sprint 34 | 2026-04-20
+
+---
+
+## Phase 49 — Consent Management & TPP Registry ✅ DONE (Sprint 35 — 2026-04-21)
+
+> **IL:** IL-CNS-01 | **FCA:** PSD2 Art.65-67, RTS on SCA, FCA PERG 15.5, PSR 2017 Reg.112-120 | **Trust Zone:** RED
+
+| # | Module | Description | Status |
+|---|--------|-------------|--------|
+| 478 | models.py | 5 enums (ConsentType, ConsentStatus, TPPType, TPPStatus, ConsentScope), ConsentGrant (expires_at>granted_at validator), TPPRegistration (I-02 blocked jurisdiction validator), HITLProposal dataclass (mutable), ConsentAuditEvent, BLOCKED_JURISDICTIONS, 3 Protocols + InMemory stubs (2 seeded TPPs: Plaid UK, TrueLayer) | ✅ |
+| 479 | consent_engine.py | grant_consent (SHA-256 consent IDs, validates TPP REGISTERED, I-24 audit append), revoke_consent (ALWAYS HITLProposal COMPLIANCE_OFFICER I-27), get_active_consents, validate_consent | ✅ |
+| 480 | tpp_registry.py | register_tpp (I-02 jurisdiction block, SHA-256 tpp_id), suspend_tpp/deregister_tpp (HITLProposal I-27 COMPLIANCE_OFFICER) | ✅ |
+| 481 | consent_validator.py | check_scope_coverage, check_transaction_limit (Decimal I-01), is_consent_valid, get_consent_summary | ✅ |
+| 482 | psd2_flow_handler.py | EDD_THRESHOLD=Decimal("10000") I-04, initiate_aisp_flow (PENDING + audit I-24), complete_aisp_flow (ACTIVE/REVOKED), initiate_pisp_payment (ALWAYS HITLProposal I-27), handle_cbpii_check (EDD threshold raises ValueError) | ✅ |
+| 483 | consent_agent.py | L1 auto: validate_consent, get_consents, cbpii_check; L4 HITL: revoke_consent, initiate_pisp_payment, suspend_tpp | ✅ |
+| 484 | api/routers/consent_management.py — 10 REST endpoints | /v1/consent/* | ✅ |
+| 485 | 5 MCP tools: consent_grant, consent_validate, consent_revoke, consent_list_tpps, consent_cbpii_check | ✅ |
+| 486 | Agent passport | agents/passports/consent_management/PASSPORT.md | ✅ |
+| 487 | 119+ tests across 6 test files | tests/test_consent_management/ | ✅ |
+
+FCA refs: PSD2 Art.65 (AISP), Art.66 (PISP), Art.67 (CBPII), RTS on SCA, FCA PERG 15.5, PSR 2017 Reg.112-120. I-01 Decimal, I-02 blocked jurisdictions, I-04 EDD £10k, I-24 append-only audit, I-27 HITL L4.
+
+---
+
+## Phase 50 — Consumer Duty Outcome Monitoring ✅ DONE (Sprint 35 — 2026-04-21)
+
+> **IL:** IL-CDO-01 | **FCA:** PS22/9 Consumer Duty, FCA FG21/1, FCA PROD, FCA COBS 2.1, FCA PRIN 12 | **Trust Zone:** RED
+
+| # | Module | Description | Status |
+|---|--------|-------------|--------|
+| 488 | models_v2.py | 4 enums (OutcomeType×4 PS22/9 areas, VulnerabilityFlag×4, InterventionType×3, AssessmentStatus×2), 4 frozen dataclasses (ConsumerProfile, OutcomeAssessment, ProductGovernanceRecord, VulnerabilityAlert), mutable HITLProposal, 3 Protocols + InMemory stubs | ✅ |
+| 489 | outcome_assessor.py | OUTCOME_THRESHOLDS: PS=0.7/PV=0.65/CU=0.7/CS=0.75 (all Decimal I-01), assess_outcome (SHA-256 asm_ IDs, clamp 0-1, I-24 append), get_failing_outcomes (type filter), aggregate_outcome_score (Decimal weighted average) | ✅ |
+| 490 | vulnerability_detector.py | VULNERABILITY_TRIGGERS set, detect_vulnerability (LOW/MEDIUM→alert I-24, HIGH/CRITICAL→HITLProposal I-27), update_vulnerability_flag (ALWAYS HITL I-27), review_alert (append-only I-24) | ✅ |
+| 491 | product_governance.py | FAIR_VALUE_THRESHOLD=Decimal("0.6") I-01, record_product_assessment (<threshold→RESTRICT+HITLProposal I-27, ≥threshold→MONITOR I-24 append), get_failing_products, propose_product_withdrawal (ALWAYS HITLProposal I-27) | ✅ |
+| 492 | consumer_support_tracker.py | SLA_TARGETS (complaint=8×24×3600s, support=2×3600s), record_interaction/record_resolution (I-24 append), get_sla_breach_rate (Decimal I-01), get_support_outcomes_summary | ✅ |
+| 493 | consumer_duty_reporter.py | generate_annual_report: NotImplementedError("BT-005 Consumer Duty Annual Report"), generate_outcome_dashboard (all 4 PS22/9 areas + vulnerability + products), export_board_report (ALWAYS HITLProposal requires_approval_from="CFO" I-27) | ✅ |
+| 494 | consumer_duty_agent.py | L1: get_outcomes, get_dashboard, detect LOW/MEDIUM; L2: check_failing_outcomes, check_sla_breaches; L4 HITL: update_vulnerability_flag, propose_product_withdrawal, export_board_report | ✅ |
+| 495 | api/routers/consumer_duty_v2.py — 10 REST endpoints | /v1/consumer-duty/* | ✅ |
+| 496 | 5 MCP tools: consumer_duty_assess_outcome, consumer_duty_get_dashboard, consumer_duty_detect_vulnerability, consumer_duty_failing_products, consumer_duty_export_board_report | ✅ |
+| 497 | Agent passport | agents/passports/consumer_duty/PASSPORT.md | ✅ |
+| 498 | 120+ tests across 6 test files | tests/test_consumer_duty/ | ✅ |
+
+FCA refs: PS22/9 Consumer Duty (4 outcome areas), FCA FG21/1 (vulnerability guidance), FCA PROD (product governance), FCA COBS 2.1 (fair value), FCA PRIN 12 (consumer principle). I-01 Decimal, I-24 append-only, I-27 HITL L4.
+
+---
+
+## Sprint 35 — Consent Management + Consumer Duty Outcome Monitoring (2026-04-21)
+
+### S35-A: Phase 49 Consent Management & TPP Registry (IL-CNS-01)
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 478-483 | services/consent_management/ — 6 modules | IL-CNS-01 | ✅ |
+| 484 | api/routers/consent_management.py — 10 endpoints | IL-CNS-01 | ✅ |
+| 485 | 5 MCP tools | IL-CNS-01 | ✅ |
+| 486 | Agent passport | IL-CNS-01 | ✅ |
+| 487 | 119+ tests across 6 test files | IL-CNS-01 | ✅ |
+
+### S35-B: Phase 50 Consumer Duty Outcome Monitoring (IL-CDO-01)
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 488-494 | services/consumer_duty/ — 7 new Phase 50 modules | IL-CDO-01 | ✅ |
+| 495 | api/routers/consumer_duty_v2.py — 10 endpoints | IL-CDO-01 | ✅ |
+| 496 | 5 MCP tools | IL-CDO-01 | ✅ |
+| 497 | Agent passport | IL-CDO-01 | ✅ |
+| 498 | 120+ tests across 6 test files | IL-CDO-01 | ✅ |
+
+### S35-C: Sprint 35 Targets
+| Metric | S34 Actual | S35 Target | S35 Actual |
+|--------|-----------|------------|-----------|
+| Tests | 7206 | 7480+ | 7510 ✅ |
+| MCP tools | 199 | 209+ | 209 ✅ |
+| API endpoints | 403 | 423+ | 423 ✅ |
+| Agent passports | 49 | 51+ | 51 ✅ |
+
+commit: IL-CNS-01 + IL-CDO-01 | Sprint 35 | 2026-04-21

@@ -5744,6 +5744,261 @@ async def fx_compliance_summary() -> str:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
+# ── Phase 49: Consent Management & TPP Registry (IL-CNS-01) ──────────────
+
+
+@mcp_server.tool()
+async def consent_grant(
+    customer_id: str,
+    tpp_id: str,
+    consent_type: str,
+    scopes: str,
+    ttl_days: int = 90,
+    transaction_limit: str = "",
+    redirect_uri: str = "https://tpp.example.com/callback",
+) -> str:
+    """Grant PSD2 consent to a TPP for a customer.
+
+    Args:
+        customer_id: Customer identifier.
+        tpp_id: Registered TPP identifier.
+        consent_type: AISP, PISP, or CBPII.
+        scopes: Comma-separated scopes (ACCOUNTS,BALANCES,TRANSACTIONS,PAYMENTS).
+        ttl_days: Consent validity in days (default 90).
+        transaction_limit: Optional transaction limit as decimal string.
+        redirect_uri: TPP callback URI.
+
+    Returns:
+        JSON string with ConsentGrant or error.
+    """
+    try:
+        scope_list = [s.strip() for s in scopes.split(",") if s.strip()]
+        payload: dict = {
+            "customer_id": customer_id,
+            "tpp_id": tpp_id,
+            "consent_type": consent_type,
+            "scopes": scope_list,
+            "ttl_days": ttl_days,
+            "redirect_uri": redirect_uri,
+        }
+        if transaction_limit:
+            payload["transaction_limit"] = transaction_limit
+        result = await _api_post("/v1/consent/grants", payload)
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def consent_validate(consent_id: str, required_scope: str) -> str:
+    """Validate a PSD2 consent — checks status, scope, and expiry.
+
+    Args:
+        consent_id: Consent identifier (cns_XXXXXXXX format).
+        required_scope: Scope to validate (ACCOUNTS/BALANCES/TRANSACTIONS/PAYMENTS).
+
+    Returns:
+        JSON string with validation result (is_valid, scope_covered).
+    """
+    try:
+        result = await _api_post(
+            "/v1/consent/validate",
+            {"consent_id": consent_id, "required_scope": required_scope},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def consent_revoke(consent_id: str, actor: str = "customer") -> str:
+    """Revoke a PSD2 consent — returns HITLProposal (I-27, irreversible).
+
+    Args:
+        consent_id: Consent to revoke (cns_XXXXXXXX format).
+        actor: Person requesting revocation (default: customer).
+
+    Returns:
+        JSON string with HITLProposal requiring COMPLIANCE_OFFICER approval.
+    """
+    try:
+        result = await _api_post(f"/v1/consent/grants/{consent_id}/revoke", {"actor": actor})
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def consent_list_tpps(tpp_type: str = "") -> str:
+    """List all registered TPPs, optionally filtered by type.
+
+    Args:
+        tpp_type: Optional filter: AISP, PISP, or BOTH (empty = all).
+
+    Returns:
+        JSON string with list of TPPRegistration records.
+    """
+    try:
+        params = f"?tpp_type={tpp_type}" if tpp_type else ""
+        result = await _api_get(f"/v1/consent/tpps{params}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def consent_cbpii_check(consent_id: str, amount: str) -> str:
+    """CBPII confirmation of funds check (PSD2 Art.65(4)).
+
+    Args:
+        consent_id: Active CBPII consent identifier.
+        amount: Amount to check as decimal string (I-01).
+
+    Returns:
+        JSON string with funds_available (bool). Raises 422 for amounts >= £10k (I-04).
+    """
+    try:
+        result = await _api_post(
+            "/v1/consent/cbpii/check",
+            {"consent_id": consent_id, "amount": amount},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+# ── Phase 50: Consumer Duty Outcome Monitoring (IL-CDO-01) ────────────────
+
+
+@mcp_server.tool()
+async def consumer_duty_assess_outcome(
+    customer_id: str,
+    outcome_type: str,
+    score: str,
+    evidence: str = "",
+) -> str:
+    """Assess a PS22/9 Consumer Duty outcome area for a customer.
+
+    Args:
+        customer_id: Customer identifier.
+        outcome_type: PRODUCTS_SERVICES, PRICE_VALUE, CONSUMER_UNDERSTANDING, or CONSUMER_SUPPORT.
+        score: Outcome score as decimal string 0.0–1.0 (I-01).
+        evidence: Supporting evidence description.
+
+    Returns:
+        JSON string with OutcomeAssessment (status=PASSED/FAILED).
+    """
+    try:
+        result = await _api_post(
+            "/v1/consumer-duty/outcomes",
+            {
+                "customer_id": customer_id,
+                "outcome_type": outcome_type,
+                "evidence_data": {"score": score, "evidence": evidence},
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def consumer_duty_get_dashboard() -> str:
+    """Get Consumer Duty outcome monitoring dashboard (PS22/9 §10).
+
+    Returns:
+        JSON string with 4 outcome areas, vulnerability counts, failing products.
+    """
+    try:
+        result = await _api_get("/v1/consumer-duty/dashboard")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def consumer_duty_detect_vulnerability(
+    customer_id: str, trigger: str, severity: str = "LOW"
+) -> str:
+    """Detect a customer vulnerability trigger (FCA FG21/1).
+
+    Args:
+        customer_id: Customer identifier.
+        trigger: Trigger type (payment_failure_3x, support_escalation, complaint_filed,
+                 debt_restructure, age_indicator).
+        severity: Severity level (LOW/MEDIUM/HIGH/CRITICAL, default LOW).
+
+    Returns:
+        JSON string with VulnerabilityAlert or HITLProposal (for HIGH/CRITICAL).
+    """
+    try:
+        result = await _api_post(
+            "/v1/consumer-duty/vulnerability/detect",
+            {
+                "customer_id": customer_id,
+                "trigger": trigger,
+                "context": {"severity": severity},
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def consumer_duty_failing_products() -> str:
+    """List products with RESTRICT or WITHDRAW intervention (FCA PROD).
+
+    Returns:
+        JSON string with list of failing ProductGovernanceRecord records.
+    """
+    try:
+        result = await _api_get("/v1/consumer-duty/products/failing")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def consumer_duty_export_board_report(operator: str) -> str:
+    """Export Consumer Duty board report — returns HITLProposal (I-27, CFO approval).
+
+    Args:
+        operator: Requesting operator identifier.
+
+    Returns:
+        JSON string with HITLProposal requiring CFO approval (PS22/9 s.5).
+    """
+    try:
+        result = await _api_post(
+            "/v1/consumer-duty/board-report/export",
+            {"operator": operator},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
 # ── Entry point ───────────────────────────────────────────────────────────
 
 
