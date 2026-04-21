@@ -1667,3 +1667,82 @@ FCA refs: MLR 2017 Reg.28 (sanctions DD), OFSI, EU Reg 269/2014 (asset freezing)
 | Agent passports | 45 | 47+ | 47 ✅ |
 
 commit: IL-KYB-01 + IL-SRS-01 | Sprint 33 | 2026-04-20
+
+---
+
+## Phase 47 — SWIFT & Correspondent Banking ✅ DONE (Sprint 34 — 2026-04-20)
+
+> **IL:** IL-SWF-01 | **FCA:** PSR 2017, SWIFT gpi SRD, MLR 2017 Reg.28, FCA SUP 15.8 | **Trust Zone:** RED
+
+| # | Module | Description | Status |
+|---|--------|-------------|--------|
+| 453 | models.py | 5 enums (SWIFTMessageType×3, MessageStatus×5, ChargeCode×3, CorrespondentType×3, GPIStatus×4), 5 Pydantic v2 models, 3 Protocols + InMemory stubs (3 seeded banks: Deutsche/Barclays/JPMorgan), HITLProposal | ✅ |
+| 454 | message_builder.py | build_mt103 (FATF greylist [EDD] prefix, blocked jurisdiction raise, SHA-256 msg IDs), build_mt202 (OUR charges), validate_message, cancel_message (ALWAYS HITL I-27) | ✅ |
+| 455 | correspondent_registry.py | register_correspondent (SHA-256 bank_id, fatf_risk high for greylist I-03), lookup_by_currency (excludes I-02 blocked), deactivate_correspondent (HITL I-27) | ✅ |
+| 456 | nostro_reconciler.py | RECON_TOLERANCE=Decimal("0.01"), take_snapshot (I-24 append-only), reconcile (NostroPosition if within tolerance else HITLProposal I-27), get_reconciliation_summary | ✅ |
+| 457 | gpi_tracker.py | generate_uetr (UUID4), get_gpi_status (ACSP/ACCC/RJCT simulation), update_status (UTC I-23), webhook_stub (BT-003) | ✅ |
+| 458 | charges_calculator.py | AML_EDD_THRESHOLD=Decimal("10000"), SHA=£25/BEN=£0/OUR=£35+0.1%, apply_edd_surcharge (£10 for ≥£10k I-04) | ✅ |
+| 459 | swift_agent.py | L1 auto validation, L4 HITL for send/hold/reject/cancel (I-27, requires_approval_from="TREASURY_OPS") | ✅ |
+| 460 | api/routers/swift_correspondent.py — 10 REST endpoints | /v1/swift/* | ✅ |
+| 461 | 5 MCP tools: swift_build_mt103, swift_send_message, swift_gpi_status, swift_nostro_reconcile, swift_list_correspondents | ✅ |
+| 462 | Agent passport | agents/passports/swift_correspondent/PASSPORT.md | ✅ |
+| 463 | ADR-013 | docs/adr/ADR-013-swift-correspondent.md | ✅ |
+| 464 | 120+ tests across 5 test files | tests/test_swift_correspondent/ | ✅ |
+
+FCA refs: PSR 2017, SWIFT gpi SRD, MLR 2017 Reg.28, FCA SUP 15.8. I-02 blocked jurisdictions, I-03 FATF greylist EDD, I-04 £10k AML threshold, I-22 Decimal-only, I-23 UTC, I-24 append-only nostro, I-27 HITL L4.
+
+---
+
+## Phase 48 — FX Engine ✅ DONE (Sprint 34 — 2026-04-20)
+
+> **IL:** IL-FXE-01 | **FCA:** PS22/9 (Consumer Duty), EMIR, MLR 2017 Reg.28, FCA COBS 14.3 | **Trust Zone:** AMBER
+
+| # | Module | Description | Status |
+|---|--------|-------------|--------|
+| 465 | models.py | 4 enums, 5 Pydantic v2 models (FXQuote max_ttl=30s validator), 4 Protocols + InMemory stubs (3 seeded rates: GBP/EUR, GBP/USD, EUR/USD) | ✅ |
+| 466 | rate_provider.py | STALE_THRESHOLD_SECONDS=60, get_rate/get_all_rates, Decimal I-22, is_stale flag I-23 UTC | ✅ |
+| 467 | spread_calculator.py | SPREAD_TIERS: retail=50bps/wholesale=30bps/institutional=15bps, LARGE_FX_THRESHOLD=£10k | ✅ |
+| 468 | fx_quoter.py | create_quote (qte_{uuid8}, expires_at=UTC+30s), is_quote_valid, get_quote | ✅ |
+| 469 | fx_executor.py | expired→EXPIRED, ≥£10k→HITLProposal I-27, else CONFIRMED I-24 append | ✅ |
+| 470 | hedging_engine.py | HEDGE_ALERT_THRESHOLD=£500k, record_position I-24, HITLProposal I-27 on threshold breach | ✅ |
+| 471 | fx_compliance_reporter.py | report_large_fx HITL, generate_ps229_report stub, export_fx_audit_trail SHA-256 | ✅ |
+| 472 | fx_agent.py | L1 auto <£10k, L4 HITL ≥£10k/reject/requote (I-27, TREASURY_OPS) | ✅ |
+| 473 | api/routers/fx_engine.py — 9 REST endpoints | /v1/fx/* | ✅ |
+| 474 | 5 MCP tools: fx_get_rate, fx_create_quote, fx_execute_quote, fx_get_hedge_exposure, fx_compliance_summary | ✅ |
+| 475 | Agent passport | agents/passports/fx_engine/PASSPORT.md | ✅ |
+| 476 | ADR-014 | docs/adr/ADR-014-fx-engine.md | ✅ |
+| 477 | 115+ tests across 7 test files | tests/test_fx_engine/ | ✅ |
+
+FCA refs: PS22/9 Consumer Duty (50/30/15bps tiers), EMIR (hedge reporting), MLR 2017 Reg.28, FCA COBS 14.3 (best execution). I-01 Decimal, I-03 FATF EDD, I-04 £10k threshold, I-22 Decimal, I-23 UTC, I-24 append-only, I-27 HITL L4.
+
+---
+
+## Sprint 34 — SWIFT Correspondent Banking + FX Engine (2026-04-20)
+
+### S34-A: Phase 47 SWIFT & Correspondent Banking (IL-SWF-01)
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 453-459 | services/swift_correspondent/ — 7 modules | IL-SWF-01 | ✅ |
+| 460 | api/routers/swift_correspondent.py — 10 endpoints | IL-SWF-01 | ✅ |
+| 461 | 5 MCP tools | IL-SWF-01 | ✅ |
+| 462-463 | Agent passport + ADR-013 | IL-SWF-01 | ✅ |
+| 464 | 120+ tests across 5 test files | IL-SWF-01 | ✅ |
+
+### S34-B: Phase 48 FX Engine (IL-FXE-01)
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 465-472 | services/fx_engine/ — 8 modules | IL-FXE-01 | ✅ |
+| 473 | api/routers/fx_engine.py — 9 endpoints | IL-FXE-01 | ✅ |
+| 474 | 5 MCP tools | IL-FXE-01 | ✅ |
+| 475-476 | Agent passport + ADR-014 | IL-FXE-01 | ✅ |
+| 477 | 115+ tests across 7 test files | IL-FXE-01 | ✅ |
+
+### S34-C: Sprint 34 Targets
+| Metric | S33 Actual | S34 Target | S34 Actual |
+|--------|-----------|------------|-----------|
+| Tests | 6971 | 7200+ | 7206 ✅ |
+| MCP tools | 189 | 199+ | 199 ✅ |
+| API endpoints | 384 | 403+ | 403 ✅ |
+| Agent passports | 47 | 49+ | 49 ✅ |
+
+commit: IL-SWF-01 + IL-FXE-01 | Sprint 34 | 2026-04-20

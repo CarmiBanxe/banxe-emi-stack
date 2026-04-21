@@ -5495,6 +5495,258 @@ async def sanctions_screening_stats(period: str = "daily") -> str:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
+# ── Phase 47: SWIFT & Correspondent Banking (IL-SWF-01) ──────────────────
+
+
+@mcp_server.tool()
+async def swift_build_mt103(
+    sender_bic: str,
+    receiver_bic: str,
+    amount: str,
+    currency: str,
+    ordering_customer: str,
+    beneficiary_customer: str,
+    remittance_info: str,
+) -> str:
+    """Build and store a SWIFT MT103 customer payment message.
+
+    Args:
+        sender_bic: 8 or 11 char BIC of sending bank
+        receiver_bic: 8 or 11 char BIC of receiving bank
+        amount: Payment amount as decimal string
+        currency: ISO 4217 currency code
+        ordering_customer: Name of ordering customer
+        beneficiary_customer: Name of beneficiary customer
+        remittance_info: Remittance information (max 140 chars)
+
+    Returns:
+        JSON string with built MT103 message details.
+    """
+    try:
+        result = await _api_post(
+            "/v1/swift/messages/mt103",
+            {
+                "sender_bic": sender_bic,
+                "receiver_bic": receiver_bic,
+                "amount": amount,
+                "currency": currency,
+                "ordering_customer": ordering_customer,
+                "beneficiary_customer": beneficiary_customer,
+                "remittance_info": remittance_info,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def swift_send_message(message_id: str, operator: str = "treasury_ops") -> str:
+    """Initiate a SWIFT message send — always returns HITL L4 proposal.
+
+    Args:
+        message_id: Message ID to send
+        operator: Operator initiating the send (default: treasury_ops)
+
+    Returns:
+        JSON string with HITLProposal (autonomy_level=L4, requires TREASURY_OPS approval).
+    """
+    try:
+        result = await _api_post(f"/v1/swift/messages/{message_id}/send", {"operator": operator})
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def swift_gpi_status(uetr: str) -> str:
+    """Get SWIFT gpi tracking status for a payment by UETR.
+
+    Args:
+        uetr: Unique End-to-end Transaction Reference (UUID4 format)
+
+    Returns:
+        JSON string with GPI status (ACSP/ACCC/RJCT).
+    """
+    try:
+        result = await _api_get(f"/v1/swift/gpi/{uetr}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def swift_nostro_reconcile(
+    bank_id: str, currency: str, our_balance: str, their_balance: str
+) -> str:
+    """Reconcile nostro position for a correspondent bank.
+
+    Args:
+        bank_id: Correspondent bank ID (cb_XXXXXXXX format)
+        currency: ISO 4217 currency code
+        our_balance: Our balance as decimal string
+        their_balance: Their balance as decimal string
+
+    Returns:
+        JSON string with NostroPosition if within tolerance, or HITLProposal if mismatch.
+    """
+    try:
+        result = await _api_post(
+            f"/v1/swift/nostro/{bank_id}/{currency}",
+            {"our_balance": our_balance, "their_balance": their_balance},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def swift_list_correspondents(currency: str = "") -> str:
+    """List active correspondent banks, optionally filtered by currency.
+
+    Args:
+        currency: Optional ISO 4217 currency filter (e.g. 'EUR', 'GBP')
+
+    Returns:
+        JSON string with list of correspondent bank details.
+    """
+    try:
+        url = "/v1/swift/correspondents"
+        if currency:
+            url += f"?currency={currency}"
+        result = await _api_get(url)
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+# ── Phase 48: FX Engine (IL-FXE-01) ──────────────────────────────────────
+
+
+@mcp_server.tool()
+async def fx_get_rate(currency_pair: str) -> str:
+    """Get current FX rate for a currency pair.
+
+    Args:
+        currency_pair: Currency pair in format 'BASE/QUOTE' (e.g. 'GBP/EUR')
+
+    Returns:
+        JSON string with FXRate including bid, ask, mid (Decimal), staleness flag.
+    """
+    try:
+        result = await _api_get(f"/v1/fx/rates/{currency_pair}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def fx_create_quote(
+    currency_pair: str,
+    sell_amount: str,
+    sell_currency: str,
+    buy_currency: str,
+    entity_id: str = "retail",
+) -> str:
+    """Create an FX quote with tiered spread (retail/wholesale/institutional).
+
+    Args:
+        currency_pair: Currency pair (e.g. 'GBP/EUR')
+        sell_amount: Amount to sell as decimal string
+        sell_currency: Currency being sold (ISO 4217)
+        buy_currency: Currency being bought (ISO 4217)
+        entity_id: Entity ID for tier detection (default: retail)
+
+    Returns:
+        JSON string with FXQuote (valid 30 seconds, Decimal amounts).
+    """
+    try:
+        result = await _api_post(
+            "/v1/fx/quotes",
+            {
+                "currency_pair": currency_pair,
+                "sell_amount": sell_amount,
+                "sell_currency": sell_currency,
+                "buy_currency": buy_currency,
+                "entity_id": entity_id,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def fx_execute_quote(quote_id: str) -> str:
+    """Execute an FX quote. Returns HITL proposal for amounts >= £10,000.
+
+    Args:
+        quote_id: Quote ID to execute (qte_XXXXXXXX format)
+
+    Returns:
+        JSON string with FXExecution (CONFIRMED) for <£10k, or HITLProposal (L4) for >=£10k.
+    """
+    try:
+        result = await _api_post(f"/v1/fx/quotes/{quote_id}/execute", {})
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def fx_get_hedge_exposure(currency_pair: str) -> str:
+    """Get current net hedge exposure for a currency pair.
+
+    Args:
+        currency_pair: Currency pair (e.g. 'GBP/EUR')
+
+    Returns:
+        JSON string with net_exposure (Decimal). HITLProposal triggered if |exposure| >= £500,000.
+    """
+    try:
+        result = await _api_get(f"/v1/fx/hedge/positions/{currency_pair}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def fx_compliance_summary() -> str:
+    """Get FX compliance summary including large FX reporting and hedge alerts.
+
+    Returns:
+        JSON string with compliance summary (PS22/9 Consumer Duty, EMIR hedge positions).
+    """
+    try:
+        result = await _api_get("/v1/fx/compliance/summary")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+# ── Entry point ───────────────────────────────────────────────────────────
+
+
 def main() -> None:
     """Run MCP server."""
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")

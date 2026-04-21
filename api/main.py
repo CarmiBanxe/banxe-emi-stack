@@ -54,6 +54,7 @@ from api.routers import (
     experiments,
     fee_management,
     fraud,
+    fx_engine,
     fx_exchange,
     health,
     hitl,
@@ -84,6 +85,7 @@ from api.routers import (
     scheduled_payments,
     statements,
     support,
+    swift_correspondent,
     transaction_monitor,
     treasury,
     user_preferences,
@@ -235,3 +237,7 @@ app.include_router(
 app.include_router(
     sanctions_screening.router, prefix="/v1/sanctions"
 )  # Sanctions Real-Time Screening (IL-SRS-01) — /v1/sanctions/*
+app.include_router(
+    swift_correspondent.router, prefix="/v1/swift"
+)  # SWIFT & Correspondent Banking (IL-SWF-01) — /v1/swift/*
+app.include_router(fx_engine.router, prefix="/v1/fx")  # FX Engine (IL-FXE-01) — /v1/fx/*
