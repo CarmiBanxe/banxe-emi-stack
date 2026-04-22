@@ -5,6 +5,7 @@ IL-CIM-01 | Phase 19 — Domain model and InMemory stub tests.
 
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -90,7 +91,7 @@ def _make_txn(txn_id: str = "txn-001", card_id: str = "card-001") -> CardTransac
 
 def test_card_is_frozen_dataclass() -> None:
     card = _make_card()
-    with pytest.raises(Exception):  # noqa: B017
+    with pytest.raises(FrozenInstanceError):
         card.id = "modified"  # type: ignore[misc]
 
 

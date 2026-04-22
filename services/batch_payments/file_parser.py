@@ -9,7 +9,8 @@ from __future__ import annotations
 import csv
 import hashlib
 import io
-import xml.etree.ElementTree as ET
+
+import defusedxml.ElementTree as DefusedET
 
 from services.batch_payments.models import FileFormat
 
@@ -41,7 +42,7 @@ class FileParser:
         """Parse SEPA pain.001 XML using stdlib xml.etree."""
         records = []
         try:
-            root = ET.fromstring(content)  # noqa: S314  # nosec B314
+            root = DefusedET.fromstring(content)
             ns = {"s": "urn:iso:std:iso:20022:tech:xsd:pain.001.001.03"}
             for txn in root.findall(".//s:CdtTrfTxInf", ns):
                 iban_el = txn.find(".//s:IBAN", ns)
@@ -59,7 +60,7 @@ class FileParser:
                         "ref": ref_el.text if ref_el is not None else "",
                     }
                 )
-        except ET.ParseError:
+        except DefusedET.ParseError:
             pass
         return records
 

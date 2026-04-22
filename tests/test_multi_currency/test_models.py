@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -68,7 +69,7 @@ def test_currency_balance_fields() -> None:
 
 def test_currency_balance_is_frozen() -> None:
     bal = CurrencyBalance("GBP", Decimal("0"), Decimal("0"), Decimal("0"))
-    with pytest.raises(Exception):  # noqa: B017 — frozen dataclass
+    with pytest.raises(FrozenInstanceError):  # frozen dataclass
         bal.currency = "EUR"  # type: ignore[misc]
 
 
@@ -107,7 +108,7 @@ def test_multi_currency_account_is_frozen() -> None:
         balances=(),
         created_at=now,
     )
-    with pytest.raises(Exception):  # noqa: B017 — frozen dataclass
+    with pytest.raises(FrozenInstanceError):  # frozen dataclass
         acct.entity_id = "other"  # type: ignore[misc]
 
 

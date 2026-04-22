@@ -6373,6 +6373,59 @@ async def psd2_configure_autopull(iban: str, frequency: str = "daily") -> str:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
+# ── Observability MCP Tools (IL-OBS-01) ──────────────────────────────────────
+
+
+@mcp_server.tool()
+async def obs_health_check(service: str = "") -> str:
+    """Check health of P0 stack services.
+
+    Args:
+        service: Specific service name (postgres/clickhouse/redis/frankfurter/pgaudit/api).
+                 Empty string = all services.
+
+    Returns:
+        JSON with health status of requested service(s).
+    """
+    try:
+        if service:
+            result = await _api_get(f"/v1/observability/health/{service}")
+        else:
+            result = await _api_get("/v1/observability/health")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def obs_get_metrics() -> str:
+    """Get current platform metrics snapshot.
+
+    Returns:
+        JSON with test_count, endpoint_count, mcp_tool_count, passport_count, coverage_pct.
+    """
+    try:
+        result = await _api_get("/v1/observability/metrics")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def obs_compliance_scan() -> str:
+    """Scan all compliance invariants (I-01..I-28).
+
+    Returns:
+        JSON ComplianceReport with overall_flag and per-invariant checks.
+        Violations require COMPLIANCE_OFFICER acknowledgement (I-27 L4).
+    """
+    try:
+        result = await _api_get("/v1/observability/compliance")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
 # ── Entry point ───────────────────────────────────────────────────────────
 
 

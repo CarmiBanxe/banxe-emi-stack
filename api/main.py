@@ -74,6 +74,7 @@ from api.routers import (
     multi_tenancy,
     notifications,
     notifications_hub,
+    observability,
     open_banking,
     payments,
     pgaudit,
@@ -267,3 +268,4 @@ app.include_router(
 app.include_router(
     psd2_gateway.router, prefix="/v1"
 )  # PSD2 Gateway adorsys (IL-PSD2GW-01) — /v1/psd2/*
+app.include_router(observability.router, prefix="/v1")  # Observability (IL-OBS-01)
