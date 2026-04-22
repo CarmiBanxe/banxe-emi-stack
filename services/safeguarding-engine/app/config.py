@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     service_name: str = "safeguarding-engine"
     service_version: str = "0.1.0"
     debug: bool = False
-    host: str = "0.0.0.0"
+    host: str = "0.0.0.0"  # nosec B104 — container-internal bind, ingress via reverse proxy
     port: int = 8094
 
     # PostgreSQL

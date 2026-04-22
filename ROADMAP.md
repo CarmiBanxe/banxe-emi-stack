@@ -1821,3 +1821,49 @@ FCA refs: PS22/9 Consumer Duty (4 outcome areas), FCA FG21/1 (vulnerability guid
 | Agent passports | 49 | 51+ | 51 ✅ |
 
 commit: IL-CNS-01 + IL-CDO-01 | Sprint 35 | 2026-04-21
+
+## Sprint 36 — pgAudit + Reconciliation + FIN060 (2026-04-22)
+
+### S36-A: Phase 51A pgAudit Infrastructure (IL-PGA-01)
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 499 | services/audit/pgaudit_config.py — AuditEntry, AuditStats, InMemoryAuditLogPort | IL-PGA-01 | ✅ |
+| 500 | services/audit/audit_query.py — AuditQueryService, HITLProposal | IL-PGA-01 | ✅ |
+| 501 | api/routers/pgaudit.py — 5 endpoints /v1/audit/* | IL-PGA-01 | ✅ |
+| 502 | 3 MCP tools (audit_query_logs, audit_export_report, audit_health_check) | IL-PGA-01 | ✅ |
+| 503 | Agent passport agents/passports/audit/PASSPORT.md | IL-PGA-01 | ✅ |
+| 504 | docker/docker-compose.pgaudit.yml — PostgreSQL 17 + pgAudit :5433 | IL-PGA-01 | ✅ |
+| 505 | 73+ tests across 3 test files | IL-PGA-01 | ✅ |
+
+### S36-B: Phase 51B Daily Safeguarding Reconciliation (IL-REC-01)
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 506 | services/recon/reconciliation_engine_v2.py — CASS 7.15, Decimal-safe | IL-REC-01 | ✅ |
+| 507 | services/recon/camt053_parser.py — ISO 20022 CAMT.053 parser | IL-REC-01 | ✅ |
+| 508 | services/recon/recon_agent.py — ReconAgent, breach >£100 HITL | IL-REC-01 | ✅ |
+| 509 | api/routers/safeguarding_recon.py — 5 endpoints /v1/safeguarding-recon/* | IL-REC-01 | ✅ |
+| 510 | 3 MCP tools (recon_run_daily, recon_get_report, recon_list_breaches) | IL-REC-01 | ✅ |
+| 511 | Agent passport agents/passports/reconciliation/PASSPORT.md | IL-REC-01 | ✅ |
+| 512 | 84+ tests across 4 test files | IL-REC-01 | ✅ |
+
+### S36-C: Phase 51C FIN060 Regulatory Reporting (IL-FIN060-01)
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 513 | services/reporting/report_models.py — FIN060Entry, FIN060Report, InMemoryReportStore | IL-FIN060-01 | ✅ |
+| 514 | services/reporting/fin060_generator_v2.py — FIN060Generator, CFO HITL | IL-FIN060-01 | ✅ |
+| 515 | services/reporting/reporting_agent.py — ReportingAgent orchestrator | IL-FIN060-01 | ✅ |
+| 516 | dbt/models/fin060/fin060_monthly.sql — incremental dbt model numeric(20,8) | IL-FIN060-01 | ✅ |
+| 517 | api/routers/fin060_reporting.py — 5 endpoints /v1/fin060/* | IL-FIN060-01 | ✅ |
+| 518 | 4 MCP tools (fin060_generate, fin060_get_report, fin060_approve, fin060_dashboard) | IL-FIN060-01 | ✅ |
+| 519 | Agent passport agents/passports/reporting/PASSPORT.md | IL-FIN060-01 | ✅ |
+| 520 | 81+ tests across 4 test files | IL-FIN060-01 | ✅ |
+
+### S36-D: Sprint 36 Targets
+| Metric | S35 Actual | S36 Target | S36 Actual |
+|--------|-----------|------------|-----------|
+| Tests | 7510 | 7690+ | 7748 ✅ |
+| MCP tools | 209 | 219+ | 219 ✅ |
+| API endpoints | 423 | 438+ | 438 ✅ |
+| Agent passports | 51 | 54+ | 54 ✅ |
+
+commit: IL-PGA-01 + IL-REC-01 + IL-FIN060-01 | Sprint 36 | 2026-04-22

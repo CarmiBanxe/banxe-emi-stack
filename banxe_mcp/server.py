@@ -5999,6 +5999,229 @@ async def consumer_duty_export_board_report(operator: str) -> str:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
+# ── Phase 51A: pgAudit Infrastructure (IL-PGA-01) ────────────────────────────
+
+
+@mcp_server.tool()
+async def audit_query_logs(
+    db_name: str = "banxe_core",
+    start_date: str = "2020-01-01",
+    end_date: str = "2099-12-31",
+) -> str:
+    """Query pgAudit logs for a specific database.
+
+    Args:
+        db_name: Database name (banxe_core, banxe_compliance, banxe_analytics)
+        start_date: Start date filter (YYYY-MM-DD)
+        end_date: End date filter (YYYY-MM-DD)
+
+    Returns:
+        JSON string with audit log entries or error.
+    """
+    try:
+        result = await _api_get(
+            f"/v1/audit/logs?db_name={db_name}&start_date={start_date}&end_date={end_date}"
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def audit_export_report(
+    db_name: str,
+    start_date: str,
+    end_date: str,
+) -> str:
+    """Propose audit export report (L4 HITL — COMPLIANCE_OFFICER must approve).
+
+    Args:
+        db_name: Database name
+        start_date: Start date (YYYY-MM-DD)
+        end_date: End date (YYYY-MM-DD)
+
+    Returns:
+        JSON HITLProposal or error.
+    """
+    try:
+        result = await _api_post(
+            "/v1/audit/export",
+            {
+                "db_name": db_name,
+                "start_date": start_date,
+                "end_date": end_date,
+                "requested_by": "mcp_agent",
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def audit_health_check() -> str:
+    """Check pgAudit infrastructure health.
+
+    Returns:
+        JSON string with health status and pgAudit version.
+    """
+    try:
+        result = await _api_get("/v1/audit/health")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+# ── Phase 51B: Daily Safeguarding Reconciliation (IL-REC-01) ─────────────────
+
+
+@mcp_server.tool()
+async def recon_run_daily(date_str: str) -> str:
+    """Run daily safeguarding reconciliation (CASS 7.15).
+
+    Args:
+        date_str: Date to reconcile (YYYY-MM-DD)
+
+    Returns:
+        JSON ReconciliationReport or HITLProposal if breach >100 GBP.
+    """
+    try:
+        result = await _api_post(
+            "/v1/safeguarding-recon/run",
+            {"date_str": date_str, "ledger_entries": [], "statement_entries": []},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def recon_get_report(date_str: str) -> str:
+    """Get reconciliation report by date.
+
+    Args:
+        date_str: Report date (YYYY-MM-DD)
+
+    Returns:
+        JSON ReconciliationReport or error.
+    """
+    try:
+        result = await _api_get(f"/v1/safeguarding-recon/reports/{date_str}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def recon_list_breaches() -> str:
+    """List all unresolved safeguarding breach reports.
+
+    Returns:
+        JSON array of breach ReconciliationReports or error.
+    """
+    try:
+        result = await _api_get("/v1/safeguarding-recon/breaches")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+# ── Phase 51C: FIN060 Regulatory Reporting (IL-FIN060-01) ────────────────────
+
+
+@mcp_server.tool()
+async def fin060_generate(month: int, year: int) -> str:
+    """Generate FIN060 regulatory report (L4 HITL — CFO must approve).
+
+    Args:
+        month: Report month (1-12)
+        year: Report year (>=2020)
+
+    Returns:
+        JSON HITLProposal or error.
+    """
+    try:
+        result = await _api_post(
+            "/v1/fin060/generate",
+            {"month": month, "year": year, "ledger_data": []},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def fin060_get_report(month: int, year: int) -> str:
+    """Get FIN060 report by month and year.
+
+    Args:
+        month: Report month (1-12)
+        year: Report year
+
+    Returns:
+        JSON FIN060Report or null.
+    """
+    try:
+        result = await _api_get(f"/v1/fin060/{year}/{month}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def fin060_approve(report_id: str) -> str:
+    """Approve FIN060 report (L4 HITL — CFO must confirm).
+
+    Args:
+        report_id: Report ID to approve
+
+    Returns:
+        JSON HITLProposal or error.
+    """
+    try:
+        result = await _api_post(
+            f"/v1/fin060/{report_id}/approve",
+            {"approved_by": "mcp_agent"},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def fin060_dashboard() -> str:
+    """Get FIN060 reporting dashboard summary.
+
+    Returns:
+        JSON dashboard with total_reports, pending_approval, safeguarded_gbp.
+    """
+    try:
+        result = await _api_get("/v1/fin060/dashboard")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
 # ── Entry point ───────────────────────────────────────────────────────────
 
 

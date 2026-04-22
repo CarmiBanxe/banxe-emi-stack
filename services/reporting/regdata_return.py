@@ -105,7 +105,7 @@ class MockFIN060Generator:
 
     def generate(self, period_start: date, period_end: date) -> tuple[Path, Decimal, Decimal]:
         # Return a fake path (file not created) + amounts
-        return Path(f"/tmp/FIN060_{period_start.strftime('%Y%m')}.pdf"), self._avg, self._peak  # noqa: S108 — stub path, replaced in real impl with tempfile.mkstemp()
+        return Path(f"/tmp/FIN060_{period_start.strftime('%Y%m')}.pdf"), self._avg, self._peak  # nosec B108  # noqa: S108 — stub, tracked by IL-FIN060-REAL-01 (replaced via tempfile.mkstemp)
 
 
 # ── Real FIN060 generator wrapper ─────────────────────────────────────────────

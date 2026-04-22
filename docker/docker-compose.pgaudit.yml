@@ -1,0 +1,31 @@
+version: "3.9"
+# docker-compose.pgaudit.yml — pgAudit PostgreSQL 17 container
+# IL-PGA-01 | Phase 51A | Sprint 36
+# Port: 5433 (avoids conflict with main PostgreSQL on 5432)
+
+services:
+  postgres-pgaudit:
+    image: pgvector/pgvector:pg17
+    container_name: banxe-pgaudit
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: banxe_audit
+      POSTGRES_USER: banxe_audit_user
+      POSTGRES_PASSWORD: ${PGAUDIT_PASSWORD:-changeme_in_env}
+    command: >
+      postgres
+        -c shared_preload_libraries=pgaudit
+        -c pgaudit.log=write,ddl
+        -c pgaudit.log_parameter=on
+        -c pgaudit.log_catalog=off
+    volumes:
+      - pgaudit_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U banxe_audit_user -d banxe_audit"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgaudit_data:

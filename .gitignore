@@ -29,3 +29,5 @@ compliance-experiments/index.json
 # Test artifacts written during pytest runs (must not be tracked)
 compliance-experiments/draft/
 data/
+frontend/node_modules/
+node_modules/

@@ -55,6 +55,7 @@ from api.routers import (
     document_management,
     experiments,
     fee_management,
+    fin060_reporting,
     fraud,
     fx_engine,
     fx_exchange,
@@ -74,6 +75,7 @@ from api.routers import (
     notifications_hub,
     open_banking,
     payments,
+    pgaudit,
     recon,
     referral,
     regulatory,
@@ -81,6 +83,7 @@ from api.routers import (
     reporting_analytics,
     risk_management,
     safeguarding,
+    safeguarding_recon,
     sanctions_rescreen,
     sanctions_screening,
     savings,
@@ -249,3 +252,10 @@ app.include_router(
 app.include_router(
     consumer_duty_v2.router, prefix="/v1"
 )  # Consumer Duty Outcome Monitoring (IL-CDO-01) — /v1/consumer-duty/* (Phase 50)
+app.include_router(pgaudit.router, prefix="/v1")  # pgAudit Infrastructure (IL-PGA-01) — /v1/audit/*
+app.include_router(
+    safeguarding_recon.router, prefix="/v1"
+)  # Daily Safeguarding Recon (IL-REC-01) — /v1/safeguarding-recon/*
+app.include_router(
+    fin060_reporting.router, prefix="/v1"
+)  # FIN060 Regulatory Reporting (IL-FIN060-01) — /v1/fin060/*

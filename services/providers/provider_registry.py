@@ -201,7 +201,7 @@ class ProviderRegistry:
             import urllib.request
 
             req = urllib.request.Request(provider.health_url, method="GET")
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310 — health_url is provider-registered HTTPS endpoint
                 status = ProviderStatus.HEALTHY if resp.status < 400 else ProviderStatus.UNHEALTHY
                 provider.status = status
                 return status
