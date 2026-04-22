@@ -6426,6 +6426,211 @@ async def obs_compliance_scan() -> str:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
 
 
+# ── Midaz MCP Tools (IL-MCP-01) ──────────────────────────────────────────────
+
+
+@mcp_server.tool()
+async def midaz_create_org(name: str, legal_name: str, country: str = "GB") -> str:
+    """Create a Midaz organization (I-02: blocked jurisdictions enforced).
+
+    Args:
+        name: Organization short name
+        legal_name: Full legal name
+        country: ISO 2-letter country code (default: GB). RU/BY/IR/KP blocked.
+
+    Returns:
+        JSON with org_id, name, country or error.
+    """
+    try:
+        result = await _api_post(
+            "/v1/midaz/organizations",
+            {"name": name, "legal_name": legal_name, "country": country},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def midaz_create_ledger(org_id: str, name: str) -> str:
+    """Create a Midaz ledger for an organization.
+
+    Args:
+        org_id: Organization ID
+        name: Ledger name
+
+    Returns:
+        JSON with ledger_id, org_id, name or error.
+    """
+    try:
+        result = await _api_post("/v1/midaz/ledgers", {"org_id": org_id, "name": name})
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def midaz_create_transaction(ledger_id: str, entries_json: str) -> str:
+    """Create a Midaz transaction (I-27 HITL L4 for amounts >= £10,000).
+
+    Args:
+        ledger_id: Target ledger ID
+        entries_json: JSON array of {account_id, amount, direction} entries.
+                      amounts are decimal strings (I-01: never float).
+                      Amounts >= £10,000 return HITL_REQUIRED proposal.
+
+    Returns:
+        JSON with transaction_id and status, or HITL_REQUIRED proposal.
+    """
+    try:
+        entries = json.loads(entries_json)
+        result = await _api_post(
+            "/v1/midaz/transactions", {"ledger_id": ledger_id, "entries": entries}
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except json.JSONDecodeError as exc:
+        return json.dumps({"error": f"Invalid entries_json: {exc}"})
+
+
+@mcp_server.tool()
+async def midaz_get_balances(account_id: str) -> str:
+    """Get account balances from Midaz CBS.
+
+    Args:
+        account_id: Account ID to fetch balances for.
+
+    Returns:
+        JSON with account_id and list of {asset_code, amount} balances.
+    """
+    try:
+        result = await _api_get(f"/v1/midaz/balances/{account_id}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def midaz_list_accounts(ledger_id: str) -> str:
+    """List all accounts in a Midaz ledger.
+
+    Args:
+        ledger_id: Ledger ID to list accounts for.
+
+    Returns:
+        JSON with ledger_id and list of {account_id, name} accounts.
+    """
+    try:
+        result = await _api_get(f"/v1/midaz/accounts/{ledger_id}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+# ── Fraud Tracer MCP Tools (IL-TRC-01) ───────────────────────────────────────
+
+
+@mcp_server.tool()
+async def fraud_trace(
+    transaction_id: str,
+    customer_id: str,
+    amount: str,
+    country: str = "GB",
+    counterparty_country: str = "GB",
+) -> str:
+    """Trace a transaction for fraud risk in real-time (< 100ms target).
+
+    Args:
+        transaction_id: Unique transaction ID
+        customer_id: Customer ID
+        amount: Transaction amount as decimal string (I-01: never float)
+        country: Originating country code (default: GB). I-02: RU/BY/IR/KP blocked.
+        counterparty_country: Counterparty country code (default: GB)
+
+    Returns:
+        JSON with score (Decimal string), flags, status (CLEAR/REVIEW/BLOCK).
+        score >= 0.8 returns HITL_REQUIRED (I-27).
+    """
+    try:
+        result = await _api_post(
+            "/v1/fraud-tracer/trace",
+            {
+                "transaction_id": transaction_id,
+                "customer_id": customer_id,
+                "amount": amount,
+                "country": country,
+                "counterparty_country": counterparty_country,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def fraud_velocity_check(customer_id: str, window_minutes: int = 60) -> str:
+    """Check transaction velocity for a customer.
+
+    Args:
+        customer_id: Customer ID to check velocity for
+        window_minutes: Time window for velocity check (default: 60 minutes)
+
+    Returns:
+        JSON with tx_count, total_amount (Decimal string), breached flag.
+    """
+    try:
+        result = await _api_get(f"/v1/fraud-tracer/velocity/{customer_id}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def fraud_dashboard() -> str:
+    """Get fraud tracer dashboard — totals by status.
+
+    Returns:
+        JSON with total_traced, blocked, review, clear counts and pending proposals.
+    """
+    try:
+        result = await _api_get("/v1/fraud-tracer/dashboard")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+# ── Compliance Matrix Sync MCP Tools (IL-CMS-01) ─────────────────────────────
+
+
+@mcp_server.tool()
+async def compliance_scan() -> str:
+    """Trigger a full compliance matrix scan across all P0 artifacts.
+
+    Returns:
+        JSON ComplianceMatrixReport with coverage_pct and per-item status.
+    """
+    try:
+        result = await _api_get("/v1/compliance-matrix/scan")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def compliance_gaps() -> str:
+    """Get all NOT_STARTED and BLOCKED compliance matrix items (gaps).
+
+    Returns:
+        JSON with gap_count and list of gap items with block, item_id, description.
+    """
+    try:
+        result = await _api_get("/v1/compliance-matrix/gaps")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
 # ── Entry point ───────────────────────────────────────────────────────────
 
 

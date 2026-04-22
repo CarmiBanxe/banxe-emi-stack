@@ -46,6 +46,7 @@ from api.routers import (
     compliance_automation,
     compliance_calendar,
     compliance_kb,
+    compliance_sync,
     consent_management,
     consumer_duty,
     consumer_duty_v2,
@@ -57,6 +58,7 @@ from api.routers import (
     fee_management,
     fin060_reporting,
     fraud,
+    fraud_tracer,
     fx_engine,
     fx_exchange,
     fx_rates,
@@ -69,6 +71,7 @@ from api.routers import (
     lending,
     loyalty,
     merchant_acquiring,
+    midaz_mcp,
     mlro_notifications,
     multi_currency,
     multi_tenancy,
@@ -269,3 +272,6 @@ app.include_router(
     psd2_gateway.router, prefix="/v1"
 )  # PSD2 Gateway adorsys (IL-PSD2GW-01) — /v1/psd2/*
 app.include_router(observability.router, prefix="/v1")  # Observability (IL-OBS-01)
+app.include_router(compliance_sync.router, prefix="/v1")  # Compliance Matrix Sync (IL-CMS-01)
+app.include_router(midaz_mcp.router, prefix="/v1")  # Midaz MCP Integration (IL-MCP-01)
+app.include_router(fraud_tracer.router, prefix="/v1")  # Fraud Tracer (IL-TRC-01)

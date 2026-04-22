@@ -28,12 +28,19 @@ from api.models.sca import (
     SCAVerifyRequest,
     SCAVerifyResponse,
 )
+from api.models.sca_adapters import (
+    to_sca_initiate_response,
+    to_sca_methods_response,
+    to_sca_resend_response,
+    to_sca_verify_response,
+)
 from services.auth.auth_application_service import (
     AuthApplicationError,
     AuthApplicationService,
     get_auth_application_service,
 )
-from services.auth.sca_service import SCAService, get_sca_service
+from services.auth.sca_service import get_sca_service
+from services.auth.sca_service_port import ScaServicePort
 from services.customer.customer_service import InMemoryCustomerService
 
 SECRETKEY = os.environ.get(
@@ -227,7 +234,7 @@ async def refresh_token_endpoint(
 )
 async def initiate_sca(
     body: SCAInitiateRequest,
-    sca_service: SCAService = Depends(get_sca_service),
+    sca_service: ScaServicePort = Depends(get_sca_service),
 ) -> SCAInitiateResponse:
     try:
         challenge = sca_service.create_challenge(
@@ -239,18 +246,13 @@ async def initiate_sca(
         )
     except RuntimeError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return SCAInitiateResponse(
-        challenge_id=challenge.challenge_id,
-        transaction_id=challenge.transaction_id,
-        method=challenge.method,
-        expires_at=challenge.expires_at,
-    )
+    return to_sca_initiate_response(challenge)
 
 
 @router.post("/auth/sca/verify", response_model=SCAVerifyResponse)
 async def verify_sca(
     body: SCAVerifyRequest,
-    sca_service: SCAService = Depends(get_sca_service),
+    sca_service: ScaServicePort = Depends(get_sca_service),
 ) -> SCAVerifyResponse:
     result = sca_service.verify(
         challenge_id=body.challenge_id,
@@ -263,19 +265,13 @@ async def verify_sca(
         raise HTTPException(
             status_code=429, detail="Too many failed attempts. Request a new challenge."
         )
-    return SCAVerifyResponse(
-        verified=result.verified,
-        transaction_id=result.transaction_id,
-        sca_token=result.sca_token,
-        error=result.error,
-        attempts_remaining=result.attempts_remaining,
-    )
+    return to_sca_verify_response(result)
 
 
 @router.post("/auth/sca/resend", response_model=SCAResendResponse)
 async def resend_sca(
     body: SCAResendRequest,
-    sca_service: SCAService = Depends(get_sca_service),
+    sca_service: ScaServicePort = Depends(get_sca_service),
 ) -> SCAResendResponse:
     try:
         challenge = sca_service.resend_challenge(body.challenge_id)
@@ -283,22 +279,13 @@ async def resend_sca(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return SCAResendResponse(
-        challenge_id=challenge.challenge_id,
-        method=challenge.method,
-        expires_at=challenge.expires_at,
-        resend_count=challenge.resend_count,
-    )
+    return to_sca_resend_response(challenge)
 
 
 @router.get("/auth/sca/methods/{customer_id}", response_model=SCAMethodsResponse)
 async def get_sca_methods(
     customer_id: str,
-    sca_service: SCAService = Depends(get_sca_service),
+    sca_service: ScaServicePort = Depends(get_sca_service),
 ) -> SCAMethodsResponse:
     methods = sca_service.get_methods(customer_id)
-    return SCAMethodsResponse(
-        customer_id=methods.customer_id,
-        methods=methods.methods,
-        preferred=methods.preferred,
-    )
+    return to_sca_methods_response(methods)
