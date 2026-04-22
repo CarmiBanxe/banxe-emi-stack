@@ -20,3 +20,48 @@
 - Status: TODO
 - Deferred: B017, SIM300, defusedxml B314 (behaviour diff in test_camt053_parser)
 - Out-of-scope artefacts (not in IL-LINT): audit/recon/reporting fichi, feat/auth-ports-formalization
+
+---
+
+### IL-LINT-03 — B314 defusedxml + B017 FrozenInstanceError + I001
+- Status: OPEN
+- Scope:
+  - services/batch_payments/file_parser.py
+  - tests/test_card_issuing/test_models.py
+  - tests/test_multi_currency/test_models.py
+- Ready:
+  - B314: xml.etree.ElementTree -> defusedxml.ElementTree (ET.fromstring, ET.ParseError)
+  - B017: pytest.raises(Exception) -> pytest.raises(FrozenInstanceError) in frozen-dataclass tests
+  - I001: import order normalized in both test files
+  - ruff scoped: PASS
+  - py_compile scoped: PASS
+  - bandit targeted: B314 clean on file_parser.py
+  - pytest targeted: 44/44 passed (no-cov on the two test_models.py)
+  - repo coverage: 42.46% (gate 35%)
+- Proof: NO COMMIT YET (pre-commit pytest-fast blocked by out-of-scope tests)
+- Blocked-by:
+  - IL-CNS-AUD-PIPELINE-FIX
+  - IL-OBS-MCP-TESTS-FIX
+- Handoff: /tmp/banxe_handoff_2026-04-22_1613.md
+- Logs: /tmp/il_lint_03_finalize.log, /tmp/il_lint_03_finalize_scope.log, /tmp/il_lint_03_blocker_report.txt
+
+### IL-CNS-AUD-PIPELINE-FIX — Fix consent/audit integration pipeline test under pytest-fast
+- Status: TODO
+- Scope:
+  - tests/test_integration/test_consent_audit_pipeline.py::TestConsentAuditPipeline::test_query_audit_log_by_event_type
+- Owner scope: consent/audit integration (IL-CNS-01 / IL-PGA-01 family)
+- Goal: restore passing under global pytest-fast hook without changing observable
+  behaviour of consent engine / pgAudit query layer; most likely a fixture or
+  event-type filter contract drift.
+- Blocks: IL-LINT-03 commit proof
+
+### IL-OBS-MCP-TESTS-FIX — Fix observability MCP tools tests under pytest-fast
+- Status: TODO
+- Scope:
+  - tests/test_observability/test_mcp_tools_observability.py (full test id to be
+    recovered from pytest-fast log in next session)
+- Owner scope: observability MCP tools (new scope, untracked services/observability/)
+- Goal: make the failing test(s) green under pytest-fast; verify that the
+  observability scope (routers/observability.py, services/observability/*,
+  agents/passports/observability/*) does not regress other suites.
+- Blocks: IL-LINT-03 commit proof
