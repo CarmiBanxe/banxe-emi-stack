@@ -59,6 +59,7 @@ from api.routers import (
     fraud,
     fx_engine,
     fx_exchange,
+    fx_rates,
     health,
     hitl,
     insurance,
@@ -76,6 +77,7 @@ from api.routers import (
     open_banking,
     payments,
     pgaudit,
+    psd2_gateway,
     recon,
     referral,
     regulatory,
@@ -259,3 +261,9 @@ app.include_router(
 app.include_router(
     fin060_reporting.router, prefix="/v1"
 )  # FIN060 Regulatory Reporting (IL-FIN060-01) — /v1/fin060/*
+app.include_router(
+    fx_rates.router, prefix="/v1"
+)  # FX Rates Frankfurter (IL-FXR-01) — /v1/fx-rates/*
+app.include_router(
+    psd2_gateway.router, prefix="/v1"
+)  # PSD2 Gateway adorsys (IL-PSD2GW-01) — /v1/psd2/*

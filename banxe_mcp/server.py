@@ -6222,6 +6222,157 @@ async def fin060_dashboard() -> str:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
+# ── FX Rates tools (IL-FXR-01, Sprint 37) ────────────────────────────────
+
+
+@mcp_server.tool()
+async def fx_get_latest_rates(base: str = "GBP", symbols: str = "") -> str:
+    """Get latest ECB FX rates from self-hosted Frankfurter.
+
+    Args:
+        base: Base currency (default: GBP)
+        symbols: Comma-separated target symbols, e.g. "EUR,USD" (default: all)
+
+    Returns:
+        JSON with base, rates dict (Decimal strings), source.
+    """
+    try:
+        params = f"?base={base}"
+        if symbols:
+            params += f"&symbols={symbols}"
+        result = await _api_get(f"/v1/fx-rates/latest{params}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def fx_convert_amount(amount: str, from_currency: str, to_currency: str) -> str:
+    """Convert amount between currencies using ECB rates (Decimal I-01).
+
+    Args:
+        amount: Amount as decimal string, e.g. "100.00"
+        from_currency: Source currency code, e.g. "GBP"
+        to_currency: Target currency code, e.g. "EUR"
+
+    Returns:
+        JSON with from_currency, to_currency, amount, converted_amount, rate, date.
+    """
+    try:
+        result = await _api_post(
+            "/v1/fx-rates/convert",
+            {"amount": amount, "from_currency": from_currency, "to_currency": to_currency},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def fx_get_historical_rates(date: str, base: str = "GBP") -> str:
+    """Get historical ECB rates for a specific date (YYYY-MM-DD).
+
+    Args:
+        date: Date in YYYY-MM-DD format, e.g. "2026-01-15"
+        base: Base currency (default: GBP)
+
+    Returns:
+        JSON with base, date, rates dict (Decimal strings), source.
+    """
+    try:
+        result = await _api_get(f"/v1/fx-rates/historical/{date}?base={base}")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+# ── PSD2 Gateway tools (IL-PSD2GW-01, Sprint 37) ─────────────────────────
+
+
+@mcp_server.tool()
+async def psd2_create_consent(iban: str, valid_until: str) -> str:
+    """Create PSD2 AISP consent for bank account — returns HITLProposal (L4, COMPLIANCE_OFFICER).
+
+    Args:
+        iban: Bank account IBAN (will be masked in response)
+        valid_until: Consent expiry date YYYY-MM-DD
+
+    Returns:
+        JSON HITLProposal — requires COMPLIANCE_OFFICER approval before activation.
+    """
+    try:
+        result = await _api_post(
+            "/v1/psd2/consents",
+            {
+                "iban": iban,
+                "valid_until": valid_until,
+                "access_type": "allAccounts",
+                "operator": "mcp_agent",
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def psd2_get_transactions(
+    consent_id: str, account_id: str, date_from: str, date_to: str
+) -> str:
+    """Fetch bank transactions via PSD2 AISP consent.
+
+    Args:
+        consent_id: Approved consent ID
+        account_id: Account ID under the consent
+        date_from: Start date YYYY-MM-DD
+        date_to: End date YYYY-MM-DD
+
+    Returns:
+        JSON with transactions list (amounts as Decimal strings, I-01).
+    """
+    try:
+        result = await _api_get(
+            f"/v1/psd2/transactions/{consent_id}/{account_id}"
+            f"?date_from={date_from}&date_to={date_to}"
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
+@mcp_server.tool()
+async def psd2_configure_autopull(iban: str, frequency: str = "daily") -> str:
+    """Configure automatic CAMT.053 pull schedule — returns HITLProposal (L4).
+
+    Args:
+        iban: Bank account IBAN for which to schedule automatic pulls
+        frequency: Pull frequency — "daily" or "weekly" (default: daily)
+
+    Returns:
+        JSON HITLProposal — requires COMPLIANCE_OFFICER approval.
+    """
+    try:
+        result = await _api_post(
+            "/v1/psd2/auto-pull/configure",
+            {"iban": iban, "frequency": frequency, "operator": "mcp_agent"},
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except httpx.ConnectError:
+        return json.dumps({"error": "BANXE API unavailable"})
+
+
 # ── Entry point ───────────────────────────────────────────────────────────
 
 

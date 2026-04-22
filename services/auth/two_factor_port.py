@@ -1,0 +1,23 @@
+"""TwoFactorPort — hexagonal port for TOTP/2FA operations."""
+
+from __future__ import annotations
+
+from typing import Protocol
+
+from services.auth.two_factor import TOTPSetup, VerifyResult
+
+
+class TwoFactorPort(Protocol):
+    def setup_totp(self, customer_id: str, account_name: str | None = None) -> TOTPSetup: ...
+
+    def confirm_totp(self, customer_id: str, otp: str) -> bool: ...
+
+    def is_enabled(self, customer_id: str) -> bool: ...
+
+    def verify_totp(self, customer_id: str, otp: str) -> VerifyResult: ...
+
+    def verify_backup_code(self, customer_id: str, code: str) -> VerifyResult: ...
+
+    def revoke_totp(self, customer_id: str) -> None: ...
+
+    def backup_codes_remaining(self, customer_id: str) -> int: ...

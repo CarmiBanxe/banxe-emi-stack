@@ -1867,3 +1867,41 @@ commit: IL-CNS-01 + IL-CDO-01 | Sprint 35 | 2026-04-21
 | Agent passports | 51 | 54+ | 54 ✅ |
 
 commit: IL-PGA-01 + IL-REC-01 + IL-FIN060-01 | Sprint 36 | 2026-04-22
+
+---
+
+## Sprint 37 — Phase 52: Frankfurter FX Rates + adorsys PSD2 Gateway
+
+### S37-A: Phase 52A Frankfurter FX Rates (IL-FXR-01)
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 521 | services/fx_rates/fx_rate_models.py — RateEntry, ConversionResult, RateOverride, InMemoryRateStore | IL-FXR-01 | ✅ |
+| 522 | services/fx_rates/frankfurter_client.py — FrankfurterClient (self-hosted ECB), FXRateService | IL-FXR-01 | ✅ |
+| 523 | services/fx_rates/fx_rate_agent.py — FXRateAgent, schedule_daily_fetch, get_rate_dashboard | IL-FXR-01 | ✅ |
+| 524 | docker/docker-compose.frankfurter.yml — hakanensari/frankfurter :8087 | IL-FXR-01 | ✅ |
+| 525 | api/routers/fx_rates.py — 5 endpoints /v1/fx-rates/* | IL-FXR-01 | ✅ |
+| 526 | 3 MCP tools (fx_get_latest_rates, fx_convert_amount, fx_get_historical_rates) | IL-FXR-01 | ✅ |
+| 527 | Agent passport agents/passports/fx_rates/PASSPORT.md | IL-FXR-01 | ✅ |
+| 528 | 90+ tests across 5 test files | IL-FXR-01 | ✅ |
+
+### S37-B: Phase 52B adorsys PSD2 Gateway (IL-PSD2GW-01)
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 529 | services/psd2_gateway/psd2_models.py — frozen dataclasses, BLOCKED_JURISDICTIONS, InMemory stores | IL-PSD2GW-01 | ✅ |
+| 530 | services/psd2_gateway/adorsys_client.py — AdorsysClient, IBAN I-02 check, BT-007 stub | IL-PSD2GW-01 | ✅ |
+| 531 | services/psd2_gateway/camt053_auto_pull.py — AutoPuller, PullSchedule, masked IBAN | IL-PSD2GW-01 | ✅ |
+| 532 | services/psd2_gateway/psd2_agent.py — PSD2Agent HITL L4, consent/pull proposals | IL-PSD2GW-01 | ✅ |
+| 533 | api/routers/psd2_gateway.py — 5 endpoints /v1/psd2/* | IL-PSD2GW-01 | ✅ |
+| 534 | 3 MCP tools (psd2_create_consent, psd2_get_transactions, psd2_configure_autopull) | IL-PSD2GW-01 | ✅ |
+| 535 | Agent passport agents/passports/psd2_gateway/PASSPORT.md | IL-PSD2GW-01 | ✅ |
+| 536 | 120+ tests across 5 test files | IL-PSD2GW-01 | ✅ |
+
+### S37-C: Sprint 37 Targets
+| Metric | S36 Actual | S37 Target | S37 Actual |
+|--------|-----------|------------|-----------|
+| Tests | 7748 | 7933+ | 7958 ✅ |
+| MCP tools | 219 | 225+ | 225 ✅ |
+| API endpoints | 438 | 448+ | 448 ✅ |
+| Agent passports | 54 | 56+ | 56 ✅ |
+
+commit: IL-FXR-01 + IL-PSD2GW-01 | Sprint 37 | 2026-04-21

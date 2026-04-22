@@ -1,0 +1,14 @@
+version: "3.9"
+# Frankfurter — self-hosted ECB FX rates (no API key, free, open-source)
+# https://github.com/hakanensari/frankfurter
+services:
+  frankfurter:
+    image: hakanensari/frankfurter:latest
+    ports:
+      - "8087:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/latest"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
