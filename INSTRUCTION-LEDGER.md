@@ -8,13 +8,15 @@
 
 ## IL-LINT-02 — Bandit Nosec Rationale + gitignore Hardening
 - Status: DONE
-- Proof commit: 1c75213
+- Proof commit: 9989a32
 - Scope:
-  - nosec B310 provider_registry (scheme-validated health_url)
-  - nosec B108 regdata_return stub (tracked by IL-FIN060-REAL-01)
+  - nosec B310 provider_registry (scheme-validated)
+  - nosec B108 regdata_return (stub, tracked by IL-FIN060-REAL-01)
   - nosec B104 safeguarding-engine (container-internal bind)
   - .gitignore: node_modules, caches
+  - mypy installed in .venv
 
 ## IL-LINT-03 — Quality Baseline Remediation (OPEN)
 - Status: TODO
-- Scope deferred: B017 FrozenInstanceError migration, SIM300 Yoda conditions, defusedxml B314 migration (blocked: behaviour diff in test_camt053_parser)
+- Deferred: B017, SIM300, defusedxml B314 (behaviour diff in test_camt053_parser)
+- Out-of-scope artefacts (not in IL-LINT): audit/recon/reporting fichi, feat/auth-ports-formalization
