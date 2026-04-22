@@ -8,7 +8,7 @@
 
 ## IL-LINT-02 — Bandit Nosec Rationale + gitignore Hardening
 - Status: DONE
-- Proof commit: 9989a32
+- Proof commit: b83fb8f
 - Scope:
   - nosec B310 provider_registry (scheme-validated)
   - nosec B108 regdata_return (stub, tracked by IL-FIN060-REAL-01)
