@@ -152,3 +152,26 @@
 ### IL-COMPSYNC-MCP-TOOLS-FIX — DONE
 - Status: DONE
 - Proof: banxe_mcp/server.py exposes compliance_scan + compliance_gaps; pytest-fast Passed in EMI pre-commit run 2026-04-22T17:50:21Z
+
+
+---
+
+### IL-COMPSYNC-0X — resolve v1
+- Status: DONE
+- Proof/notes: tracked in HEAD (9 files), last path SHA=82b69b2d21a61328eae1b925566ec6860c0e13fd
+
+
+### IL-FRAUDTRACE-0X — resolve v1
+- Status: DONE
+- Proof/notes: tracked in HEAD (9 files), last path SHA=82b69b2d21a61328eae1b925566ec6860c0e13fd
+
+
+### IL-MIDAZMCP-0X — resolve v1
+- Status: DONE
+- Proof/notes: tracked in HEAD (9 files), last path SHA=82b69b2d21a61328eae1b925566ec6860c0e13fd
+
+
+### IL-SCA-ADAPTERS-0X — resolve v1
+- Status: DONE
+- Proof/notes: tracked in HEAD (1 files), last path SHA=82b69b2d21a61328eae1b925566ec6860c0e13fd
+
