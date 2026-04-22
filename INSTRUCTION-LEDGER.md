@@ -124,3 +124,31 @@
 - Owner scope: IL-COMPSYNC-0X family (compliance_sync MCP tools)
 - Blocks: IL-LINT-03 commit proof (adds to IL-CNS-AUD-PIPELINE-FIX and
   IL-OBS-MCP-TESTS-FIX)
+
+---
+
+### IL-LINT-03 — DONE (anchored, mixed-scope deviation)
+- Status: DONE
+- Proof SHA: 7708d4c541df94083bcd379d8aa005740617ec57
+- Proof SHA subject: "feat(sprint-39): Phase 54 Compliance Sync + Midaz MCP + Fraud Tracer [IL-CMS-01 + IL-MCP-01 + IL-TRC-01]"
+- Deviation: IL-LINT-03 scoped diff (defusedxml + FrozenInstanceError + I001 across
+  services/batch_payments/file_parser.py, tests/test_card_issuing/test_models.py,
+  tests/test_multi_currency/test_models.py) landed inside sprint-39 mixed commit
+  instead of a dedicated fix(lint) commit.
+- Mitigation: this ledger-only entry retroactively anchors IL-LINT-03 proof to the
+  existing commit; no code or tests are touched by this entry.
+- Recovery check: HEAD sha256 == WKTREE sha256 for all three scoped files;
+  HEAD parser contains "defusedxml.ElementTree", "DefusedET.fromstring",
+  "DefusedET.ParseError".
+
+### IL-CNS-AUD-PIPELINE-FIX — DONE
+- Status: DONE
+- Proof: pytest-fast Passed on tests/test_integration/test_consent_audit_pipeline.py in EMI pre-commit run 2026-04-22T17:50:21Z
+
+### IL-OBS-MCP-TESTS-FIX — DONE
+- Status: DONE
+- Proof: pytest-fast Passed on tests/test_observability/test_mcp_tools_observability.py in EMI pre-commit run 2026-04-22T17:50:21Z
+
+### IL-COMPSYNC-MCP-TOOLS-FIX — DONE
+- Status: DONE
+- Proof: banxe_mcp/server.py exposes compliance_scan + compliance_gaps; pytest-fast Passed in EMI pre-commit run 2026-04-22T17:50:21Z
