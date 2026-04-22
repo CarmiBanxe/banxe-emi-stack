@@ -65,3 +65,40 @@
   observability scope (routers/observability.py, services/observability/*,
   agents/passports/observability/*) does not regress other suites.
 - Blocks: IL-LINT-03 commit proof
+
+---
+
+### IL-COMPSYNC-0X — Compliance Sync scope (parking)
+- Status: TODO
+- Scope:
+  - services/compliance_sync/
+  - tests/test_compliance_sync/
+- Origin: new untracked in banxe-emi-stack working tree (not part of IL-LINT-03)
+- Goal: formalize compliance_sync as its own IL (design + tests + passport);
+  promote to DONE only with dedicated proof SHA.
+
+### IL-FRAUDTRACE-0X — Fraud Tracer scope (parking)
+- Status: TODO
+- Scope:
+  - services/fraud_tracer/
+  - tests/test_fraud_tracer/
+- Origin: new untracked in banxe-emi-stack working tree (not part of IL-LINT-03)
+- Goal: formalize fraud_tracer as its own IL; no mixing with IL-LINT-03 or
+  IL-FRAUD adapters.
+
+### IL-MIDAZMCP-0X — Midaz MCP scope (parking)
+- Status: TODO
+- Scope:
+  - services/midaz_mcp/
+  - tests/test_midaz_mcp/
+- Origin: new untracked in banxe-emi-stack working tree
+- Goal: formalize midaz_mcp integration as its own IL with Midaz ledger
+  contracts and MCP tools passports.
+
+### IL-SCA-ADAPTERS-0X — SCA adapters model (parking)
+- Status: TODO
+- Scope:
+  - api/models/sca_adapters.py
+- Origin: new untracked in banxe-emi-stack working tree
+- Goal: formalize SCA adapters model under auth scope (align with
+  IL-SCA2F-* / services/auth/sca_service_port.py).
