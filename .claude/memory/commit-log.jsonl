@@ -77,3 +77,6 @@
 {"ts":"2026-04-19T01:29:33Z","hash":"e97f4b6","il":null,"type":"docs","msg":"docs(auth): define staged import order for router token iam sca 2fa","files_changed":1,"areas":[]}
 {"ts":"2026-04-19T12:15:34Z","hash":"7816c87","il":null,"type":"refactor","msg":"refactor(auth): add application service seam for thin router migration","files_changed":1,"areas":["services"]}
 {"hash": "7816c87", "full_hash": "7816c8780bff776cc6102f5a0d9d50f049ef1161", "message": "refactor(auth): add application service seam for thin router migration", "author": "Moriel Carmi", "date": "2026-04-19 14:15:13 +0200", "il_id": null, "type": "refactor", "changed_files": ["services/auth/auth_application_service.py"]}
+{"ts":"2026-04-22T17:07:41Z","hash":"bb9a9b5","il":null,"type":"docs","msg":"docs(ledger): register new out-of-scope IL parking tickets (TODO)","files_changed":1,"areas":[]}
+{"ts":"2026-04-22T17:36:00Z","hash":"514a7fe","il":"IL-COMPSYNC-0","type":"docs","msg":"docs(ledger): IL-COMPSYNC-0X parking v3 recorded + IL-COMPSYNC-MCP-TOOLS-FIX blocker","files_changed":1,"areas":[]}
+{"ts":"2026-04-22T17:41:53Z","hash":"82b69b2","il":null,"type":null,"msg":"auth: add ports and SCA response adapters","files_changed":31,"areas":["services","api","tests"]}
