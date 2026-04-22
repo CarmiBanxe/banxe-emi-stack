@@ -102,3 +102,25 @@
 - Origin: new untracked in banxe-emi-stack working tree
 - Goal: formalize SCA adapters model under auth scope (align with
   IL-SCA2F-* / services/auth/sca_service_port.py).
+
+---
+
+### IL-COMPSYNC-0X — parking map v3 recorded (reference)
+- Status: TODO
+- Scope snapshot: /tmp/banxe_parking_il_contours_v3_20260422192527.txt
+- Notes:
+  - Parking map v3 enumerates IL-COMPSYNC-0X / IL-FRAUDTRACE-0X /
+    IL-MIDAZMCP-0X with full file-level scope from working tree snapshot.
+  - No code or tests are promoted to tracked state by this record.
+
+### IL-COMPSYNC-MCP-TOOLS-FIX — TODO (new blocker)
+- Status: TODO
+- Scope:
+  - banxe_mcp/server.py (missing name: compliance_scan)
+  - tests/test_compliance_sync/test_mcp_tools.py
+- Observed failure under pytest-fast:
+  - ImportError: cannot import name 'compliance_scan' from 'banxe_mcp.server'
+  - Test: TestComplianceMCPTools::test_compliance_scan_returns_json
+- Owner scope: IL-COMPSYNC-0X family (compliance_sync MCP tools)
+- Blocks: IL-LINT-03 commit proof (adds to IL-CNS-AUD-PIPELINE-FIX and
+  IL-OBS-MCP-TESTS-FIX)
