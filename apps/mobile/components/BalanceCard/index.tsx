@@ -1,11 +1,11 @@
 /**
  * BalanceCard — Account balance display (Mobile / React Native)
- * MD3 tokens as StyleSheet constants (mirrors DESIGN.md / tokens.css)
+ * MD3 tokens from @banxe/tokens (mirrors DESIGN.md dark theme)
  * Financial invariants: tabular-nums, Decimal-only display, disclosure header
  * IL-UI-02 | WCAG AA
  */
+import { TOKENS } from "../../tokens";
 import {
-  ActivityIndicator,
   StyleSheet,
   Text,
   View,
@@ -30,42 +30,6 @@ export interface BalanceCardProps {
   isLoading?: boolean;
   style?: ViewStyle;
 }
-
-// ─── MD3 token constants (mirrors tokens.css — no CSS vars in React Native) ──
-
-const TOKENS = {
-  // Backgrounds
-  bgCard: "rgba(38, 40, 46, 1)", // oklch(15% 0.01 240)
-  bgSecondary: "rgba(28, 30, 35, 1)", // oklch(13% 0.01 240)
-  bgPrimary: "rgba(18, 18, 20, 1)", // oklch(10% 0 0)
-
-  // Borders
-  borderDefault: "rgba(42, 46, 55, 1)", // oklch(20% 0.01 240)
-
-  // Text
-  textPrimary: "rgba(242, 242, 242, 1)", // oklch(95% 0 0)
-  textSecondary: "rgba(148, 148, 148, 1)", // oklch(65% 0 0)
-  textMuted: "rgba(100, 100, 100, 1)", // oklch(45% 0 0)
-  textDanger: "#f87171",
-  textSuccess: "#34d399",
-  textWarning: "#fbbf24",
-  brandAccent: "#3b82f6",
-
-  // Spacing
-  spacing1: 4,
-  spacing2: 8,
-  spacing3: 12,
-  spacing4: 16,
-  spacing5: 20,
-  spacing6: 24,
-
-  // Radius (MD3 shape)
-  radiusSm: 4,
-  radiusMd: 6,
-  radiusLg: 8,
-  radiusXl: 12,
-  radiusFull: 9999,
-} as const;
 
 // ─── Account type badge colours ───────────────────────────────────────────────
 
@@ -151,7 +115,7 @@ export function BalanceCard({
       style={[styles.card, style]}
       accessible
       accessibilityRole="none"
-      accessibilityLabel={`${accountType} account balance: ${formattedAmount}`}
+      accessibilityLabel={`${accountType} account — ${formattedAmount}`}
     >
       {/* Header row */}
       <View style={styles.headerRow}>

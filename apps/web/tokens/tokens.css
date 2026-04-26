@@ -1,0 +1,120 @@
+/**
+ * BANXE Design Tokens — apps/web
+ * Dark theme. Mirrors frontend/src/design-system/tokens.css
+ * Source of truth: DESIGN.md | IL-UI-03
+ *
+ * Import this file once in your app root (e.g. layout.tsx):
+ *   import '@banxe/tokens/tokens.css';
+ */
+@layer base {
+  :root {
+    color-scheme: dark;
+
+    /* ─── Backgrounds ──────────────────────────────────────── */
+    --color-bg-primary:    oklch(10% 0 0);
+    --color-bg-secondary:  oklch(13% 0.01 240);
+    --color-bg-tertiary:   oklch(17% 0.01 240);
+    --color-bg-card:       oklch(15% 0.01 240);
+
+    /* ─── Brand ────────────────────────────────────────────── */
+    --color-brand-primary: oklch(30% 0.08 240);
+    --color-brand-accent:  #3b82f6;
+
+    /* ─── Status ───────────────────────────────────────────── */
+    --color-success:  #10b981;
+    --color-warning:  #f59e0b;
+    --color-danger:   #f43f5e;
+    --color-info:     #3b82f6;
+    --color-alert:    #f97316;
+
+    /* ─── AML Severity ─────────────────────────────────────── */
+    --color-severity-critical: #f43f5e;
+    --color-severity-high:     #f97316;
+    --color-severity-medium:   #f59e0b;
+    --color-severity-low:      oklch(45% 0 0);
+
+    /* ─── Text ──────────────────────────────────────────────── */
+    --color-text-primary:   oklch(95% 0 0);
+    --color-text-secondary: oklch(65% 0 0);
+    --color-text-muted:     oklch(45% 0 0);
+    --color-text-danger:    #f87171;
+    --color-text-success:   #34d399;
+    --color-text-warning:   #fbbf24;
+
+    /* ─── Borders ───────────────────────────────────────────── */
+    --color-border-default: oklch(20% 0.01 240);
+    --color-border-subtle:  oklch(17% 0.01 240);
+    --color-border-focus:   #3b82f6;
+
+    /* ─── Typography ────────────────────────────────────────── */
+    --font-display: "DM Serif Display", Georgia, serif;
+    --font-body:    "Inter", system-ui, -apple-system, sans-serif;
+    --font-mono:    "JetBrains Mono", "Fira Code", monospace;
+
+    --font-size-xs:   0.75rem;
+    --font-size-sm:   0.875rem;
+    --font-size-base: 1rem;
+    --font-size-lg:   1.125rem;
+    --font-size-xl:   1.25rem;
+    --font-size-2xl:  1.5rem;
+    --font-size-3xl:  1.875rem;
+    --font-size-4xl:  2.25rem;
+
+    --font-weight-normal:    400;
+    --font-weight-medium:    500;
+    --font-weight-semibold:  600;
+    --font-weight-bold:      700;
+
+    --line-height-tight:   1.25;
+    --line-height-normal:  1.5;
+
+    /* ─── Spacing ───────────────────────────────────────────── */
+    --spacing-1:  0.25rem;
+    --spacing-2:  0.5rem;
+    --spacing-3:  0.75rem;
+    --spacing-4:  1rem;
+    --spacing-5:  1.25rem;
+    --spacing-6:  1.5rem;
+    --spacing-8:  2rem;
+    --spacing-10: 2.5rem;
+    --spacing-12: 3rem;
+    --spacing-16: 4rem;
+
+    /* ─── Border Radius ─────────────────────────────────────── */
+    --radius-sm:   0.25rem;
+    --radius-md:   0.375rem;
+    --radius-lg:   0.5rem;
+    --radius-xl:   0.75rem;
+    --radius-full: 9999px;
+
+    /* ─── Shadows ───────────────────────────────────────────── */
+    --shadow-sm: 0 1px 2px 0 oklch(0% 0 0 / 0.3);
+    --shadow-md: 0 4px 6px -1px oklch(0% 0 0 / 0.4), 0 2px 4px -2px oklch(0% 0 0 / 0.2);
+    --shadow-lg: 0 10px 15px -3px oklch(0% 0 0 / 0.5), 0 4px 6px -4px oklch(0% 0 0 / 0.3);
+    --shadow-glow-blue: 0 0 20px oklch(50% 0.2 240 / 0.3);
+
+    /* ─── Component dimensions ──────────────────────────────── */
+    --sidebar-collapsed:   64px;
+    --sidebar-expanded:    240px;
+    --table-row-height:    44px;
+    --table-header-height: 40px;
+    --card-padding:        24px;
+    --kpi-card-height:     140px;
+  }
+
+  .tabular-nums,
+  [data-financial],
+  .financial-amount {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
+  .amount-negative { color: var(--color-text-danger); }
+  .amount-pending  { color: var(--color-text-warning); font-style: italic; }
+
+  :focus-visible {
+    outline: 2px solid var(--color-border-focus);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+}

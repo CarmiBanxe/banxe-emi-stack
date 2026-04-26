@@ -16,26 +16,24 @@ const BASE_PROPS: BalanceCardProps = {
 };
 
 describe("BalanceCard — rendering", () => {
-  it("renders positive balance with success colour token", () => {
+  // jsdom strips CSS custom-property values from element.style.color,
+  // so we test via the semantic data-status attribute instead.
+  it("renders positive balance with data-status=positive", () => {
     render(<BalanceCard {...BASE_PROPS} />);
-    const amount = screen.getByRole("paragraph", {
-      name: /Balance: £1,234\.56/i,
-    });
-    expect(amount).toBeDefined();
-    // colour resolved to --color-text-success
-    expect(amount.getAttribute("style")).toContain("var(--color-text-success)");
+    const amount = screen.getByLabelText(/^Balance: £1,234\.56$/i);
+    expect(amount.getAttribute("data-status")).toBe("positive");
   });
 
-  it("renders negative balance with danger colour token", () => {
+  it("renders negative balance with data-status=negative", () => {
     render(<BalanceCard {...BASE_PROPS} balance="-500.00" />);
-    const amount = screen.getByLabelText(/Balance: -£500\.00/i);
-    expect(amount.getAttribute("style")).toContain("var(--color-text-danger)");
+    const amount = screen.getByLabelText(/^Balance: -£500\.00$/i);
+    expect(amount.getAttribute("data-status")).toBe("negative");
   });
 
-  it("renders zero balance with warning colour token", () => {
+  it("renders zero balance with data-status=pending", () => {
     render(<BalanceCard {...BASE_PROPS} balance="0.00" />);
-    const amount = screen.getByLabelText(/Balance: £0\.00/i);
-    expect(amount.getAttribute("style")).toContain("var(--color-text-warning)");
+    const amount = screen.getByLabelText(/^Balance: £0\.00$/i);
+    expect(amount.getAttribute("data-status")).toBe("pending");
   });
 
   it("renders disclosure header with correct UTC timestamp", () => {
@@ -65,14 +63,14 @@ describe("BalanceCard — account types", () => {
 describe("BalanceCard — financial invariants", () => {
   it("applies tabular-nums to amount element (I-01)", () => {
     render(<BalanceCard {...BASE_PROPS} />);
-    const amount = screen.getByLabelText(/Balance: £1,234\.56/i);
+    const amount = screen.getByLabelText(/^Balance: £1,234\.56$/i);
     expect(amount.getAttribute("style")).toContain("tabular-nums");
   });
 
   it("amount prop is string — never float (I-01)", () => {
     // TypeScript enforces string; this test guards runtime contract
     render(<BalanceCard {...BASE_PROPS} balance="9999999.99" />);
-    expect(screen.getByLabelText(/Balance: £9,999,999\.99/i)).toBeDefined();
+    expect(screen.getByLabelText(/^Balance: £9,999,999\.99$/i)).toBeDefined();
   });
 });
 
@@ -92,7 +90,7 @@ describe("BalanceCard — accessibility", () => {
   it("has accessible article role with full label", () => {
     render(<BalanceCard {...BASE_PROPS} />);
     expect(
-      screen.getByRole("article", { name: /Current account balance: £1,234\.56/i }),
+      screen.getByRole("article", { name: /Current account — £1,234\.56/i }),
     ).toBeDefined();
   });
 

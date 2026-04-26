@@ -1,0 +1,13 @@
+{
+  "name": "banxe-emi-stack",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/web",
+    "apps/mobile",
+    "frontend"
+  ],
+  "overrides": {
+    "react-test-renderer": "19.2.5"
+  }
+}

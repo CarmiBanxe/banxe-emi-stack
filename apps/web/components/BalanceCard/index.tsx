@@ -4,6 +4,7 @@
  * Financial invariants: tabular-nums, Decimal-only display, disclosure header
  * IL-UI-02 | WCAG AA
  */
+import "../../tokens/tokens.css";
 import type { CSSProperties } from "react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -150,7 +151,7 @@ export function BalanceCard({
         flexDirection: "column",
         gap: "var(--spacing-3)",
       }}
-      aria-label={`${accountType} account balance: ${formattedAmount}`}
+      aria-label={`${accountType} account — ${formattedAmount}`}
       data-financial
     >
       {/* Header row */}
@@ -184,6 +185,7 @@ export function BalanceCard({
 
       {/* Balance amount */}
       <p
+        data-status={resolvedStatus}
         style={{
           fontSize: "var(--font-size-3xl)",
           fontWeight: "var(--font-weight-bold)",
