@@ -175,3 +175,54 @@
 - Status: DONE
 - Proof/notes: tracked in HEAD (1 files), last path SHA=82b69b2d21a61328eae1b925566ec6860c0e13fd
 
+
+---
+
+### IL-LINT-03 — anchor correction (supersedes prior anchor)
+- parent-cycle: housekeeping/lint-hygiene
+- amendment-ref: (n/a — code hygiene, no constitutional amendment)
+- source: anchor probe /tmp/il_lint_03_real_anchor_*.log
+- status: integrated
+- status-history:
+  - proposed @ 2026-04-22 (initial IL-LINT-03 OPEN ticket, ledger commit 3fcb668)
+  - accepted @ 2026-04-22 (scoped fix verified green: ruff/bandit/py_compile/pytest)
+  - integrated @ 2026-04-22 (true code anchor identified: ba3fccc)
+- scope:
+  - banxe-emi-stack: services/batch_payments/file_parser.py
+  - banxe-emi-stack: tests/test_card_issuing/test_models.py
+  - banxe-emi-stack: tests/test_multi_currency/test_models.py
+- integration-rule: anchor-only correction; no code or test files touched here.
+- anchors:
+  - CODE PROOF: ba3fccc (full ba3fccceaa376b6ec1273f416bd6fb916353fca6) "feat(sprint-38): Phase 53 Integration Hardening + Observability [IL-INT-01 + IL-OBS-01]"
+- verification:
+  - probe markers: defusedxml.ElementTree as DefusedET in parser; pytest.raises(FrozenInstanceError) in both test_models.py
+  - emi-stack proof commit: ba3fccceaa376b6ec1273f416bd6fb916353fca6
+  - sha256-anchors:
+      services/batch_payments/file_parser.py: b04d2d5af95cb5fa61f8a57b48b252e0db2a3d23db6d75fdf278c2950ee96cc6
+      tests/test_card_issuing/test_models.py:   0351fb3b4395fcf8923703819b68610c7025eb4090c80e982479b4a363227eee
+      tests/test_multi_currency/test_models.py:     599beb64531c0f074baa06a080c6b786ce64acac4fd30f88c2e35a0ea49b5f64
+- deviations:
+  - prior-anchor-mistake: earlier ledger commit 693ecab
+    (docs(ledger): IL-LINT-03 DONE anchored to 7708d4c) recorded a
+    wrong proof SHA. 7708d4c is sprint-39 Phase 54 and does NOT
+    modify any of the three scoped files; it merely inherits them from
+    ba3fccc. The earlier entry stays in ledger history as record
+    but is now superseded.
+- supersedes: prior IL-LINT-03 entry with anchor 7708d4c (ledger commit 693ecab63359b50a2c839b858f8e25b9706f4d6d)
+- privileged-ops:
+  - git tag: NOT EXECUTED
+  - gh release: NOT EXECUTED
+- successor: (none)
+- notes:
+  Real chronological history of the three scoped files contains 4 commits;
+  this is the first one where all three IL-LINT-03 markers are present, hence
+  the canonical proof SHA. Anchor-only correction; no code or tests touched.
+
+
+---
+
+### IL-LINT-03 — anchor correction
+- Status: integrated
+- Real proof SHA: ba3fccceaa376b6ec1273f416bd6fb916353fca6
+- Supersedes: prior anchor 7708d4c (ledger commit 693ecab)
+- Reason: 7708d4c does not modify the three IL-LINT-03 files; ba3fccc does.
