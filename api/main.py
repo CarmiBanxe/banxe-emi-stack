@@ -37,12 +37,14 @@ from fastapi.responses import JSONResponse
 from api.routers import (
     api_gateway,
     api_versioning,
+    ato_prevention,
     audit_dashboard,
     audit_trail,
     auth,
     batch_payments,
     beneficiary,
     card_issuing,
+    complaints,
     compliance_automation,
     compliance_calendar,
     compliance_kb,
@@ -52,9 +54,11 @@ from api.routers import (
     consumer_duty_v2,
     crypto_custody,
     customers,
+    device_fingerprint,
     dispute_resolution,
     document_management,
     experiments,
+    fatca_crs,
     fee_management,
     fin060_reporting,
     fraud,
@@ -275,3 +279,7 @@ app.include_router(observability.router, prefix="/v1")  # Observability (IL-OBS-
 app.include_router(compliance_sync.router, prefix="/v1")  # Compliance Matrix Sync (IL-CMS-01)
 app.include_router(midaz_mcp.router, prefix="/v1")  # Midaz MCP Integration (IL-MCP-01)
 app.include_router(fraud_tracer.router, prefix="/v1")  # Fraud Tracer (IL-TRC-01)
+app.include_router(fatca_crs.router, prefix="/v1")  # FATCA/CRS Self-Cert (IL-FAT-01)
+app.include_router(complaints.router, prefix="/v1")  # DISP Complaints (IL-DSP-01)
+app.include_router(device_fingerprint.router, prefix="/v1")  # Device Fingerprint (IL-DFP-01)
+app.include_router(ato_prevention.router, prefix="/v1")  # ATO Prevention (IL-ATO-01)

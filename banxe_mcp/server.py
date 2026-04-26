@@ -6631,6 +6631,240 @@ async def compliance_gaps() -> str:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
 
 
+# ── FATCA/CRS MCP Tools (IL-FAT-01) ─────────────────────────────────────────
+
+
+@mcp_server.tool()
+async def fatca_create_cert(
+    customer_id: str,
+    country: str = "GB",
+    tin: str = "0000000000",
+    us_person: bool = False,
+) -> str:
+    """Create a FATCA/CRS self-certification for a customer.
+
+    Args:
+        customer_id: Customer ID
+        country: Tax residency country (ISO-2). I-02: RU/BY/IR/KP blocked.
+        tin: Tax Identification Number (masked in logs)
+        us_person: True if US person (triggers W-9 logic)
+
+    Returns:
+        JSON with cert_id, status, expires_at.
+    """
+    try:
+        result = await _api_post(
+            "/v1/fatca-crs/certifications",
+            {
+                "customer_id": customer_id,
+                "tax_residencies": [{"country": country, "tin": tin}],
+                "us_person": us_person,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def fatca_list_renewals() -> str:
+    """List FATCA/CRS certifications due for renewal (within 30 days).
+
+    Returns:
+        JSON with renewal_count and list of cert details.
+    """
+    try:
+        result = await _api_get("/v1/fatca-crs/renewals")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+# ── DISP Complaints MCP Tools (IL-DSP-01) ────────────────────────────────────
+
+
+@mcp_server.tool()
+async def complaints_register(customer_id: str, category: str, description: str) -> str:
+    """Register an FCA DISP complaint.
+
+    Args:
+        customer_id: Customer filing the complaint
+        category: One of: service_quality, fees_charges, fraud_scam, payment_delay,
+            account_access, data_privacy
+        description: Complaint description
+
+    Returns:
+        JSON with complaint_id, status, sla_days.
+    """
+    try:
+        result = await _api_post(
+            "/v1/complaints",
+            {
+                "customer_id": customer_id,
+                "category": category,
+                "description": description,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def complaints_resolve(complaint_id: str, outcome: str, redress_amount: str = "0.00") -> str:
+    """Resolve a complaint. I-27: redress > £500 returns HITL_REQUIRED.
+
+    Args:
+        complaint_id: Complaint ID to resolve
+        outcome: upheld / partially_upheld / not_upheld
+        redress_amount: Decimal string (I-01: never float). Default 0.00.
+
+    Returns:
+        JSON with resolution or HITL_REQUIRED proposal.
+    """
+    try:
+        result = await _api_post(
+            f"/v1/complaints/{complaint_id}/resolve",
+            {
+                "outcome": outcome,
+                "redress_amount": redress_amount,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def complaints_dashboard() -> str:
+    """Get complaints management dashboard.
+
+    Returns:
+        JSON with total, by_status breakdown, resolutions count.
+    """
+    try:
+        result = await _api_get("/v1/complaints/dashboard")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+# ── Device Fingerprint MCP Tools (IL-DFP-01) ─────────────────────────────────
+
+
+@mcp_server.tool()
+async def device_register(customer_id: str, user_agent: str, canvas_hash: str = "") -> str:
+    """Register a device fingerprint for a customer.
+
+    Args:
+        customer_id: Customer ID
+        user_agent: Browser/app user agent string
+        canvas_hash: Canvas fingerprint hash (optional)
+
+    Returns:
+        JSON with device_id, customer_id, registered_at.
+    """
+    try:
+        result = await _api_post(
+            "/v1/devices/register",
+            {
+                "customer_id": customer_id,
+                "fingerprint": {"user_agent": user_agent, "canvas_hash": canvas_hash},
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def device_match(customer_id: str, user_agent: str, canvas_hash: str = "") -> str:
+    """Match incoming device fingerprint. I-27: suspicious devices return HITL_REQUIRED.
+
+    Args:
+        customer_id: Customer ID attempting login
+        user_agent: Browser/app user agent string
+        canvas_hash: Canvas fingerprint hash (optional)
+
+    Returns:
+        JSON with match_type (known/new/suspicious), risk_score (Decimal string).
+        Suspicious devices return HITL_REQUIRED for FRAUD_ANALYST review.
+    """
+    try:
+        result = await _api_post(
+            "/v1/devices/match",
+            {
+                "customer_id": customer_id,
+                "fingerprint": {"user_agent": user_agent, "canvas_hash": canvas_hash},
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+# ── ATO Prevention MCP Tools (IL-ATO-01) ─────────────────────────────────────
+
+
+@mcp_server.tool()
+async def ato_assess_login(
+    customer_id: str,
+    ip_address: str,
+    device_fingerprint: str,
+    country: str = "GB",
+) -> str:
+    """Assess a login attempt for Account Takeover risk.
+
+    Args:
+        customer_id: Customer attempting login
+        ip_address: Login IP address
+        device_fingerprint: Device fingerprint hash
+        country: Geo country code (default: GB). I-02: RU/BY/IR/KP → score 1.0 LOCK.
+
+    Returns:
+        JSON with risk_score (Decimal string), signals, action (allow/challenge/lock).
+        score >= 0.8 returns HITL_REQUIRED for SECURITY_OFFICER.
+    """
+    try:
+        result = await _api_post(
+            "/v1/ato/assess",
+            {
+                "customer_id": customer_id,
+                "ip_address": ip_address,
+                "device_fingerprint": device_fingerprint,
+                "country": country,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def ato_unlock_account(customer_id: str, officer: str, reason: str) -> str:
+    """Propose account unlock. I-27 HITL L4 — always requires SECURITY_OFFICER.
+
+    Args:
+        customer_id: Customer account to unlock
+        officer: Security officer requesting unlock
+        reason: Reason for unlock
+
+    Returns:
+        JSON HITL_REQUIRED proposal with proposal_id and requires_approval_from.
+    """
+    try:
+        result = await _api_post(
+            f"/v1/ato/unlock/{customer_id}",
+            {
+                "officer": officer,
+                "reason": reason,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
 # ── Entry point ───────────────────────────────────────────────────────────
 
 
