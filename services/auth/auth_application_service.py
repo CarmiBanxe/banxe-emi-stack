@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.db.models import AuthSession, Customer
 from api.models.auth import LoginResponse, TokenRefreshResponse
 from services.auth.token_manager import TokenManager, TokenValidationError
+from services.auth.token_manager_port import TokenManagerPort
 
 logger = logging.getLogger("banxe.auth.app")
 
@@ -37,7 +38,7 @@ class AuthApplicationService:
 
     def __init__(
         self,
-        token_manager: TokenManager | None = None,
+        token_manager: TokenManagerPort | None = None,
         iam_port: Any = None,
         sca_service: Any = None,
     ) -> None:
