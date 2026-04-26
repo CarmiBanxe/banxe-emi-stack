@@ -44,6 +44,7 @@ from api.routers import (
     batch_payments,
     beneficiary,
     card_issuing,
+    client_statements,
     complaints,
     compliance_automation,
     compliance_calendar,
@@ -53,6 +54,7 @@ from api.routers import (
     consumer_duty,
     consumer_duty_v2,
     crypto_custody,
+    customer_lifecycle,
     customers,
     device_fingerprint,
     dispute_resolution,
@@ -61,6 +63,7 @@ from api.routers import (
     fatca_crs,
     fee_management,
     fin060_reporting,
+    fos_escalation,
     fraud,
     fraud_tracer,
     fx_engine,
@@ -68,6 +71,7 @@ from api.routers import (
     fx_rates,
     health,
     hitl,
+    hmrc_reporting,
     insurance,
     kyb_onboarding,
     kyc,
@@ -283,3 +287,7 @@ app.include_router(fatca_crs.router, prefix="/v1")  # FATCA/CRS Self-Cert (IL-FA
 app.include_router(complaints.router, prefix="/v1")  # DISP Complaints (IL-DSP-01)
 app.include_router(device_fingerprint.router, prefix="/v1")  # Device Fingerprint (IL-DFP-01)
 app.include_router(ato_prevention.router, prefix="/v1")  # ATO Prevention (IL-ATO-01)
+app.include_router(fos_escalation.router, prefix="/v1")  # FOS Escalation (IL-FOS-01)
+app.include_router(hmrc_reporting.router, prefix="/v1")  # HMRC Reporting (IL-HMR-01)
+app.include_router(client_statements.router, prefix="/v1")  # Client Statements (IL-CST-01)
+app.include_router(customer_lifecycle.router, prefix="/v1")  # Customer Lifecycle FSM (IL-LCY-01)

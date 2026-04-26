@@ -6865,6 +6865,200 @@ async def ato_unlock_account(customer_id: str, officer: str, reason: str) -> str
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
 
 
+# ── FOS Escalation MCP Tools (IL-FOS-01) ─────────────────────────────────────
+
+
+@mcp_server.tool()
+async def fos_prepare_case(
+    complaint_id: str,
+    customer_id: str,
+    weeks_elapsed: int,
+    firm_decision: str = "not_upheld",
+) -> str:
+    """Prepare a Financial Ombudsman Service case package.
+
+    Args:
+        complaint_id: Complaint ID to escalate
+        customer_id: Customer ID
+        weeks_elapsed: Weeks since complaint registered (auto-flags at week 6)
+        firm_decision: Firm's final response decision (default: not_upheld)
+
+    Returns:
+        JSON FOSCasePackage with case_id, status (PREPARING/READY), weeks_since_complaint.
+    """
+    try:
+        result = await _api_post(
+            f"/v1/fos/prepare/{complaint_id}",
+            {
+                "customer_id": customer_id,
+                "weeks_elapsed": weeks_elapsed,
+                "firm_decision": firm_decision,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def fos_list_cases() -> str:
+    """List all FOS escalation cases including week-6 flagged cases.
+
+    Returns:
+        JSON with total, week6_flagged count, and list of cases.
+    """
+    try:
+        result = await _api_get("/v1/fos/cases")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+# ── HMRC Reporting MCP Tools (IL-HMR-01) ─────────────────────────────────────
+
+
+@mcp_server.tool()
+async def hmrc_generate_report(tax_year: int, accounts_json: str = "[]") -> str:
+    """Generate HMRC FATCA/CRS annual report. I-27 HITL: requires CFO + MLRO dual sign-off.
+
+    Args:
+        tax_year: Tax year (e.g. 2025)
+        accounts_json: JSON array of account data. Blocked jurisdictions excluded (I-02).
+                       Amounts must be decimal strings (I-01: never float).
+
+    Returns:
+        JSON HITL_REQUIRED proposal (requires CFO + MLRO approval before generation).
+    """
+    try:
+        accounts = json.loads(accounts_json)
+        result = await _api_post(
+            "/v1/hmrc/reports/generate",
+            {
+                "tax_year": tax_year,
+                "accounts": accounts,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+    except json.JSONDecodeError as exc:
+        return json.dumps({"error": f"Invalid accounts_json: {exc}"})
+
+
+@mcp_server.tool()
+async def hmrc_validate_report(tax_year: int) -> str:
+    """Validate HMRC annual report against XSD schema rules.
+
+    Args:
+        tax_year: Tax year of report to validate
+
+    Returns:
+        JSON ValidationResult with valid flag and list of errors.
+    """
+    try:
+        result = await _api_post(f"/v1/hmrc/reports/{tax_year}/validate", {})
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+# ── Client Statement MCP Tools (IL-CST-01) ───────────────────────────────────
+
+
+@mcp_server.tool()
+async def statement_generate(
+    customer_id: str,
+    period_start: str,
+    period_end: str,
+    fmt: str = "json",
+) -> str:
+    """Generate a client account statement.
+
+    Args:
+        customer_id: Customer ID
+        period_start: Statement period start (YYYY-MM-DD)
+        period_end: Statement period end (YYYY-MM-DD)
+        fmt: Output format -- pdf, csv, or json (default: json)
+
+    Returns:
+        JSON with statement_id, entry_count, generated_at. All amounts are Decimal strings (I-01).
+    """
+    try:
+        result = await _api_post(
+            "/v1/statements/generate",
+            {
+                "customer_id": customer_id,
+                "period_start": period_start,
+                "period_end": period_end,
+                "format": fmt,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def statement_download(statement_id: str) -> str:
+    """Get download URL for a generated statement (PDF/CSV/JSON).
+
+    Args:
+        statement_id: Statement ID to download
+
+    Returns:
+        JSON with statement_id and download_url.
+    """
+    try:
+        result = await _api_get(f"/v1/statements/{statement_id}/download")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+# ── Customer Lifecycle MCP Tools (IL-LCY-01) ─────────────────────────────────
+
+
+@mcp_server.tool()
+async def lifecycle_transition(customer_id: str, event: str, country: str = "GB") -> str:
+    """Trigger a customer lifecycle FSM transition.
+
+    Args:
+        customer_id: Customer ID
+        event: Lifecycle event -- submit_application, complete_kyc, activate,
+               flag_dormant, reactivate, suspend, close, offboard
+        country: Customer country (default: GB). I-02: RU/BY/IR/KP blocked on submit_application.
+
+    Returns:
+        JSON TransitionResult with from_state, to_state, event, transitioned_at.
+        Returns 400 for blocked jurisdiction, 422 for invalid transition.
+    """
+    try:
+        result = await _api_post(
+            f"/v1/lifecycle/{customer_id}/transition",
+            {
+                "event": event,
+                "country": country,
+            },
+        )
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
+@mcp_server.tool()
+async def lifecycle_list_dormant() -> str:
+    """List all dormant customers (90+ days inactivity).
+
+    Returns:
+        JSON with dormant_count and list of customer_ids.
+    """
+    try:
+        result = await _api_get("/v1/lifecycle/dormant")
+        return json.dumps(result, indent=2)
+    except httpx.HTTPStatusError as exc:
+        return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
+
+
 # ── Entry point ───────────────────────────────────────────────────────────
 
 
