@@ -9,5 +9,10 @@
   ],
   "overrides": {
     "react-test-renderer": "19.2.5"
+  },
+  "scripts": {
+    "proto:sync": "python3 scripts/proto-sync.py",
+    "proto:web": "cd apps/web && npx storybook dev -p 6006",
+    "proto:mobile": "cd apps/mobile && STORYBOOK_ENABLED=true npx expo start"
   }
 }
