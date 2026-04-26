@@ -5,6 +5,7 @@
     "CLAUDE_CODE_SUBAGENT_MODEL": "haiku"
   },
   "permissions": {
+    "defaultMode": "acceptEdits",
     "deny": [
       "Bash(rm -rf *)",
       "Bash(git push --force *)",

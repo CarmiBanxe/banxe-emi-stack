@@ -130,22 +130,26 @@ For the following changes, do NOT ask extra clarifying questions beyond permissi
 
 #### Auto-edit zones
 
-For files under these paths, do NOT ask additional confirmation questions beyond the standard editor prompt — propose a plan, apply edits, and show the diff:
+For files under these paths, do NOT ask additional clarifying questions beyond the standard editor prompt; just propose the plan, apply edits, and show the diff:
 
 - `scripts/**/*.py`
 - `tests/**/*.py`
 - `services/*/tests/**/*.py`
 - `services/*/schemas/**/*.py`
 - `services/*/proto/**/*.py`
+- `apps/*/tests/**/*.py`
 
-For files under these paths, you MUST present a short risk analysis and explicit plan before any edit:
+For files under these paths you MUST present a short risk analysis and explicit plan before any edit, even when `acceptEdits` mode is active:
 
 - `alembic/versions/**`
 - `services/*/api/**`
 - `services/*/contracts/**`
+- `services/*/migrations/**`
 - `infra/**`
 - `deploy/**`
-- any production configuration files
+- any production configuration files (`prod.*.yaml`, `*.prod.env`, etc.)
+
+This is additive: it does not override the global Security and Database sections of this file.
 
 ---
 
