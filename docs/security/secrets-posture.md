@@ -29,7 +29,7 @@ and references in `.github/workflows/`.
 | Secret Name | Classification | Workflows that reference it | Notes |
 |-------------|----------------|-----------------------------|-------|
 | `GITHUB_TOKEN` | built-in | all workflows | Auto-provisioned by GitHub; scoped to repo; rotates per job |
-| `ANTHROPIC_API_KEY` | external API | `claude-release-readiness.yml`, `claude-issue-triage.yml`, `claude-daily-report.yml` | **Not set** — workflows will fail if triggered; see §6 |
+| `ANTHROPIC_API_KEY` | external API | `claude-release-readiness.yml`, `claude-issue-triage.yml`, `claude-daily-report.yml` | **Not set** — all three workflows fail when triggered; two trigger automatically (see §6) |
 
 ### 2.2 banxe-architecture
 
@@ -77,20 +77,40 @@ and references in `.github/workflows/`.
 
 ---
 
-## 6. Open Issues
+## 6. Claude Workflow Inventory (category B — ANTHROPIC_API_KEY referenced, secret not set)
 
-| # | Issue | Severity | Owner | Resolution |
-|---|-------|----------|-------|------------|
-| 1 | `ANTHROPIC_API_KEY` referenced in 3 workflows but **not set** in repo secrets | Medium | @mmber | Either set the secret in GitHub UI, or remove/disable the three workflows if not needed for this sandbox |
+> `claude-pr-review.yml` has no legacy — it was removed in IL-REVW-01 (Sprint 42, sha dd027cb).
+> No other `claude-pr-review` workflow exists in this repo.
 
-> **Note (sandbox context):** `banxe-emi-stack` is a sandbox environment.
-> Workflows `claude-release-readiness.yml`, `claude-issue-triage.yml`, and
-> `claude-daily-report.yml` reference `ANTHROPIC_API_KEY`. These will fail silently
-> (or error) until the secret is set. Deferring to repo admin decision.
+The three remaining Claude workflows all reference `ANTHROPIC_API_KEY` and are classified as
+**category B**: exist, secret absent, candidates for a separate follow-up IL in Sprint 43.
+**Do NOT remove or re-enable any of these in IL-SEC-01.** They are documented here only.
+
+| Workflow | Trigger | Fires automatically? | Impact of missing secret |
+|----------|---------|---------------------|--------------------------|
+| `claude-release-readiness.yml` | `workflow_dispatch` (manual, requires `release_version` input) | No | Fails only when manually triggered |
+| `claude-issue-triage.yml` | `issues: [opened, labeled]` | **Yes** — on every new/labeled issue | Job errors on every issue event |
+| `claude-daily-report.yml` | `schedule: 0 7 * * 1-5` (07:00 UTC Mon-Fri) + `workflow_dispatch` | **Yes** — every weekday | Job errors every weekday morning |
+
+**Priority note:** `claude-issue-triage` and `claude-daily-report` produce automatic failures
+on a recurring basis. `claude-release-readiness` is lower urgency (manual only).
 
 ---
 
-## 7. Ownership
+## 7. Open Issues
+
+| # | Issue | Severity | Owner | Resolution |
+|---|-------|----------|-------|------------|
+| 1 | `claude-issue-triage.yml` fires on every issue event but `ANTHROPIC_API_KEY` not set → automatic job failures | High | @mmber | Sprint 43: IL-CLAUDE-01 — decide set secret or disable workflow |
+| 2 | `claude-daily-report.yml` fires every weekday at 07:00 UTC but `ANTHROPIC_API_KEY` not set → recurring daily failures | High | @mmber | Sprint 43: IL-CLAUDE-01 — same decision |
+| 3 | `claude-release-readiness.yml` references `ANTHROPIC_API_KEY` (manual trigger only) | Low | @mmber | Sprint 43: IL-CLAUDE-01 — bundle with issues 1 & 2 |
+
+> **Note (sandbox context):** `banxe-emi-stack` is a sandbox environment.
+> Secret values are never set via CLI — all changes via GitHub UI only.
+
+---
+
+## 8. Ownership
 
 | Scope | Owner |
 |-------|-------|
@@ -100,7 +120,7 @@ and references in `.github/workflows/`.
 
 ---
 
-## 8. Related
+## 9. Related
 
 - IL-PROT-01: branch protection rules (CODEOWNERS, required checks)
 - IL-REVW-01: removed `claude-pr-review.yml` (was referencing absent `ANTHROPIC_API_KEY`)
