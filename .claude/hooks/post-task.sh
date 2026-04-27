@@ -82,7 +82,19 @@ _main() {
     printf '  last commit   %s  %s ago  %s\n' \
         "${short_hash}" "$(_age "${age_secs}")" "${subject}"
 
-    # ── 3. doc-sync ────────────────────────────────────────────────────────────
+    # ── 3. proto-sync (runs when API routes or models changed) ────────────────
+
+    local _changed
+    _changed="$(git diff --name-only HEAD 2>/dev/null || echo "")"
+    if printf '%s\n' "${_changed}" | grep -qE 'api/routers/|api/models/|api/main\.py'; then
+        if [ -f "${repo_dir}/scripts/proto-sync.py" ]; then
+            local _proto
+            _proto="$(python3 "${repo_dir}/scripts/proto-sync.py" 2>&1 | head -1)"
+            printf '  proto-sync    %s\n' "${_proto}"
+        fi
+    fi
+
+    # ── 4. doc-sync ────────────────────────────────────────────────────────────
 
     printf '\n  %s\n' "${DIV}"
 

@@ -29,11 +29,11 @@ Research base: banxe-architecture/docs/financial-analytics-research.md
 **Приоритет задач:**
 ```
 P0 (до 7 May 2026):
-  1. pgAudit на всех PostgreSQL БД
-  2. Daily safeguarding reconciliation (Blnk / bankstatementparser + Midaz)
-  3. FIN060 generation → RegData
-  4. Frankfurter FX rates (self-hosted ECB)
-  5. adorsys PSD2 gateway (bank statement polling)
+  1. pgAudit на всех PostgreSQL БД                 ✅ S36
+  2. Daily safeguarding reconciliation              ✅ S36
+  3. FIN060 generation → RegData                   ✅ S36
+  4. Frankfurter FX rates (self-hosted ECB)         ✅ S37
+  5. adorsys PSD2 gateway (bank statement polling)  ✅ S37
 
 P1 (Q2-Q3 2026): Metabase/Superset, Great Expectations, Debezium, Temporal, Kafka
 P2 (Q4 2026): Camunda 7, OpenMetadata, Airbyte
@@ -42,7 +42,118 @@ P3 (Year 2+): FinGPT, OpenBB, Apache Flink
 
 ---
 
-## 1. P0 Stack Map
+## 1. EMI BANXE AI BANK — Project Rules
+
+Project: EMI BANXE AI BANK — FCA-authorised fintech EMI platform.
+Stack: Python 3.12, FastAPI, PostgreSQL 17, ClickHouse, Redis, Docker, Alembic.
+
+### Development Commands
+
+```bash
+# Tests
+python -m pytest tests/ -v --tb=short                      # all tests
+python -m pytest tests/test_<module>/ -x -q --no-cov       # single module fast
+python -m pytest tests/ --cov=services --cov=api --cov-fail-under=80  # with coverage
+
+# Linting
+ruff check .                  # lint (must be 0 issues before commit)
+ruff format .                 # auto-format
+mypy services/ api/           # type checking
+
+# Database
+alembic upgrade head          # apply all migrations (ask permission)
+alembic downgrade -1          # roll back one (ask permission)
+alembic revision --autogenerate -m "description"  # generate migration
+
+# Docker P0 stack
+docker compose -f docker/docker-compose.master.yml up -d   # full P0 stack
+docker compose -f docker/docker-compose.master.yml down    # stop all
+docker compose -f docker/docker-compose.master.yml logs -f api  # stream logs
+
+# Quality gate
+bash scripts/quality-gate.sh  # full gate: ruff + mypy + pytest + semgrep
+```
+
+### Architecture Rules
+
+- Each service in `services/<domain>/` is an independent unit.
+- Never import code directly between services — use API contracts or message queues.
+- Protocol DI pattern: Port (Protocol) → Service → Adapter (InMemory/Real).
+- All value objects: `@dataclass(frozen=True)` or `Pydantic(frozen=True)`.
+- All external dependencies injected via constructor, never module-level singletons.
+
+### Git Conventions
+
+- Branch naming: `feat/*`, `fix/*`, `refactor/*`, `hotfix/*`.
+- Never push directly to main (hook enforced).
+- All changes through pull requests and code review.
+- Commit format: `type(scope): message [IL-XXX]`.
+
+### Security Rules
+
+- Never hardcode secrets, tokens, passwords or keys.
+- Always use environment variables via Pydantic Settings.
+- Never read `.env` files or `secrets/` without explicit confirmation.
+- Blocked jurisdictions: RU/BY/IR/KP/CU/MM/AF/VE/SY (I-02) — enforced in all payment flows.
+
+### Database Rules
+
+- Every schema change requires an Alembic migration file.
+- Migrations must be reviewed before applying (`ask` permission level).
+- No destructive SQL against production databases without sign-off.
+- ClickHouse audit tables: TTL minimum 5 years (I-08), never reduce.
+
+### Code Quality
+
+- `ruff` and `mypy` must pass before any commit is considered ready.
+- Tests in pytest, minimum 80% coverage for `services/` and `api/`.
+- For every non-trivial business rule change, ensure tests are present.
+- I-01: `Decimal` only for monetary values — Semgrep rule `banxe-float-money` enforces this.
+
+### When NOT to Ask for Confirmation
+
+For the following changes, do NOT ask extra clarifying questions beyond permissions rules. Propose a plan, apply it, and show the diff:
+
+**Auto-apply without prompting** (safe, local, reversible):
+- Pure refactoring within a single module (no behaviour change, tests stay green)
+- Adding or fixing type hints, docstrings, or inline comments
+- Changes only inside `tests/` or `services/*/tests/`
+- Running allowed tooling: `ruff`, `mypy`, `pytest`, `alembic revision`
+- Reading any non-secret file to understand context
+
+**Always present plan and wait for YES** (risky, irreversible, or cross-cutting):
+- Any DB schema change or new Alembic migration
+- Changes to cross-service interfaces or shared API contracts
+- Touching financial invariants (I-01 Decimal, I-02 jurisdictions, I-24 audit, I-27 HITL)
+- Production configuration, secrets layout, or environment variables
+- `alembic upgrade` / `alembic downgrade` (always `ask`, blocked for `*prod*`)
+
+#### Auto-edit zones
+
+For files under these paths, do NOT ask additional clarifying questions beyond the standard editor prompt; just propose the plan, apply edits, and show the diff:
+
+- `scripts/**/*.py`
+- `tests/**/*.py`
+- `services/*/tests/**/*.py`
+- `services/*/schemas/**/*.py`
+- `services/*/proto/**/*.py`
+- `apps/*/tests/**/*.py`
+
+For files under these paths you MUST present a short risk analysis and explicit plan before any edit, even when `acceptEdits` mode is active:
+
+- `alembic/versions/**`
+- `services/*/api/**`
+- `services/*/contracts/**`
+- `services/*/migrations/**`
+- `infra/**`
+- `deploy/**`
+- any production configuration files (`prod.*.yaml`, `*.prod.env`, etc.)
+
+This is additive: it does not override the global Security and Database sections of this file.
+
+---
+
+## 2. P0 Stack Map
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -72,47 +183,6 @@ P3 (Year 2+): FinGPT, OpenBB, Apache Flink
 
 ---
 
-## 2. Repo Structure (P0 scope only)
-
-```
-banxe-emi-stack/
-├── CLAUDE.md                    ← этот файл
-├── .env.example                 ← шаблон переменных окружения
-├── .claude/
-│   └── agents/
-│       ├── reconciliation-agent.md   ← P0 daily recon agent
-│       └── reporting-agent.md        ← P0 FIN060 reporting agent
-├── docker/
-│   ├── docker-compose.recon.yml      ← Blnk + bankstatementparser + pgAudit
-│   └── docker-compose.reporting.yml  ← dbt + JasperReports/WeasyPrint
-├── services/
-│   ├── ledger/
-│   │   └── midaz_client.py           ← async Midaz API client
-│   ├── recon/
-│   │   ├── reconciliation_engine.py  ← CASS 7.15 engine (mirrors vibe-coding)
-│   │   ├── statement_fetcher.py      ← CSV + CAMT.053 statement reader
-│   │   └── bankstatement_parser.py   ← CAMT.053/MT940 parser wrapper
-│   └── reporting/
-│       └── fin060_generator.py       ← FIN060a/b PDF generation
-├── dbt/
-│   ├── dbt_project.yml
-│   ├── profiles.yml
-│   └── models/
-│       ├── staging/
-│       │   └── stg_ledger_transactions.sql
-│       └── marts/
-│           ├── safeguarding/
-│           │   └── safeguarding_daily.sql
-│           └── fin060/
-│               └── fin060_monthly.sql
-└── scripts/
-    ├── daily-recon.sh               ← P0 CASS 7.15 cron
-    ├── monthly-fca-return.sh        ← FIN060 → RegData
-    └── audit-export.sh              ← annual audit export
-```
-
----
-
 ## 3. Связанные репозитории
 
 | Репо | URL | Назначение |
@@ -123,24 +193,7 @@ banxe-emi-stack/
 
 ---
 
-## 4. Ссылки на существующий код
-
-ReconciliationEngine и StatementFetcher уже реализованы в vibe-coding:
-```
-vibe-coding/src/compliance/recon/reconciliation_engine.py  (commit 3f7060f)
-vibe-coding/src/compliance/recon/statement_fetcher.py      (commit 3f7060f)
-vibe-coding/src/compliance/recon/test_reconciliation.py    (T-16..T-30, 15/15)
-```
-
-Этот репо расширяет их:
-- Добавляет CAMT.053 parser (bankstatementparser lib)
-- Добавляет dbt трансформации для FIN060
-- Добавляет PDF generation для RegData
-- Добавляет pgAudit конфигурацию
-
----
-
-## 5. Правила git workflow
+## 4. Правила git workflow
 
 - main branch protected — только через PR
 - Каждый commit = один P0 item

@@ -1,0 +1,41 @@
+{
+  "name": "@banxe/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "typecheck": "tsc --noEmit",
+    "test": "jest --passWithNoTests"
+  },
+  "dependencies": {
+    "expo": "~52.0.0",
+    "expo-router": "~4.0.0",
+    "metro-react-native-babel-preset": "^0.77.0",
+    "react": "^19.0.0",
+    "react-native": "^0.76.0"
+  },
+  "devDependencies": {
+    "@testing-library/react-native": "^13.3.3",
+    "@types/react": "^19.0.0",
+    "jest": "^29.0.0",
+    "jest-expo": "~53.0.0",
+    "react-test-renderer": "19.2.5",
+    "typescript": "^5.0.0"
+  },
+  "jest": {
+    "preset": "react-native",
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js",
+      "jsx",
+      "json"
+    ],
+    "transformIgnorePatterns": [
+      "node_modules/(?!(react-native|@react-native|@testing-library)/)"
+    ]
+  }
+}

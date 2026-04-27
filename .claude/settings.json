@@ -4,6 +4,96 @@
     "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "60",
     "CLAUDE_CODE_SUBAGENT_MODEL": "haiku"
   },
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(curl *)",
+      "Bash(wget *)",
+      "Bash(cat .env*)",
+      "Bash(alembic upgrade *prod*)",
+      "Bash(alembic downgrade *prod*)",
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(secrets/**)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(docker push *)",
+      "Bash(alembic upgrade *)",
+      "Bash(alembic downgrade *)",
+      "Bash(psql *)"
+    ],
+    "allow": [
+      "Bash(python -m pytest *)",
+      "Bash(python3 -m pytest *)",
+      "Bash(pytest *)",
+      "Bash(ruff check *)",
+      "Bash(ruff format *)",
+      "Bash(mypy *)",
+      "Bash(alembic revision *)",
+      "Bash(alembic revision --autogenerate *)",
+      "Bash(git status)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git branch *)",
+      "Bash(git checkout *)",
+      "Bash(git show *)",
+      "Bash(git stash *)",
+      "Bash(docker compose up *)",
+      "Bash(docker compose down *)",
+      "Bash(docker compose ps *)",
+      "Bash(docker compose logs *)",
+      "Bash(docker compose build *)",
+      "Bash(docker ps *)",
+      "Bash(make *)",
+      "Bash(pip install *)",
+      "Bash(pip install -r *)",
+      "Bash(ls)",
+      "Bash(ls *)",
+      "Bash(ls -l *)",
+      "Bash(ls -la *)",
+      "Bash(ls -lah *)",
+      "Bash(pwd)",
+      "Bash(tree *)",
+      "Bash(stat *)",
+      "Bash(file *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(wc -l *)",
+      "Bash(find . *)",
+      "Bash(find services *)",
+      "Bash(find apps *)",
+      "Bash(find scripts *)",
+      "Bash(find tests *)",
+      "Bash(grep -r *)",
+      "Bash(grep -R *)",
+      "Bash(rg *)",
+      "Bash(jq *)",
+      "Bash(cat services/*)",
+      "Bash(cat apps/*)",
+      "Bash(cat scripts/*)",
+      "Bash(cat tests/*)",
+      "Bash(cat README*)",
+      "Bash(cat pyproject.toml)",
+      "Bash(cat alembic.ini)",
+      "Bash(cat docker-compose*.yml)",
+      "Bash(cat Makefile)",
+      "Bash(python3 scripts/*)",
+      "Bash(python scripts/*)",
+      "Bash(bash scripts/*)",
+      "Bash(sh scripts/*)",
+      "Bash(make scripts-*)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {
@@ -28,8 +118,18 @@
           },
           {
             "type": "command",
-            "command": "echo '[LucidShark] Code modified \u2014 scan before completing task (mcp__lucidshark__scan or lucidshark scan --fix --format ai)'",
+            "command": "echo '[LucidShark] Code modified — scan before completing task (mcp__lucidshark__scan or lucidshark scan --fix --format ai)'",
             "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(echo \"$TOOL_INPUT\" | python3 -c \"import sys,json; d=json.load(sys.stdin); print(d.get('file_path', d.get('command', '')))\" 2>/dev/null || echo ''); echo \"$FILE\" | grep -qE 'api/routers/|api/models/|api/main\\.py' && cd /home/mmber/banxe-emi-stack && python3 scripts/proto-sync.py 2>&1 | head -1 || true",
+            "timeout": 30
           }
         ]
       }

@@ -1905,3 +1905,57 @@ commit: IL-PGA-01 + IL-REC-01 + IL-FIN060-01 | Sprint 36 | 2026-04-22
 | Agent passports | 54 | 56+ | 56 ✅ |
 
 commit: IL-FXR-01 + IL-PSD2GW-01 | Sprint 37 | 2026-04-21
+
+---
+
+## Sprint 41 — Phase 56: FOS Escalation + HMRC FATCA Reporting + Client Statements + Lifecycle FSM
+
+### S41-A: Phase 56A — FOS Escalation Process (IL-FOS-01, closes S5-19)
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 537 | services/complaints/fos_escalation.py — FOSEscalation.prepare_case(), submit_case() I-27 HITL L4, BT-010/BT-011 | IL-FOS-01 | ✅ |
+| 538 | services/complaints/fos_models.py — FOSCasePackage, FirmFinalResponse, CustomerStatement, CaseTimeline, FOSCaseStatus | IL-FOS-01 | ✅ |
+| 539 | api/routers/fos_escalation.py — 3 endpoints: POST /v1/fos/prepare/{id}, GET /v1/fos/cases, POST /v1/fos/submit/{id} | IL-FOS-01 | ✅ |
+| 540 | 2 MCP tools (fos_prepare_case, fos_list_cases) | IL-FOS-01 | ✅ |
+| 541 | 39+ tests in tests/test_complaints/test_fos_escalation.py + test_fos_mcp_tools.py | IL-FOS-01 | ✅ |
+
+### S41-B: Phase 56B — HMRC FATCA/CRS Annual Reporting (IL-HMR-01, closes S5-20)
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 542 | services/fatca_crs/hmrc_reporter.py — HMRCReporter.generate_annual_report(), validate_report(), BT-012, I-24/I-27 | IL-HMR-01 | ✅ |
+| 543 | services/fatca_crs/hmrc_models.py — HMRCReport, ReportableAccount, AccountHolder, FinancialInstitution, ValidationError | IL-HMR-01 | ✅ |
+| 544 | api/routers/hmrc_reporting.py — 3 endpoints: POST /generate, GET /{tax_year}, POST /{tax_year}/validate | IL-HMR-01 | ✅ |
+| 545 | 2 MCP tools (hmrc_generate_report, hmrc_validate_report) | IL-HMR-01 | ✅ |
+| 546 | 32+ tests in tests/test_fatca_crs/test_hmrc_reporter.py + test_hmrc_mcp_tools.py | IL-HMR-01 | ✅ |
+
+### S41-C: Phase 56C — Client Statement Service (IL-CST-01, enhances S17-07)
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 547 | services/client_statements/statement_generator.py — PDF/CSV/JSON generation, I-01 Decimal, I-24, BT-013 | IL-CST-01 | ✅ |
+| 548 | services/client_statements/statement_models.py — Statement, StatementEntry, BalanceSummary, FXSummary, FeeBreakdown | IL-CST-01 | ✅ |
+| 549 | services/client_statements/statement_agent.py — I-27 HITL L4 for corrections (OPERATIONS_OFFICER) | IL-CST-01 | ✅ |
+| 550 | api/routers/client_statements.py — 4 endpoints: generate, history, download, correct | IL-CST-01 | ✅ |
+| 551 | 2 MCP tools (statement_generate, statement_download) | IL-CST-01 | ✅ |
+| 552 | Agent passport agents/passports/client_statements/PASSPORT.md | IL-CST-01 | ✅ |
+| 553 | 34+ tests in tests/test_client_statements/ | IL-CST-01 | ✅ |
+
+### S41-D: Phase 56D — Customer Lifecycle FSM (IL-LCY-01, enhances S17-09)
+| # | Feature | IL | Status |
+|---|---------|-----|--------|
+| 554 | services/customer_lifecycle/lifecycle_engine.py — 8-state FSM (prospect→offboarded), I-02 jurisdiction guard | IL-LCY-01 | ✅ |
+| 555 | services/customer_lifecycle/lifecycle_models.py — CustomerState, LifecycleEvent, TransitionResult, DormancyConfig(90d), RetentionConfig(5yr) | IL-LCY-01 | ✅ |
+| 556 | services/customer_lifecycle/lifecycle_agent.py — I-27 HITL L4 for suspend/offboard/reactivate | IL-LCY-01 | ✅ |
+| 557 | api/routers/customer_lifecycle.py — 4 endpoints: transition, state, dormant, reactivate | IL-LCY-01 | ✅ |
+| 558 | 2 MCP tools (lifecycle_transition, lifecycle_list_dormant) | IL-LCY-01 | ✅ |
+| 559 | Agent passport agents/passports/customer_lifecycle/PASSPORT.md | IL-LCY-01 | ✅ |
+| 560 | 44+ tests in tests/test_customer_lifecycle/ | IL-LCY-01 | ✅ |
+
+### S41-E: Sprint 41 Targets
+| Metric | S40 Actual | S41 Target | S41 Actual |
+|--------|-----------|------------|-----------|
+| Tests | 8345 | 8495+ | 8495 ✅ |
+| MCP tools | 247 | 255+ | 255 ✅ |
+| API endpoints | 483 | 497+ | 497 ✅ |
+| Agent passports | 64 | 66+ | 66 ✅ |
+
+commit: IL-FOS-01 + IL-HMR-01 + IL-CST-01 + IL-LCY-01 | Sprint 41 | 2026-04-27
