@@ -89,6 +89,15 @@ bash scripts/quality-gate.sh  # full gate: ruff + mypy + pytest + semgrep
 - All changes through pull requests and code review.
 - Commit format: `type(scope): message [IL-XXX]`.
 
+### Workflow
+
+- Never run `git push` to `main`, `master`, or `release/*` branches
+  directly. Always push to a feature branch (`feat/*`, `fix/*`,
+  `refactor/*`, `hotfix/*`) and let the user open a pull request.
+- If the user explicitly asks to push to main, present the exact
+  command and the list of commits that will be pushed, and wait
+  for an explicit "yes, push to main" before executing.
+
 ### Security Rules
 
 - Never hardcode secrets, tokens, passwords or keys.
