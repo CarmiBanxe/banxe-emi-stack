@@ -51,7 +51,7 @@ jobs:
         with:
           node-version: "20"
       - name: Install frontend deps
-        run: npm install
+        run: npm install --legacy-peer-deps
       - name: Biome CI
         uses: biomejs/setup-biome@v2
         with:
