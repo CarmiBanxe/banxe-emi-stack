@@ -119,7 +119,7 @@ jobs:
         with:
           node-version: "20"
       - name: Install frontend deps
-        run: npm install
+        run: npm install --legacy-peer-deps
       - name: Run Vitest
         run: npm run test
         continue-on-error: true
