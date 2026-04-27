@@ -1,6 +1,6 @@
 """
 services/customer_lifecycle/fsm.py
-KYC/EDD-gated Customer Lifecycle FSM (IL-KYC-01).
+KYC/EDD-gated Customer Lifecycle FSM (IL-KYC-01 + IL-OBS-01).
 
 Wraps LifecycleEngine with guards:
   - KYC_PENDING → ACTIVE  : requires KYC APPROVED signal (KYCGuardPort)
@@ -8,7 +8,8 @@ Wraps LifecycleEngine with guards:
   - SUSPENDED → ACTIVE    : requires MLRO HITL L4 approval (I-27)
   - ACTIVE/DORMANT → CLOSED: requires FATCA/CRS reporting complete
 
-Invariants: I-01 (Decimal), I-02 (jurisdictions), I-04 (EDD), I-27 (HITL L4).
+Observability (IL-OBS-01): LifecycleObserverPort injected for transition/guard/EDD events.
+Invariants: I-01 (Decimal), I-02 (jurisdictions), I-04 (EDD), I-24 (append-only), I-27 (HITL L4).
 """
 
 from __future__ import annotations
@@ -25,6 +26,13 @@ from services.customer_lifecycle.lifecycle_models import (
     CustomerState,
     LifecycleEvent,
     TransitionResult,
+)
+from services.customer_lifecycle.lifecycle_observer import (
+    EddBreachObservedEvent,
+    GuardFailureEvent,
+    LifecycleObserverPort,
+    TransitionObservedEvent,
+    _decimal_str,
 )
 from services.kyc.kyc_port import KYCStatus
 
@@ -141,11 +149,13 @@ class KYCLifecycleEngine:
         kyc_guard: KYCGuardPort | None = None,
         fatca_crs: FatcaCrsPort | None = None,
         hitl: HITLLifecyclePort | None = None,
+        observer: LifecycleObserverPort | None = None,
     ) -> None:
         self._engine = engine or LifecycleEngine(InMemoryLifecycleStore())
         self._kyc: KYCGuardPort = kyc_guard or InMemoryKYCGuard()
         self._fatca_crs: FatcaCrsPort = fatca_crs or InMemoryFatcaCrsGuard()
         self._hitl: HITLLifecyclePort = hitl or InMemoryHITLLifecyclePort()
+        self._observer: LifecycleObserverPort | None = observer
 
     def transition(
         self,
@@ -167,28 +177,65 @@ class KYCLifecycleEngine:
         if event == LifecycleEvent.ACTIVATE and current == CustomerState.KYC_PENDING:
             status = self._kyc.get_status(customer_id)
             if status != KYCStatus.APPROVED:
-                raise KYCNotApprovedError(
+                detail = (
                     f"Customer {customer_id!r} KYC status is {status.value!r}; "
                     "APPROVED required before activation."
                 )
+                if self._observer is not None:
+                    self._observer.on_guard_failure(
+                        GuardFailureEvent(
+                            customer_id=customer_id,
+                            guard_type="KYC_NOT_APPROVED",
+                            detail=detail,
+                        )
+                    )
+                raise KYCNotApprovedError(detail)
 
         # Guard: SUSPENDED → ACTIVE requires MLRO HITL L4 approval (I-27)
         if event == LifecycleEvent.ACTIVATE and current == CustomerState.SUSPENDED:
             if not self._hitl.has_mlro_approval(customer_id, _HITL_GATE_RESTRICTED_TO_ACTIVE):
-                raise HITLRequiredError(
+                detail = (
                     f"Customer {customer_id!r} requires MLRO L4 approval "
                     f"(gate={_HITL_GATE_RESTRICTED_TO_ACTIVE!r}) before reactivation (I-27)."
                 )
+                if self._observer is not None:
+                    self._observer.on_guard_failure(
+                        GuardFailureEvent(
+                            customer_id=customer_id,
+                            guard_type="HITL_REQUIRED",
+                            detail=detail,
+                        )
+                    )
+                raise HITLRequiredError(detail)
 
         # Guard: CLOSE requires FATCA/CRS reporting complete
         if event == LifecycleEvent.CLOSE:
             if not self._fatca_crs.is_reporting_complete(customer_id):
-                raise FatcaCrsIncompleteError(
+                detail = (
                     f"Customer {customer_id!r} has outstanding FATCA/CRS reporting; "
                     "cannot close until reporting is complete."
                 )
+                if self._observer is not None:
+                    self._observer.on_guard_failure(
+                        GuardFailureEvent(
+                            customer_id=customer_id,
+                            guard_type="FATCA_CRS_INCOMPLETE",
+                            detail=detail,
+                        )
+                    )
+                raise FatcaCrsIncompleteError(detail)
 
-        return self._engine.transition(customer_id, event, country)
+        result = self._engine.transition(customer_id, event, country)
+        if result is not None and self._observer is not None:
+            self._observer.on_transition(
+                TransitionObservedEvent(
+                    customer_id=customer_id,
+                    from_state=result.from_state,
+                    to_state=result.to_state,
+                    lifecycle_event=event,
+                )
+            )
+        return result
 
     def trigger_edd_restriction(
         self,
@@ -209,6 +256,15 @@ class KYCLifecycleEngine:
         if amount >= thresholds.edd_trigger:  # I-01: Decimal comparison
             result = self._engine.transition(customer_id, LifecycleEvent.SUSPEND)
             if result is not None:
+                if self._observer is not None:
+                    self._observer.on_edd_breach(
+                        EddBreachObservedEvent(
+                            customer_id=customer_id,
+                            amount=_decimal_str(amount),
+                            threshold=_decimal_str(thresholds.edd_trigger),
+                            entity_type=entity_type,
+                        )
+                    )
                 raise EddBreachError(
                     f"EDD threshold breached for {customer_id!r}: "
                     f"amount={amount} >= trigger={thresholds.edd_trigger} "
