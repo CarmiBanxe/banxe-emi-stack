@@ -1,0 +1,25 @@
+# CODEOWNERS — banxe-emi-stack
+# IL-PROT-01 (Sprint 42) | Effective: 2026-04-27
+#
+# All pull requests require review from the code owner of the
+# modified path. GitHub enforces this when "Require review from
+# CODEOWNERS" is enabled in branch protection settings.
+#
+# Syntax: <pattern> <@owner> [<@owner2> ...]
+# Patterns follow .gitignore rules; last matching pattern wins.
+
+# Default owner for everything not matched below
+*                                @mmber
+
+# Compliance-critical service paths (FCA CASS 15 / PS22/9)
+/services/complaints/            @mmber
+/services/fatca_crs/             @mmber
+/services/customer_lifecycle/    @mmber
+/services/client_statements/     @mmber
+
+# CI/CD workflows — changes require extra scrutiny
+/.github/workflows/              @mmber
+
+# Claude Code configuration — policy files
+/.claude/                        @mmber
+/CLAUDE.md                       @mmber
