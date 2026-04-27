@@ -31,3 +31,14 @@ compliance-experiments/draft/
 data/
 frontend/node_modules/
 node_modules/
+
+# TypeScript incremental build cache
+apps/*/tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# Next.js build output
+apps/*/.next/
+.next/
+
+# Claude Code session logs (runtime data, not source-controlled)
+.claude/memory/*.jsonl
