@@ -33,24 +33,24 @@ import logging
 import os
 import uuid
 
-import jwt
-
 from services.auth.sca_models import SCAChallenge, SCAMethods, SCAVerifyResult
+from services.auth.sca_token_issuer import JwtScaTokenIssuer
+from services.auth.sca_token_issuer_port import ScaTokenIssuerPort
 
 logger = logging.getLogger("banxe.sca")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-SCA_TOKEN_TTL_SEC = int(os.environ.get("SCA_TOKEN_TTL_SEC", "300"))  # PSD2 RTS Art.4
 SCA_CHALLENGE_TTL_SEC = int(os.environ.get("SCA_CHALLENGE_TTL_SEC", "120"))  # 2 min
 SCA_MAX_ATTEMPTS = int(os.environ.get("SCA_MAX_ATTEMPTS", "5"))
 SCA_MAX_CONCURRENT = int(os.environ.get("SCA_MAX_CONCURRENT", "3"))
 SCA_MAX_RESENDS = int(os.environ.get("SCA_MAX_RESENDS", "3"))  # PSD2 Art.97 resend cap
 SCA_SECRET_KEY = os.environ.get("SCA_SECRET_KEY", "dev-sca-secret-change-in-prod")
-SCA_ALGORITHM = "HS256"
 
 # Known biometric proof prefix (production: cryptographic assertion)
 _BIOMETRIC_PROOF_PREFIX = "biometric:approved:"
+
+SCA_ALGORITHM = "HS256"  # backward-compat export for tests/importers
 
 
 # ── InMemory Store ────────────────────────────────────────────────────────────
@@ -111,8 +111,13 @@ class SCAService:
       - Token TTL: 300 sec maximum
     """
 
-    def __init__(self, store: InMemorySCAStore | None = None) -> None:
+    def __init__(
+        self,
+        store: InMemorySCAStore | None = None,
+        token_issuer: ScaTokenIssuerPort | None = None,
+    ) -> None:
         self._store = store or InMemorySCAStore()
+        self._token_issuer: ScaTokenIssuerPort = token_issuer or JwtScaTokenIssuer()
         # OTP secrets per customer (mirroring TOTPService pattern)
         # In production: read from TOTPService/Redis
         self._otp_secrets: dict[str, str] = {}
@@ -365,34 +370,8 @@ class SCAService:
         return biometric_proof.startswith(_BIOMETRIC_PROOF_PREFIX)
 
     def _issue_sca_token(self, challenge: SCAChallenge) -> str:
-        """
-        Issue PSD2 RTS Art.10 dynamic-linking SCA token.
-
-        Claims:
-          - sub: customer_id
-          - txn_id: transaction_id (binding — PSD2 dynamic linking)
-          - amount: transaction amount (binding)
-          - payee: payee name (binding)
-          - iat: issued at
-          - exp: expires at (≤ SCA_TOKEN_TTL_SEC)
-        """
-        now = datetime.now(tz=UTC)
-        expires_at = now + timedelta(seconds=SCA_TOKEN_TTL_SEC)
-
-        payload = {
-            "sub": challenge.customer_id,
-            "txn_id": challenge.transaction_id,
-            "iat": int(now.timestamp()),
-            "exp": int(expires_at.timestamp()),
-            "sca": True,
-            "method": challenge.method,
-        }
-        if challenge.amount:
-            payload["amount"] = challenge.amount
-        if challenge.payee:
-            payload["payee"] = challenge.payee
-
-        return jwt.encode(payload, SCA_SECRET_KEY, algorithm=SCA_ALGORITHM)
+        """Delegate PSD2 RTS Art.10 dynamic-linking SCA token issuance to ScaTokenIssuerPort."""
+        return self._token_issuer.issue(challenge)
 
 
 # ── Factory ───────────────────────────────────────────────────────────────────
