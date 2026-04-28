@@ -67,20 +67,19 @@ class TokenManager:
 
     # ── Token issuance ────────────────────────────────────────────────────────
 
-    def issue_access_token(self, customer_id: str) -> tuple[str, datetime]:
-        """
-        Issue a new access token.
-
-        Returns:
-            (encoded_jwt, expires_at)
-        """
+    def issue_access_token(
+        self, customer_id: str, email: str | None = None
+    ) -> tuple[str, datetime]:
+        """Issue a new access token with optional email claim."""
         now = datetime.now(tz=UTC)
         expires_at = now + timedelta(hours=self._ttl_hours)
-        payload = {
+        payload: dict = {
             "sub": customer_id,
             "iat": int(now.timestamp()),
             "exp": int(expires_at.timestamp()),
         }
+        if email is not None:
+            payload["email"] = email
         token = jwt.encode(payload, self._secret, algorithm=self._algorithm)
         logger.debug("token_manager.access_token_issued customer=%s", customer_id)
         return token, expires_at

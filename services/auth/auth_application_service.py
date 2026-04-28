@@ -130,7 +130,9 @@ class AuthApplicationService:
         identity = await self._resolve_customer_identity(db=db, svc=svc, email=email)
         self._validate_pin(pin)
 
-        access_token, expires_at = self.token_manager.issue_access_token(identity.customer_id)
+        access_token, expires_at = self.token_manager.issue_access_token(
+            identity.customer_id, identity.email
+        )
         refresh_token, _refresh_expires_at = self.token_manager.issue_refresh_token(
             identity.customer_id
         )
