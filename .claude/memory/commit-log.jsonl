@@ -84,3 +84,4 @@
 {"ts":"2026-04-28T00:56:12Z","hash":"3bab681","il":null,"type":"chore","msg":"chore(memory): update commit log","files_changed":1,"areas":[]}
 {"ts":"2026-04-28T01:03:38Z","hash":"b8fc975","il":null,"type":"chore","msg":"chore(memory): update commit log","files_changed":1,"areas":[]}
 {"ts":"2026-04-28T01:13:10Z","hash":"1c2ba8b","il":null,"type":"docs","msg":"docs(auth): close Phase A inventory — reflect post-extraction state","files_changed":3,"areas":[]}
+{"ts":"2026-04-28T01:17:37Z","hash":"2293a3e","il":null,"type":"docs","msg":"docs(auth): define auth and IAM port boundaries","files_changed":1,"areas":[]}
