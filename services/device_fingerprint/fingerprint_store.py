@@ -32,9 +32,7 @@ class FingerprintStorePort(Protocol):
 
     def get_session_bindings(self, customer_id: str) -> list[SessionBinding]: ...
 
-    def get_recent_sessions(
-        self, customer_id: str, limit: int = 10
-    ) -> list[SessionBinding]: ...
+    def get_recent_sessions(self, customer_id: str, limit: int = 10) -> list[SessionBinding]: ...
 
 
 class InMemoryFingerprintStore:
@@ -49,12 +47,8 @@ class InMemoryFingerprintStore:
     def get_session_bindings(self, customer_id: str) -> list[SessionBinding]:
         return [b for b in self._bindings if b.customer_id == customer_id]
 
-    def get_recent_sessions(
-        self, customer_id: str, limit: int = 10
-    ) -> list[SessionBinding]:
-        customer_bindings = [
-            b for b in self._bindings if b.customer_id == customer_id
-        ]
+    def get_recent_sessions(self, customer_id: str, limit: int = 10) -> list[SessionBinding]:
+        customer_bindings = [b for b in self._bindings if b.customer_id == customer_id]
         return customer_bindings[-limit:]
 
     @property

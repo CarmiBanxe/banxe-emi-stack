@@ -15,9 +15,19 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from enum import Enum
 
-BLOCKED_JURISDICTIONS: frozenset[str] = frozenset({
-    "RU", "BY", "IR", "KP", "CU", "MM", "AF", "VE", "SY",
-})
+BLOCKED_JURISDICTIONS: frozenset[str] = frozenset(
+    {
+        "RU",
+        "BY",
+        "IR",
+        "KP",
+        "CU",
+        "MM",
+        "AF",
+        "VE",
+        "SY",
+    }
+)
 
 # Impossible travel: same customer, different geo, < 1 hour apart.
 IMPOSSIBLE_TRAVEL_WINDOW_MINUTES: int = 60

@@ -140,8 +140,7 @@ class FingerprintService:
         # Get previous sessions for anomaly detection.
         recent = self._store.get_recent_sessions(customer_id, limit=5)
         previous_sessions = [
-            {"geo_country": b.geo_country, "timestamp": b.bound_at}
-            for b in recent
+            {"geo_country": b.geo_country, "timestamp": b.bound_at} for b in recent
         ]
 
         # Run anomaly detection (raises JurisdictionBlockedError for I-02).
