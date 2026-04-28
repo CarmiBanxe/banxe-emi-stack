@@ -34,30 +34,40 @@ class TransactionStatus(str, Enum):
 
 # Valid transitions for the payment state machine.
 VALID_TRANSITIONS: dict[TransactionStatus, frozenset[TransactionStatus]] = {
-    TransactionStatus.PENDING: frozenset({
-        TransactionStatus.AUTHORIZED,
-        TransactionStatus.FAILED,
-        TransactionStatus.CANCELLED,
-    }),
-    TransactionStatus.AUTHORIZED: frozenset({
-        TransactionStatus.CAPTURED,
-        TransactionStatus.CANCELLED,
-        TransactionStatus.FAILED,
-    }),
-    TransactionStatus.CAPTURED: frozenset({
-        TransactionStatus.SETTLED,
-        TransactionStatus.FAILED,
-    }),
-    TransactionStatus.SETTLED: frozenset({
-        TransactionStatus.REFUNDED,
-        TransactionStatus.PARTIALLY_REFUNDED,
-        TransactionStatus.CHARGEBACK,
-    }),
-    TransactionStatus.PARTIALLY_REFUNDED: frozenset({
-        TransactionStatus.REFUNDED,
-        TransactionStatus.PARTIALLY_REFUNDED,
-        TransactionStatus.CHARGEBACK,
-    }),
+    TransactionStatus.PENDING: frozenset(
+        {
+            TransactionStatus.AUTHORIZED,
+            TransactionStatus.FAILED,
+            TransactionStatus.CANCELLED,
+        }
+    ),
+    TransactionStatus.AUTHORIZED: frozenset(
+        {
+            TransactionStatus.CAPTURED,
+            TransactionStatus.CANCELLED,
+            TransactionStatus.FAILED,
+        }
+    ),
+    TransactionStatus.CAPTURED: frozenset(
+        {
+            TransactionStatus.SETTLED,
+            TransactionStatus.FAILED,
+        }
+    ),
+    TransactionStatus.SETTLED: frozenset(
+        {
+            TransactionStatus.REFUNDED,
+            TransactionStatus.PARTIALLY_REFUNDED,
+            TransactionStatus.CHARGEBACK,
+        }
+    ),
+    TransactionStatus.PARTIALLY_REFUNDED: frozenset(
+        {
+            TransactionStatus.REFUNDED,
+            TransactionStatus.PARTIALLY_REFUNDED,
+            TransactionStatus.CHARGEBACK,
+        }
+    ),
     TransactionStatus.REFUNDED: frozenset(),
     TransactionStatus.FAILED: frozenset(),
     TransactionStatus.CANCELLED: frozenset(),
@@ -86,9 +96,7 @@ class PaymentTransaction:
 
     def __post_init__(self) -> None:
         if not isinstance(self.amount, Decimal):
-            raise TypeError(
-                f"amount must be Decimal, got {type(self.amount).__name__} (I-01)"
-            )
+            raise TypeError(f"amount must be Decimal, got {type(self.amount).__name__} (I-01)")
         if not isinstance(self.refunded_amount, Decimal):
             raise TypeError(
                 f"refunded_amount must be Decimal, got {type(self.refunded_amount).__name__} (I-01)"

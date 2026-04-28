@@ -213,9 +213,7 @@ class TestAuditTrail:
         with pytest.raises(AttributeError):
             entry.action = "MODIFIED"  # type: ignore[misc]
 
-    def test_multiple_recons_produce_multiple_audit_entries(
-        self, engine, ledger, audit
-    ):
+    def test_multiple_recons_produce_multiple_audit_entries(self, engine, ledger, audit):
         """Each recon run produces its own audit entry."""
         ledger.add_client_fund("cf-001", Decimal("100.00"))
         ledger.add_safeguarding("sg-001", Decimal("100.00"))

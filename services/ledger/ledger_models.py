@@ -44,9 +44,19 @@ class PostingDirection(str, Enum):
 
 SUPPORTED_CURRENCIES: frozenset[str] = frozenset({"GBP", "EUR", "USD"})
 
-BLOCKED_JURISDICTIONS: frozenset[str] = frozenset({
-    "RU", "BY", "IR", "KP", "CU", "MM", "AF", "VE", "SY",
-})
+BLOCKED_JURISDICTIONS: frozenset[str] = frozenset(
+    {
+        "RU",
+        "BY",
+        "IR",
+        "KP",
+        "CU",
+        "MM",
+        "AF",
+        "VE",
+        "SY",
+    }
+)
 
 # I-04: high-value posting threshold.
 HIGH_VALUE_THRESHOLD: Decimal = Decimal("50000")
@@ -84,9 +94,7 @@ class Posting:
 
     def __post_init__(self) -> None:
         if not isinstance(self.amount, Decimal):
-            raise TypeError(
-                f"amount must be Decimal, got {type(self.amount).__name__} (I-01)"
-            )
+            raise TypeError(f"amount must be Decimal, got {type(self.amount).__name__} (I-01)")
         if self.amount <= Decimal("0"):
             raise ValueError(f"amount must be positive, got {self.amount}")
         if self.currency not in SUPPORTED_CURRENCIES:

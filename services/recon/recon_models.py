@@ -49,9 +49,19 @@ RECON_TOLERANCE: Decimal = Decimal("0.01")
 LARGE_VALUE_THRESHOLD: Decimal = Decimal("50000")
 
 # Blocked jurisdictions (I-02).
-BLOCKED_JURISDICTIONS: frozenset[str] = frozenset({
-    "RU", "BY", "IR", "KP", "CU", "MM", "AF", "VE", "SY",
-})
+BLOCKED_JURISDICTIONS: frozenset[str] = frozenset(
+    {
+        "RU",
+        "BY",
+        "IR",
+        "KP",
+        "CU",
+        "MM",
+        "AF",
+        "VE",
+        "SY",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -67,9 +77,7 @@ class AccountBalance:
 
     def __post_init__(self) -> None:
         if not isinstance(self.balance, Decimal):
-            raise TypeError(
-                f"balance must be Decimal, got {type(self.balance).__name__} (I-01)"
-            )
+            raise TypeError(f"balance must be Decimal, got {type(self.balance).__name__} (I-01)")
 
 
 @dataclass(frozen=True)
@@ -79,7 +87,7 @@ class Discrepancy:
     discrepancy_id: str
     discrepancy_type: DiscrepancyType
     expected: Decimal  # I-01
-    actual: Decimal    # I-01
+    actual: Decimal  # I-01
     difference: Decimal  # I-01
     account_id: str
     description: str
@@ -89,9 +97,7 @@ class Discrepancy:
         for fld in ("expected", "actual", "difference"):
             val = getattr(self, fld)
             if not isinstance(val, Decimal):
-                raise TypeError(
-                    f"{fld} must be Decimal, got {type(val).__name__} (I-01)"
-                )
+                raise TypeError(f"{fld} must be Decimal, got {type(val).__name__} (I-01)")
 
 
 @dataclass(frozen=True)
@@ -103,7 +109,7 @@ class ReconResult:
     status: ReconStatus
     client_funds_total: Decimal  # I-01
     safeguarding_total: Decimal  # I-01
-    difference: Decimal          # I-01
+    difference: Decimal  # I-01
     discrepancies: tuple[Discrepancy, ...] = ()
     large_values_flagged: int = 0
     excluded_jurisdictions: tuple[str, ...] = ()
@@ -113,9 +119,7 @@ class ReconResult:
         for fld in ("client_funds_total", "safeguarding_total", "difference"):
             val = getattr(self, fld)
             if not isinstance(val, Decimal):
-                raise TypeError(
-                    f"{fld} must be Decimal, got {type(val).__name__} (I-01)"
-                )
+                raise TypeError(f"{fld} must be Decimal, got {type(val).__name__} (I-01)")
 
 
 @dataclass(frozen=True)

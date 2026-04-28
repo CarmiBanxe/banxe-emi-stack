@@ -40,9 +40,7 @@ class InMemoryLedger:
         # Verify all accounts exist.
         for posting in entry.postings:
             if posting.account_id not in self._accounts:
-                raise ValueError(
-                    f"Account {posting.account_id!r} not found for posting"
-                )
+                raise ValueError(f"Account {posting.account_id!r} not found for posting")
         posted = replace(entry, status=PostingStatus.POSTED)
         self._entries[entry.entry_id] = posted
         return posted
