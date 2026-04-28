@@ -8,3 +8,8 @@
 | services/auth/sca_service.py | Auth-support service | SCA flow logic | sca_service_port | Outbound/domain-support boundary | Selective | Preserve tested contour |
 | services/auth/two_factor.py | Auth-support service | 2FA logic | two_factor_port | Outbound/domain-support boundary | Selective | Preserve tested contour |
 | services/iam/iam_port.py | Port contract | IAM abstraction | Existing port | Outbound IAM boundary | Preferred | Strongest current contract |
+
+## Router inventory update
+- `api/routers/auth.py` — login/refresh path already thin; SCA endpoints remain in router for Sprint 4-5 extraction.
+- Inline JWT encode/decode in router: not observed in current file for login/refresh.
+- Residual router logic: HTTP exception mapping + SCA transport branching.

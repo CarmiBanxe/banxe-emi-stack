@@ -40,3 +40,7 @@ Rule: imported IAM logic attaches as adapter, not inside router
 - Prefer adapter replacement or adapter extension behind existing ports
 - Keep AuthApplicationService dependent on contracts, not imported vendor logic
 - Extend ports only when required capability is not representable by current contract
+
+## Router/SCA note
+- `ScaServicePort` is currently injected directly into the router for SCA endpoints.
+- Sprint 4-5 candidate: introduce an SCA application boundary so the router stops coordinating SCA-specific branching.
