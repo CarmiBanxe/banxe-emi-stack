@@ -90,3 +90,5 @@
 {"ts":"2026-04-28T01:35:14Z","hash":"65da180","il":null,"type":"chore","msg":"chore(memory): update commit log","files_changed":1,"areas":[]}
 {"ts":"2026-04-28T01:38:04Z","hash":"427173d","il":null,"type":"chore","msg":"chore(memory): update commit log","files_changed":1,"areas":[]}
 {"ts":"2026-04-28T01:56:05Z","hash":"25b209f","il":null,"type":"docs","msg":"docs(roadmap): close Sprint 3 auth-orchestration, open Sprint 4 SCA boundary","files_changed":2,"areas":[]}
+{"ts":"2026-04-28T01:57:15Z","hash":"b2bee0d","il":null,"type":"chore","msg":"chore(memory): update commit log","files_changed":1,"areas":[]}
+{"ts":"2026-04-28T02:18:10Z","hash":"18ac4f3","il":null,"type":"refactor","msg":"refactor(auth): extract SCA domain types to sca_models.py (Sprint 4 Track A Block 1)","files_changed":3,"areas":["services"]}
