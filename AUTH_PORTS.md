@@ -20,13 +20,14 @@ Caller: AuthApplicationService
 Rule: router must not encode/decode JWT directly
 
 ### ScaServicePort
-Purpose: initiate challenge, verify challenge, resend challenge, list methods
-Caller: AuthApplicationService
-Rule: SCA policy stays below transport and above factor-specific adapters
+Purpose: SCA challenge lifecycle contract for auth orchestration
+Caller: AuthApplicationService or higher auth orchestration layer
+Rule: SCA policy stays below transport and coordinates factor-specific capabilities through dedicated ports/adapters
 
 ### TwoFactorPort
-Purpose: OTP/TOTP generation and verification
+Purpose: OTP/TOTP capability contract
 Caller: SCA/auth orchestration layer
+Implementation candidate: services/auth/two_factor.py::TOTPService
 Rule: factor-specific logic stays below SCA orchestration
 
 ### IAMPort
@@ -35,7 +36,7 @@ Caller: AuthApplicationService and auth-domain services
 Rule: imported IAM logic attaches as adapter, not inside router
 
 ## Import rules
-- No direct import into `api/routers/auth.py`.
-- Prefer adapter replacement or adapter extension behind existing ports.
-- Keep `AuthApplicationService` dependent on contracts, not imported vendor logic.
-- Extend ports only when required capability is not representable by current contract.
+- No direct import into api/routers/auth.py
+- Prefer adapter replacement or adapter extension behind existing ports
+- Keep AuthApplicationService dependent on contracts, not imported vendor logic
+- Extend ports only when required capability is not representable by current contract
