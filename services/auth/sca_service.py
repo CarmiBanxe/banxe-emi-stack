@@ -26,7 +26,6 @@ Rate limiting:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 import hashlib
 import hmac
@@ -35,6 +34,8 @@ import os
 import uuid
 
 import jwt
+
+from services.auth.sca_models import SCAChallenge, SCAMethods, SCAVerifyResult
 
 logger = logging.getLogger("banxe.sca")
 
@@ -50,46 +51,6 @@ SCA_ALGORITHM = "HS256"
 
 # Known biometric proof prefix (production: cryptographic assertion)
 _BIOMETRIC_PROOF_PREFIX = "biometric:approved:"
-
-
-# ── Domain types ──────────────────────────────────────────────────────────────
-
-
-@dataclass
-class SCAChallenge:
-    """A pending SCA challenge for a payment or sensitive action."""
-
-    challenge_id: str
-    customer_id: str
-    transaction_id: str
-    method: str  # "otp" | "biometric"
-    status: str  # "pending" | "verified" | "expired" | "failed" | "used"
-    created_at: datetime
-    expires_at: datetime
-    amount: str | None = None  # Decimal string for PSD2 dynamic linking
-    payee: str | None = None  # Payee name for PSD2 dynamic linking
-    attempt_count: int = 0
-    resend_count: int = 0  # How many times the challenge has been resent (max 3)
-
-
-@dataclass
-class SCAVerifyResult:
-    """Result of an SCA challenge verification attempt."""
-
-    verified: bool
-    transaction_id: str
-    sca_token: str | None = None  # JWT (only if verified=True)
-    error: str | None = None
-    attempts_remaining: int | None = None
-
-
-@dataclass
-class SCAMethods:
-    """Available SCA methods for a customer."""
-
-    customer_id: str
-    methods: list[str]
-    preferred: str
 
 
 # ── InMemory Store ────────────────────────────────────────────────────────────
