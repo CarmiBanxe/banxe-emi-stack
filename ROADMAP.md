@@ -1456,7 +1456,22 @@ Sprint 2 – DONE:
 - Global coverage ~40% (>=35% target)
 - SCA/TOTP coverage explicitly marked as tech debt for future waves
 
-Sprint 3 – PLAN:
+Sprint 3 – auth-orchestration: ✅ DONE (2026-04-28)
+- Phase A inventory closed (post-extraction state)
+- Phase B extraction: router thin, AuthApplicationService, TokenManager
+- Phase C ports: TokenManagerPort, ScaServicePort, TwoFactorPort, IAMPort
+- Coverage: services/auth 65%, ports 100%, IAMPort 90%
+
+Sprint 4 – SCA Application Boundary + Domain Coverage Waves: PLAN
+
+Track A — SCA Application Boundary (auth-orchestration continuation):
+- Extract SCA endpoints from api/routers/auth.py into ScaApplicationService
+- Remove jwt.encode from services/auth/sca_service.py (isolate behind TokenManagerPort)
+- Wire two_factor_port.py (currently 0% coverage) to TOTPService
+- Target: SCA coverage 40%->80%, 2FA coverage 38%->80%
+- Acceptance: router stops coordinating SCA-specific branching
+
+Track B — Domain Coverage Waves (parallel, per AUTH_REFACTOR_TASKS roadmap):
 - Wave 1: notifications
 - Wave 2: openbanking
 - Wave 3: payments
