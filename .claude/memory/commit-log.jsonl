@@ -97,3 +97,5 @@
 {"ts":"2026-04-28T02:24:31Z","hash":"21532fc","il":null,"type":"feat","msg":"feat(auth): add ScaApplicationService — application boundary for SCA (Sprint 4 Track A Block 2)","files_changed":2,"areas":["services","api"]}
 {"ts":"2026-04-28T02:25:32Z","hash":"baf9c55","il":null,"type":"chore","msg":"chore(memory): update commit log","files_changed":1,"areas":[]}
 {"ts":"2026-04-28T02:34:34Z","hash":"31538f3","il":null,"type":"refactor","msg":"refactor(auth): wire SCA endpoints to ScaApplicationService (Sprint 4 Track A Block 5)","files_changed":1,"areas":["api"]}
+{"ts":"2026-04-28T02:35:38Z","hash":"b2cd849","il":null,"type":"chore","msg":"chore(memory): update commit log","files_changed":1,"areas":[]}
+{"ts":"2026-04-28T12:32:31Z","hash":"9f50e25","il":null,"type":"feat","msg":"feat(auth): add SCA application boundary and thin router wiring","files_changed":3,"areas":["services"]}
