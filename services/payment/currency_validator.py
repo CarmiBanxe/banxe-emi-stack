@@ -24,9 +24,9 @@ class AmountValidationError(ValueError):
 
 # Scheme limits per currency (Decimal, I-01).
 SCHEME_LIMITS: dict[str, Decimal] = {
-    "GBP": Decimal("1000000"),    # FPS scheme limit £1M
-    "EUR": Decimal("100000"),     # SEPA Instant €100k (SEPA CT unlimited)
-    "USD": Decimal("10000000"),   # No hard scheme limit, internal cap $10M
+    "GBP": Decimal("1000000"),  # FPS scheme limit £1M
+    "EUR": Decimal("100000"),  # SEPA Instant €100k (SEPA CT unlimited)
+    "USD": Decimal("10000000"),  # No hard scheme limit, internal cap $10M
 }
 
 # EDD thresholds per currency (I-04). Amounts >= trigger require HITL.
@@ -56,9 +56,7 @@ def validate_currency(currency: str) -> None:
 def validate_amount(amount: Decimal, currency: str) -> None:
     """Validate amount is Decimal, positive, and within scheme limits (I-01)."""
     if not isinstance(amount, Decimal):
-        raise AmountValidationError(
-            f"Amount must be Decimal, got {type(amount).__name__} (I-01)"
-        )
+        raise AmountValidationError(f"Amount must be Decimal, got {type(amount).__name__} (I-01)")
     if amount <= Decimal("0"):
         raise AmountValidationError(f"Amount must be positive, got {amount}")
     validate_currency(currency)

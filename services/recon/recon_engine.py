@@ -133,32 +133,24 @@ class ReconciliationEngine:
                 safeguarding_filtered.append(bal)
 
         # I-01: sum with Decimal.
-        client_total = sum(
-            (b.balance for b in client_balances_filtered), Decimal("0")
-        )
-        safeguarding_total = sum(
-            (b.balance for b in safeguarding_filtered), Decimal("0")
-        )
+        client_total = sum((b.balance for b in client_balances_filtered), Decimal("0"))
+        safeguarding_total = sum((b.balance for b in safeguarding_filtered), Decimal("0"))
         difference = client_total - safeguarding_total
 
         # I-04: flag large values.
         large_values_flagged = sum(
-            1 for b in client_balances_filtered
-            if b.balance >= LARGE_VALUE_THRESHOLD
-        ) + sum(
-            1 for b in safeguarding_filtered
-            if b.balance >= LARGE_VALUE_THRESHOLD
-        )
+            1 for b in client_balances_filtered if b.balance >= LARGE_VALUE_THRESHOLD
+        ) + sum(1 for b in safeguarding_filtered if b.balance >= LARGE_VALUE_THRESHOLD)
 
         # Detect discrepancies.
         discrepancies: list[Discrepancy] = []
         if abs(difference) > self._tolerance:
             disc_type = (
-                DiscrepancyType.SHORTFALL if difference > Decimal("0")
-                else DiscrepancyType.SURPLUS
+                DiscrepancyType.SHORTFALL if difference > Decimal("0") else DiscrepancyType.SURPLUS
             )
             escalation = (
-                EscalationLevel.HITL_MLRO if abs(difference) >= LARGE_VALUE_THRESHOLD
+                EscalationLevel.HITL_MLRO
+                if abs(difference) >= LARGE_VALUE_THRESHOLD
                 else EscalationLevel.ALERT
             )
             disc = Discrepancy(
@@ -186,10 +178,7 @@ class ReconciliationEngine:
                     )
                 )
 
-        status = (
-            ReconStatus.BALANCED if not discrepancies
-            else ReconStatus.DISCREPANCY
-        )
+        status = ReconStatus.BALANCED if not discrepancies else ReconStatus.DISCREPANCY
 
         result = ReconResult(
             recon_id=recon_id,

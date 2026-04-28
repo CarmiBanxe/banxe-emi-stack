@@ -179,9 +179,7 @@ class GLService:
         posting_objs: list[Posting] = []
         for i, (acc_id, direction, amount, currency) in enumerate(postings):
             if not isinstance(amount, Decimal):
-                raise TypeError(
-                    f"Amount must be Decimal, got {type(amount).__name__} (I-01)"
-                )
+                raise TypeError(f"Amount must be Decimal, got {type(amount).__name__} (I-01)")
             posting_objs.append(
                 Posting(
                     posting_id=f"{entry_id}-p{i}",

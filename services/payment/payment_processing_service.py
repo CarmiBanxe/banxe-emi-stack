@@ -307,8 +307,7 @@ class PaymentProcessingService:
         # Determine target status.
         is_full_refund = total_refunded == tx.amount
         target_status = (
-            TransactionStatus.REFUNDED if is_full_refund
-            else TransactionStatus.PARTIALLY_REFUNDED
+            TransactionStatus.REFUNDED if is_full_refund else TransactionStatus.PARTIALLY_REFUNDED
         )
 
         self._validate_transition(tx, target_status)
