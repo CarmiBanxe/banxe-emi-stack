@@ -8,26 +8,56 @@ Tests for POST /v1/auth/token/refresh.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+import uuid
 
 from fastapi.testclient import TestClient
 import jwt
+import pytest
 
 from api.main import app
-from api.routers.auth import _ALGORITHM, _REFRESH_TTL_DAYS, _SECRET_KEY, _TTL_HOURS
+from services.auth.token_manager import _ALGORITHM, _REFRESH_TTL_DAYS, _TTL_HOURS
 
 client = TestClient(app)
 
+# Deterministic secret used by both test JWT signing and server-side TokenManager
+_TEST_SECRET = "test-secret-key"
+
+
+@pytest.fixture(autouse=True)
+def setup_refresh_env():
+    """Inject deterministic JWT secret via DI override for /auth/token/refresh.
+
+    Sprint 3: secret is no longer a module-level constant in api.routers.auth.
+    We override AuthApplicationService DI so server-side TokenManager uses _TEST_SECRET,
+    matching the secret used by _make_refresh_token() in this file.
+    """
+    from services.auth.auth_application_service import (
+        AuthApplicationService,
+        get_auth_application_service,
+    )
+    from services.auth.token_manager import TokenManager
+
+    test_auth_app = AuthApplicationService(
+        token_manager=TokenManager(secret_key=_TEST_SECRET),
+    )
+    app.dependency_overrides[get_auth_application_service] = lambda: test_auth_app
+
+    yield
+
+    app.dependency_overrides.pop(get_auth_application_service, None)
+
 
 def _make_refresh_token(customer_id: str = "cust-001", days_offset: int = 0) -> str:
-    """Create a valid refresh token for tests."""
+    """Create a valid refresh token for tests (includes jti for replay prevention)."""
     now = datetime.now(tz=UTC)
     payload = {
         "sub": customer_id,
         "type": "refresh",
+        "jti": str(uuid.uuid4()),
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(days=_REFRESH_TTL_DAYS + days_offset)).timestamp()),
     }
-    return jwt.encode(payload, _SECRET_KEY, algorithm=_ALGORITHM)
+    return jwt.encode(payload, _TEST_SECRET, algorithm=_ALGORITHM)
 
 
 def _make_access_token_as_refresh(customer_id: str = "cust-001") -> str:
@@ -39,7 +69,7 @@ def _make_access_token_as_refresh(customer_id: str = "cust-001") -> str:
         "exp": int((now + timedelta(hours=_TTL_HOURS)).timestamp()),
         # No "type": "refresh"
     }
-    return jwt.encode(payload, _SECRET_KEY, algorithm=_ALGORITHM)
+    return jwt.encode(payload, _TEST_SECRET, algorithm=_ALGORITHM)
 
 
 class TestTokenRefresh:
@@ -61,11 +91,11 @@ class TestTokenRefresh:
         data = resp.json()
 
         # Access token
-        payload = jwt.decode(data["token"], _SECRET_KEY, algorithms=[_ALGORITHM])
+        payload = jwt.decode(data["token"], _TEST_SECRET, algorithms=[_ALGORITHM])
         assert payload["sub"] == "cust-002"
 
         # New refresh token
-        refresh_payload = jwt.decode(data["refresh_token"], _SECRET_KEY, algorithms=[_ALGORITHM])
+        refresh_payload = jwt.decode(data["refresh_token"], _TEST_SECRET, algorithms=[_ALGORITHM])
         assert refresh_payload["sub"] == "cust-002"
         assert refresh_payload["type"] == "refresh"
 
@@ -81,10 +111,11 @@ class TestTokenRefresh:
         payload = {
             "sub": "cust-001",
             "type": "refresh",
+            "jti": str(uuid.uuid4()),
             "iat": int((now - timedelta(days=10)).timestamp()),
             "exp": int((now - timedelta(days=3)).timestamp()),  # expired 3 days ago
         }
-        expired_token = jwt.encode(payload, _SECRET_KEY, algorithm=_ALGORITHM)
+        expired_token = jwt.encode(payload, _TEST_SECRET, algorithm=_ALGORITHM)
         resp = client.post("/v1/auth/token/refresh", json={"refresh_token": expired_token})
         assert resp.status_code == 401
         assert "expired" in resp.json()["detail"].lower()
@@ -94,6 +125,7 @@ class TestTokenRefresh:
         payload = {
             "sub": "cust-001",
             "type": "refresh",
+            "jti": str(uuid.uuid4()),
             "iat": int(datetime.now(tz=UTC).timestamp()),
             "exp": int((datetime.now(tz=UTC) + timedelta(days=7)).timestamp()),
         }
@@ -106,7 +138,9 @@ class TestTokenRefresh:
         access_token = _make_access_token_as_refresh()
         resp = client.post("/v1/auth/token/refresh", json={"refresh_token": access_token})
         assert resp.status_code == 401
-        assert "type" in resp.json()["detail"].lower()
+        # Server says "Token is not a refresh token" — check semantic meaning, not exact word
+        detail = resp.json()["detail"].lower()
+        assert "refresh" in detail and "not" in detail
 
     def test_empty_refresh_token_returns_422(self):
         """Empty refresh_token field must fail validation."""

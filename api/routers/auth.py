@@ -1,24 +1,25 @@
 """
-api/routers/auth.py — Authentication endpoints
+api/routers/auth.py — Authentication endpoints (thin router)
 IL-046 | S15-01 | banxe-emi-stack
+
+Sprint 3 refactor: orchestration extracted to AuthApplicationService.
+Router only handles HTTP concerns: request parsing, exception mapping, response shaping.
 """
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
 import logging
-import os
-from typing import Any
-import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-import jwt
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.db.models import AuthSession, Customer
 from api.deps import get_customer_service, get_db
-from api.models.auth import LoginRequest, LoginResponse, TokenRefreshRequest, TokenRefreshResponse
+from api.models.auth import (
+    LoginRequest,
+    LoginResponse,
+    TokenRefreshRequest,
+    TokenRefreshResponse,
+)
 from api.models.sca import (
     SCAInitiateRequest,
     SCAInitiateResponse,
@@ -43,43 +44,22 @@ from services.auth.sca_service import get_sca_service
 from services.auth.sca_service_port import ScaServicePort
 from services.customer.customer_service import InMemoryCustomerService
 
-SECRETKEY = os.environ.get(
-    "AUTH_SECRET_KEY", os.environ.get("AUTHSECRETKEY", "dev-insecure-secret-change-in-prod")
-)
-TTLHOURS = int(os.environ.get("AUTH_TOKEN_TTL_HOURS", os.environ.get("AUTHTOKENTTLHOURS", "24")))
-REFRESHTTLDAYS = int(
-    os.environ.get("AUTH_REFRESH_TOKEN_TTL_DAYS", os.environ.get("AUTHREFRESHTOKENTTLDAYS", "7"))
-)
-ALGORITHM = os.environ.get("AUTH_ALGORITHM", "HS256")
-DEV_PIN = os.environ.get("AUTH_DEV_PIN", os.environ.get("AUTHDEVPIN", "123456"))
-
-_SECRET_KEY = SECRETKEY
-_TTL_HOURS = TTLHOURS
-_REFRESH_TTL_DAYS = REFRESHTTLDAYS
-_ALGORITHM = ALGORITHM
-_DEV_PIN = DEV_PIN
-
-SECRET_KEY = SECRETKEY
-TTL_HOURS = TTLHOURS
-REFRESH_TTL_DAYS = REFRESHTTLDAYS
-
 logger = logging.getLogger("banxe.auth")
 router = APIRouter(tags=["Auth"])
 
 
-async def _get_customer_by_email_db(db: AsyncSession, email: str) -> Customer | None:
-    stmt = select(Customer).where(Customer.email == email).limit(1)
-    result = await db.execute(stmt)
-    return result.scalar_one_or_none()
+_ERROR_CODE_TO_HTTP: dict[str, int] = {
+    "invalid_credentials": 401,
+    "invalid_token": 401,
+    "token_expired": 401,
+    "invalid_token_type": 401,
+}
 
 
-def _get_customer_by_email_memory(
-    svc: InMemoryCustomerService, email: str
-) -> tuple[str, str] | None:
-    for c in svc.list_customers():
-        if c.metadata.get("email") == email:
-            return c.customer_id, email
-    return None
+def _map_auth_error(exc: AuthApplicationError) -> HTTPException:
+    """Translate AuthApplicationError -> HTTPException with stable status mapping."""
+    status_code = _ERROR_CODE_TO_HTTP.get(exc.code, 401)
+    return HTTPException(status_code=status_code, detail=exc.message)
 
 
 @router.post(
@@ -98,68 +78,18 @@ async def login(
     svc: InMemoryCustomerService = Depends(get_customer_service),
     auth_app: AuthApplicationService = Depends(get_auth_application_service),
 ) -> LoginResponse:
-    customer_id: str | None = None
-    customer_email: str = body.email
-
+    """Thin delegation: identity resolution, PIN validation, token issuance, session
+    persistence are all handled by AuthApplicationService.login()."""
     try:
-        db_customer = await _get_customer_by_email_db(db, body.email)
-        if db_customer is not None:
-            customer_id = db_customer.customer_id
-            db_email = getattr(db_customer, "email", None)
-            if isinstance(db_email, str) and db_email:
-                customer_email = db_email
-    except Exception:
-        logger.warning("auth.login db_lookup_failed — falling back to InMemory")
-
-    if customer_id is None:
-        memory_result = _get_customer_by_email_memory(svc, body.email)
-        if memory_result is not None:
-            customer_id, customer_email = memory_result
-
-    if customer_id is None:
-        logger.warning("auth.login email_not_found")
-        raise HTTPException(status_code=401, detail="Invalid email or PIN")
-
-    if body.pin != _DEV_PIN:
-        logger.warning("auth.login invalid_pin customer_id=%s", customer_id)
-        raise HTTPException(status_code=401, detail="Invalid email or PIN")
-
-    now = datetime.now(tz=UTC)
-    expires_at = now + timedelta(hours=_TTL_HOURS)
-
-    payload: dict[str, Any] = {
-        "sub": customer_id,
-        "email": customer_email,
-        "iat": int(now.timestamp()),
-        "exp": int(expires_at.timestamp()),
-    }
-    token = jwt.encode(payload, _SECRET_KEY, algorithm=_ALGORITHM)
-
-    try:
-        session = AuthSession(
-            session_id=str(uuid.uuid4()),
-            customer_id=customer_id,
-            token_prefix=token[:16],
-            expires_at=expires_at,
+        return await auth_app.login(
+            db=db,
+            svc=svc,
+            email=body.email,
+            pin=body.pin,
             user_agent=request.headers.get("user-agent"),
         )
-        db.add(session)
-        await db.flush()
-    except Exception:
-        logger.warning("auth.login session_persist_failed customer_id=%s", customer_id)
-
-    refresh_expires_at = now + timedelta(days=_REFRESH_TTL_DAYS)
-    refresh_payload = {
-        "sub": customer_id,
-        "type": "refresh",
-        "jti": str(uuid.uuid4()),
-        "iat": int(now.timestamp()),
-        "exp": int(refresh_expires_at.timestamp()),
-    }
-    refresh_token = jwt.encode(refresh_payload, _SECRET_KEY, algorithm=_ALGORITHM)
-
-    logger.info("auth.login success customer_id=%s", customer_id)
-    return LoginResponse(token=token, expires_at=expires_at, refresh_token=refresh_token)
+    except AuthApplicationError as exc:
+        raise _map_auth_error(exc) from exc
 
 
 @router.post(
@@ -181,50 +111,16 @@ async def refresh_token_endpoint(
     body: TokenRefreshRequest,
     auth_app: AuthApplicationService = Depends(get_auth_application_service),
 ) -> TokenRefreshResponse:
+    """Thin delegation: token rotation handled by AuthApplicationService.refresh()."""
     try:
         return await auth_app.refresh(refresh_token=body.refresh_token)
-    except AuthApplicationError:
-        try:
-            payload = jwt.decode(body.refresh_token, _SECRET_KEY, algorithms=[_ALGORITHM])
-        except jwt.ExpiredSignatureError:
-            raise HTTPException(
-                status_code=401, detail="Refresh token expired. Please login again."
-            )
-        except jwt.InvalidTokenError:
-            raise HTTPException(status_code=401, detail="Invalid refresh token.")
+    except AuthApplicationError as exc:
+        raise _map_auth_error(exc) from exc
 
-        if payload.get("type") != "refresh":
-            raise HTTPException(status_code=401, detail="Invalid token type.")
 
-        customer_id = payload.get("sub")
-        if not customer_id:
-            raise HTTPException(status_code=401, detail="Invalid refresh token payload.")
-
-        now = datetime.now(tz=UTC)
-        expires_at = now + timedelta(hours=_TTL_HOURS)
-        refresh_expires_at = now + timedelta(days=_REFRESH_TTL_DAYS)
-
-        new_access_payload = {
-            "sub": customer_id,
-            "iat": int(now.timestamp()),
-            "exp": int(expires_at.timestamp()),
-        }
-        new_access_token = jwt.encode(new_access_payload, _SECRET_KEY, algorithm=_ALGORITHM)
-
-        new_refresh_payload = {
-            "sub": customer_id,
-            "type": "refresh",
-            "jti": str(uuid.uuid4()),
-            "iat": int(now.timestamp()),
-            "exp": int(refresh_expires_at.timestamp()),
-        }
-        new_refresh_token = jwt.encode(new_refresh_payload, _SECRET_KEY, algorithm=_ALGORITHM)
-
-        return TokenRefreshResponse(
-            token=new_access_token,
-            expires_at=expires_at,
-            refresh_token=new_refresh_token,
-        )
+# ---------------------------------------------------------------------------
+# SCA endpoints — unchanged (out of Sprint 3 scope, will be extracted in Sprint 4-5)
+# ---------------------------------------------------------------------------
 
 
 @router.post(
