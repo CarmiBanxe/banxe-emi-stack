@@ -47,13 +47,13 @@
 ## PHASE 1 — P0 Sprint Deadline (Apr 30 → May 7)
 
 ### Day 0 — Thu Apr 30 (TODAY)
-- [ ] 1.1 Remove stale container `banxe-keycloak` (same Zen 5 JIT victim, host running)
-- [ ] 1.2 Change bootstrap admin/admin → strong password, secrets/keycloak-admin.password chmod 600
-- [ ] 1.3 Fix `banxe-api.service` (83 restarts/6s) → `journalctl -u banxe-api -n 200`
-- [ ] 1.4 Finish MetaClaw setup on Legion (agent=openclaw, mode=madmax, URL=http://localhost:3000), `metaclaw start --daemon`
-- [ ] 1.5 Fix `midaz-ledger` (CBS) → docker logs
-- [ ] 1.6 Fix `banxe-frankfurter` (FX)
-- [ ] 1.7 Start n8n on NucBox
+- [x] 1.1 Remove stale container `banxe-keycloak` (same Zen 5 JIT victim, host running)
+- [x] 1.2 Change bootstrap admin/admin → strong password, secrets/keycloak-admin.password chmod 600
+- [x] 1.3 Fix `banxe-api.service` (83 restarts/6s) → `journalctl -u banxe-api -n 200`
+- [x] 1.4 Finish MetaClaw setup on Legion (agent=openclaw, mode=madmax, URL=http://localhost:3000), `metaclaw start --daemon`
+- [x] 1.5 Fix `midaz-ledger` (CBS) → docker logs
+- [x] 1.6 Fix `banxe-frankfurter` (FX)
+- [x] 1.7 Start n8n on NucBox
 
 ### Day 1 — Fri May 1 (Sprint 4 Track A)
 - [ ] 1.8 Finish `services/auth/sca_service.py` (ScaApplicationService)
@@ -106,3 +106,43 @@
 - [ ] 2.12 Section "AI Orchestration Policy"
 - [ ] 2.13 Rule: secrets/payment schemas/client data NEVER in cloud LLM
 - [ ] 2.14 Pre-commit hook to block API keys / PII commits
+
+### Days 2-3 — Sat-Sun May 2-3 (Track B Wave 1-2)
+- [ ] 1.14 notifications service
+- [ ] 1.15 openbanking integrations
+- [ ] 1.16 OpenClaw-MOA Skills via MCP banxe-mcp: banxe-fastapi-call, github-actions-watch, docker-monitor, marble-query, jube-score, ballerine-workflow
+
+### Days 4-5 — Mon-Tue May 4-5 (Track B Wave 3-4)
+- [ ] 1.17 payments wave
+- [ ] 1.18 compliance wave: Marble + Ballerine + Jube via n8n workflow
+- [ ] 1.19 Webhook FastAPI → OpenClaw-MOA → reports (KYC daily, AML cron 03:00, reconciliation cron 03:00)
+
+### Day 6 — Wed May 6 (Quality Gates)
+- [ ] 1.20 ruff check --fix
+- [ ] 1.21 mypy --strict services/
+- [ ] 1.22 pytest --cov ≥80% on changed files
+- [ ] 1.23 Pre-commit Spec-First Auditor PASS
+- [ ] 1.24 Pre-deploy health check via supervisor agent
+
+### Day 7 — Thu May 7 (P0 DEADLINE)
+- [ ] 1.25 Sprint 4 closed, FIN060 generated, tag v0.4.0-sprint4
+
+### Days 2-3 — Sat-Sun May 2-3 (Track B Wave 1-2)
+- [ ] 1.14 notifications service
+- [ ] 1.15 openbanking integrations
+- [ ] 1.16 OpenClaw-MOA Skills via MCP banxe-mcp: banxe-fastapi-call, github-actions-watch, docker-monitor, marble-query, jube-score, ballerine-workflow
+
+### Days 4-5 — Mon-Tue May 4-5 (Track B Wave 3-4)
+- [ ] 1.17 payments wave
+- [ ] 1.18 compliance wave: Marble + Ballerine + Jube via n8n workflow
+- [ ] 1.19 Webhook FastAPI → OpenClaw-MOA → reports (KYC daily, AML cron 03:00, reconciliation cron 03:00)
+
+### Day 6 — Wed May 6 (Quality Gates)
+- [ ] 1.20 ruff check --fix
+- [ ] 1.21 mypy --strict services/
+- [ ] 1.22 pytest --cov ≥80% on changed files
+- [ ] 1.23 Pre-commit Spec-First Auditor PASS
+- [ ] 1.24 Pre-deploy health check via supervisor agent
+
+### Day 7 — Thu May 7 (P0 DEADLINE)
+- [ ] 1.25 Sprint 4 closed, FIN060 generated, tag v0.4.0-sprint4
