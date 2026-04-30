@@ -42,3 +42,4 @@ apps/*/.next/
 
 # Claude Code session logs (runtime data, not source-controlled)
 .claude/memory/*.jsonl
+secrets/
