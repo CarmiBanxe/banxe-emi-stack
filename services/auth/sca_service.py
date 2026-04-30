@@ -36,6 +36,7 @@ import uuid
 from services.auth.sca_models import SCAChallenge, SCAMethods, SCAVerifyResult
 from services.auth.sca_token_issuer import JwtScaTokenIssuer
 from services.auth.sca_token_issuer_port import ScaTokenIssuerPort
+from services.auth.two_factor_port import TwoFactorPort
 
 logger = logging.getLogger("banxe.sca")
 
@@ -115,9 +116,14 @@ class SCAService:
         self,
         store: InMemorySCAStore | None = None,
         token_issuer: ScaTokenIssuerPort | None = None,
+        two_factor: TwoFactorPort | None = None,
     ) -> None:
         self._store = store or InMemorySCAStore()
         self._token_issuer: ScaTokenIssuerPort = token_issuer or JwtScaTokenIssuer()
+        # Optional TwoFactorPort: if provided, OTP verification delegates to it
+        # (production path). When None, the legacy deterministic fallback below
+        # is used (kept for backward-compat with existing test suite).
+        self._two_factor: TwoFactorPort | None = two_factor
         # OTP secrets per customer (mirroring TOTPService pattern)
         # In production: read from TOTPService/Redis
         self._otp_secrets: dict[str, str] = {}
@@ -334,7 +340,16 @@ class SCAService:
     # ── Internal ──────────────────────────────────────────────────────────────
 
     def _verify_otp(self, challenge: SCAChallenge, otp_code: str) -> bool:
-        """Verify TOTP code against stored secret."""
+        """Verify TOTP code.
+
+        If a TwoFactorPort is configured, delegate to it (production path).
+        Otherwise fall back to the deterministic in-process secret derivation
+        (legacy path retained for the existing test contour).
+        """
+        if self._two_factor is not None:
+            result = self._two_factor.verify_totp(challenge.customer_id, otp_code.strip())
+            return bool(result.success)
+
         try:
             import pyotp
         except ImportError:
