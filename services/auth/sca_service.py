@@ -394,12 +394,22 @@ class SCAService:
 _sca_service: SCAService | None = None
 
 
-def get_sca_service() -> SCAService:
+def get_sca_service(two_factor: TwoFactorPort | None = None) -> SCAService:
     """
     Service factory — returns singleton SCAService.
     Production: pass Redis-backed store via env var SCA_STORE=redis.
+
+    Sprint 4 Track A Block 7: accepts optional TwoFactorPort. The first
+    invocation that constructs the singleton wires it into the SCAService;
+    subsequent calls return the existing singleton regardless of args
+    (lazy-once semantics). Production wiring is performed by the router
+    factory (api.routers.auth.get_sca_application_service) which passes a
+    TOTPService instance via FastAPI Depends(get_two_factor_port).
+
+    Tests can monkey-patch the module-level `_sca_service` global to
+    inject a port-less SCAService for the legacy pyotp/deterministic path.
     """
     global _sca_service  # noqa: PLW0603
     if _sca_service is None:
-        _sca_service = SCAService()
+        _sca_service = SCAService(two_factor=two_factor)
     return _sca_service
