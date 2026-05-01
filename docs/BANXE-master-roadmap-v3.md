@@ -61,7 +61,7 @@
 - [x] 1.10 JWT middleware in `banxe-api` via JWKS
 - [x] 1.11 `Depends(get_current_user)` for protected endpoints
 - [x] 1.12 Service-to-service `client_credentials` with `banxe-backend`
-- [ ] 1.13 Fill empty cron for 9 OpenClaw-MOA agents (compliance/fx/payments/kyc/risk/analytics/supervisor)
+- [x] 1.13 Fill empty cron for 9 OpenClaw-MOA agents (compliance/fx/payments/kyc/risk/analytics/supervisor)
 
 ### Days 2-3 — Sat-Sun May 2-3 (Track B Wave 1-2)
 - [ ] 1.14 notifications service
