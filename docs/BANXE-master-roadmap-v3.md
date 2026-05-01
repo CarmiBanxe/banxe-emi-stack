@@ -56,8 +56,8 @@
 - [x] 1.7 Start n8n on NucBox
 
 ### Day 1 — Fri May 1 (Sprint 4 Track A)
-- [ ] 1.8 Finish `services/auth/sca_service.py` (ScaApplicationService)
-- [ ] 1.9 pytest for SCA critical paths, commit
+- [x] 1.8 Finish `services/auth/sca_service.py` (ScaApplicationService)
+- [x] 1.9 pytest for SCA critical paths, commit
 - [ ] 1.10 JWT middleware in `banxe-api` via JWKS
 - [ ] 1.11 `Depends(get_current_user)` for protected endpoints
 - [ ] 1.12 Service-to-service `client_credentials` with `banxe-backend`
