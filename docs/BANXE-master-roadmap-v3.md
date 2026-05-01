@@ -58,9 +58,9 @@
 ### Day 1 — Fri May 1 (Sprint 4 Track A)
 - [x] 1.8 Finish `services/auth/sca_service.py` (ScaApplicationService)
 - [x] 1.9 pytest for SCA critical paths, commit
-- [ ] 1.10 JWT middleware in `banxe-api` via JWKS
-- [ ] 1.11 `Depends(get_current_user)` for protected endpoints
-- [ ] 1.12 Service-to-service `client_credentials` with `banxe-backend`
+- [x] 1.10 JWT middleware in `banxe-api` via JWKS
+- [x] 1.11 `Depends(get_current_user)` for protected endpoints
+- [x] 1.12 Service-to-service `client_credentials` with `banxe-backend`
 - [ ] 1.13 Fill empty cron for 9 OpenClaw-MOA agents (compliance/fx/payments/kyc/risk/analytics/supervisor)
 
 ### Days 2-3 — Sat-Sun May 2-3 (Track B Wave 1-2)

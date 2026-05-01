@@ -23,7 +23,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Status** | BLOCKED — Jube server not running at `gmktec:5001` |
+| **Status** | UNBLOCKED 2026-04-30 — Jube TM running at 127.0.0.1:5001 |
 | **Blocker** | Jube ML service not deployed to GMKtec NucBox |
 | **Owner** | DevOps / Mark |
 | **File** | `services/fraud/jube_adapter.py` |
@@ -38,7 +38,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Status** | BLOCKED — no production Keycloak instance |
+| **Status** | UNBLOCKED 2026-04-30 — Keycloak 26.2.5 host-deployed on NucBox (Sprint 4) |
 | **Blocker** | Keycloak not deployed; `KEYCLOAK_REALM_URL` not set in production |
 | **Owner** | DevOps / Mark |
 | **File** | `services/iam/mock_iam_adapter.py` (`KeycloakAdapter`) |
