@@ -48,9 +48,15 @@ def fresh_sca_service(monkeypatch):
     """
     Provide a fresh SCAService for each test via monkeypatching the singleton.
     Prevents state bleed between tests.
+
+    Sprint 4 Track A Block 7: get_sca_service signature accepts optional
+    two_factor kwarg; the lambda accepts **kwargs to preserve compatibility
+    with the post-Block-7 router factory call get_sca_service(two_factor=...).
+    The fresh SCAService is constructed without two_factor, so existing
+    OTP-verification tests continue to exercise the legacy fallback path.
     """
     svc = SCAService(store=InMemorySCAStore())
-    monkeypatch.setattr("api.routers.auth.get_sca_service", lambda: svc)
+    monkeypatch.setattr("api.routers.auth.get_sca_service", lambda **_kw: svc)
     monkeypatch.setattr("services.auth.sca_service._sca_service", svc)
     return svc
 

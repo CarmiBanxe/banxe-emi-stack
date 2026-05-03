@@ -114,6 +114,12 @@ def get_totp_service() -> TOTPService:
     return TOTPService()
 
 
+# TwoFactorPort alias: TOTPService implements the TwoFactorPort Protocol
+# structurally. Use get_two_factor_port at injection sites where the
+# semantic dependency is the 2FA verification port (Sprint 4 Track A Block 7).
+get_two_factor_port = get_totp_service
+
+
 @lru_cache(maxsize=1)
 def get_sca_service_di() -> SCAService:
     """PSD2 SCA challenge service — DI-managed singleton."""
