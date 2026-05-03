@@ -1,6 +1,9 @@
 # AI-PLUMBING — LiteLLM v2 Quick Reference
 # Banxe EMI Stack | Updated: 2026-05-03
 
+> **Canonical source:** `banxe-architecture/decisions/ADR-016-ai-plane-pii-aml-routing.md`.
+> Aliases и deny-paths, описанные здесь, ДОЛЖНЫ совпадать с `banxe-infra/ai-routing/policy.yaml` и I-33; drift = P0.
+
 Engineer reference for calling the cluster AI plane from compliance, API, and dashboard services.
 
 ---

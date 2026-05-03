@@ -1979,6 +1979,9 @@ commit: IL-FOS-01 + IL-HMR-01 + IL-CST-01 + IL-LCY-01 | Sprint 41 | 2026-04-27
 
 ## Phase 3 sync (2026-05-03)
 
+> **Canonical source:** `banxe-architecture/decisions/ADR-016-ai-plane-pii-aml-routing.md` (Accepted 2026-05-03).
+> Этот раздел — EMI-stack-зеркало канона. При расхождении преобладает ADR-016 + INVARIANTS.md (I-32, I-33).
+
 ### Cluster AI plane available to compliance/api/dashboard
 
 LiteLLM v2 router running at `http://legion:4000/v1`. All internal services use these aliases.
