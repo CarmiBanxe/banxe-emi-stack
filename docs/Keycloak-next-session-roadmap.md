@@ -64,6 +64,31 @@
 ## Start point of next session
 **Шаг 1.1:** сменить bootstrap admin/admin через Admin REST API.
 
+---
+
+## Realisation Status — 2026-05-03 (pre-GATE-A)
+
+**Branch:** `feat/keycloak-banxe-emi-realm` (banxe-emi-stack)
+
+Все артефакты для `banxe-emi` realm созданы локально — ожидают GATE-A (явный сигнал оператора):
+
+| Артефакт | Файл | Статус |
+|----------|------|--------|
+| Realm JSON (banxe-emi) | `infra/keycloak-banxe-emi/realms/banxe-emi-realm.json` | ✅ готов |
+| Import script | `infra/keycloak-banxe-emi/scripts/import-realm.sh` | ✅ готов |
+| Provision script | `infra/keycloak-banxe-emi/scripts/provision-clients.sh` | ✅ готов |
+| Healthcheck | `infra/keycloak-banxe-emi/scripts/healthcheck.sh` | ✅ готов |
+| Systemd unit install (I-34 fix) | `infra/keycloak-banxe-emi/scripts/install-systemd-unit.sh` | ✅ готов |
+| Smoke test curls | `infra/keycloak-banxe-emi/examples/get-token.curl.txt` | ✅ готов |
+| Docker compose (main :8180) | `infra/keycloak-banxe-emi/docker-compose.yml` | ✅ готов |
+| Docker compose (fallback :8182) | `infra/keycloak-banxe-emi/docker-compose.standalone.yml` | ✅ готов |
+| Env template | `infra/keycloak-banxe-emi/.env.example` | ✅ готов |
+| Operator runbook | `infra/keycloak-banxe-emi/RUNBOOK.md` | ✅ готов |
+| Pre-flight state doc | `infra/keycloak-banxe-emi/PRECHECK-2026-05-03.md` | ✅ готов |
+
+**Текущее состояние evo1:** KC 26.2.5 PID 5577, :8180, HTTP 500 (сломан). I-34 нарушение (пароль в ps aux).
+**Следующий шаг:** оператор выбирает GATE-A Option A/B/C и говорит "go GATE-A" → блок J.
+
 
 ---
 

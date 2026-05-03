@@ -1,0 +1,327 @@
+{
+  "_comment": "Keycloak realm banxe-emi — EMI service-to-service auth",
+  "_authority": "ADR-017 / ADR-022 / I-34 / I-35 | FCA CASS 15",
+  "_import": "kcadm.sh create realms -f banxe-emi-realm.json OR place in /opt/keycloak/data/import/ and use --import-realm",
+  "_version": "2026-05-03",
+
+  "realm": "banxe-emi",
+  "displayName": "Banxe EMI Services",
+  "enabled": true,
+  "sslRequired": "external",
+
+  "accessTokenLifespan": 900,
+  "accessTokenLifespanForImplicitFlow": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "offlineSessionIdleTimeout": 2592000,
+  "clientSessionIdleTimeout": 1800,
+  "clientSessionMaxLifespan": 36000,
+
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 10,
+
+  "eventsEnabled": true,
+  "adminEventsEnabled": true,
+  "adminEventsDetailsEnabled": true,
+  "eventsExpiration": 31536000,
+  "enabledEventTypes": [
+    "LOGIN",
+    "LOGIN_ERROR",
+    "LOGOUT",
+    "LOGOUT_ERROR",
+    "REFRESH_TOKEN",
+    "REFRESH_TOKEN_ERROR",
+    "CLIENT_LOGIN",
+    "CLIENT_LOGIN_ERROR",
+    "TOKEN_EXCHANGE",
+    "TOKEN_EXCHANGE_ERROR",
+    "CODE_TO_TOKEN",
+    "CODE_TO_TOKEN_ERROR",
+    "CLIENT_REGISTER",
+    "CLIENT_REGISTER_ERROR",
+    "CLIENT_UPDATE",
+    "CLIENT_DELETE",
+    "INTROSPECT_TOKEN",
+    "INTROSPECT_TOKEN_ERROR"
+  ],
+
+  "roles": {
+    "realm": [
+      {
+        "name": "service-account",
+        "description": "Default role for EMI service accounts (s2s client_credentials)"
+      }
+    ]
+  },
+
+  "defaultRoles": ["service-account"],
+
+  "clients": [
+    {
+      "clientId": "banxe-compliance-api",
+      "name": "Banxe Compliance API",
+      "description": "Service account for banxe-compliance-api s2s auth (ADR-022)",
+      "enabled": true,
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "fullScopeAllowed": false,
+      "defaultClientScopes": ["roles", "profile"],
+      "optionalClientScopes": [],
+      "protocolMappers": [
+        {
+          "name": "service_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.value": "banxe-compliance-api",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "service_id",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "environment",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.value": "prod",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "environment",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "compliance_scope",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.value": "emi",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "compliance_scope",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "banxe-dashboard",
+      "name": "Banxe Dashboard",
+      "description": "Service account for banxe-dashboard s2s auth (ADR-022)",
+      "enabled": true,
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "fullScopeAllowed": false,
+      "defaultClientScopes": ["roles", "profile"],
+      "optionalClientScopes": [],
+      "protocolMappers": [
+        {
+          "name": "service_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.value": "banxe-dashboard",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "service_id",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "environment",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.value": "prod",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "environment",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "compliance_scope",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.value": "emi",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "compliance_scope",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "deep-search",
+      "name": "Deep Search",
+      "description": "Service account for deep-search s2s auth (ADR-022)",
+      "enabled": true,
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "fullScopeAllowed": false,
+      "defaultClientScopes": ["roles", "profile"],
+      "optionalClientScopes": [],
+      "protocolMappers": [
+        {
+          "name": "service_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.value": "deep-search",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "service_id",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "environment",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.value": "prod",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "environment",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "compliance_scope",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.value": "emi",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "compliance_scope",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "drive_watcher",
+      "name": "Drive Watcher",
+      "description": "Service account for drive_watcher cron s2s auth (ADR-022)",
+      "enabled": true,
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "fullScopeAllowed": false,
+      "defaultClientScopes": ["roles", "profile"],
+      "optionalClientScopes": [],
+      "protocolMappers": [
+        {
+          "name": "service_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.value": "drive_watcher",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "service_id",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "environment",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.value": "prod",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "environment",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "compliance_scope",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.value": "emi",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "compliance_scope",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    }
+  ],
+
+  "clientScopes": [
+    {
+      "name": "roles",
+      "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "true" },
+      "protocolMappers": [
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "false",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    }
+  ]
+}
