@@ -44,13 +44,13 @@
 
 | Gap ID | Title | Severity | Owner | Target | Notes |
 |--------|-------|----------|-------|--------|-------|
-| G-IAM-01 | Keycloak realm `banxe-emi` deployed on evo1 (:8180) | P0 | Architecture WG / IAM lead | 2026-05-07 | mirror of canonical G-IAM-01 |
-| G-IAM-02 | OIDC discovery URL reachable from EMI services | P0 | IAM lead | 2026-05-07 | mirror of canonical G-IAM-02 |
-| G-IAM-03 | Service-to-service tokens for compliance-api, dashboard, deep-search, drive_watcher | P0 | IAM lead | 2026-05-07 | mirror of canonical G-IAM-03 |
-| G-IAM-04 | Realm mappers + audit log retention ≥ 12 months | P0 | IAM lead | 2026-05-07 | mirror of canonical G-IAM-04 |
-| G-IAM-05 | client_secret rotation policy (90 days / on-incident) | P1 | IAM lead | 2026-05-07 | mirror of canonical G-IAM-05 |
+| G-IAM-01 | Keycloak realm `banxe-emi` deployed on evo1 (:8180) | P0 | Architecture WG / IAM lead | 2026-05-07 | prep artefacts: `infra/keycloak-banxe-emi/` — `realms/banxe-emi-realm.json` + `scripts/import-realm.sh` (WAITING_FOR_GATE-A) |
+| G-IAM-02 | OIDC discovery URL reachable from EMI services | P0 | IAM lead | 2026-05-07 | prep artefacts: `infra/keycloak-banxe-emi/` — `scripts/healthcheck.sh` + `RUNBOOK.md` §Health Check (WAITING_FOR_GATE-A) |
+| G-IAM-03 | Service-to-service tokens for compliance-api, dashboard, deep-search, drive_watcher | P0 | IAM lead | 2026-05-07 | prep artefacts: `infra/keycloak-banxe-emi/scripts/provision-clients.sh` + `examples/get-token.curl.txt` (WAITING_FOR_GATE-B) |
+| G-IAM-04 | Realm mappers + audit log retention ≥ 12 months | P0 | IAM lead | 2026-05-07 | prep artefacts: `infra/keycloak-banxe-emi/realms/banxe-emi-realm.json` — eventsExpiration=31536000, protocolMappers for service_id/environment/compliance_scope (WAITING_FOR_GATE-A) |
+| G-IAM-05 | client_secret rotation policy (90 days / on-incident) | P1 | IAM lead | 2026-05-07 | prep artefacts: `infra/keycloak-banxe-emi/scripts/provision-clients.sh` (re-runnable for rotation), `infra/keycloak-banxe-emi/.env.example` (WAITING_FOR_GATE-B) |
 | G-IAM-06 | pre-commit hook + Semgrep rule blocking direct credentials | P0 | DevOps | 2026-05-07 | **DONE 2026-05-03** — `feat/iam-creds-guard`: `.semgrep/banxe-rules/iam-no-direct-creds.yml` + pre-commit hook `iam-no-direct-creds` + `docs/CONTRIBUTING.md` |
-| G-IAM-07 | Backout procedure verified | P1 | IAM lead | 2026-05-07 | mirror of canonical G-IAM-07 |
+| G-IAM-07 | Backout procedure verified | P1 | IAM lead | 2026-05-07 | prep artefacts: `infra/keycloak-banxe-emi/RUNBOOK.md` §GATE-D Backout (WAITING_FOR_GATE-L) |
 | G-IAM-08 | Decommission Legion local IAM after PASS + 7d hold | P2 | IAM lead | 2026-05-14 | BLOCKED_BY G-IAM-01..07 |
 
 ---
