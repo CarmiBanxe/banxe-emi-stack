@@ -1,52 +1,42 @@
 # Keycloak realm banxe-emi — isolated compose stack
 # ADR-017 / ADR-022 / I-34 / I-35 | FCA CASS 15
 #
-# GATE-A B (2026-05-03): PID 5577 stopped; this compose is the primary KC on :8180.
+# GATE-A B (2026-05-04): KC_DB=dev-file (H2 file-backed in keycloak_data volume).
+# Quarkus build-step (kc.sh build) systematically killed on evo1 when KC_DB=postgres
+# is used — tracked as G-IAM-09 (target: 2026-05-31). No postgres sidecar needed.
 # All secrets are operator-supplied env vars. See .env.example.
 # Never commit real values. Pre-commit hook iam-no-direct-creds enforces this.
-#
-# OOM fix (v2 — custom Dockerfile):
-#   Upstream `start` (no --optimized) runs kc.sh build inside the container.
-#   JVM -XX:InitialRAMPercentage=50 on 30GB host → 15GB committed → user.slice OOM kill
-#   (exit 137, OOMKilled:false — killed at user.slice cgroup, invisible to Docker).
-#   Fix: Dockerfile pre-runs `kc.sh build` at image build time (outside user.slice).
-#   Container starts with `start --optimized` — no JVM build step, no OOM risk.
-#   mem_limit 2g retained: caps JVM heap during runtime (1.4GB max, 1GB initial).
-#
-# FIRST DEPLOY: run `docker compose build` before `docker compose up -d`.
 
 services:
   keycloak-banxe-emi:
-    build: .
-    image: keycloak-banxe-emi:26.2.5
+    image: quay.io/keycloak/keycloak:26.2.5
     container_name: keycloak-banxe-emi
     command:
       - start
-      - --optimized
       - --hostname-strict=false
       - --http-enabled=true
       - --http-port=8180
       - --proxy-headers=xforwarded
       - --import-realm
     environment:
-      KC_DB_URL: jdbc:postgresql://keycloak-pg:5432/keycloak
-      KC_DB_USERNAME: keycloak
-      KC_DB_PASSWORD: ${KC_DB_PASSWORD:?KC_DB_PASSWORD is required (operator-supplied env)}
+      KC_DB: dev-file
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOT_ADMIN:?KC_BOOT_ADMIN is required (operator-supplied env)}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOT_ADMIN_PASSWORD:?KC_BOOT_ADMIN_PASSWORD is required (operator-supplied env)}
       KC_HOSTNAME: ${KC_HOSTNAME:-evo1}
       KC_HOSTNAME_STRICT: "false"
       KC_HTTP_ENABLED: "true"
       KC_HTTP_PORT: "8180"
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
       KC_LOG_LEVEL: INFO
+      JAVA_OPTS: "-Xms256m -Xmx1g -XX:MetaspaceSize=96M -XX:MaxMetaspaceSize=256m -XX:+UseG1GC -Dfile.encoding=UTF-8"
     volumes:
       - keycloak_data:/opt/keycloak/data
       - ./realms:/opt/keycloak/data/import:ro
     ports:
       - "8180:8180"
-    depends_on:
-      keycloak-pg:
-        condition: service_healthy
+    mem_limit: 2g
+    memswap_limit: 4g
     healthcheck:
       test:
         - CMD-SHELL
@@ -58,26 +48,7 @@ services:
       timeout: 5s
       retries: 20
       start_period: 180s
-    mem_limit: 2g
-    memswap_limit: 2g
-    restart: unless-stopped
-
-  keycloak-pg:
-    image: postgres:16-alpine
-    container_name: keycloak-banxe-emi-pg
-    environment:
-      POSTGRES_DB: keycloak
-      POSTGRES_USER: keycloak
-      POSTGRES_PASSWORD: ${KC_DB_PASSWORD:?KC_DB_PASSWORD is required}
-    volumes:
-      - keycloak_pg_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
-      interval: 10s
-      timeout: 3s
-      retries: 10
     restart: unless-stopped
 
 volumes:
   keycloak_data:
-  keycloak_pg_data:

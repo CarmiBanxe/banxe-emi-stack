@@ -52,6 +52,7 @@
 | G-IAM-06 | pre-commit hook + Semgrep rule blocking direct credentials | P0 | DevOps | 2026-05-07 | **DONE 2026-05-03** — `feat/iam-creds-guard`: `.semgrep/banxe-rules/iam-no-direct-creds.yml` + pre-commit hook `iam-no-direct-creds` + `docs/CONTRIBUTING.md` |
 | G-IAM-07 | Backout procedure verified | P1 | IAM lead | 2026-05-07 | prep artefacts: `infra/keycloak-banxe-emi/RUNBOOK.md` §GATE-D Backout (WAITING_FOR_GATE-L) |
 | G-IAM-08 | Decommission Legion local IAM after PASS + 7d hold | P2 | IAM lead | 2026-05-14 | BLOCKED_BY G-IAM-01..07 |
+| G-IAM-09 | Migrate KC banxe-emi from dev-file to postgres backend (tech debt) | P2 | IAM lead | 2026-05-31 | Reason: Quarkus build-step systematically killed on evo1; dev-file fallback adopted for FCA CASS 15 deadline. |
 
 ---
 

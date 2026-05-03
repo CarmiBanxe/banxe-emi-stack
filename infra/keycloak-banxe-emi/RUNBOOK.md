@@ -288,6 +288,12 @@ Process started outside systemd. Kill it: `pkill -f 'kc.sh start'` then
 
 ---
 
+## Tech debt — KC_DB backend
+
+Initial deployment uses `KC_DB=dev-file` (file-backed H2 inside the keycloak_data volume) due to systematic Quarkus build-step kill on evo1 when `kc.sh build` is invoked against `KC_DB=postgres`. Tracked as **G-IAM-09** in GAP-REGISTER. Migration target: 2026-05-31. Production guarantees (audit retention, FCA CASS 15) are unaffected — events stay in keycloak_data volume; backup of /opt/keycloak/data is sufficient.
+
+---
+
 ## Evidence Artifacts (GAP-REGISTER Links)
 
 | Gap | Artifact |
