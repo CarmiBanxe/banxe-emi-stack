@@ -33,4 +33,6 @@ ENV KC_DB=postgres
 ENV KC_HEALTH_ENABLED=true
 ENV KC_METRICS_ENABLED=true
 
+ENV JAVA_OPTS_APPEND="-Xms256m -Xmx1g -XX:MaxRAMPercentage=25"
+
 RUN /opt/keycloak/bin/kc.sh build
