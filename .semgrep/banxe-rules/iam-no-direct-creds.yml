@@ -1,0 +1,46 @@
+rules:
+  # ── INV-IAM-01: No Direct Credentials in EMI Config Files ───────────────
+  # Source: ADR-022 (mirror of ADR-017), banxe-architecture I-34
+  # FCA CASS 15 + GDPR Art. 32 — violation = P0 security incident
+  #
+  # Targets YAML/JSON config files only. Python source code is covered by
+  # the existing banxe-hardcoded-secret rule in banxe-rules.yml.
+  #
+  # Pattern: a credential KEY followed by a non-placeholder string VALUE
+  # (≥ 6 chars, not ${...}, not <...>, not empty, not common test words).
+
+  - id: iam-no-direct-creds-yaml
+    pattern-regex: '^\s*(password|client_secret|db_password|secret_key|auth_token|access_token|private_key)\s*:\s*"[^"$<{]{6,}"'
+    paths:
+      include:
+        - "*.yaml"
+        - "*.yml"
+      exclude:
+        - ".semgrep/**"
+        - "tests/**"
+        - "node_modules/**"
+    message: |
+      INV-IAM-01: direct credential value in YAML config.
+      Keys (password / client_secret / db_password / secret_key / auth_token /
+      access_token / private_key) must reference env vars (${VAR}) or placeholders.
+      See: docs/adr/ADR-022-keycloak-iam-cutover.md, INVARIANTS.md §INV-IAM-01.
+    languages: [generic]
+    severity: ERROR
+
+  - id: iam-no-direct-creds-json
+    pattern-regex: '"(password|client_secret|db_password|secret_key|auth_token|access_token|private_key)"\s*:\s*"[^"$<{]{6,}"'
+    paths:
+      include:
+        - "*.json"
+      exclude:
+        - ".semgrep/**"
+        - "tests/**"
+        - "node_modules/**"
+        - "package.json"
+        - "package-lock.json"
+        - "*.lock"
+    message: |
+      INV-IAM-01: direct credential value in JSON config.
+      See: docs/adr/ADR-022-keycloak-iam-cutover.md, INVARIANTS.md §INV-IAM-01.
+    languages: [generic]
+    severity: ERROR
