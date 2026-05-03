@@ -23,7 +23,7 @@ def client():
 @pytest.fixture
 def fresh_sca(monkeypatch):
     svc = SCAService(store=InMemorySCAStore())
-    monkeypatch.setattr("api.routers.auth.get_sca_service", lambda: svc)
+    monkeypatch.setattr("api.routers.auth.get_sca_service", lambda **kwargs: svc)
     monkeypatch.setattr("services.auth.sca_service._sca_service", svc)
     return svc
 
