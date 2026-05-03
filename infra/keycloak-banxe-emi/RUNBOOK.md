@@ -310,3 +310,30 @@ Process started outside systemd. Kill it: `pkill -f 'kc.sh start'` then
 - Realm JSON spec: [Keycloak 26.2 Realm Export docs](https://www.keycloak.org/docs/latest/server_admin/#admin-cli)
 - healthcheck.sh: `scripts/healthcheck.sh`
 - provision-clients.sh: `scripts/provision-clients.sh`
+
+---
+
+## Execution STOP — 2026-05-04 01:10 CEST
+
+P3.4 execution on evo1 is **STOPPED** pending two external blockers:
+
+1. Shared Postgres `banxe-marble-postgres` (port 15433, postgis/postgis:17-3.5) is broken. Host-installed KC 26.2.5 was previously configured to use database `keycloak` on this Postgres instance. Current error from `banxe-marble-postgres`: `FATAL: could not open file "global/pg_filenode.map": Permission denied`. This is the Marble service's database, not Keycloak's. It must be repaired by Marble owner. NOT in scope of P3.4.
+
+2. Quarkus `kc.sh build` step is systematically killed inside Docker on evo1, regardless of `--memory`, `JAVA_OPTS`, dev-file vs postgres backend. JVM receives `Killed` (SIGKILL) at `-Dkc.config.build-and-exit=true` step. systemd-oomd inactive, no OOM journal entries, user.slice cgroup unlimited. Likely a kernel/cgroups v2 + Quarkus interaction bug specific to this host.
+
+### Canon status (unchanged by this STOP)
+- ADR-017 / ADR-022 / I-34 / I-35: ACCEPTED, fully documented.
+- G-IAM-01..05, G-IAM-07: prep artefacts ready in `infra/keycloak-banxe-emi/` (compose, realm JSON, scripts, runbook, examples). Status remains IN_PROGRESS / WAITING_FOR_GATE-A.
+- G-IAM-06: DONE (credentials guard) — independent of this STOP.
+- G-IAM-08: BLOCKED_BY G-IAM-01..07.
+- G-IAM-09: ACCEPTED (dev-file fallback as tech debt — irrelevant since dev-file also fails on this host).
+
+### Unblock conditions
+- Marble owner repairs `banxe-marble-postgres` permissions, OR
+- A separate Postgres instance reachable from evo1 is provisioned for Keycloak, OR
+- Quarkus/Docker `Killed`-bug root cause identified and worked around (e.g. KC installed on a different host where Quarkus build works, OR kernel/Docker upgrade on evo1).
+
+### Recommended next session
+- Coordinate with Marble owner on `banxe-marble-postgres` permissions fix.
+- Either provision dedicated `keycloak-pg` Postgres for our compose stack OR install KC 26.2.5 on a different host (legion?) where Quarkus build-step works.
+- Re-attempt GATE-A on a clean Postgres + working `kc.sh build`.

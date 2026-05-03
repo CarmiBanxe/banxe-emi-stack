@@ -52,6 +52,7 @@
 | G-IAM-06 | pre-commit hook + Semgrep rule blocking direct credentials | P0 | DevOps | 2026-05-07 | **DONE 2026-05-03** — `feat/iam-creds-guard`: `.semgrep/banxe-rules/iam-no-direct-creds.yml` + pre-commit hook `iam-no-direct-creds` + `docs/CONTRIBUTING.md` |
 | G-IAM-07 | Backout procedure verified | P1 | IAM lead | 2026-05-07 | prep artefacts: `infra/keycloak-banxe-emi/RUNBOOK.md` §GATE-D Backout (WAITING_FOR_GATE-L) |
 | G-IAM-08 | Decommission Legion local IAM after PASS + 7d hold | P2 | IAM lead | 2026-05-14 | BLOCKED_BY G-IAM-01..07 |
+| G-IAM-99 | EXTERNAL: P3.4 execution blocked by broken `banxe-marble-postgres` (shared DB) AND Quarkus/Docker `kc.sh build` kill on evo1 | P0 | Architecture WG | 2026-05-07 (at risk) | See RUNBOOK §Execution STOP — 2026-05-04 01:10 CEST. Documentation/canon at 100%; execution requires external action. |
 
 ---
 
