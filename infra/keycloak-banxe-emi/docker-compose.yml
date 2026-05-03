@@ -14,7 +14,6 @@ services:
     container_name: keycloak-banxe-emi
     command:
       - start
-      - --optimized
       - --hostname-strict=false
       - --http-enabled=true
       - --http-port=8180
@@ -31,6 +30,8 @@ services:
       KC_HOSTNAME_STRICT: "false"
       KC_HTTP_ENABLED: "true"
       KC_HTTP_PORT: "8180"
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
       KC_LOG_LEVEL: INFO
     volumes:
       - keycloak_data:/opt/keycloak/data
@@ -50,7 +51,7 @@ services:
       interval: 15s
       timeout: 5s
       retries: 20
-      start_period: 60s
+      start_period: 180s
     restart: unless-stopped
 
   keycloak-pg:
