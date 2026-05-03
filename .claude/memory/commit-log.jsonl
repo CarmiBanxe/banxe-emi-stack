@@ -80,3 +80,22 @@
 {"ts":"2026-04-22T17:07:41Z","hash":"bb9a9b5","il":null,"type":"docs","msg":"docs(ledger): register new out-of-scope IL parking tickets (TODO)","files_changed":1,"areas":[]}
 {"ts":"2026-04-22T17:36:00Z","hash":"514a7fe","il":"IL-COMPSYNC-0","type":"docs","msg":"docs(ledger): IL-COMPSYNC-0X parking v3 recorded + IL-COMPSYNC-MCP-TOOLS-FIX blocker","files_changed":1,"areas":[]}
 {"ts":"2026-04-22T17:41:53Z","hash":"82b69b2","il":null,"type":null,"msg":"auth: add ports and SCA response adapters","files_changed":31,"areas":["services","api","tests"]}
+{"ts":"2026-04-28T00:54:57Z","hash":"06ad21f","il":null,"type":"chore","msg":"chore(repo): enforce executable permissions for shell scripts","files_changed":3,"areas":[]}
+{"ts":"2026-04-28T00:56:12Z","hash":"3bab681","il":null,"type":"chore","msg":"chore(memory): update commit log","files_changed":1,"areas":[]}
+{"ts":"2026-04-28T01:03:38Z","hash":"b8fc975","il":null,"type":"chore","msg":"chore(memory): update commit log","files_changed":1,"areas":[]}
+{"ts":"2026-04-28T01:13:10Z","hash":"1c2ba8b","il":null,"type":"docs","msg":"docs(auth): close Phase A inventory — reflect post-extraction state","files_changed":3,"areas":[]}
+{"ts":"2026-04-28T01:17:37Z","hash":"2293a3e","il":null,"type":"docs","msg":"docs(auth): define auth and IAM port boundaries","files_changed":1,"areas":[]}
+{"ts":"2026-04-28T01:27:09Z","hash":"8932552","il":null,"type":"docs","msg":"docs(auth): dedupe ports definition, finalize Phase C boundaries","files_changed":1,"areas":[]}
+{"ts":"2026-04-28T01:34:14Z","hash":"0aa960e","il":null,"type":"docs","msg":"docs(auth): update migration matrix and port boundaries","files_changed":2,"areas":[]}
+{"ts":"2026-04-28T01:35:14Z","hash":"65da180","il":null,"type":"chore","msg":"chore(memory): update commit log","files_changed":1,"areas":[]}
+{"ts":"2026-04-28T01:38:04Z","hash":"427173d","il":null,"type":"chore","msg":"chore(memory): update commit log","files_changed":1,"areas":[]}
+{"ts":"2026-04-28T01:56:05Z","hash":"25b209f","il":null,"type":"docs","msg":"docs(roadmap): close Sprint 3 auth-orchestration, open Sprint 4 SCA boundary","files_changed":2,"areas":[]}
+{"ts":"2026-04-28T01:57:15Z","hash":"b2bee0d","il":null,"type":"chore","msg":"chore(memory): update commit log","files_changed":1,"areas":[]}
+{"ts":"2026-04-28T02:18:10Z","hash":"18ac4f3","il":null,"type":"refactor","msg":"refactor(auth): extract SCA domain types to sca_models.py (Sprint 4 Track A Block 1)","files_changed":3,"areas":["services"]}
+{"ts":"2026-04-28T02:19:43Z","hash":"27fe48f","il":null,"type":"chore","msg":"chore(memory): update commit log","files_changed":1,"areas":[]}
+{"hash": "27fe48f", "full_hash": "27fe48fc1d70c967cf8b6fe32dae49e71b4fe856", "message": "chore(memory): update commit log", "author": "Moriel Carmi", "date": "2026-04-28 04:19:14 +0200", "il_id": null, "type": "chore", "changed_files": [".claude/memory/commit-log.jsonl"]}
+{"ts":"2026-04-28T02:24:31Z","hash":"21532fc","il":null,"type":"feat","msg":"feat(auth): add ScaApplicationService — application boundary for SCA (Sprint 4 Track A Block 2)","files_changed":2,"areas":["services","api"]}
+{"ts":"2026-04-28T02:25:32Z","hash":"baf9c55","il":null,"type":"chore","msg":"chore(memory): update commit log","files_changed":1,"areas":[]}
+{"ts":"2026-04-28T02:34:34Z","hash":"31538f3","il":null,"type":"refactor","msg":"refactor(auth): wire SCA endpoints to ScaApplicationService (Sprint 4 Track A Block 5)","files_changed":1,"areas":["api"]}
+{"ts":"2026-04-28T02:35:38Z","hash":"b2cd849","il":null,"type":"chore","msg":"chore(memory): update commit log","files_changed":1,"areas":[]}
+{"ts":"2026-04-28T12:32:31Z","hash":"9f50e25","il":null,"type":"feat","msg":"feat(auth): add SCA application boundary and thin router wiring","files_changed":3,"areas":["services"]}

@@ -1,7 +1,15 @@
-| old path | new path | status | action | caller | role | notes |
+# AUTH_MATRIX
+
+| Component | Current role | Inline/domain/integration logic | Existing seam | Target boundary | BANXE.RAR attach point | Notes |
 |---|---|---|---|---|---|---|
-| BANXE.RAR auth token logic | services/auth/token_manager.py | target | attach/import behind port | api/routers/auth.py | token issuance + refresh | router currently duplicates JWT logic |
-| BANXE.RAR auth entry flow | api/routers/auth.py | dirty boundary | thin router only | external HTTP clients | HTTP transport layer | keep transport, move business logic out |
-| BANXE.RAR SCA flow | services/auth/sca_service.py | candidate | map/import selectively | auth router / SCA endpoints | PSD2 SCA orchestration | existing tested service boundary |
-| BANXE.RAR 2FA flow | services/auth/two_factor.py | candidate | map/import selectively | sca/auth service layer | OTP/TOTP factor handling | stronger than token layer today |
-| BANXE.RAR IAM integration | services/iam/iam_port.py | target contract | attach adapter | auth/services layer | IAM boundary | best current contract |
+| api/routers/auth.py | Inbound adapter | Transport + residual auth mapping | HTTP endpoints | Request/response only | No direct import | Router must stay thin |
+| services/auth/auth_application_service.py | Application service | Login/refresh orchestration | TokenManagerPort, iam_port, sca_service | Main auth use-case boundary | Maybe via ports only | Good extraction anchor |
+| services/auth/token_manager.py | Token adapter/service | Token issue/validate logic | TokenManagerPort | Outbound token boundary | Preferred adapter seam | Validate reuse first |
+| services/auth/sca_service.py | Auth-support service | SCA flow logic | sca_service_port | Outbound/domain-support boundary | Selective | Preserve tested contour |
+| services/auth/two_factor.py | Auth-support service | 2FA logic | two_factor_port | Outbound/domain-support boundary | Selective | Preserve tested contour |
+| services/iam/iam_port.py | Port contract | IAM abstraction | Existing port | Outbound IAM boundary | Preferred | Strongest current contract |
+
+## Router inventory update
+- `api/routers/auth.py` — login/refresh path already thin; SCA endpoints remain in router for Sprint 4-5 extraction.
+- Inline JWT encode/decode in router: not observed in current file for login/refresh.
+- Residual router logic: HTTP exception mapping + SCA transport branching.

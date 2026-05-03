@@ -15,7 +15,7 @@ from api.models.sca import (
     SCAResendResponse,
     SCAVerifyResponse,
 )
-from services.auth.sca_service import SCAChallenge, SCAMethods, SCAVerifyResult
+from services.auth.sca_models import SCAChallenge, SCAMethods, SCAVerifyResult
 
 
 def to_sca_initiate_response(challenge: SCAChallenge) -> SCAInitiateResponse:

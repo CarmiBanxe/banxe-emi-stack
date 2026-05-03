@@ -26,7 +26,6 @@ Rate limiting:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 import hashlib
 import hmac
@@ -34,62 +33,25 @@ import logging
 import os
 import uuid
 
-import jwt
+from services.auth.sca_models import SCAChallenge, SCAMethods, SCAVerifyResult
+from services.auth.sca_token_issuer import JwtScaTokenIssuer
+from services.auth.sca_token_issuer_port import ScaTokenIssuerPort
+from services.auth.two_factor_port import TwoFactorPort
 
 logger = logging.getLogger("banxe.sca")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-SCA_TOKEN_TTL_SEC = int(os.environ.get("SCA_TOKEN_TTL_SEC", "300"))  # PSD2 RTS Art.4
 SCA_CHALLENGE_TTL_SEC = int(os.environ.get("SCA_CHALLENGE_TTL_SEC", "120"))  # 2 min
 SCA_MAX_ATTEMPTS = int(os.environ.get("SCA_MAX_ATTEMPTS", "5"))
 SCA_MAX_CONCURRENT = int(os.environ.get("SCA_MAX_CONCURRENT", "3"))
 SCA_MAX_RESENDS = int(os.environ.get("SCA_MAX_RESENDS", "3"))  # PSD2 Art.97 resend cap
 SCA_SECRET_KEY = os.environ.get("SCA_SECRET_KEY", "dev-sca-secret-change-in-prod")
-SCA_ALGORITHM = "HS256"
 
 # Known biometric proof prefix (production: cryptographic assertion)
 _BIOMETRIC_PROOF_PREFIX = "biometric:approved:"
 
-
-# ── Domain types ──────────────────────────────────────────────────────────────
-
-
-@dataclass
-class SCAChallenge:
-    """A pending SCA challenge for a payment or sensitive action."""
-
-    challenge_id: str
-    customer_id: str
-    transaction_id: str
-    method: str  # "otp" | "biometric"
-    status: str  # "pending" | "verified" | "expired" | "failed" | "used"
-    created_at: datetime
-    expires_at: datetime
-    amount: str | None = None  # Decimal string for PSD2 dynamic linking
-    payee: str | None = None  # Payee name for PSD2 dynamic linking
-    attempt_count: int = 0
-    resend_count: int = 0  # How many times the challenge has been resent (max 3)
-
-
-@dataclass
-class SCAVerifyResult:
-    """Result of an SCA challenge verification attempt."""
-
-    verified: bool
-    transaction_id: str
-    sca_token: str | None = None  # JWT (only if verified=True)
-    error: str | None = None
-    attempts_remaining: int | None = None
-
-
-@dataclass
-class SCAMethods:
-    """Available SCA methods for a customer."""
-
-    customer_id: str
-    methods: list[str]
-    preferred: str
+SCA_ALGORITHM = "HS256"  # backward-compat export for tests/importers
 
 
 # ── InMemory Store ────────────────────────────────────────────────────────────
@@ -150,8 +112,18 @@ class SCAService:
       - Token TTL: 300 sec maximum
     """
 
-    def __init__(self, store: InMemorySCAStore | None = None) -> None:
+    def __init__(
+        self,
+        store: InMemorySCAStore | None = None,
+        token_issuer: ScaTokenIssuerPort | None = None,
+        two_factor: TwoFactorPort | None = None,
+    ) -> None:
         self._store = store or InMemorySCAStore()
+        self._token_issuer: ScaTokenIssuerPort = token_issuer or JwtScaTokenIssuer()
+        # Optional TwoFactorPort: if provided, OTP verification delegates to it
+        # (production path). When None, the legacy deterministic fallback below
+        # is used (kept for backward-compat with existing test suite).
+        self._two_factor: TwoFactorPort | None = two_factor
         # OTP secrets per customer (mirroring TOTPService pattern)
         # In production: read from TOTPService/Redis
         self._otp_secrets: dict[str, str] = {}
@@ -368,7 +340,16 @@ class SCAService:
     # ── Internal ──────────────────────────────────────────────────────────────
 
     def _verify_otp(self, challenge: SCAChallenge, otp_code: str) -> bool:
-        """Verify TOTP code against stored secret."""
+        """Verify TOTP code.
+
+        If a TwoFactorPort is configured, delegate to it (production path).
+        Otherwise fall back to the deterministic in-process secret derivation
+        (legacy path retained for the existing test contour).
+        """
+        if self._two_factor is not None:
+            result = self._two_factor.verify_totp(challenge.customer_id, otp_code.strip())
+            return bool(result.success)
+
         try:
             import pyotp
         except ImportError:
@@ -404,34 +385,8 @@ class SCAService:
         return biometric_proof.startswith(_BIOMETRIC_PROOF_PREFIX)
 
     def _issue_sca_token(self, challenge: SCAChallenge) -> str:
-        """
-        Issue PSD2 RTS Art.10 dynamic-linking SCA token.
-
-        Claims:
-          - sub: customer_id
-          - txn_id: transaction_id (binding — PSD2 dynamic linking)
-          - amount: transaction amount (binding)
-          - payee: payee name (binding)
-          - iat: issued at
-          - exp: expires at (≤ SCA_TOKEN_TTL_SEC)
-        """
-        now = datetime.now(tz=UTC)
-        expires_at = now + timedelta(seconds=SCA_TOKEN_TTL_SEC)
-
-        payload = {
-            "sub": challenge.customer_id,
-            "txn_id": challenge.transaction_id,
-            "iat": int(now.timestamp()),
-            "exp": int(expires_at.timestamp()),
-            "sca": True,
-            "method": challenge.method,
-        }
-        if challenge.amount:
-            payload["amount"] = challenge.amount
-        if challenge.payee:
-            payload["payee"] = challenge.payee
-
-        return jwt.encode(payload, SCA_SECRET_KEY, algorithm=SCA_ALGORITHM)
+        """Delegate PSD2 RTS Art.10 dynamic-linking SCA token issuance to ScaTokenIssuerPort."""
+        return self._token_issuer.issue(challenge)
 
 
 # ── Factory ───────────────────────────────────────────────────────────────────
@@ -439,12 +394,22 @@ class SCAService:
 _sca_service: SCAService | None = None
 
 
-def get_sca_service() -> SCAService:
+def get_sca_service(two_factor: TwoFactorPort | None = None) -> SCAService:
     """
     Service factory — returns singleton SCAService.
     Production: pass Redis-backed store via env var SCA_STORE=redis.
+
+    Sprint 4 Track A Block 7: accepts optional TwoFactorPort. The first
+    invocation that constructs the singleton wires it into the SCAService;
+    subsequent calls return the existing singleton regardless of args
+    (lazy-once semantics). Production wiring is performed by the router
+    factory (api.routers.auth.get_sca_application_service) which passes a
+    TOTPService instance via FastAPI Depends(get_two_factor_port).
+
+    Tests can monkey-patch the module-level `_sca_service` global to
+    inject a port-less SCAService for the legacy pyotp/deterministic path.
     """
     global _sca_service  # noqa: PLW0603
     if _sca_service is None:
-        _sca_service = SCAService()
+        _sca_service = SCAService(two_factor=two_factor)
     return _sca_service

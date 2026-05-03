@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from services.auth.sca_service import SCAChallenge, SCAVerifyResult
+from services.auth.sca_models import SCAChallenge, SCAVerifyResult
 
 
 class ScaServicePort(Protocol):

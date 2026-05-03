@@ -1456,7 +1456,22 @@ Sprint 2 – DONE:
 - Global coverage ~40% (>=35% target)
 - SCA/TOTP coverage explicitly marked as tech debt for future waves
 
-Sprint 3 – PLAN:
+Sprint 3 – auth-orchestration: ✅ DONE (2026-04-28)
+- Phase A inventory closed (post-extraction state)
+- Phase B extraction: router thin, AuthApplicationService, TokenManager
+- Phase C ports: TokenManagerPort, ScaServicePort, TwoFactorPort, IAMPort
+- Coverage: services/auth 65%, ports 100%, IAMPort 90%
+
+Sprint 4 – SCA Application Boundary + Domain Coverage Waves: PLAN
+
+Track A — SCA Application Boundary (auth-orchestration continuation):
+- Extract SCA endpoints from api/routers/auth.py into ScaApplicationService
+- Remove jwt.encode from services/auth/sca_service.py (isolate behind TokenManagerPort)
+- Wire two_factor_port.py (currently 0% coverage) to TOTPService
+- Target: SCA coverage 40%->80%, 2FA coverage 38%->80%
+- Acceptance: router stops coordinating SCA-specific branching
+
+Track B — Domain Coverage Waves (parallel, per AUTH_REFACTOR_TASKS roadmap):
 - Wave 1: notifications
 - Wave 2: openbanking
 - Wave 3: payments
@@ -1959,3 +1974,56 @@ commit: IL-FXR-01 + IL-PSD2GW-01 | Sprint 37 | 2026-04-21
 | Agent passports | 64 | 66+ | 66 ✅ |
 
 commit: IL-FOS-01 + IL-HMR-01 + IL-CST-01 + IL-LCY-01 | Sprint 41 | 2026-04-27
+
+---
+
+## Phase 3 sync (2026-05-03)
+
+> **Canonical source:** `banxe-architecture/decisions/ADR-016-ai-plane-pii-aml-routing.md` (Accepted 2026-05-03).
+> Этот раздел — EMI-stack-зеркало канона. При расхождении преобладает ADR-016 + INVARIANTS.md (I-32, I-33).
+
+### Cluster AI plane available to compliance/api/dashboard
+
+LiteLLM v2 router running at `http://legion:4000/v1`. All internal services use these aliases.
+Master key: operator-supplied via `LITELLM_MASTER_KEY` env var — value never committed to repo.
+
+| Alias | Backing model | Recommended use |
+|-------|--------------|-----------------|
+| `ai` | qwen3.5:35b | KYC document translation, general compliance Q&A |
+| `ai-heavy` | llama3.3:70b | AML statement screening, complex reasoning tasks |
+| `glm-air` | GLM-4.5-Air (distributed) | Legal evidence extraction, FR/EN translation |
+| `reasoning` | qwen3:235b-a22b | Regulatory memo synthesis (⚠️ status: pending PASS) |
+| `banxe-general` | (existing) | General staff assistant queries |
+| `fast` | (existing) | Routing, classification, quick lookups |
+| `coding` | (existing) | Code generation and automated review |
+
+### Migration in flight
+
+Services moving from Legion WSL2 to evo1 `/data/banxe/`:
+
+| Service | Port | Current host | Target | Rollback |
+|---------|------|-------------|--------|----------|
+| banxe-compliance-api | :8093 | Legion WSL2 | evo1 /data/banxe/ | `systemctl --user start banxe-compliance-api` on Legion |
+| banxe-dashboard | :8090 | Legion WSL2 | evo1 /data/banxe/ | `systemctl --user start banxe-dashboard` on Legion |
+| deep-search | :8088 | Legion WSL2 | evo1 /data/banxe/ | `systemctl --user start deep-search` on Legion |
+| drive_watcher cron | — | Legion WSL2 | evo1 /data/banxe/ | Re-enable Legion `--user` cron unit |
+
+All Legion `--user` units are preserved until evo1 cutover is verified PASS.
+
+### PII/AML guardrails (binding)
+
+> **Reference:** `banxe-infra/ai-routing/policy.yaml`
+
+API code MUST NOT send content matching these path patterns to cloud APIs (Claude/Gemini/Groq/OpenAI):
+
+```
+compliance/cases/*
+kyc/raw/*
+secrets/*
+.env*
+**/*.pem
+**/id_*
+```
+
+Only local LiteLLM routes (`ai`, `ai-heavy`, `glm-air`, `reasoning`) may process these payloads.
+Violation = P0 security incident. Enforced via pre-commit hook and code review checklist.

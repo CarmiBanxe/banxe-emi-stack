@@ -1,0 +1,47 @@
+# GAP-REGISTER — Banxe EMI Stack
+
+> Реестр архитектурных и операционных пробелов (gaps).
+> Источник правды по канону: `banxe-architecture/GAP-REGISTER.md`.
+> Этот файл — зеркало EMI-стека; в случае расхождения преобладает
+> запись в `banxe-architecture`.
+
+**Last updated:** 2026-05-03
+
+---
+
+## Severity legend
+
+- **P0** — security / regulatory breach risk
+- **P1** — architecture invariant breach
+- **P2** — quality / maintainability
+- **P3** — nice-to-have
+
+---
+
+## Closed
+
+### 2026-05-03 — ADR-021 rollout
+
+| Gap ID   | Title                                              | Severity | Resolution |
+|----------|----------------------------------------------------|----------|------------|
+| G-AI-01  | No unified AI entrypoint for EMI services          | P1       | Closed by ADR-021 + INV-AI-01. LiteLLM v2 router (`http://legion:4000/v1`) — единая точка входа. |
+| G-AI-02  | Backing-model coupling in service code             | P2       | Closed by ADR-021 alias contract (`ai`, `ai-heavy`, `glm-air`, `reasoning`, `banxe-general`, `fast`, `coding`). |
+| G-PII-01 | Risk of PII leak to cloud LLM                      | P0       | Closed by INV-PII-01 + `banxe-infra/ai-routing/policy.yaml` deny-paths. |
+| G-PII-02 | No enforcement on deny-paths                       | P0       | Closed by pre-commit hook + review checklist + LiteLLM runtime guard. |
+| G-MIG-01 | Legion → evo1 migration without rollback contract  | P1       | Closed by ADR-021 §5: dual-stack until verified PASS; Legion `--user` units сохраняются. |
+
+---
+
+## Open
+
+| Gap ID | Title | Severity | Owner | Target | Notes |
+|--------|-------|----------|-------|--------|-------|
+| _(add entries as gaps are identified)_ | | | | | |
+
+---
+
+## Process
+
+1. New gaps go to **Open** with severity, owner, target date.
+2. On resolution — move to **Closed** with date-section header and resolution reference (ADR / commit / PR).
+3. P0/P1 closures MUST link to an ADR or invariant in `INVARIANTS.md`.
