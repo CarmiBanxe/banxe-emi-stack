@@ -65,7 +65,11 @@ def get_sca_application_service(
     instance, in which case the legacy pyotp/deterministic fallback is used
     (see tests/test_api_sca.py::fresh_sca_service).
     """
-    return ScaApplicationService(sca_service=get_sca_service(two_factor=two_factor))
+    try:
+        sca_service = get_sca_service(two_factor=two_factor)
+    except TypeError:
+        sca_service = get_sca_service()
+    return ScaApplicationService(sca_service=sca_service)
 
 
 _ERROR_CODE_TO_HTTP: dict[str, int] = {
