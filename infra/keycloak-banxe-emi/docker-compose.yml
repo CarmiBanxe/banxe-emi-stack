@@ -5,23 +5,30 @@
 # All secrets are operator-supplied env vars. See .env.example.
 # Never commit real values. Pre-commit hook iam-no-direct-creds enforces this.
 #
-# OOM fix: KC JVM uses -XX:MaxRAMPercentage=70; without mem_limit it sees 30GB → 21GB heap.
-# InitialRAMPercentage=50 tries to commit 15GB at build-step start → OOM kill (exit 137).
-# mem_limit 2g: JVM sees 2GB → max heap 1.4GB, initial 1GB — safe for Quarkus build + runtime.
+# OOM fix (v2 — custom Dockerfile):
+#   Upstream `start` (no --optimized) runs kc.sh build inside the container.
+#   JVM -XX:InitialRAMPercentage=50 on 30GB host → 15GB committed → user.slice OOM kill
+#   (exit 137, OOMKilled:false — killed at user.slice cgroup, invisible to Docker).
+#   Fix: Dockerfile pre-runs `kc.sh build` at image build time (outside user.slice).
+#   Container starts with `start --optimized` — no JVM build step, no OOM risk.
+#   mem_limit 2g retained: caps JVM heap during runtime (1.4GB max, 1GB initial).
+#
+# FIRST DEPLOY: run `docker compose build` before `docker compose up -d`.
 
 services:
   keycloak-banxe-emi:
-    image: quay.io/keycloak/keycloak:26.2.5
+    build: .
+    image: keycloak-banxe-emi:26.2.5
     container_name: keycloak-banxe-emi
     command:
       - start
+      - --optimized
       - --hostname-strict=false
       - --http-enabled=true
       - --http-port=8180
       - --proxy-headers=xforwarded
       - --import-realm
     environment:
-      KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://keycloak-pg:5432/keycloak
       KC_DB_USERNAME: keycloak
       KC_DB_PASSWORD: ${KC_DB_PASSWORD:?KC_DB_PASSWORD is required (operator-supplied env)}
@@ -31,8 +38,6 @@ services:
       KC_HOSTNAME_STRICT: "false"
       KC_HTTP_ENABLED: "true"
       KC_HTTP_PORT: "8180"
-      KC_HEALTH_ENABLED: "true"
-      KC_METRICS_ENABLED: "true"
       KC_LOG_LEVEL: INFO
     volumes:
       - keycloak_data:/opt/keycloak/data
