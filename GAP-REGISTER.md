@@ -30,6 +30,12 @@
 | G-PII-02 | No enforcement on deny-paths                       | P0       | Closed by pre-commit hook + review checklist + LiteLLM runtime guard. |
 | G-MIG-01 | Legion → evo1 migration without rollback contract  | P1       | Closed by ADR-021 §5: dual-stack until verified PASS; Legion `--user` units сохраняются. |
 
+### 2026-05-03 — ADR-022 rollout (IAM credentials guard)
+
+| Gap ID   | Title                                              | Severity | Resolution |
+|----------|----------------------------------------------------|----------|------------|
+| G-IAM-06 | pre-commit hook + Semgrep rule blocking direct credentials | P0 | Closed by `feat/iam-creds-guard`: `.semgrep/banxe-rules/iam-no-direct-creds.yml` + pre-commit hook `iam-no-direct-creds` (INV-IAM-01). See `docs/CONTRIBUTING.md §IAM Credentials Guard`. |
+
 ---
 
 ## Open
@@ -43,7 +49,7 @@
 | G-IAM-03 | Service-to-service tokens for compliance-api, dashboard, deep-search, drive_watcher | P0 | IAM lead | 2026-05-07 | mirror of canonical G-IAM-03 |
 | G-IAM-04 | Realm mappers + audit log retention ≥ 12 months | P0 | IAM lead | 2026-05-07 | mirror of canonical G-IAM-04 |
 | G-IAM-05 | client_secret rotation policy (90 days / on-incident) | P1 | IAM lead | 2026-05-07 | mirror of canonical G-IAM-05 |
-| G-IAM-06 | pre-commit hook + Gitleaks rule blocking direct credentials | P0 | DevOps | 2026-05-07 | mirror of canonical G-IAM-06 |
+| G-IAM-06 | pre-commit hook + Semgrep rule blocking direct credentials | P0 | DevOps | 2026-05-07 | **DONE 2026-05-03** — `feat/iam-creds-guard`: `.semgrep/banxe-rules/iam-no-direct-creds.yml` + pre-commit hook `iam-no-direct-creds` + `docs/CONTRIBUTING.md` |
 | G-IAM-07 | Backout procedure verified | P1 | IAM lead | 2026-05-07 | mirror of canonical G-IAM-07 |
 | G-IAM-08 | Decommission Legion local IAM after PASS + 7d hold | P2 | IAM lead | 2026-05-14 | BLOCKED_BY G-IAM-01..07 |
 
