@@ -31,7 +31,19 @@ What other options were evaluated and why were they rejected?
 
 | ADR | Title | Status | Date |
 |-----|-------|--------|------|
-| _(add entries as ADRs are created)_ | | | |
+| [ADR-001](ADR-001-biome-vs-eslint.md) | Biome vs ESLint/Prettier | Accepted | — |
+| [ADR-002](ADR-002-clickhouse-audit-log.md) | ClickHouse for Audit Log | Accepted | — |
+| [ADR-003](ADR-003-midaz-core-banking.md) | Midaz as Core Banking System | Accepted | — |
+| [ADR-004](ADR-004-fastmcp-agent-tooling.md) | FastMCP for Agent Tooling | Accepted | — |
+| [ADR-005](ADR-005-protocol-di-pattern.md) | Protocol DI Pattern | Accepted | — |
+| [ADR-006](ADR-006-weasyprint-fin060.md) | WeasyPrint for FIN060 PDF | Accepted | — |
+| [ADR-007](ADR-007-decimal-for-money.md) | Decimal for Money (I-01) | Accepted | — |
+| [ADR-008](ADR-008-fastapi-web-framework.md) | FastAPI as Web Framework | Accepted | — |
+| [ADR-009](ADR-009-blnk-position-tracking.md) | Blnk for Position Tracking | Accepted | — |
+| [ADR-013](ADR-013-swift-correspondent.md) | SWIFT Correspondent Banking | Accepted | — |
+| [ADR-014](ADR-014-fx-engine.md) | FX Engine (Frankfurter ECB) | Accepted | — |
+| [ADR-015](ADR-015-auth-ports.md) | Auth Ports (Keycloak) | Accepted | — |
+| [ADR-021](ADR-021-ai-plane-pii-aml-routing.md) | AI Plane and PII/AML Routing | Accepted | 2026-05-03 |
 
 ## When to Create an ADR
 
