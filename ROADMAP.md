@@ -1982,6 +1982,9 @@ commit: IL-FOS-01 + IL-HMR-01 + IL-CST-01 + IL-LCY-01 | Sprint 41 | 2026-04-27
 > **Canonical source:** `banxe-architecture/decisions/ADR-016-ai-plane-pii-aml-routing.md` (Accepted 2026-05-03).
 > Этот раздел — EMI-stack-зеркало канона. При расхождении преобладает ADR-016 + INVARIANTS.md (I-32, I-33).
 
+> **Canonical source (IAM):** `banxe-architecture/decisions/ADR-017-keycloak-iam-cutover.md` (Accepted 2026-05-03).
+> Local mirror: `docs/adr/ADR-022-keycloak-iam-cutover.md`. Keycloak realm `banxe-emi` cutover deadline: **2026-05-07** (FCA CASS 15). Trackers: G-IAM-01..G-IAM-08 (canonical and local).
+
 ### Cluster AI plane available to compliance/api/dashboard
 
 LiteLLM v2 router running at `http://legion:4000/v1`. All internal services use these aliases.

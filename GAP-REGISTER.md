@@ -34,9 +34,18 @@
 
 ## Open
 
+### Open / 2026-05-03 — ADR-022 IAM cutover (mirror of canonical G-IAM-*)
+
 | Gap ID | Title | Severity | Owner | Target | Notes |
 |--------|-------|----------|-------|--------|-------|
-| _(add entries as gaps are identified)_ | | | | | |
+| G-IAM-01 | Keycloak realm `banxe-emi` deployed on evo1 (:8180) | P0 | Architecture WG / IAM lead | 2026-05-07 | mirror of canonical G-IAM-01 |
+| G-IAM-02 | OIDC discovery URL reachable from EMI services | P0 | IAM lead | 2026-05-07 | mirror of canonical G-IAM-02 |
+| G-IAM-03 | Service-to-service tokens for compliance-api, dashboard, deep-search, drive_watcher | P0 | IAM lead | 2026-05-07 | mirror of canonical G-IAM-03 |
+| G-IAM-04 | Realm mappers + audit log retention ≥ 12 months | P0 | IAM lead | 2026-05-07 | mirror of canonical G-IAM-04 |
+| G-IAM-05 | client_secret rotation policy (90 days / on-incident) | P1 | IAM lead | 2026-05-07 | mirror of canonical G-IAM-05 |
+| G-IAM-06 | pre-commit hook + Gitleaks rule blocking direct credentials | P0 | DevOps | 2026-05-07 | mirror of canonical G-IAM-06 |
+| G-IAM-07 | Backout procedure verified | P1 | IAM lead | 2026-05-07 | mirror of canonical G-IAM-07 |
+| G-IAM-08 | Decommission Legion local IAM after PASS + 7d hold | P2 | IAM lead | 2026-05-14 | BLOCKED_BY G-IAM-01..07 |
 
 ---
 

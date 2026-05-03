@@ -44,6 +44,7 @@ What other options were evaluated and why were they rejected?
 | [ADR-014](ADR-014-fx-engine.md) | FX Engine (Frankfurter ECB) | Accepted | — |
 | [ADR-015](ADR-015-auth-ports.md) | Auth Ports (Keycloak) | Accepted | — |
 | [ADR-021](ADR-021-ai-plane-pii-aml-routing.md) | AI Plane and PII/AML Routing | Accepted | 2026-05-03 |
+| [ADR-022](ADR-022-keycloak-iam-cutover.md) | Keycloak IAM Cutover (mirror of ADR-017) | Accepted | 2026-05-03 |
 
 ## When to Create an ADR
 
