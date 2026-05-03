@@ -5,8 +5,9 @@
 # All secrets are operator-supplied env vars. See .env.example.
 # Never commit real values. Pre-commit hook iam-no-direct-creds enforces this.
 #
-# start --optimized: KC 26.2.5 official image is pre-built; skip Quarkus rebuild step.
-# Config that requires build-time baking goes in KC_* env vars (KC_DB, KC_HOSTNAME, etc).
+# OOM fix: KC JVM uses -XX:MaxRAMPercentage=70; without mem_limit it sees 30GB → 21GB heap.
+# InitialRAMPercentage=50 tries to commit 15GB at build-step start → OOM kill (exit 137).
+# mem_limit 2g: JVM sees 2GB → max heap 1.4GB, initial 1GB — safe for Quarkus build + runtime.
 
 services:
   keycloak-banxe-emi:
@@ -52,6 +53,8 @@ services:
       timeout: 5s
       retries: 20
       start_period: 180s
+    mem_limit: 2g
+    memswap_limit: 2g
     restart: unless-stopped
 
   keycloak-pg:
