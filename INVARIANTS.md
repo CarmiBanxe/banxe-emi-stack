@@ -47,20 +47,52 @@ EMI-репо. Backing-модели — деталь реализации plane.
 
 ---
 
+## IAM invariants
+
+### INV-IAM-01 — No Direct Credentials in EMI Service Configs
+
+- **Status:** Binding
+- **Date:** 2026-05-03
+- **Source:** ADR-022 (mirror of ADR-017); canonical: I-34 (`banxe-architecture/INVARIANTS.md`)
+- **Scope:** все EMI-сервисы
+
+EMI-сервисы НЕ ВПРАВЕ хранить direct user/password или статические API-секреты в файлах окружения и конфигурации (`.env*`, `*.yaml`, `*.json`, `docker-compose*`). Любые credentials выдаются только через Keycloak realm `banxe-emi` (см. INV-IAM-02). Master-секреты — operator-supplied env, никогда не коммитятся.
+
+**Enforcement:** pre-commit hook в репо, review checklist, Gitleaks в CI.
+**Violation severity:** P0 — security incident (FCA CASS 15 + GDPR Art. 32).
+
+---
+
+### INV-IAM-02 — Keycloak Realm `banxe-emi` as Single IAM Issuer
+
+- **Status:** Binding
+- **Date:** 2026-05-03
+- **Source:** ADR-022 (mirror of ADR-017); canonical: I-35 (`banxe-architecture/INVARIANTS.md`)
+- **Scope:** все EMI-сервисы
+
+Все EMI-сервисы аутентифицируются и авторизуются ИСКЛЮЧИТЕЛЬНО через Keycloak realm `banxe-emi` (`http://evo1:8180/realms/banxe-emi/.well-known/openid-configuration`). Альтернативные IAM-источники (локальный Legion `--user` IAM, hardcoded JWT, статические API-ключи, сторонние OAuth-провайдеры) запрещены для production EMI-флоу. Legion local IAM сохраняется как rollback до подтверждённого PASS на evo1, после чего декомиссионируется (см. ADR-022 §6).
+
+**Enforcement:** review checklist, Keycloak audit log (retention ≥ 12 месяцев), runtime guard в API gateway.
+**Violation severity:** P1 — architecture invariant breach. P0 если приводит к утечке клиентских данных.
+
+---
+
 ## Enforcement artefacts
 
 | Artefact | Path | Covers |
 |----------|------|--------|
 | Semgrep rules | `.semgrep/banxe-rules.yml` | I-01, I-08, I-24 |
+| Semgrep IAM rule | `.semgrep/banxe-rules/iam-no-direct-creds.yml` | INV-IAM-01 |
 | AML thresholds | `services/aml/aml_thresholds.py` | I-02, I-03, I-04 |
 | Pydantic validators | `api/models/` | I-05 |
 | HITL service | `services/hitl/feedback_loop.py` | I-27 |
 | AI routing policy | `banxe-infra/ai-routing/policy.yaml` | INV-AI-01 |
-| pre-commit hooks | `.pre-commit-config.yaml` | INV-AI-01, I-01 |
+| pre-commit hooks | `.pre-commit-config.yaml` | INV-AI-01, INV-IAM-01, I-01 |
 
 ## References
 
 - Financial invariant rules: `.claude/rules/financial-invariants.md`
 - ADR-021 (AI plane): `docs/adr/ADR-021-ai-plane-pii-aml-routing.md`
+- ADR-022 (IAM cutover mirror): `docs/adr/ADR-022-keycloak-iam-cutover.md`
 - AI-PLUMBING.md (LiteLLM aliases + deny-paths): `docs/AI-PLUMBING.md`
 - Security policy: `.claude/rules/security-policy.md`
