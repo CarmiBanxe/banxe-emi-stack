@@ -1,13 +1,12 @@
 # Keycloak realm banxe-emi — isolated compose stack
 # ADR-017 / ADR-022 / I-34 / I-35 | FCA CASS 15
 #
-# WARNING: Port :8180 is occupied on evo1 by an existing Keycloak 26.2.5 process (PID 5577).
-# This compose file CANNOT be started until the existing process is stopped.
-# See PRECHECK-2026-05-03.md for GATE-A options.
-# For alternative port :8182 (fallback), use docker-compose.standalone.yml.
-#
+# GATE-A B (2026-05-03): PID 5577 stopped; this compose is the primary KC on :8180.
 # All secrets are operator-supplied env vars. See .env.example.
 # Never commit real values. Pre-commit hook iam-no-direct-creds enforces this.
+#
+# start --optimized: KC 26.2.5 official image is pre-built; skip Quarkus rebuild step.
+# Config that requires build-time baking goes in KC_* env vars (KC_DB, KC_HOSTNAME, etc).
 
 services:
   keycloak-banxe-emi:
@@ -15,7 +14,7 @@ services:
     container_name: keycloak-banxe-emi
     command:
       - start
-      - --hostname=evo1
+      - --optimized
       - --hostname-strict=false
       - --http-enabled=true
       - --http-port=8180
@@ -28,11 +27,15 @@ services:
       KC_DB_URL: jdbc:postgresql://keycloak-pg:5432/keycloak
       KC_DB_USERNAME: keycloak
       KC_DB_PASSWORD: ${KC_DB_PASSWORD:?KC_DB_PASSWORD is required (operator-supplied env)}
-      KEYCLOAK_ADMIN: ${KC_BOOT_ADMIN:?KC_BOOT_ADMIN is required (operator-supplied env)}
-      KEYCLOAK_ADMIN_PASSWORD: ${KC_BOOT_ADMIN_PASSWORD:?KC_BOOT_ADMIN_PASSWORD is required (operator-supplied env)}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOT_ADMIN:?KC_BOOT_ADMIN is required (operator-supplied env)}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOT_ADMIN_PASSWORD:?KC_BOOT_ADMIN_PASSWORD is required (operator-supplied env)}
+      KC_HOSTNAME: ${KC_HOSTNAME:-evo1}
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_HTTP_PORT: "8180"
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
       KC_LOG_LEVEL: INFO
-      KC_LOG: console,file
-      KC_LOG_FILE: /opt/keycloak/data/log/keycloak.log
     volumes:
       - keycloak_data:/opt/keycloak/data
       - ./realms:/opt/keycloak/data/import:ro
