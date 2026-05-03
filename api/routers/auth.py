@@ -49,14 +49,23 @@ router = APIRouter(tags=["Auth"])
 # api.routers.auth.get_sca_service. The router-local factory below builds a
 # fresh ScaApplicationService bound to the (possibly patched) sca_service
 # instance so monkeypatch works end-to-end.
+from api.deps import get_two_factor_port  # noqa: E402
 from services.auth.sca_service import get_sca_service  # noqa: E402
+from services.auth.two_factor import TOTPService  # noqa: E402
 
 
-def get_sca_application_service() -> ScaApplicationService:
+def get_sca_application_service(
+    two_factor: TOTPService = Depends(get_two_factor_port),
+) -> ScaApplicationService:
     """Router-local DI provider: builds ScaApplicationService bound to the
-    current get_sca_service() result, allowing tests to monkeypatch the
-    underlying SCA service."""
-    return ScaApplicationService(sca_service=get_sca_service())
+    current get_sca_service() result with TOTPService injected as
+    TwoFactorPort for production OTP verification (Sprint 4 Track A Block 7).
+
+    Tests can monkey-patch get_sca_service to return a port-less SCAService
+    instance, in which case the legacy pyotp/deterministic fallback is used
+    (see tests/test_api_sca.py::fresh_sca_service).
+    """
+    return ScaApplicationService(sca_service=get_sca_service(two_factor=two_factor))
 
 
 _ERROR_CODE_TO_HTTP: dict[str, int] = {
