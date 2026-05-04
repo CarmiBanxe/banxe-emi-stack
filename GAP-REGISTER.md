@@ -44,13 +44,13 @@
 
 | Gap ID | Title | Severity | Owner | Target | Notes |
 |--------|-------|----------|-------|--------|-------|
-| G-IAM-01 | Keycloak realm `banxe-emi` deployed on evo1 (:8180) | P0 | Architecture WG / IAM lead | 2026-05-07 | prep artefacts: `infra/keycloak-banxe-emi/` — `realms/banxe-emi-realm.json` + `scripts/import-realm.sh` (WAITING_FOR_GATE-A) |
-| G-IAM-02 | OIDC discovery URL reachable from EMI services | P0 | IAM lead | 2026-05-07 | prep artefacts: `infra/keycloak-banxe-emi/` — `scripts/healthcheck.sh` + `RUNBOOK.md` §Health Check (WAITING_FOR_GATE-A) |
-| G-IAM-03 | Service-to-service tokens for compliance-api, dashboard, deep-search, drive_watcher | P0 | IAM lead | 2026-05-07 | prep artefacts: `infra/keycloak-banxe-emi/scripts/provision-clients.sh` + `examples/get-token.curl.txt` (WAITING_FOR_GATE-B) |
-| G-IAM-04 | Realm mappers + audit log retention ≥ 12 months | P0 | IAM lead | 2026-05-07 | prep artefacts: `infra/keycloak-banxe-emi/realms/banxe-emi-realm.json` — eventsExpiration=31536000, protocolMappers for service_id/environment/compliance_scope (WAITING_FOR_GATE-A) |
+| G-IAM-01 | Keycloak realm `banxe-emi` deployed on evo1 (:8180) | P0 | Architecture WG / IAM lead | 2026-05-07 | prep artefacts: `infra/keycloak-banxe-emi/` — `realms/banxe-emi-realm.json` + `scripts/import-realm.sh` (WAITING_FOR_GATE-A) | DONE 2026-05-04 via PR #50 (STRATEGY-B Legion deploy) |
+| G-IAM-02 | OIDC discovery URL reachable from EMI services | P0 | IAM lead | 2026-05-07 | prep artefacts: `infra/keycloak-banxe-emi/` — `scripts/healthcheck.sh` + `RUNBOOK.md` §Health Check (WAITING_FOR_GATE-A) | DONE 2026-05-04 via PR #50 (cross-host smoke 4/4 OK) |
+| G-IAM-03 | Service-to-service tokens for compliance-api, dashboard, deep-search, drive_watcher | P0 | IAM lead | 2026-05-07 | prep artefacts: `infra/keycloak-banxe-emi/scripts/provision-clients.sh` + `examples/get-token.curl.txt` (WAITING_FOR_GATE-B) | DONE 2026-05-04 via PR #50 (4 service_credentials tokens issued) |
+| G-IAM-04 | Realm mappers + audit log retention ≥ 12 months | P0 | IAM lead | 2026-05-07 | prep artefacts: `infra/keycloak-banxe-emi/realms/banxe-emi-realm.json` — eventsExpiration=31536000, protocolMappers for service_id/environment/compliance_scope (WAITING_FOR_GATE-A) | DONE 2026-05-04 via PR #50 (realm has protocolMappers + eventsExpiration=31536000) |
 | G-IAM-05 | client_secret rotation policy (90 days / on-incident) | P1 | IAM lead | 2026-05-07 | prep artefacts: `infra/keycloak-banxe-emi/scripts/provision-clients.sh` (re-runnable for rotation), `infra/keycloak-banxe-emi/.env.example` (WAITING_FOR_GATE-B) |
 | G-IAM-06 | pre-commit hook + Semgrep rule blocking direct credentials | P0 | DevOps | 2026-05-07 | **DONE 2026-05-03** — `feat/iam-creds-guard`: `.semgrep/banxe-rules/iam-no-direct-creds.yml` + pre-commit hook `iam-no-direct-creds` + `docs/CONTRIBUTING.md` |
-| G-IAM-07 | Backout procedure verified | P1 | IAM lead | 2026-05-07 | prep artefacts: `infra/keycloak-banxe-emi/RUNBOOK.md` §GATE-D Backout (WAITING_FOR_GATE-L) |
+| G-IAM-07 | Backout procedure verified | P1 | IAM lead | 2026-05-07 | prep artefacts: `infra/keycloak-banxe-emi/RUNBOOK.md` §GATE-D Backout (WAITING_FOR_GATE-L) | DONE 2026-05-04 via PR #50 (RUNBOOK §GATE-D backout documented) |
 | G-IAM-08 | Keycloak realm cutover — DONE via STRATEGY-B (Legion) | P0 | DONE 2026-05-04 |
 | G-IAM-99 | EXTERNAL blockers — RESOLVED via STRATEGY-B host migration | P0 | RESOLVED 2026-05-04 |
 
