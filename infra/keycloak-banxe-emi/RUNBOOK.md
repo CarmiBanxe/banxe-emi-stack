@@ -313,34 +313,110 @@ Process started outside systemd. Kill it: `pkill -f 'kc.sh start'` then
 
 ---
 
-## Execution STOP — 2026-05-04 01:10 CEST
+## Execution STOP (resolved — 2026-05-04)
 
-P3.4 execution on evo1 is **STOPPED** pending two external blockers:
+~~P3.4 execution on evo1 is **STOPPED** pending two external blockers~~
 
-1. Shared Postgres `banxe-marble-postgres` (port 15433, postgis/postgis:17-3.5) is broken. Host-installed KC 26.2.5 was previously configured to use database `keycloak` on this Postgres instance. Current error from `banxe-marble-postgres`: `FATAL: could not open file "global/pg_filenode.map": Permission denied`. This is the Marble service's database, not Keycloak's. It must be repaired by Marble owner. NOT in scope of P3.4.
+**Resolved 2026-05-04** via STRATEGY-A (own Postgres sidecar; see PR `feat/keycloak-own-postgres-stack`).
+Original blockers (documented for audit trail):
 
-2. Quarkus `kc.sh build` step is systematically killed inside Docker on evo1, regardless of `--memory`, `JAVA_OPTS`, dev-file vs postgres backend. JVM receives `Killed` (SIGKILL) at `-Dkc.config.build-and-exit=true` step. systemd-oomd inactive, no OOM journal entries, user.slice cgroup unlimited. Likely a kernel/cgroups v2 + Quarkus interaction bug specific to this host.
+1. Shared Postgres `banxe-marble-postgres` (port 15433) — `FATAL: could not open file "global/pg_filenode.map": Permission denied`. **Resolution**: Bypassed via dedicated `keycloak-pg` sidecar in STRATEGY-A compose. No dependency on marble-postgres.
 
-### Canon status (unchanged by this STOP)
+2. Quarkus `kc.sh build` SIGKILL on evo1 — reproduced 2026-05-04 01:00 CEST (load 35+), NOT reproduced 2026-05-04 session-2 (EXIT=0, build 9.8s, 22GB RAM available). **Resolution**: `kc.sh build` baked into Dockerfile at image build time (build host independent of evo1 runtime load); runtime uses `--optimized`.
+
+### Canon status (post-resolution)
 - ADR-017 / ADR-022 / I-34 / I-35: ACCEPTED, fully documented.
-- G-IAM-01..05, G-IAM-07: prep artefacts ready in `infra/keycloak-banxe-emi/` (compose, realm JSON, scripts, runbook, examples). Status remains IN_PROGRESS / WAITING_FOR_GATE-A.
-- G-IAM-06: DONE (credentials guard) — independent of this STOP.
-- G-IAM-08: BLOCKED_BY G-IAM-01..07.
-- G-IAM-09: ACCEPTED (dev-file fallback as tech debt — irrelevant since dev-file also fails on this host).
-
-### Unblock conditions
-- Marble owner repairs `banxe-marble-postgres` permissions, OR
-- A separate Postgres instance reachable from evo1 is provisioned for Keycloak, OR
-- Quarkus/Docker `Killed`-bug root cause identified and worked around (e.g. KC installed on a different host where Quarkus build works, OR kernel/Docker upgrade on evo1).
-
-### Recommended next session
-- Coordinate with Marble owner on `banxe-marble-postgres` permissions fix.
-- Either provision dedicated `keycloak-pg` Postgres for our compose stack OR install KC 26.2.5 on a different host (legion?) where Quarkus build-step works.
-- Re-attempt GATE-A on a clean Postgres + working `kc.sh build`.
+- G-IAM-01..07: artefacts ready. Status: WAITING_FOR_GATE-A.
+- G-IAM-06: DONE (credentials guard).
+- G-IAM-08: BLOCKED_BY GATE-A completion.
+- G-IAM-09: ACCEPTED (dev-file fallback as tech debt — not applicable to STRATEGY-A which uses Postgres).
 
 ---
 
-## STRATEGY-B Resolution — 2026-05-04 13:00 CEST
+## Strategy-A Activation Plan — 2026-05-04 (resume)
+
+**Context**: STRATEGY-B (Legion Tailscale) rejected — WSL2 NAT: Legion IP 172.22.56.223 not
+LAN-reachable from evo1. STRATEGY-A selected: own Postgres sidecar + KC on evo1, `kc.sh build`
+baked into Dockerfile, `--optimized` at runtime.
+
+### Pre-flight checks
+
+```bash
+source ~/.banxe/keycloak.env
+
+# 1. Verify secrets present
+echo "KC_DB_PASSWORD=${KC_DB_PASSWORD:0:3}***"
+echo "KC_BOOT_ADMIN=$KC_BOOT_ADMIN"
+
+# 2. Check env file permissions (I-34)
+stat -c "%a %n" ~/.banxe/keycloak.env   # must be 600
+
+# 3. Check no conflicting KC process on :8180
+ss -tlnp | grep 8180 || echo "port free"
+
+# 4. Disk space (compose needs ~2GB for build + volumes)
+df -h /var/lib/docker | awk 'NR==2{print $4, "available"}'
+```
+
+### GATE-A.1 — Build image
+
+```bash
+cd /data/banxe/banxe-emi-stack/infra/keycloak-banxe-emi/
+source ~/.banxe/keycloak.env
+
+# Build (kc.sh build runs inside Docker — isolated from evo1 load)
+docker compose build keycloak-banxe-emi 2>&1 | tee /tmp/kc-build-$(date +%s).log
+echo "Build exit: $?"
+```
+
+Expected: `=> exporting to image` followed by `exit: 0`.
+If `Killed` appears: evo1 OOM during build — try `--memory 2g` flag or reduce JAVA_OPTS Xmx.
+
+### GATE-A.2 — Start stack
+
+```bash
+docker compose up -d
+docker compose ps
+```
+
+Postgres sidecar `keycloak-banxe-emi-pg` must reach `healthy` before KC starts.
+KC healthcheck: 30 retries × 15s = up to 450s start window.
+
+### GATE-A.3 — Health poll
+
+```bash
+# Poll until UP (max 8 minutes)
+for i in $(seq 1 32); do
+  STATUS=$(curl -sf http://localhost:8180/health/ready | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','?'))" 2>/dev/null || echo "down")
+  echo "$(date +%H:%M:%S) [$i/32] $STATUS"
+  [ "$STATUS" = "UP" ] && break
+  sleep 15
+done
+```
+
+Then proceed to GATE-B (realm import + client provisioning) as documented in §GATE-B above.
+
+### Backout (if GATE-A.2 or GATE-A.3 fail)
+
+```bash
+docker compose down -v          # remove containers + keycloak_data volume
+docker rmi keycloak-banxe-emi:26.2.5 2>/dev/null || true
+# Restore previous host KC if needed (see §GATE-D)
+```
+
+### Tech debt — G-IAM-09
+
+STRATEGY-A uses a dedicated Postgres sidecar (`keycloak-pg`, postgres:16-alpine).
+This IS NOT marble-postgres. Migration to a shared managed Postgres instance is tracked
+as G-IAM-09 (target: 2026-05-31). Current Postgres sidecar is production-safe for P0 deadline.
+
+---
+
+## STRATEGY-B Resolution — 2026-05-04 13:00 CEST (superseded by STRATEGY-A)
+
+> **NOTE**: STRATEGY-B subsequently rejected — WSL2 NAT: Legion IP 172.22.56.223 not
+> LAN-reachable from evo1. Tailscale IP 100.101.218.26 confirmed unreachable from evo1.
+> STRATEGY-A (see §above) is now the active path. This section retained for audit trail.
 
 P3.4 cutover unblocked via STRATEGY-B (host migration to Legion):
 

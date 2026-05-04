@@ -1,52 +1,76 @@
-# Keycloak realm banxe-emi — Legion host (STRATEGY-B post G-IAM-99 resolution)
+# Keycloak realm banxe-emi — STRATEGY-A: own Postgres + KC on evo1
 # ADR-017 / ADR-022 / I-34 / I-35 | FCA CASS 15
-# G-IAM-99 STRATEGY-B 2026-05-04: evo1 kernel 6.17 Quarkus SIGKILL -> Legion (kernel 6.6 WSL2).
-# KC_DB=dev-file is G-IAM-09 tech debt; migration to Postgres by 2026-05-31.
+# STRATEGY-A 2026-05-04: isolated Postgres sidecar (not marble-postgres).
+# kc.sh build baked into image (Dockerfile); runtime uses --optimized.
 # All secrets via ~/.banxe/keycloak.env (chmod 600). Pre-commit iam-no-direct-creds enforces.
 
 services:
   keycloak-banxe-emi:
-    image: quay.io/keycloak/keycloak:26.2.5
+    build: .
+    image: keycloak-banxe-emi:26.2.5
     container_name: keycloak-banxe-emi
     command:
       - start
-      - --hostname=100.101.218.26
+      - --optimized
       - --hostname-strict=false
       - --http-enabled=true
       - --http-port=8180
       - --proxy-headers=xforwarded
       - --import-realm
     environment:
-      KC_DB: dev-file
-      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOT_ADMIN:?KC_BOOT_ADMIN is required}
-      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOT_ADMIN_PASSWORD:?KC_BOOT_ADMIN_PASSWORD is required}
-      KC_HOSTNAME: 100.101.218.26
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-pg:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD:?KC_DB_PASSWORD is required (operator-supplied env)}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOT_ADMIN:?KC_BOOT_ADMIN is required (operator-supplied env)}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOT_ADMIN_PASSWORD:?KC_BOOT_ADMIN_PASSWORD is required (operator-supplied env)}
+      KC_HOSTNAME: ${KC_HOSTNAME:-evo1}
       KC_HOSTNAME_STRICT: "false"
-      KC_HOSTNAME_STRICT_HTTPS: "false"
       KC_HTTP_ENABLED: "true"
       KC_HTTP_PORT: "8180"
-      KC_HEALTH_ENABLED: "true"
-      KC_METRICS_ENABLED: "true"
       KC_LOG_LEVEL: INFO
-      JAVA_OPTS: "-Xms256m -Xmx1g -XX:MetaspaceSize=96M -XX:MaxMetaspaceSize=256m -XX:+UseG1GC"
+      JAVA_OPTS: "-Xms256m -Xmx1g -XX:MetaspaceSize=96M -XX:MaxMetaspaceSize=256m -XX:+UseG1GC -Dfile.encoding=UTF-8"
     volumes:
       - keycloak_data:/opt/keycloak/data
       - ./realms:/opt/keycloak/data/import:ro
     ports:
       - "8180:8180"
-    mem_limit: 2g
+    depends_on:
+      keycloak-pg:
+        condition: service_healthy
+    mem_limit: 4g
+    memswap_limit: 8g
     healthcheck:
       test:
         - CMD-SHELL
         - >
           exec 3<>/dev/tcp/127.0.0.1/8180;
-          echo -e 'GET /realms/master HTTP/1.1\r\nHost: localhost\r\n\r\n' >&3;
+          echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\n\r\n' >&3;
           cat <&3 | head -1 | grep -q 200
       interval: 15s
       timeout: 5s
-      retries: 20
-      start_period: 180s
+      retries: 30
+      start_period: 240s
+    restart: unless-stopped
+
+  keycloak-pg:
+    image: postgres:16-alpine
+    container_name: keycloak-banxe-emi-pg
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KC_DB_PASSWORD:?KC_DB_PASSWORD is required}
+    volumes:
+      - keycloak_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    mem_limit: 1g
+    memswap_limit: 2g
     restart: unless-stopped
 
 volumes:
   keycloak_data:
+  keycloak_pg_data:
