@@ -1,0 +1,19 @@
+=== R3: Quarkus Killed reproducer on evo1 2026-05-04T12:06:52Z ===
+
+--- dmesg OOM baseline (last 5 lines before test) ---
+
+--- test: isolated KC build in docker (kc.sh build, not compose) ---
+start: 2026-05-04T12:06:52Z
+WARNING: Usage of the default value for the db option in the production profile is deprecated. Please explicitly set the db instead.
+Updating the configuration and installing your custom providers, if any. Please wait.
+2026-05-04 12:07:04,640 INFO  [io.quarkus.deployment.QuarkusAugmentor] (main) Quarkus augmentation completed in 9818ms
+Server configuration updated and persisted. Run the following command to review the configuration:
+
+	kc.sh show-config
+
+stop:  2026-05-04T12:07:04Z
+docker-run EXIT=0
+
+STATUS: EXIT=0 — build completed OK (bug NOT reproduced)
+
+--- dmesg OOM delta (after test) ---

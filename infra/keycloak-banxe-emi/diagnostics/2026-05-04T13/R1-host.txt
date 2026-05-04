@@ -1,0 +1,29 @@
+=== R1: evo1 host snapshot 2026-05-04T12:00:46Z ===
+
+--- kernel / uptime ---
+6.17.0-22-generic
+ 14:00:46 up 1 day, 12:11,  3 users,  load average: 35.73, 35.74, 36.01
+
+--- load avg / CPU ---
+35.73 35.74 36.01 38/2729 3527836
+32
+
+--- memory ---
+               total        used        free      shared  buff/cache   available
+Mem:            30Gi       8.3Gi       2.8Gi        22Mi        20Gi        22Gi
+Swap:          8.0Gi       3.7Gi       4.3Gi
+
+--- port :8180 listener ---
+State Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
+
+--- keycloak process (host) ---
+no KC process found
+
+--- host KC binary ---
+host KC binary: not found at /opt/keycloak
+
+--- docker: keycloak containers ---
+NAMES      STATUS                    PORTS
+keycloak   Exited (137) 4 days ago   
+
+--- dmesg: OOM / killed (last 50 lines) ---

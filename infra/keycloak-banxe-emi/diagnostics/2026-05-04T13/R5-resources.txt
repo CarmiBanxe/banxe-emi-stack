@@ -1,0 +1,25 @@
+=== R5: evo1 resources for separate Postgres 2026-05-04T12:04:30Z ===
+
+--- disk free ---
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/nvme0n1p1  1.9T  258G  1.5T  15% /data
+
+--- docker volumes for KC (our dir only) ---
+no existing KC volumes found
+
+--- port :5433 (alternate postgres) availability ---
+State  Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
+LISTEN 0      200        127.0.0.1:5433      0.0.0.0:*          
+
+--- port :5432 (default postgres) ---
+State Recv-Q Send-Q Local Address:Port Peer Address:PortProcess
+
+--- existing postgres containers ---
+NAMES                   STATUS                     PORTS
+banxe-postgres          Exited (128) 2 weeks ago   
+banxe-marble-postgres   Up 36 hours (healthy)      127.0.0.1:15433->5432/tcp
+ballerine-postgres      Exited (0) 2 days ago      
+postgres                Exited (0) 2 days ago      
+
+--- our KC compose dir ---
+compose dir not found on evo1 (not checked out)

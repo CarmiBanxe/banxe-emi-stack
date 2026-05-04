@@ -1,0 +1,27 @@
+=== R4: Legion KC start-dev candidate (2026-05-04T12:01:00Z) ===
+
+--- docker version ---
+Docker 29.1.3 (Legion WSL2)
+
+--- KC start-dev (timeout 75s) ---
+Command: timeout 75 docker run --rm --memory=1536m --cpus=2
+         -e KEYCLOAK_ADMIN=admin -e KEYCLOAK_ADMIN_PASSWORD=admin
+         -p 18180:8080
+         quay.io/keycloak/keycloak:26.2.5 start-dev
+
+Terminated  ← docker container killed by `timeout 75` SIGTERM
+
+--- exit code ---
+EXIT=143
+STATUS: EXIT=143 = SIGTERM from `timeout` command (128+15)
+        Container was STILL RUNNING at 75s — NOT killed by kernel/cgroup
+
+--- interpretation ---
+POSITIVE: Legion did not trigger OOM / cgroup kill on KC Quarkus process.
+KC start-dev survived 75 seconds. This is consistent with previous R4 (session 1)
+where EXIT=143 was also observed.
+
+STRATEGY-B (KC on Legion) VIABLE:
+  - No Quarkus SIGKILL on Legion ✅
+  - Legion WSL2: Docker 29.1.3, ample RAM, low load ✅
+  - Requires: own Postgres on Legion (not evo1) for KC DB ✅

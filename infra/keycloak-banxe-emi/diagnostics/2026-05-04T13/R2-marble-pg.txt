@@ -1,0 +1,28 @@
+=== R2: banxe-marble-postgres read-only 2026-05-04T12:04:26Z ===
+
+--- container status ---
+NAMES     STATUS    PORTS
+
+--- inspect: Mounts + User (UID) ---
+User: 
+Mount: /data/banxe/marble-data/postgres -> /var/lib/postgresql/data mode: rw
+
+--- volume host dir owner ---
+total 136
+drwx------ 19 banxe banxe  4096 May  3 01:49 .
+drwxr-xr-x  6 banxe banxe  4096 Apr  3 01:33 ..
+drwx------  7 banxe banxe  4096 Apr 30 09:46 base
+drwx------  2 banxe banxe  4096 May  3 01:49 global
+Access: (0700/drwx------)  Uid: ( 1000/   banxe)   Gid: ( 1000/   banxe)
+
+--- container logs (last 10 lines) ---
+2026-05-04 12:04:22.924 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 12:04:22.924 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 12:04:23.924 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 12:04:23.924 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 12:04:24.925 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 12:04:24.925 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 12:04:25.925 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 12:04:25.925 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 12:04:26.925 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 12:04:26.925 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
