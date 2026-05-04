@@ -337,3 +337,20 @@ P3.4 execution on evo1 is **STOPPED** pending two external blockers:
 - Coordinate with Marble owner on `banxe-marble-postgres` permissions fix.
 - Either provision dedicated `keycloak-pg` Postgres for our compose stack OR install KC 26.2.5 on a different host (legion?) where Quarkus build-step works.
 - Re-attempt GATE-A on a clean Postgres + working `kc.sh build`.
+
+---
+
+## STRATEGY-B Resolution — 2026-05-04 13:00 CEST
+
+P3.4 cutover unblocked via STRATEGY-B (host migration to Legion):
+
+- **Host**: Legion (kernel 6.6 WSL2) — bypasses evo1 kernel 6.17 Quarkus SIGKILL.
+- **URL**: `http://100.101.218.26:8180` (Legion Tailscale IP, mesh-routed to evo1).
+- **Realm**: `banxe-emi` imported with `sslRequired=none` (Tailscale provides mTLS).
+- **Backend**: KC_DB=dev-file (G-IAM-09 tech debt, Postgres migration by 2026-05-31).
+- **4 clients** provisioned, secrets in `~/.banxe/keycloak.env` (chmod 600). Cross-host smoke 4/4 OK.
+
+### G-IAM-08 closure evidence
+- Realm import OK 2026-05-04 11:00:49.
+- 4 clients (`banxe-compliance-api`, `banxe-dashboard`, `deep-search`, `drive_watcher`): all `serviceAccountsEnabled=true`, `publicClient=false`.
+- client_credentials smoke test: 4/4 returns Bearer JWT, expires_in=900.
