@@ -1,0 +1,17 @@
+=== docker info security/runtime ===
+ Cgroup Driver: systemd
+ Cgroup Version: 2
+ Runtimes: io.containerd.runc.v2 runc
+ Default Runtime: runc
+ Security Options:
+  cgroupns
+ Kernel Version: 6.17.0-22-generic
+ Docker Root Dir: /var/lib/docker
+=== try docker run, capture exit + dmesg delta ===
+JAVA_OPTS already set in environment; overriding default settings
+Changes detected in configuration. Updating the server image.
+Updating the configuration and installing your custom providers, if any. Please wait.
+/opt/keycloak/bin/kc.sh: line 169:    65 Killed                  'java' -Dkc.config.build-and-exit=true -Djava.util.concurrent.ForkJoinPool.common.threadFactory=io.quarkus.bootstrap.forkjoin.QuarkusForkJoinWorkerThreadFactory '-Xms256m' '-Xmx1g' '-XX:MetaspaceSize=96M' '-XX:MaxMetaspaceSize=256m' '-XX:+UseG1GC' '-Dfile.encoding=UTF-8' '--add-opens=java.base/java.util=ALL-UNNAMED' '--add-opens=java.base/java.util.concurrent=ALL-UNNAMED' '--add-opens=java.base/java.security=ALL-UNNAMED' '-Duser.language=en' '-Duser.country=US' -Dkc.home.dir='/opt/keycloak/bin/..' -Djboss.server.config.dir='/opt/keycloak/bin/../conf' -Djava.util.logging.manager=org.jboss.logmanager.LogManager -Dpicocli.disable.closures=true -Dquarkus-log-max-startup-records=10000 -cp '/opt/keycloak/bin/../lib/quarkus-run.jar' io.quarkus.bootstrap.runner.QuarkusEntryPoint 'start' '--hostname-strict=false' '--http-enabled=true' '--http-port=8180' '--proxy-headers=xforwarded'
+EXIT=0
+=== dmesg new oom-related ===
+no kernel events

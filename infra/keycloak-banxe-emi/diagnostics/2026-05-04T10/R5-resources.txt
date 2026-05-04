@@ -1,0 +1,48 @@
+=== R5 evo1 resources ===
+== disk /data ==
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/nvme0n1p1  1.9T  258G  1.5T  15% /data
+== docker volumes ==
+0ac95a3ae78c09e1b47a7af1ab8eb9d5f183d19af96b542fd755a9883be52236
+9fbafd8baae1b29845480610755de9545b13bd41e13ff7be3925bc3051bcc96d
+18d7d51f2d47aa5b2adc177ef1c6681ca05d6f11c682440422fbdaa73220f737
+72b3df82bea54cec2ec7790a3b58a1eaaccc1a73b04bae329316f84cd2186e2b
+92d5444e9e5e74e83f709352777c0fcc71f5d39ecdb8407810f4a15dbcb8cc7f
+99f33589dd541d5ded8af3376891b11015662132a7f9f0792a43b95c6b38ddbc
+697c2ae68db2ad352b7ea47e9a21a0dc539c54405bc0f7eb82cc6432d7a9a39f
+703dc1f846d976ef42c66e218906ce619b8088736ba8f5d219914d5c960a09da
+0017727f7da3f3db4a2a76a6b2e43319e902f486bb7c886cccb77199d5404111
+18427cf79121f2ef812e236f89568d33fcbb78567ba6091a1bcc11b6ea2646a1
+27200cfcc4b4d821048ecea0b593ae85d90ae4926f9320c9124a920d6d12a6ba
+51520eabd6bf3eeb594dcc04fa981f209bbfdd16d13a92b4a8ff627928ecbf30
+76271ddd31e2fc3ff7737262dbf567da8fc1291becafd8d2d830748c7a168be8
+b1cf194aa82fc8ef217f493da9cf34d9ba02fccc228cfe5232ea3fd7709b60d7
+b671044f72e3e26adfd6e330fcb68848967817f1c36b27587b5aa0d116d0c8f6
+ballerine-x_postgres15
+braslina_pgdata
+docker_hyperswitch-pg-data
+e2044a9fb75b0f7efcca58a780161b62833a2199bd8d3b85c1c099c04e981fbf
+ebe21c864e00aa07223895a5d406f82bef9252e719632f03a7f141ad1eed9c6b
+f4c436efc017ad9af786eedcf94f4f416a7badb2da3fec698661e23d8647bd7e
+hyperswitch_pg_data
+keycloak-banxe-emi_keycloak_data
+keycloak-banxe-emi_keycloak_pg_data
+midaz_midaz-mongodb-data
+midaz_midaz-rabbitmq-data
+vibe-coding_midaz-mongodb-data
+vibe-coding_midaz-rabbitmq-data
+== docker system df ==
+TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE
+Images          50        31        24.36GB   21.64GB (88%)
+Containers      38        13        523MB     173.8MB (33%)
+Local Volumes   28        11        1.262GB   96.25MB (7%)
+Build Cache     183       0         16.9GB    14.65GB
+== ports 5430-5470 ==
+LISTEN 0      200                      127.0.0.1:5433       0.0.0.0:*                                            
+== memory ==
+               total        used        free      shared  buff/cache   available
+Mem:            30Gi       9.5Gi       2.7Gi        25Mi        19Gi        21Gi
+Swap:          8.0Gi       3.1Gi       4.9Gi
+== port 8180 8182 status ==
+LISTEN 0      4096                       0.0.0.0:8181       0.0.0.0:*                                            
+LISTEN 0      4096                          [::]:8181          [::]:*                                            

@@ -1,0 +1,21 @@
+=== uname / kernel ===
+Linux banxe-NucBox-EVO-X2 6.17.0-22-generic #22~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Thu Mar 26 15:25:54 UTC 2 x86_64 x86_64 x86_64 GNU/Linux
+=== uptime ===
+ 11:32:42 up 1 day,  9:43,  3 users,  load average: 35.53, 35.50, 35.46
+=== free -h ===
+               total        used        free      shared  buff/cache   available
+Mem:            30Gi       9.5Gi       3.1Gi        25Mi        19Gi        21Gi
+Swap:          8.0Gi       3.1Gi       4.9Gi
+=== docker version ===
+client 29.1.3, server 29.1.3
+=== systemd-oomd ===
+inactive
+=== /sys cgroup version ===
+cgroup2 on /sys/fs/cgroup type cgroup2 (rw,nosuid,nodev,noexec,relatime,nsdelegate,memory_recursiveprot)
+=== user.slice memory limit ===
+max
+=== current KC processes (host or container) ===
+2932007 bash -c echo "=== uname / kernel ==="; uname -a echo "=== uptime ==="; uptime echo "=== free -h ==="; free -h echo "=== docker version ==="; docker version --format "client {{.Client.Version}}, server {{.Server.Version}}" 2>&1 echo "=== systemd-oomd ==="; systemctl is-active systemd-oomd echo "=== /sys cgroup version ==="; mount | grep cgroup | head -5 echo "=== user.slice memory limit ==="; cat /sys/fs/cgroup/user.slice/memory.max 2>/dev/null echo "=== current KC processes (host or container) ==="; pgrep -af "keycloak|kc.sh|QuarkusEntryPoint" 2>/dev/null | sed -E "s/(password=***REDACTED*** || echo "no KC processes" echo "=== port :8180 binding ==="; ss -ltn | grep -E ":(8180|9000) " || echo "free" echo "=== dmesg last 30 min, oom-related ==="; sudo dmesg -T 2>/dev/null | grep -iE "oom|killed process|memory pressure" | tail -30 || journalctl -k --since "30 min ago" 2>/dev/null | grep -iE "oom|killed process|memory pressure" | tail -30 || echo "no kernel oom evidence"
+=== port :8180 binding ===
+LISTEN 0      4096                     127.0.0.1:9000       0.0.0.0:*          
+=== dmesg last 30 min, oom-related ===

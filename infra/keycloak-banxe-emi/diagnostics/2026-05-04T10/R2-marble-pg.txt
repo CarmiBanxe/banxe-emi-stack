@@ -1,0 +1,115 @@
+=== container state ===
+banxe-marble-postgres	Up 34 hours (healthy)	postgis/postgis:17-3.5	127.0.0.1:15433->5432/tcp
+=== inspect (key fields) ===
+Status=running Restarting=false ExitCode=0 OOMKilled=false StartedAt=2026-05-02T23:49:35.271747529Z FinishedAt=2026-05-02T23:48:55.820123126Z
+=== mounts ===
+/data/banxe/marble-data/postgres → /var/lib/postgresql/data (rw=true)
+
+=== last 80 logs ===
+2026-05-04 09:41:39.986 UTC [1] LOG:  could not open file "postmaster.pid": Permission denied; continuing anyway
+2026-05-04 09:41:39.987 UTC [107436] FATAL:  could not open file "global/pg_filenode.map": Permission denied
+2026-05-04 09:41:40.418 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:41:40.418 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:41:41.418 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:41:41.418 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:41:42.418 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:41:42.418 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:41:43.085 UTC [107437] FATAL:  could not open file "global/pg_filenode.map": Permission denied
+2026-05-04 09:41:43.418 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:41:43.418 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:41:43.704 UTC [107438] FATAL:  could not open file "global/pg_filenode.map": Permission denied
+2026-05-04 09:41:44.418 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:41:44.418 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:41:45.419 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:41:45.419 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:41:46.419 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:41:46.419 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:41:46.725 UTC [107446] FATAL:  could not open file "global/pg_filenode.map": Permission denied
+2026-05-04 09:41:47.419 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:41:47.419 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:41:48.419 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:41:48.419 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:41:49.419 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:41:49.419 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:41:50.419 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:41:50.420 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:41:51.420 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:41:51.420 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:41:52.420 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:41:52.420 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:41:53.420 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:41:53.420 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:41:54.420 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:41:54.421 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:41:55.421 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:41:55.421 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:41:56.421 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:41:56.421 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:41:56.801 UTC [107454] FATAL:  could not open file "global/pg_filenode.map": Permission denied
+2026-05-04 09:41:57.105 UTC [107455] FATAL:  could not open file "global/pg_filenode.map": Permission denied
+2026-05-04 09:41:57.421 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:41:57.421 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:41:57.704 UTC [107456] FATAL:  could not open file "global/pg_filenode.map": Permission denied
+2026-05-04 09:41:58.421 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:41:58.421 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:41:59.422 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:41:59.422 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:42:00.422 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:42:00.422 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:42:01.433 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:42:01.433 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:42:01.867 UTC [107457] FATAL:  could not open file "global/pg_filenode.map": Permission denied
+2026-05-04 09:42:02.433 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:42:02.433 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:42:03.433 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:42:03.433 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:42:04.434 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:42:04.434 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:42:05.434 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:42:05.434 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:42:06.434 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:42:06.434 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:42:06.884 UTC [107464] FATAL:  could not open file "global/pg_filenode.map": Permission denied
+2026-05-04 09:42:07.434 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:42:07.434 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:42:08.434 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:42:08.434 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:42:09.434 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:42:09.434 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:42:10.435 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:42:10.435 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:42:11.024 UTC [107465] FATAL:  could not open file "global/pg_filenode.map": Permission denied
+2026-05-04 09:42:11.435 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:42:11.435 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:42:11.638 UTC [107466] FATAL:  could not open file "global/pg_filenode.map": Permission denied
+2026-05-04 09:42:12.435 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:42:12.435 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+2026-05-04 09:42:13.435 UTC [25] LOG:  checkpoint starting: time
+2026-05-04 09:42:13.435 UTC [25] ERROR:  could not open directory "pg_logical/snapshots": Permission denied
+=== as postgres user inside ===
+uid=999(postgres) gid=999(postgres) groups=999(postgres),101(ssl-cert)
+=== pg data dir owner inside ===
+total 136
+drwx------ 19     1000     1000  4096 May  2 23:49 .
+drwxrwxrwt  1 postgres postgres  4096 Jul 22  2025 ..
+drwx------  7     1000     1000  4096 Apr 30 07:46 base
+drwx------  2     1000     1000  4096 May  2 23:49 global
+drwx------  2     1000     1000  4096 Apr  2 23:18 pg_commit_ts
+drwx------  2     1000     1000  4096 Apr  2 23:18 pg_dynshmem
+-rw-------  1     1000     1000  5743 Apr  2 23:18 pg_hba.conf
+-rw-------  1     1000     1000  2640 Apr  2 23:18 pg_ident.conf
+drwx------  4     1000     1000  4096 May  2 23:54 pg_logical
+drwx------  4     1000     1000  4096 Apr  2 23:18 pg_multixact
+drwx------  2     1000     1000  4096 Apr  2 23:18 pg_notify
+drwx------  2     1000     1000  4096 Apr  2 23:18 pg_replslot
+drwx------  2     1000     1000  4096 Apr  2 23:18 pg_serial
+drwx------  2     1000     1000  4096 Apr  2 23:18 pg_snapshots
+drwx------  2     1000     1000  4096 May  2 23:49 pg_stat
+drwx------  2     1000     1000  4096 Apr  2 23:18 pg_stat_tmp
+drwx------  2     1000     1000  4096 Apr  2 23:18 pg_subtrans
+drwx------  2     1000     1000  4096 Apr  2 23:18 pg_tblspc
+drwx------  2     1000     1000  4096 Apr  2 23:18 pg_twophase
+=== global/pg_filenode.map perms ===
+-rw------- 1 1000 1000 524 Apr  2 23:18 /var/lib/postgresql/data/global/pg_filenode.map
+=== psql -lA as default user ===
+psql: error: connection to server on socket "/var/run/postgresql/.s.PGSQL.5432" failed: FATAL:  could not open file "global/pg_filenode.map": Permission denied
