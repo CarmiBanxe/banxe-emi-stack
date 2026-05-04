@@ -183,6 +183,16 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "BASH_CMD=$(echo \"$TOOL_INPUT\" | python3 -c \"import sys,json; d=json.load(sys.stdin); print(d.get('command',''))\" 2>/dev/null || echo ''); printf '%s' \"$BASH_CMD\" | $HOME/.banxe/guardian-shim/claude-bash-shim.sh",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -196,7 +206,7 @@
           },
           {
             "type": "command",
-            "command": "echo '[LucidShark] Code modified — scan before completing task (mcp__lucidshark__scan or lucidshark scan --fix --format ai)'",
+            "command": "echo '[LucidShark] Code modified \u2014 scan before completing task (mcp__lucidshark__scan or lucidshark scan --fix --format ai)'",
             "timeout": 5
           }
         ]
