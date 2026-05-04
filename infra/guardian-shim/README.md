@@ -135,3 +135,62 @@ bash infra/guardian-shim/tests/test-shim.sh
 | T+0 (2026-05-04) | Merged, AUDIT default |
 | T+7 (2026-05-11) | Switch to ENFORCE for compliance repos (G-GUARD-02) |
 | T+14 (2026-05-18) | ENFORCE everywhere (G-GUARD-04) |
+
+## Activation log — 2026-05-04
+
+**Operator:** Moriel Carmi | **Session:** GS-A live activation | **Mode:** audit (default)
+
+### GS-A0 — main pull
+```
+Updating 57797b7..c6685c5 Fast-forward
+  .claude/settings.json + infra/guardian-shim/** (PR #48 merged)
+```
+
+### GS-A1 — shim installed
+```
+~/.banxe/guardian-shim/claude-bash-shim.sh  (chmod +x)
+~/.banxe/guardian-shim/claude-bash-shim.env
+```
+
+### GS-A2 — ~/.bashrc env block added
+```bash
+export GUARDIAN_BASE_URL="http://192.168.0.72:8195"   # WSL2 IP (DNS gap)
+export GUARDIAN_MODE="audit"
+export GUARDIAN_FAIL_MODE="open"
+export GUARDIAN_TIMEOUT_S="5"
+export GUARDIAN_SCOPE="claude.bash"
+export GUARDIAN_SUBJECT_TYPE="claude-code-session"
+```
+
+### GS-A4 — smoke #1 (safe command: ls -la /tmp)
+```
+verdict: unknown | summary: "unknown scope 'claude.bash' — expected one of: factory, project"
+EXIT=0  ✅ (audit non-blocking)
+```
+Audit log entry:
+```json
+{"ts":"2026-05-04T11:44:26Z","mode":"audit","result":"unknown","summary":"unknown scope 'claude.bash'...","reasons":[],"request_id":"..."}
+```
+
+### GS-A5 — smoke #2 (destructive: rm -rf /)
+```
+verdict: unknown | EXIT=0  ✅ (audit non-blocking)
+```
+**Gap G-GUARD-01 confirmed:** scope `claude.bash` has no rules in Guardian — both safe and
+destructive commands receive `unknown`. Rule coverage target: ≥90% by 2026-05-11.
+
+### GS-A6 — smoke #3 (unreachable Guardian)
+```
+audit  + fail-open:   EXIT=0  ✅  (proceeds: "Guardian unreachable; fail-open")
+enforce + fail-closed: EXIT=2  ✅  (blocks:   "Guardian unreachable; fail-closed")
+```
+
+### Summary
+| Step | Result |
+|------|--------|
+| Shim installed to `~/.banxe/guardian-shim/` | ✅ |
+| `~/.bashrc` env block added | ✅ |
+| Strategy-S1 `PreToolUse` Bash hook active | ✅ (PR #48) |
+| Live verdict received from Guardian :8195 | ✅ unknown (G-GUARD-01 gap) |
+| Fail-open (audit unreachable) | ✅ EXIT=0 |
+| Fail-closed (enforce unreachable) | ✅ EXIT=2 |
