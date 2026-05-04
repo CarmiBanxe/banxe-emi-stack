@@ -1,14 +1,8 @@
 {
-  "_comment": "Keycloak realm banxe-emi — EMI service-to-service auth",
-  "_authority": "ADR-017 / ADR-022 / I-34 / I-35 | FCA CASS 15",
-  "_import": "kcadm.sh create realms -f banxe-emi-realm.json OR place in /opt/keycloak/data/import/ and use --import-realm",
-  "_version": "2026-05-03",
-
   "realm": "banxe-emi",
   "displayName": "Banxe EMI Services",
   "enabled": true,
-  "sslRequired": "external",
-
+  "sslRequired": "none",
   "accessTokenLifespan": 900,
   "accessTokenLifespanForImplicitFlow": 900,
   "ssoSessionIdleTimeout": 1800,
@@ -16,7 +10,6 @@
   "offlineSessionIdleTimeout": 2592000,
   "clientSessionIdleTimeout": 1800,
   "clientSessionMaxLifespan": 36000,
-
   "bruteForceProtected": true,
   "permanentLockout": false,
   "maxFailureWaitSeconds": 900,
@@ -25,7 +18,6 @@
   "quickLoginCheckMilliSeconds": 1000,
   "maxDeltaTimeSeconds": 43200,
   "failureFactor": 10,
-
   "eventsEnabled": true,
   "adminEventsEnabled": true,
   "adminEventsDetailsEnabled": true,
@@ -50,7 +42,6 @@
     "INTROSPECT_TOKEN",
     "INTROSPECT_TOKEN_ERROR"
   ],
-
   "roles": {
     "realm": [
       {
@@ -59,9 +50,9 @@
       }
     ]
   },
-
-  "defaultRoles": ["service-account"],
-
+  "defaultRoles": [
+    "service-account"
+  ],
   "clients": [
     {
       "clientId": "banxe-compliance-api",
@@ -75,7 +66,10 @@
       "directAccessGrantsEnabled": false,
       "authorizationServicesEnabled": false,
       "fullScopeAllowed": false,
-      "defaultClientScopes": ["roles", "profile"],
+      "defaultClientScopes": [
+        "roles",
+        "profile"
+      ],
       "optionalClientScopes": [],
       "protocolMappers": [
         {
@@ -134,7 +128,10 @@
       "directAccessGrantsEnabled": false,
       "authorizationServicesEnabled": false,
       "fullScopeAllowed": false,
-      "defaultClientScopes": ["roles", "profile"],
+      "defaultClientScopes": [
+        "roles",
+        "profile"
+      ],
       "optionalClientScopes": [],
       "protocolMappers": [
         {
@@ -193,7 +190,10 @@
       "directAccessGrantsEnabled": false,
       "authorizationServicesEnabled": false,
       "fullScopeAllowed": false,
-      "defaultClientScopes": ["roles", "profile"],
+      "defaultClientScopes": [
+        "roles",
+        "profile"
+      ],
       "optionalClientScopes": [],
       "protocolMappers": [
         {
@@ -252,7 +252,10 @@
       "directAccessGrantsEnabled": false,
       "authorizationServicesEnabled": false,
       "fullScopeAllowed": false,
-      "defaultClientScopes": ["roles", "profile"],
+      "defaultClientScopes": [
+        "roles",
+        "profile"
+      ],
       "optionalClientScopes": [],
       "protocolMappers": [
         {
@@ -300,12 +303,13 @@
       ]
     }
   ],
-
   "clientScopes": [
     {
       "name": "roles",
       "protocol": "openid-connect",
-      "attributes": { "include.in.token.scope": "true" },
+      "attributes": {
+        "include.in.token.scope": "true"
+      },
       "protocolMappers": [
         {
           "name": "realm roles",
