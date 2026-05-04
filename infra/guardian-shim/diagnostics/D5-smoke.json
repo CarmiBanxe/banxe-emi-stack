@@ -1,0 +1,33 @@
+{
+    "request_id": "e0e728fe-b570-4a98-af90-1707020eab01",
+    "status": "ok",
+    "verdict": {
+        "result": "unknown",
+        "summary": "unknown scope 'claude.bash' \u2014 expected one of: factory, project",
+        "reasons": [],
+        "sources": [
+            "ADR-019",
+            "ADR-020"
+        ],
+        "scope": "claude.bash",
+        "subject_type": "claude-code-session",
+        "subject_id": "diag-2026-05-04"
+    },
+    "storage_status": {
+        "attempted": false,
+        "backend": "clickhouse",
+        "written": false,
+        "error": null
+    },
+    "loaded_domains": [
+        "adrs",
+        "canon",
+        "constitution",
+        "gap_register",
+        "hitl",
+        "ledger",
+        "memory",
+        "roadmap"
+    ],
+    "timestamp_utc": "2026-05-04T10:29:42.317802Z"
+}

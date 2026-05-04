@@ -1,0 +1,4 @@
+.claude/worktrees/agent-a29cd2b4/.pre-commit-config.yaml
+.claude/worktrees/agent-aa411a38/.pre-commit-config.yaml
+.claude/worktrees/agent-ab60ef55/.pre-commit-config.yaml
+.claude/worktrees/agent-adbd5a71/.pre-commit-config.yaml
