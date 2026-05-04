@@ -408,7 +408,7 @@ docker rmi keycloak-banxe-emi:26.2.5 2>/dev/null || true
 
 STRATEGY-A uses a dedicated Postgres sidecar (`keycloak-pg`, postgres:16-alpine).
 This IS NOT marble-postgres. Migration to a shared managed Postgres instance is tracked
-as G-IAM-09 (target: 2026-05-31). Current Postgres sidecar is production-safe for P0 deadline.
+as G-IAM-09. Current Postgres sidecar is production-safe; migration to managed Postgres is a separate work item.
 
 ---
 
