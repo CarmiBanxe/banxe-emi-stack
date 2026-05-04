@@ -1,10 +1,30 @@
-# Keycloak realm banxe-emi — Legion host (STRATEGY-B post G-IAM-99 resolution)
+# Keycloak realm banxe-emi — Legion host with Postgres backend (G-IAM-09 closure)
 # ADR-017 / ADR-022 / I-34 / I-35 | FCA CASS 15
-# G-IAM-99 STRATEGY-B 2026-05-04: evo1 kernel 6.17 Quarkus SIGKILL -> Legion (kernel 6.6 WSL2).
-# KC_DB=dev-file is G-IAM-09 tech debt; migration to Postgres by 2026-05-31.
+#
+# G-IAM-09 closure 2026-05-04: KC_DB upgraded from dev-file (H2) to postgres
+# (production-grade, validated on staging stack via Phase C smoke 4/4 OK).
+# Postgres sidecar: postgres:16-alpine, named volume (no UID mismatch like R2 marble-pg).
+# KC_HOSTNAME=100.101.218.26 = Legion Tailscale IP.
+#
 # All secrets via ~/.banxe/keycloak.env (chmod 600). Pre-commit iam-no-direct-creds enforces.
 
 services:
+  keycloak-pg:
+    image: postgres:16-alpine
+    container_name: keycloak-banxe-emi-pg
+    environment:
+      POSTGRES_USER: ${KC_DB_USER:?KC_DB_USER is required}
+      POSTGRES_PASSWORD: ${KC_DB_PASSWORD:?KC_DB_PASSWORD is required}
+      POSTGRES_DB: ${KC_DB_NAME:?KC_DB_NAME is required}
+    volumes:
+      - keycloak_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
   keycloak-banxe-emi:
     image: quay.io/keycloak/keycloak:26.2.5
     container_name: keycloak-banxe-emi
@@ -17,7 +37,10 @@ services:
       - --proxy-headers=xforwarded
       - --import-realm
     environment:
-      KC_DB: dev-file
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-pg:5432/${KC_DB_NAME:?KC_DB_NAME is required}
+      KC_DB_USERNAME: ${KC_DB_USER:?KC_DB_USER is required}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD:?KC_DB_PASSWORD is required}
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOT_ADMIN:?KC_BOOT_ADMIN is required}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOT_ADMIN_PASSWORD:?KC_BOOT_ADMIN_PASSWORD is required}
       KC_HOSTNAME: 100.101.218.26
@@ -28,13 +51,17 @@ services:
       KC_HEALTH_ENABLED: "true"
       KC_METRICS_ENABLED: "true"
       KC_LOG_LEVEL: INFO
-      JAVA_OPTS: "-Xms256m -Xmx1g -XX:MetaspaceSize=96M -XX:MaxMetaspaceSize=256m -XX:+UseG1GC"
+      JAVA_OPTS: "-Xms256m -Xmx1g -XX:MetaspaceSize=96M -XX:MaxMetaspaceSize=256m -XX:+UseG1GC -Dfile.encoding=UTF-8"
     volumes:
       - keycloak_data:/opt/keycloak/data
       - ./realms:/opt/keycloak/data/import:ro
     ports:
       - "8180:8180"
     mem_limit: 2g
+    memswap_limit: 4g
+    depends_on:
+      keycloak-pg:
+        condition: service_healthy
     healthcheck:
       test:
         - CMD-SHELL
@@ -49,4 +76,5 @@ services:
     restart: unless-stopped
 
 volumes:
+  keycloak_pg_data:
   keycloak_data:

@@ -354,3 +354,32 @@ P3.4 cutover unblocked via STRATEGY-B (host migration to Legion):
 - Realm import OK 2026-05-04 11:00:49.
 - 4 clients (`banxe-compliance-api`, `banxe-dashboard`, `deep-search`, `drive_watcher`): all `serviceAccountsEnabled=true`, `publicClient=false`.
 - client_credentials smoke test: 4/4 returns Bearer JWT, expires_in=900.
+
+---
+
+## G-IAM-09 Closure — 2026-05-04 14:00 CEST (Postgres backend)
+
+KC_DB upgraded from dev-file (H2) to postgres on Legion. Validated on isolated staging stack (`~/keycloak-banxe-emi-pg-test/`) before production replacement:
+
+- Postgres 16-alpine sidecar `keycloak-banxe-emi-pg`, named volume (no UID mismatch like R2 marble-pg bind-mount).
+- KC `keycloak-banxe-emi` 26.2.5 with `KC_DB=postgres` + `KC_DB_URL=jdbc:postgresql://keycloak-pg:5432/keycloak`.
+- Realm import: `Realm 'banxe-emi' imported` + `jdbc-postgresql` feature loaded (Profile prod activated).
+- Admin login + 4 client_credentials grants 4/4 OK on staging port 8181.
+
+### Phase F — production switch procedure
+
+When operator gives "go G-IAM-09 switch":
+
+1. `cd ~/keycloak-banxe-emi-legion && set -a && source ~/.banxe/keycloak.env && set +a`
+2. `docker compose down` (stops dev-file KC)
+3. Update `~/.banxe/keycloak.env`: add `KC_DB_USER=keycloak`, `KC_DB_PASSWORD=<generated>`, `KC_DB_NAME=keycloak`
+4. Pull new compose from main: `cp /data/banxe/banxe-emi-stack/infra/keycloak-banxe-emi/docker-compose.yml ./docker-compose.yml`
+5. `docker compose up -d` (starts Postgres + KC with Postgres backend)
+6. Wait healthy: `docker compose ps`
+7. Re-patch `sslRequired=NONE` on banxe-emi realm (volume reset means realm re-imported from JSON; sslRequired in JSON=none after Phase 57 PR #50)
+8. Re-provision 4 client secrets via `scripts/provision-clients.sh`
+9. Update `~/.banxe/keycloak.env` with new `KC_CLIENT_SECRET_*` values
+10. Smoke test 4/4 client_credentials grants
+11. Tag `g-iam-09-postgres-backend-closed-<date>`
+
+Backout: revert to commit before Phase D, `docker compose down -v`, restore previous compose+env.
