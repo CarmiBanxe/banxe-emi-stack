@@ -1,0 +1,63 @@
+# Keycloak realm banxe-emi — standalone fallback on port :8182
+# Use if existing Keycloak on :8180 cannot be repaired (Option B from PRECHECK).
+# Operator must update ADR-017/ADR-022 if this port is used in production.
+#
+# Usage: docker compose -f docker-compose.standalone.yml --env-file ~/.banxe/keycloak.env up -d
+
+services:
+  keycloak-banxe-emi:
+    image: quay.io/keycloak/keycloak:26.2.5
+    container_name: keycloak-banxe-emi-standalone
+    command:
+      - start
+      - --hostname=evo1
+      - --hostname-strict=false
+      - --http-enabled=true
+      - --http-port=8182
+      - --proxy-headers=xforwarded
+      - --health-enabled=true
+      - --metrics-enabled=true
+      - --import-realm
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-pg-standalone:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD:?KC_DB_PASSWORD is required (operator-supplied env)}
+      KEYCLOAK_ADMIN: ${KC_BOOT_ADMIN:?KC_BOOT_ADMIN is required (operator-supplied env)}
+      KEYCLOAK_ADMIN_PASSWORD: ${KC_BOOT_ADMIN_PASSWORD:?KC_BOOT_ADMIN_PASSWORD is required (operator-supplied env)}
+      KC_LOG_LEVEL: INFO
+    volumes:
+      - keycloak_standalone_data:/opt/keycloak/data
+      - ./realms:/opt/keycloak/data/import:ro
+    ports:
+      - "8182:8182"
+    depends_on:
+      keycloak-pg-standalone:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8182/health/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    restart: unless-stopped
+
+  keycloak-pg-standalone:
+    image: postgres:16-alpine
+    container_name: keycloak-banxe-emi-pg-standalone
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KC_DB_PASSWORD:?KC_DB_PASSWORD is required}
+    volumes:
+      - keycloak_pg_standalone_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  keycloak_standalone_data:
+  keycloak_pg_standalone_data:

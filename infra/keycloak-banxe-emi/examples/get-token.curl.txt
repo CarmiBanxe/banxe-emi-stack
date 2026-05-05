@@ -1,0 +1,124 @@
+# get-token.curl.txt — Smoke test: obtain client_credentials token from banxe-emi realm
+# ADR-017 / ADR-022 | FCA CASS 15
+#
+# Prerequisites:
+#   - Keycloak healthy at $KC_BASE_URL (default: http://evo1:8180)
+#   - Realm banxe-emi imported (import-realm.sh)
+#   - Client secrets provisioned (provision-clients.sh)
+#   - KC_CLIENT_SECRET_<NAME> exported in shell
+#
+# Usage:
+#   source ~/.banxe/keycloak.env
+#   bash (or source) this file, OR copy individual curl commands below.
+#
+# =============================================================================
+# 1. Health check — realm OIDC discovery
+# =============================================================================
+
+curl -fsS http://evo1:8180/realms/banxe-emi/.well-known/openid-configuration \
+  | python3 -m json.tool | grep '"issuer"\|"token_endpoint"'
+
+# Expected output (example):
+#   "issuer": "http://evo1:8180/realms/banxe-emi",
+#   "token_endpoint": "http://evo1:8180/realms/banxe-emi/protocol/openid-connect/token",
+
+
+# =============================================================================
+# 2. Obtain token — banxe-compliance-api
+# =============================================================================
+
+TOKEN=$(curl -fsS \
+  -X POST "http://evo1:8180/realms/banxe-emi/protocol/openid-connect/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=client_credentials" \
+  -d "client_id=banxe-compliance-api" \
+  -d "client_secret=${KC_CLIENT_SECRET_BANXE_COMPLIANCE_API}" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+
+echo "TOKEN (compliance-api): ${TOKEN:0:60}..."
+
+# Decode and inspect claims (requires python3 or jwt-cli):
+echo "${TOKEN}" | python3 -c "
+import sys, base64, json
+parts = sys.stdin.read().strip().split('.')
+payload = parts[1] + '=' * (-len(parts[1]) % 4)
+claims = json.loads(base64.urlsafe_b64decode(payload))
+print(json.dumps({k: claims[k] for k in ('iss','sub','service_id','environment','compliance_scope','roles','exp') if k in claims}, indent=2))
+"
+
+# Expected claims:
+# {
+#   "iss": "http://evo1:8180/realms/banxe-emi",
+#   "sub": "service-account-banxe-compliance-api",
+#   "service_id": "banxe-compliance-api",
+#   "environment": "prod",
+#   "compliance_scope": "emi",
+#   "roles": ["service-account"],
+#   "exp": <unix_ts>
+# }
+
+
+# =============================================================================
+# 3. Obtain token — banxe-dashboard
+# =============================================================================
+
+curl -fsS \
+  -X POST "http://evo1:8180/realms/banxe-emi/protocol/openid-connect/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=client_credentials" \
+  -d "client_id=banxe-dashboard" \
+  -d "client_secret=${KC_CLIENT_SECRET_BANXE_DASHBOARD}" \
+  | python3 -m json.tool | grep '"access_token"\|"expires_in"\|"token_type"'
+
+
+# =============================================================================
+# 4. Obtain token — deep-search
+# =============================================================================
+
+curl -fsS \
+  -X POST "http://evo1:8180/realms/banxe-emi/protocol/openid-connect/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=client_credentials" \
+  -d "client_id=deep-search" \
+  -d "client_secret=${KC_CLIENT_SECRET_DEEP_SEARCH}" \
+  | python3 -m json.tool | grep '"access_token"\|"expires_in"'
+
+
+# =============================================================================
+# 5. Obtain token — drive_watcher
+# =============================================================================
+
+curl -fsS \
+  -X POST "http://evo1:8180/realms/banxe-emi/protocol/openid-connect/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=client_credentials" \
+  -d "client_id=drive_watcher" \
+  -d "client_secret=${KC_CLIENT_SECRET_DRIVE_WATCHER}" \
+  | python3 -m json.tool | grep '"access_token"\|"expires_in"'
+
+
+# =============================================================================
+# 6. Negative test — invalid client_secret must return 401
+# =============================================================================
+
+STATUS=$(curl -o /dev/null -sw "%{http_code}" \
+  -X POST "http://evo1:8180/realms/banxe-emi/protocol/openid-connect/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=client_credentials" \
+  -d "client_id=banxe-compliance-api" \
+  -d "client_secret=WRONG_SECRET")
+
+echo "Invalid secret → HTTP ${STATUS} (expected 401)"
+[ "${STATUS}" = "401" ] && echo "PASS" || echo "FAIL"
+
+
+# =============================================================================
+# 7. Token introspection (optional — if introspect endpoint enabled)
+# =============================================================================
+
+# curl -fsS \
+#   -X POST "http://evo1:8180/realms/banxe-emi/protocol/openid-connect/token/introspect" \
+#   -H "Content-Type: application/x-www-form-urlencoded" \
+#   -u "banxe-compliance-api:${KC_CLIENT_SECRET_BANXE_COMPLIANCE_API}" \
+#   -d "token=${TOKEN}" \
+#   | python3 -m json.tool

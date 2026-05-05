@@ -1,0 +1,23 @@
+total 756
+drwxr-xr-x 16 mmber mmber   4096 May  4 12:18 .
+drwxr-x--- 85 mmber mmber   4096 May  4 11:53 ..
+-rw-------  1 mmber mmber    784 May  4 09:07 .credentials.json
+-rw-r--r--  1 mmber mmber   1343 Apr 26 23:05 CLAUDE.md
+drwxr-xr-x  2 mmber mmber   4096 May  4 11:53 backups
+drwxr-xr-x  2 mmber mmber   4096 Apr 28 00:00 cache
+drwxr-xr-x  2 mmber mmber   4096 Apr  9 05:47 commands
+drwxr-xr-x  2 mmber mmber   4096 May  3 01:33 debug
+drwxr-xr-x 27 mmber mmber   4096 May  4 01:48 file-history
+-rw-------  1 mmber mmber 642689 May  4 12:18 history.jsonl
+-rw-r--r--  1 mmber mmber    406 May  4 01:36 mcp-needs-auth-cache.json
+drwxr-xr-x  2 mmber mmber  32768 May  4 12:18 paste-cache
+drwxr-xr-x  4 mmber mmber   4096 May  3 03:08 plugins
+drwx------ 15 mmber mmber   4096 May  3 06:52 projects
+drwxr-xr-x 31 mmber mmber   4096 May  4 01:48 session-env
+drwx------  2 mmber mmber   4096 May  4 11:32 sessions
+-rw-r--r--  1 mmber mmber   7039 May  3 03:08 settings.json
+-rw-r--r--  1 mmber mmber   6677 Apr 30 08:22 settings.local.json
+drwxr-xr-x  2 mmber mmber   4096 May  4 11:32 shell-snapshots
+drwxr-xr-x  7 mmber mmber   4096 May  4 01:48 tasks
+drwxr-xr-x  2 mmber mmber   4096 May  3 04:53 telemetry
+drwxr-xr-x  2 mmber mmber   4096 Mar  3 17:16 todos

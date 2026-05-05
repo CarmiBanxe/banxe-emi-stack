@@ -1923,6 +1923,35 @@ commit: IL-FXR-01 + IL-PSD2GW-01 | Sprint 37 | 2026-04-21
 
 ---
 
+
+
+## Phase 57 — FCA CASS 15 IAM Cutover ✅ DONE (2026-05-04)
+
+> **IL:** G-IAM-01..G-IAM-08, G-IAM-99 | **FCA:** CASS 15 (deadline 2026-05-07) | **ADR:** 017 (canonical), 022 (EMI mirror), 023 (applicability) | **Tag:** `cass15-iam-cutover-2026-05-07`
+
+Keycloak `banxe-emi` realm cutover for service-to-service authentication of 4 EMI clients (banxe-compliance-api, banxe-dashboard, deep-search, drive_watcher) via OIDC client_credentials grant. CASS 15 IAM gate closed 3 days ahead of deadline.
+
+| # | Item | IL | Status | Notes |
+|---|---|---|---|---|
+| 561 | Keycloak realm `banxe-emi` deployed | G-IAM-01 | ✅ | Legion host (Tailscale 100.101.218.26:8180), STRATEGY-B post G-IAM-99 |
+| 562 | OIDC discovery cross-host reachable | G-IAM-02 | ✅ | Cross-host smoke 4/4 OK from evo1 |
+| 563 | Service-to-service tokens for 4 clients | G-IAM-03 | ✅ | Bearer JWT, expires_in=900, all 4 verified |
+| 564 | Realm mappers + audit retention ≥12mo | G-IAM-04 | ✅ | protocolMappers (service_id, environment, compliance_scope) + eventsExpiration=31536000 |
+| 565 | Secret rotation policy (90d) | G-IAM-05 | ⏳ | P1 process — re-runnable provision-clients.sh in place |
+| 566 | Pre-commit secrets guard (I-34/INV-IAM-01) | G-IAM-06 | ✅ | Closed 2026-05-03 (`feat/iam-creds-guard`) |
+| 567 | Backout procedure (RUNBOOK §GATE-D) | G-IAM-07 | ✅ | Documented and merged in PR #50 |
+| 568 | Cutover execution | G-IAM-08 | ✅ | PR #50 admin-merged, tag `cass15-iam-cutover-2026-05-07` |
+| 569 | External blockers resolution | G-IAM-99 | ✅ | STRATEGY-B host migration evo1→Legion (Block R R3+R4) |
+| 570 | Tech debt: KC_DB postgres backend | G-IAM-09 | ⏳ | KC_DB=dev-file accepted; Postgres migration target 2026-05-31 |
+
+Root cause for STRATEGY-B: evo1 kernel 6.17 + cgroups v2 systematic SIGKILL of Quarkus build step (R3 diagnostic), no OOM/oomd/user.slice limits visible. Same image works on Legion kernel 6.6 WSL2 (R4). 8 retry strategies on evo1 documented in post-mortem (`docs/postmortems/2026-05-04-keycloak-evo1-quarkus-sigkill.md`).
+
+Cross-host networking: Tailscale mesh (mark-legion 100.101.218.26 ↔ banxe-nucbox-evo-x2 100.68.102.48) provides mTLS at network layer; sslRequired=NONE applied to realm config (Tailscale-only deployment).
+
+Tests not added (infrastructure phase): cross-host validation via curl smoke tests in pre-merge gate, documented in PR #50.
+
+commit: 78b1643 (PR #50) + 754d7e9 (PR #52 GAP-REGISTER finalise) | 2026-05-04
+
 ## Sprint 41 — Phase 56: FOS Escalation + HMRC FATCA Reporting + Client Statements + Lifecycle FSM
 
 ### S41-A: Phase 56A — FOS Escalation Process (IL-FOS-01, closes S5-19)
@@ -1974,3 +2003,59 @@ commit: IL-FXR-01 + IL-PSD2GW-01 | Sprint 37 | 2026-04-21
 | Agent passports | 64 | 66+ | 66 ✅ |
 
 commit: IL-FOS-01 + IL-HMR-01 + IL-CST-01 + IL-LCY-01 | Sprint 41 | 2026-04-27
+
+---
+
+## Phase 3 sync (2026-05-03)
+
+> **Canonical source:** `banxe-architecture/decisions/ADR-016-ai-plane-pii-aml-routing.md` (Accepted 2026-05-03).
+> Этот раздел — EMI-stack-зеркало канона. При расхождении преобладает ADR-016 + INVARIANTS.md (I-32, I-33).
+
+> **Canonical source (IAM):** `banxe-architecture/decisions/ADR-017-keycloak-iam-cutover.md` (Accepted 2026-05-03).
+> Local mirror: `docs/adr/ADR-022-keycloak-iam-cutover.md`. Keycloak realm `banxe-emi` cutover deadline: **2026-05-07** (FCA CASS 15). Trackers: G-IAM-01..G-IAM-08 (canonical and local).
+
+### Cluster AI plane available to compliance/api/dashboard
+
+LiteLLM v2 router running at `http://legion:4000/v1`. All internal services use these aliases.
+Master key: operator-supplied via `LITELLM_MASTER_KEY` env var — value never committed to repo.
+
+| Alias | Backing model | Recommended use |
+|-------|--------------|-----------------|
+| `ai` | qwen3.5:35b | KYC document translation, general compliance Q&A |
+| `ai-heavy` | llama3.3:70b | AML statement screening, complex reasoning tasks |
+| `glm-air` | GLM-4.5-Air (distributed) | Legal evidence extraction, FR/EN translation |
+| `reasoning` | qwen3:235b-a22b | Regulatory memo synthesis (⚠️ status: pending PASS) |
+| `banxe-general` | (existing) | General staff assistant queries |
+| `fast` | (existing) | Routing, classification, quick lookups |
+| `coding` | (existing) | Code generation and automated review |
+
+### Migration in flight
+
+Services moving from Legion WSL2 to evo1 `/data/banxe/`:
+
+| Service | Port | Current host | Target | Rollback |
+|---------|------|-------------|--------|----------|
+| banxe-compliance-api | :8093 | Legion WSL2 | evo1 /data/banxe/ | `systemctl --user start banxe-compliance-api` on Legion |
+| banxe-dashboard | :8090 | Legion WSL2 | evo1 /data/banxe/ | `systemctl --user start banxe-dashboard` on Legion |
+| deep-search | :8088 | Legion WSL2 | evo1 /data/banxe/ | `systemctl --user start deep-search` on Legion |
+| drive_watcher cron | — | Legion WSL2 | evo1 /data/banxe/ | Re-enable Legion `--user` cron unit |
+
+All Legion `--user` units are preserved until evo1 cutover is verified PASS.
+
+### PII/AML guardrails (binding)
+
+> **Reference:** `banxe-infra/ai-routing/policy.yaml`
+
+API code MUST NOT send content matching these path patterns to cloud APIs (Claude/Gemini/Groq/OpenAI):
+
+```
+compliance/cases/*
+kyc/raw/*
+secrets/*
+.env*
+**/*.pem
+**/id_*
+```
+
+Only local LiteLLM routes (`ai`, `ai-heavy`, `glm-air`, `reasoning`) may process these payloads.
+Violation = P0 security incident. Enforced via pre-commit hook and code review checklist.

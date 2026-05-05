@@ -64,3 +64,71 @@
 ## Start point of next session
 **Шаг 1.1:** сменить bootstrap admin/admin через Admin REST API.
 
+---
+
+## Realisation Status — 2026-05-03 (pre-GATE-A)
+
+**Branch:** `feat/keycloak-banxe-emi-realm` (banxe-emi-stack)
+
+Все артефакты для `banxe-emi` realm созданы локально — ожидают GATE-A (явный сигнал оператора):
+
+| Артефакт | Файл | Статус |
+|----------|------|--------|
+| Realm JSON (banxe-emi) | `infra/keycloak-banxe-emi/realms/banxe-emi-realm.json` | ✅ готов |
+| Import script | `infra/keycloak-banxe-emi/scripts/import-realm.sh` | ✅ готов |
+| Provision script | `infra/keycloak-banxe-emi/scripts/provision-clients.sh` | ✅ готов |
+| Healthcheck | `infra/keycloak-banxe-emi/scripts/healthcheck.sh` | ✅ готов |
+| Systemd unit install (I-34 fix) | `infra/keycloak-banxe-emi/scripts/install-systemd-unit.sh` | ✅ готов |
+| Smoke test curls | `infra/keycloak-banxe-emi/examples/get-token.curl.txt` | ✅ готов |
+| Docker compose (main :8180) | `infra/keycloak-banxe-emi/docker-compose.yml` | ✅ готов |
+| Docker compose (fallback :8182) | `infra/keycloak-banxe-emi/docker-compose.standalone.yml` | ✅ готов |
+| Env template | `infra/keycloak-banxe-emi/.env.example` | ✅ готов |
+| Operator runbook | `infra/keycloak-banxe-emi/RUNBOOK.md` | ✅ готов |
+| Pre-flight state doc | `infra/keycloak-banxe-emi/PRECHECK-2026-05-03.md` | ✅ готов |
+
+**Текущее состояние evo1:** KC 26.2.5 PID 5577, :8180, HTTP 500 (сломан). I-34 нарушение (пароль в ps aux).
+**Следующий шаг:** оператор выбирает GATE-A Option A/B/C и говорит "go GATE-A" → блок J.
+
+
+---
+
+### IAM cutover plan v0.1
+
+> **Status: paper-only — NOT for execution until P3.4 migration is PASS**
+> All items below are planning artefacts only. No changes to running services.
+
+#### Step 1 — Realm + clients setup
+- [ ] Create realm `banxe` (if not exists) with display name "Banxe EMI"
+- [ ] Create client `banxe-backend` (confidential, client_credentials grant)
+- [ ] Create client `banxe-frontend` (public, PKCE, authorization_code)
+- [ ] Create client `banxe-compliance-api` (confidential, service account)
+- [ ] Set session timeouts: access_token 15m, refresh_token 30m, SSO session 8h
+
+#### Step 2 — OIDC discovery URL
+- Keycloak OIDC discovery: `https://<evo1-host>/auth/realms/banxe/.well-known/openid-configuration`
+- JWKS endpoint: `https://<evo1-host>/auth/realms/banxe/protocol/openid-connect/certs`
+- Token endpoint: `https://<evo1-host>/auth/realms/banxe/protocol/openid-connect/token`
+- **Placeholder:** evo1 host TBD — fill once evo1 migration is PASS
+
+#### Step 3 — Mappers
+- [ ] `sub` claim → internal user UUID
+- [ ] `email` claim → verified email address
+- [ ] `banxe-role` claim → custom mapper from client role `banxe-backend/roles`
+- [ ] `preferred_username` → username (not used as authentication identifier)
+
+#### Step 4 — Service-to-service tokens (banxe-compliance-api)
+- [ ] Grant `banxe-compliance-api` service account role `compliance-officer`
+- [ ] Token flow: `client_credentials`, scope `openid`
+- [ ] Inject `KEYCLOAK_CLIENT_ID` + `KEYCLOAK_CLIENT_SECRET` via operator env (never in repo)
+- [ ] Validate JWT in FastAPI middleware: audience=`banxe-backend`, issuer=discovery URL
+
+#### Step 5 — evo1 host wiring
+- [ ] Keycloak runs in Docker container on evo1 (P4.x placeholder — not started)
+- [ ] nginx reverse proxy on evo1: `/auth/` → `localhost:8180`
+- [ ] Firewall: port 8180 NOT exposed to public; only nginx egress on 443
+- [ ] Health check gate: `GET /auth/realms/banxe` → 200 OK before any cutover step
+
+#### Notes
+- All items unchecked — execution blocked on P3.4 evo1 migration PASS
+- Do NOT rotate `banxe-backend` secret until migration is confirmed live on evo1
+- This plan supersedes items 2.1–2.8 in PHASE 2 of BANXE-master-roadmap-v3.md

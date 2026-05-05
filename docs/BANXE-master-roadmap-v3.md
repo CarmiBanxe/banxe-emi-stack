@@ -146,3 +146,41 @@
 
 ### Day 7 — Thu May 7 (P0 DEADLINE)
 - [ ] 1.25 Sprint 4 closed, FIN060 generated, tag v0.4.0-sprint4
+
+---
+
+### FCA CASS 15 — execution snapshot (2026-05-03)
+
+**Days to deadline:** 4 (deadline: 2026-05-07)
+
+#### Open items per service
+
+| # | Service | Item | Sprint ref | Status |
+|---|---------|------|-----------|--------|
+| 1 | notifications | Notifications service test coverage | 1.14 | ⏳ |
+| 2 | openbanking | OpenBanking integration wave | 1.15 | ⏳ |
+| 3 | banxe-mcp | OpenClaw-MOA Skills wiring via MCP | 1.16 | ⏳ |
+| 4 | payments | Payments wave (PSR 2017 paths) | 1.17 | ⏳ |
+| 5 | compliance | Marble + Ballerine + Jube via n8n | 1.18 | ⏳ |
+| 6 | webhooks | Webhook → OpenClaw-MOA → reports cron | 1.19 | ⏳ |
+| 7 | quality | ruff check --fix clean | 1.20 | ⏳ |
+| 8 | quality | mypy --strict services/ | 1.21 | ⏳ |
+| 9 | quality | pytest --cov ≥80% on changed files | 1.22 | ⏳ |
+| 10 | quality | Pre-commit Spec-First Auditor PASS | 1.23 | ⏳ |
+| 11 | quality | Pre-deploy health check (supervisor agent) | 1.24 | ⏳ |
+| 12 | sprint | Sprint 4 close + FIN060 + tag v0.4.0-sprint4 | 1.25 | ⏳ |
+| BT-001 | payments | Modulr live API | BT-001 | 🔒 CEO sign-off |
+| BT-002 | kyb | Companies House KYB API key | BT-002 | 🔒 env var |
+| BT-003 | kyb | OpenCorporates KYB API key | BT-003 | 🔒 env var |
+
+#### AI assistance map
+
+| Task | Preferred route | Fallback | Constraint |
+|------|----------------|---------|-----------|
+| KYC document translation (FR/EN/DE) | `ai` (qwen3.5:35b) | `glm-air` | PII — local LiteLLM only |
+| AML bank statement screening | `reasoning` (qwen3:235b-a22b) | `ai-heavy` | PII — local LiteLLM only |
+| Regulatory memo translation (FR → EN) | `ai` | `glm-air` | — |
+| Legal evidence extraction | `glm-air` (GLM-4.5-Air distributed) | `ai-heavy` | PII — local LiteLLM only |
+| Code generation / PR review | `coding` | `fast` | Must not include secrets or keys |
+| General compliance Q&A | `banxe-general` | `ai` | — |
+| Routing and classification | `fast` | — | — |
