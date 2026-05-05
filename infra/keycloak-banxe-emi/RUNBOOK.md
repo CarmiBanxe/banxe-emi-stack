@@ -383,3 +383,45 @@ When operator gives "go G-IAM-09 switch":
 11. Tag `g-iam-09-postgres-backend-closed-<date>`
 
 Backout: revert to commit before Phase D, `docker compose down -v`, restore previous compose+env.
+
+---
+
+## Phase G — V-02 session-timeout hardening (live apply)
+
+**Trigger:** operator says "go Phase G".
+
+**Changes (in canonical realm JSON, this PR):**
+- `offlineSessionMaxLifespanEnabled = true` (was null/disabled)
+- `offlineSessionMaxLifespan = 5184000` (60 days, was unlimited)
+- `refreshTokenMaxReuse = 0` (single-use refresh, was unlimited reuse)
+- `revokeRefreshToken = true` (rotation enforced, was off)
+
+**Live apply via kcadm (no downtime, no realm re-import):**
+
+```bash
+set -a && source ~/.banxe/keycloak.env && set +a
+docker exec -i keycloak-banxe-emi /opt/keycloak/bin/kcadm.sh \
+  config credentials --server http://localhost:8180 \
+  --realm master --user "$KC_BOOT_ADMIN" --password "$KC_BOOT_ADMIN_PASSWORD"
+
+docker exec -i keycloak-banxe-emi /opt/keycloak/bin/kcadm.sh update realms/banxe-emi \
+  -s offlineSessionMaxLifespanEnabled=true \
+  -s offlineSessionMaxLifespan=5184000 \
+  -s refreshTokenMaxReuse=0 \
+  -s revokeRefreshToken=true
+```
+
+**Verify:**
+
+```bash
+docker exec keycloak-banxe-emi /opt/keycloak/bin/kcadm.sh get realms/banxe-emi | \
+  jq '{offlineSessionMaxLifespanEnabled, offlineSessionMaxLifespan, refreshTokenMaxReuse, revokeRefreshToken}'
+```
+
+**Backout:** revert all four fields to `null` via the same `kcadm.sh update`. No downtime.
+
+**Compliance mapping:**
+- PSD2 Art. 97 / RTS SCA: short-lived tokens + rotation.
+- OAuth 2.0 Security BCP (RFC 9700): single-use refresh tokens recommended.
+- FCA SYSC: prudent session management.
+

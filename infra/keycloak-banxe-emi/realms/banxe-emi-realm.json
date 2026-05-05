@@ -327,5 +327,9 @@
         }
       ]
     }
-  ]
+  ],
+  "offlineSessionMaxLifespanEnabled": true,
+  "offlineSessionMaxLifespan": 5184000,
+  "refreshTokenMaxReuse": 0,
+  "revokeRefreshToken": true
 }
