@@ -194,3 +194,32 @@ enforce + fail-closed: EXIT=2  ✅  (blocks:   "Guardian unreachable; fail-close
 | Live verdict received from Guardian :8195 | ✅ unknown (G-GUARD-01 gap) |
 | Fail-open (audit unreachable) | ✅ EXIT=0 |
 | Fail-closed (enforce unreachable) | ✅ EXIT=2 |
+
+---
+
+## Enforcement activation log — 2026-05-05 11:00 CEST (V-01 closure)
+
+**State change:** `GUARDIAN_MODE=enforce`, `GUARDIAN_FAIL_MODE=closed` (was: audit/open).
+
+**Trigger:** MetaClaw `d122a61 feat(guardian): add scope claude.bash with ADR-025 canon ruleset [V-01]` deployed to evo1 `/data/banxe/guardian/`. Both Guardian units restarted via systemd:
+
+- `banxe-guardian-factory.service` — PID 203936 :8195
+- `banxe-guardian-project.service` — PID 203939 :8196
+
+**Smoke results (interactive bash with .bashrc-sourced enforce env):**
+
+| Prompt | Verdict | Shim exit |
+|---|---|---|
+| `ls -la /tmp` | pass (4/4 OK) | 0 |
+| `cat compliance/cases/case-001/notes.txt` | fail — CB1-deny-path | 1 |
+| `cat /home/user/.env` | fail — CB1 + CB2 (.env + secret-leak) | 1 |
+| `sudo rm -rf /` | fail — CB4-dangerous-cmd | 1 |
+
+**Files changed in this PR:**
+
+- `infra/guardian-shim/scripts/claude-bash-shim.env` — defaults flipped audit→enforce, open→closed.
+
+**Operator action required for new sessions:** open a fresh interactive shell so `~/.bashrc` sources the updated env. Existing live shells continue with their previously sourced (audit) env until restart.
+
+**Closes:** G-GUARD-02 (Switch banxe-emi-stack + banxe-architecture to GUARDIAN_MODE=enforce). V-01 in HANDOFF-2026-05-04.
+
