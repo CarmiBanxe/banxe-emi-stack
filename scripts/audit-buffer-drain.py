@@ -20,6 +20,7 @@ Exit codes:
     0  success (including zero events to drain)
     1  unexpected error
 """
+
 from __future__ import annotations
 
 import logging

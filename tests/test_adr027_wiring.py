@@ -5,19 +5,18 @@ T2 — ReconciliationEngine with BufferedAuditPort records event → pending_cou
 T3 — AUDIT_FAIL_CLOSED=true + CH down → AuditTrail raises (fail-closed)
 T4 — AUDIT_FAIL_CLOSED=false (default) + CH down → AuditTrail returns False (fail-open)
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
-
-from services.recon.recon_engine import InMemoryReconAuditPort, ReconciliationEngine
-from services.recon.recon_models import AccountBalance
 from src.safeguarding.audit_trail import AuditEvent, AuditTrail
 from src.safeguarding.buffered_audit_port import BufferedAuditPort
 
+from services.recon.recon_engine import ReconciliationEngine
+from services.recon.recon_models import AccountBalance
 
 # ---------------------------------------------------------------------------
 # T1 — DI provider returns correct type
@@ -42,7 +41,6 @@ def test_get_buffered_audit_port_returns_instance(
 
 def test_recon_engine_with_buffered_audit_records_event(tmp_path: Path) -> None:
     """ReconciliationEngine with BufferedAuditPort → record() → pending_count > 0."""
-    from services.recon.recon_port import LedgerPort
 
     class _StubLedger:
         def get_client_fund_balances(self, recon_date: str) -> list[AccountBalance]:
@@ -92,7 +90,7 @@ def test_audit_trail_fail_closed_raises_on_ch_failure(
         actor="SYSTEM",
     )
 
-    with pytest.raises(Exception):
+    with pytest.raises(Exception):  # noqa: B017  fail-closed contract: ANY exception propagation is acceptable per ADR-027
         trail.log(event)
 
 

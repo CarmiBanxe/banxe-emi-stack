@@ -4,20 +4,19 @@ T1 — E2E: record 3 events → drain to mock AuditTrail → all 3 drained, pend
 T2 — Drain script subprocess: exits 0 with AUDIT_DRY_RUN=true
 T3 — Drain with target returning False → events stay in buffer
 """
+
 from __future__ import annotations
 
+from decimal import Decimal
 import os
+from pathlib import Path
 import subprocess
 import sys
-from decimal import Decimal
-from pathlib import Path
 from typing import Any
 
-import pytest
-
-from services.recon.recon_models import ReconAuditEntry, ReconStatus
 from src.safeguarding.buffered_audit_port import BufferedAuditPort
 
+from services.recon.recon_models import ReconAuditEntry, ReconStatus
 
 # ---------------------------------------------------------------------------
 # Helpers
