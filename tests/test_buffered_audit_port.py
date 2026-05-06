@@ -3,20 +3,19 @@
 8 tests covering: record, drain (success/partial/raising), pending_count,
 cleanup, fail-safe on sqlite error, and thread-safety.
 """
+
 from __future__ import annotations
 
-import sqlite3
-import threading
 from decimal import Decimal
 from pathlib import Path
+import sqlite3
+import threading
 from typing import Any
 from unittest.mock import patch
 
-import pytest
-
-from services.recon.recon_models import ReconAuditEntry, ReconStatus
 from src.safeguarding.buffered_audit_port import BufferedAuditPort
 
+from services.recon.recon_models import ReconAuditEntry, ReconStatus
 
 # ---------------------------------------------------------------------------
 # Helpers
