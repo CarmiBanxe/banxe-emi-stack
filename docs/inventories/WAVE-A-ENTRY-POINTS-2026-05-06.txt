@@ -1,0 +1,12 @@
+24 banxe/banxe_auth/src/shared/api/apollo/__generated__/index.ts
+13 banxe/banxe_auth/src/pages/Login/model/index.ts
+6 banxe/common_auth_web/src/__generated__/index.ts
+5 banxe/banxe_auth/src/features/PasswordRecovery/model/RecoveryPasswordModel.ts
+4 banxe/banxe_auth/src/shared/config/analitycsEnums/operationsNames.ts
+2 banxe/banxe_auth/src/shared/config/analitycsEnums/newOperationsNames.ts
+1 banxe/banxe_auth/src/shared/lib/checkError.ts
+1 banxe/banxe_auth/src/pages/Login/ui/styles.ts
+1 banxe/banxe_auth/src/features/PasswordRecovery/lib/parseTFAError/types.ts
+0 banxe/common_auth_web/src/theme/index.ts
+0 banxe/banxe_auth/src/pages/CreatingAccount/model/index.ts
+0 banxe/banxe_auth/src/features/Login/index.ts
