@@ -182,3 +182,40 @@ def require_role(*roles):
         return identity
 
     return _check
+
+
+# ── ADR-027: Audit-trail durability (BufferedAuditPort) ──────────────────────
+
+
+@lru_cache(maxsize=1)
+def get_buffered_audit_port() -> "BufferedAuditPort":
+    """Production audit sink: SQLite ring-buffer (ADR-027 step 2).
+
+    Events are buffered in SQLite until the drain cron (step 3) flushes to ClickHouse.
+    AUDIT_BUFFER_PATH → SQLite path (default: /tmp/banxe-audit-buffer.db)
+    """
+    from src.safeguarding.buffered_audit_port import BufferedAuditPort
+
+    buffer_path = os.getenv("AUDIT_BUFFER_PATH", "/tmp/banxe-audit-buffer.db")
+    return BufferedAuditPort(db_path=buffer_path)
+
+
+@lru_cache(maxsize=1)
+def get_recon_engine() -> "ReconciliationEngine":
+    """Production ReconciliationEngine with durable audit sink (ADR-027 step 2).
+
+    LEDGER_ADAPTER=stub  → StubLedgerAdapter (default, in-memory)
+    LEDGER_ADAPTER=midaz → MidazLedgerAdapter (requires MIDAZ_BASE_URL)
+
+    NOTE: ReconciliationEngine (CASS 15) was previously only instantiated in tests.
+    This provider creates the first production wiring per ADR-027 step 2.
+    """
+    from services.recon.recon_engine import ReconciliationEngine
+
+    ledger_name = os.environ.get("LEDGER_ADAPTER", "stub")
+    if ledger_name == "midaz":
+        ledger = MidazLedgerAdapter()
+    else:
+        ledger = StubLedgerAdapter()
+
+    return ReconciliationEngine(ledger=ledger, audit=get_buffered_audit_port())

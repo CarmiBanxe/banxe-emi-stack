@@ -113,9 +113,12 @@ class AuditTrail:
     def log(self, event: AuditEvent) -> bool:
         """Append an audit event. Returns True on success.
 
-        Never raises — compliance events must not crash the caller.
-        Falls back to stderr logging if ClickHouse is unreachable.
+        AUDIT_FAIL_CLOSED=true → raises on ClickHouse failure (production P0, ADR-027).
+        AUDIT_FAIL_CLOSED=false (default) → logs to stderr and returns False (fail-open).
         """
+        import os
+
+        fail_closed = os.getenv("AUDIT_FAIL_CLOSED", "false").lower() == "true"
         try:
             return self._write(event)
         except Exception as exc:
@@ -129,6 +132,8 @@ class AuditTrail:
                 event.severity,
                 event.payload_json(),
             )
+            if fail_closed:
+                raise
             return False
 
     def _write(self, event: AuditEvent) -> bool:
