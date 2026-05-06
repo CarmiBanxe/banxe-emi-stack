@@ -52,29 +52,21 @@ def test_role_guard_module_imports_without_router_side_effects():
 # ── LegacyJwtStrategy contract surface ──────────────────────────────────────
 
 
-def test_legacy_jwt_strategy_constructs_with_optional_args():
-    from services.auth.legacy.jwt_strategy import LegacyJwtStrategy
+def test_legacy_jwt_strategy_constructs_with_jwks_provider():
+    """Production adapter requires jwks_uri or jwks_provider; provider OK for tests."""
+    from services.auth.legacy.jwks_models import JwksSet
+    from services.auth.legacy.jwt_strategy import LegacyJwtStrategyAdapter
 
-    strategy = LegacyJwtStrategy()
+    strategy = LegacyJwtStrategyAdapter(jwks_provider=lambda: JwksSet())
     assert strategy is not None
 
-    configured = LegacyJwtStrategy(
-        issuer="https://issuer.example",
-        audience="banxe-backend",
-        jwks_source="https://issuer.example/.well-known/jwks.json",
-    )
-    assert configured is not None
 
+def test_legacy_jwt_strategy_requires_jwks_source():
+    """Constructor must reject empty config (no jwks_uri AND no jwks_provider)."""
+    from services.auth.legacy.jwt_strategy import LegacyJwtStrategyAdapter
 
-def test_legacy_jwt_strategy_validate_is_scaffold():
-    """validate() must exist as scaffold and raise NotImplementedError."""
-    from services.auth.legacy.jwt_strategy import LegacyJwtStrategy
-
-    strategy = LegacyJwtStrategy()
-    assert callable(strategy.validate)
-
-    with pytest.raises(NotImplementedError, match="scaffold seam"):
-        strategy.validate("any.jwt.token")
+    with pytest.raises(ValueError, match="jwks_uri or jwks_provider"):
+        LegacyJwtStrategyAdapter()
 
 
 # ── pydantic models on minimal valid data ───────────────────────────────────
@@ -107,23 +99,15 @@ def test_jwks_model_builds_with_pem():
     assert jwks.pem.startswith("-----BEGIN PUBLIC KEY-----")
 
 
-def test_complete_jwt_model_builds_with_payload_dict():
-    from services.auth.legacy.jwks_models import CompleteJwt, Jwks
+def test_complete_jwt_model_builds_with_typed_payload():
+    from services.auth.legacy.jwks_models import CompleteJwt, Jwks, JwtPayload
 
     header = Jwks(kid="kid-3", alg="RS256")
-    complete = CompleteJwt(
-        header=header,
-        payload={"sub": "user-001", "role": "MLRO", "status": "ACTIVE", "service": "tx-auth"},
-    )
+    payload = JwtPayload(sub="user-001", role="MLRO", status="ACTIVE", service="tx-auth")
+    complete = CompleteJwt(header=header, payload=payload)
     assert complete.header.kid == "kid-3"
-    assert complete.payload["sub"] == "user-001"
-
-
-def test_complete_jwt_model_defaults_payload_to_empty_dict():
-    from services.auth.legacy.jwks_models import CompleteJwt, Jwks
-
-    complete = CompleteJwt(header=Jwks(kid="kid-4", alg="RS256"))
-    assert complete.payload == {}
+    assert complete.payload.sub == "user-001"
+    assert complete.payload.role == "MLRO"
 
 
 # ── LegacyRoleGuard contract surface ────────────────────────────────────────
@@ -144,12 +128,14 @@ def test_make_legacy_role_guard_factory():
     assert guard.allowed_roles == ("MLRO", "OPS")
 
 
-def test_legacy_role_guard_check_is_scaffold():
+def test_legacy_role_guard_check_invariant():
+    """Production check: role ∈ allowed AND status == 'ACTIVE'."""
     from services.auth.legacy.role_guard import make_legacy_role_guard
 
     guard = make_legacy_role_guard("MLRO")
-    with pytest.raises(NotImplementedError, match="scaffold seam"):
-        guard.check(role="MLRO", status="ACTIVE")
+    assert guard.check(role="MLRO", status="ACTIVE") is True
+    assert guard.check(role="MLRO", status="INACTIVE") is False
+    assert guard.check(role="OPERATOR", status="ACTIVE") is False
 
 
 # ── canon guard: existing auth core untouched ───────────────────────────────
