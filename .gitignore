@@ -43,3 +43,10 @@ apps/*/.next/
 # Claude Code session logs (runtime data, not source-controlled)
 .claude/memory/*.jsonl
 secrets/
+
+# Claude Code memory & worktree noise (added 2026-05-06)
+.claude/memory/test-coverage.md
+.claude/memory/commit-log.jsonl
+.openclaw/skills/SKILL.md
+records/
+tools/
