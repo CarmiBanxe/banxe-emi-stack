@@ -12,8 +12,14 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator
 from functools import lru_cache
 import os
+from typing import TYPE_CHECKING
 
 from sqlalchemy.ext.asyncio import AsyncSession
+
+if TYPE_CHECKING:
+    from src.safeguarding.buffered_audit_port import BufferedAuditPort
+
+    from services.recon.recon_engine import ReconciliationEngine
 
 from services.customer.customer_service import InMemoryCustomerService
 from services.database import AsyncSessionLocal
@@ -188,7 +194,7 @@ def require_role(*roles):
 
 
 @lru_cache(maxsize=1)
-def get_buffered_audit_port() -> "BufferedAuditPort":
+def get_buffered_audit_port() -> BufferedAuditPort:
     """Production audit sink: SQLite ring-buffer (ADR-027 step 2).
 
     Events are buffered in SQLite until the drain cron (step 3) flushes to ClickHouse.
@@ -196,12 +202,12 @@ def get_buffered_audit_port() -> "BufferedAuditPort":
     """
     from src.safeguarding.buffered_audit_port import BufferedAuditPort
 
-    buffer_path = os.getenv("AUDIT_BUFFER_PATH", "/tmp/banxe-audit-buffer.db")
+    buffer_path = os.getenv("AUDIT_BUFFER_PATH", "/tmp/banxe-audit-buffer.db")  # noqa: S108  intentional default; production sets explicit path via env
     return BufferedAuditPort(db_path=buffer_path)
 
 
 @lru_cache(maxsize=1)
-def get_recon_engine() -> "ReconciliationEngine":
+def get_recon_engine() -> ReconciliationEngine:
     """Production ReconciliationEngine with durable audit sink (ADR-027 step 2).
 
     LEDGER_ADAPTER=stub  → StubLedgerAdapter (default, in-memory)

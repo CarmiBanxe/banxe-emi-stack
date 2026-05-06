@@ -6,16 +6,17 @@ event must be durably recorded even when the primary audit sink is unavailable.
 
 Invariant I-24: entries are never deleted until successfully drained to target.
 """
+
 from __future__ import annotations
 
 import dataclasses
-import json
-import logging
-import sqlite3
-import threading
 from decimal import Decimal
 from enum import Enum
+import json
+import logging
 from pathlib import Path
+import sqlite3
+import threading
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
@@ -23,7 +24,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_BUFFER_PATH = "/tmp/banxe-audit-buffer.db"
+DEFAULT_BUFFER_PATH = "/tmp/banxe-audit-buffer.db"  # noqa: S108  intentional default; production passes explicit db_path via AUDIT_BUFFER_PATH
 
 _DDL = """
 CREATE TABLE IF NOT EXISTS audit_buffer (
@@ -95,8 +96,7 @@ class BufferedAuditPort:
             conn = sqlite3.connect(self._db_path)
             try:
                 rows = conn.execute(
-                    "SELECT id, event_json FROM audit_buffer "
-                    "WHERE drained=0 ORDER BY id LIMIT ?",
+                    "SELECT id, event_json FROM audit_buffer WHERE drained=0 ORDER BY id LIMIT ?",
                     (batch_size,),
                 ).fetchall()
             finally:
@@ -115,9 +115,7 @@ class BufferedAuditPort:
             with self._lock:
                 conn = sqlite3.connect(self._db_path)
                 try:
-                    conn.execute(
-                        "UPDATE audit_buffer SET drained=1 WHERE id=?", (row_id,)
-                    )
+                    conn.execute("UPDATE audit_buffer SET drained=1 WHERE id=?", (row_id,))
                     conn.commit()
                 finally:
                     conn.close()
@@ -129,9 +127,7 @@ class BufferedAuditPort:
         with self._lock:
             conn = sqlite3.connect(self._db_path)
             try:
-                row = conn.execute(
-                    "SELECT COUNT(*) FROM audit_buffer WHERE drained=0"
-                ).fetchone()
+                row = conn.execute("SELECT COUNT(*) FROM audit_buffer WHERE drained=0").fetchone()
                 return row[0] if row else 0
             finally:
                 conn.close()
