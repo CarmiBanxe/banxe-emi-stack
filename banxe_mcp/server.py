@@ -85,7 +85,7 @@ async def get_account_balance(account_id: str) -> str:
         )
     except httpx.HTTPStatusError as e:
         return f"Error fetching balance for {account_id}: {e.response.status_code}"
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return "Error: BANXE API unavailable. Ensure uvicorn is running on :8000"
 
 
@@ -115,7 +115,7 @@ async def list_accounts() -> str:
         return "\n".join(lines)
     except httpx.HTTPStatusError as e:
         return f"Error listing accounts: {e.response.status_code}"
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return "Error: BANXE API unavailable."
 
 
@@ -152,7 +152,7 @@ async def get_transaction_history(account_id: str, period: str = "current") -> s
         return "\n".join(lines)
     except httpx.HTTPStatusError as e:
         return f"Error fetching statement: {e.response.status_code}"
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return "Error: BANXE API unavailable."
 
 
@@ -183,7 +183,7 @@ async def get_kyc_status(customer_id: str) -> str:
         if e.response.status_code == 404:
             return f"No KYC record found for customer {customer_id}"
         return f"Error checking KYC: {e.response.status_code}"
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return "Error: BANXE API unavailable."
 
 
@@ -220,7 +220,7 @@ async def check_aml_alert(transaction_id: str) -> str:
         )
     except httpx.HTTPStatusError as e:
         return f"Error checking AML for {transaction_id}: {e.response.status_code}"
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return "Error: BANXE API unavailable."
 
 
@@ -248,7 +248,7 @@ async def get_exchange_rate(from_currency: str, to_currency: str) -> str:
         )
     except httpx.HTTPStatusError as e:
         return f"Error fetching rate {from_currency}/{to_currency}: {e.response.status_code}"
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return "Error: Frankfurter service unavailable on :8181"
 
 
@@ -278,7 +278,7 @@ async def get_payment_status(payment_id: str) -> str:
         if e.response.status_code == 404:
             return f"Payment {payment_id} not found"
         return f"Error fetching payment: {e.response.status_code}"
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return "Error: BANXE API unavailable."
 
 
@@ -317,7 +317,7 @@ async def get_recon_status(recon_date: str = "") -> str:
         if e.response.status_code == 404:
             return f"No recon data for {recon_date}. Status: PENDING (statement not yet received)"
         return f"Error fetching recon status: {e.response.status_code}"
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return (
             f"Recon Status — {recon_date} (SANDBOX — API unavailable)\n"
             f"  Run: pytest tests/ -k recon -v to verify recon engine\n"
@@ -356,7 +356,7 @@ async def get_breach_history(account_id: str, days: int = 30) -> str:
         if e.response.status_code == 404:
             return f"No breach records found for {account_id}"
         return f"Error fetching breach history: {e.response.status_code}"
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return (
             f"Breach History — {account_id} (SANDBOX — API unavailable)\n"  # nosec B608
             f"  Query ClickHouse: SELECT * FROM banxe.safeguarding_breaches "
@@ -396,7 +396,7 @@ async def get_discrepancy_trend(account_id: str, days: int = 7) -> str:
         if e.response.status_code == 404:
             return f"No trend data found for {account_id}"
         return f"Error fetching discrepancy trend: {e.response.status_code}"
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return (
             f"Discrepancy Trend — {account_id} (SANDBOX — API unavailable)\n"  # nosec B608
             f"  Query ClickHouse: SELECT recon_date, discrepancy, status "
@@ -456,7 +456,7 @@ async def run_reconciliation(recon_date: str = "", dry_run: bool = True) -> str:
         return "\n".join(lines)
     except httpx.HTTPStatusError as e:
         return f"Reconciliation {mode} failed: HTTP {e.response.status_code}"
-    except httpx.ConnectError:
+    except httpx.TransportError:
         # Sandbox: run reconciliation in-process using InMemory stubs
         lines = [
             f"Reconciliation {mode} — {recon_date} (SANDBOX — API unavailable)",
@@ -607,7 +607,7 @@ async def query_reasoning_bank(
         return "\n".join(lines)
     except httpx.HTTPStatusError as e:
         return f"ReasoningBank query error: HTTP {e.response.status_code}"
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return (
             "ReasoningBank unavailable (API not running).\nStart: uvicorn api.main:app --port 8000"
         )
@@ -642,7 +642,7 @@ async def get_routing_metrics(hours: int = 24) -> str:
         )
     except httpx.HTTPStatusError as e:
         return f"Error fetching ARL metrics: HTTP {e.response.status_code}"
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return (
             f"ARL Metrics (last {hours}h) — SANDBOX\n"  # nosec B608
             "API unavailable. Check Grafana dashboard: banxe-arl-metrics\n"
@@ -760,7 +760,7 @@ async def generate_component(
         )
     except httpx.HTTPStatusError as e:
         return f"Error generating component: HTTP {e.response.status_code}"
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return (
             "Design Pipeline API unavailable.\n"
             "Start: uvicorn api.main:app --port 8000\n"
@@ -795,7 +795,7 @@ async def sync_design_tokens(file_id: str) -> str:
         )
     except httpx.HTTPStatusError as e:
         return f"Token sync failed: HTTP {e.response.status_code}"
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return "Design Pipeline API unavailable. Ensure uvicorn is running on :8000"
 
 
@@ -845,7 +845,7 @@ async def visual_compare(
         )
     except httpx.HTTPStatusError as e:
         return f"Visual compare failed: HTTP {e.response.status_code}"
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return "Design Pipeline API unavailable."
 
 
@@ -880,7 +880,7 @@ async def list_design_components(file_id: str) -> str:
         return "\n".join(lines)
     except httpx.HTTPStatusError as e:
         return f"Error listing components: HTTP {e.response.status_code}"
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return (
             "Design Pipeline API unavailable.\nConfigure PENPOT_BASE_URL and PENPOT_TOKEN in .env"
         )
@@ -936,7 +936,7 @@ async def kb_list_notebooks(tags: str = "", jurisdiction: str = "") -> str:
         return "\n".join(lines)
     except httpx.HTTPStatusError as e:
         return f"Error listing notebooks: {e.response.status_code}"
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return "Error: BANXE API unavailable. Ensure API is running on :8000"
 
 
@@ -972,7 +972,7 @@ async def kb_get_notebook(notebook_id: str) -> str:
         if e.response.status_code == 404:
             return f"Notebook '{notebook_id}' not found"
         return f"Error fetching notebook: {e.response.status_code}"
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return "Error: BANXE API unavailable."
 
 
@@ -1028,7 +1028,7 @@ async def kb_query(
         if e.response.status_code == 404:
             return f"Notebook '{notebook_id}' not found"
         return f"Error querying KB: {e.response.status_code}"
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return "Error: BANXE API unavailable."
 
 
@@ -1065,7 +1065,7 @@ async def kb_search(notebook_id: str, query: str, limit: int = 10) -> str:
         if e.response.status_code == 404:
             return f"Notebook '{notebook_id}' not found"
         return f"Error searching KB: {e.response.status_code}"
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return "Error: BANXE API unavailable."
 
 
@@ -1119,7 +1119,7 @@ async def kb_compare_versions(
         return "\n".join(lines)
     except httpx.HTTPStatusError as e:
         return f"Error comparing versions: {e.response.status_code}"
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return "Error: BANXE API unavailable."
 
 
@@ -1152,7 +1152,7 @@ async def kb_get_citations(source_id: str, notebook_id: str) -> str:
         if e.response.status_code == 404:
             return f"Source '{source_id}' not found in notebook '{notebook_id}'"
         return f"Error fetching citation: {e.response.status_code}"
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return "Error: BANXE API unavailable."
 
 
@@ -4457,7 +4457,7 @@ async def crypto_get_balance(wallet_id: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable", "wallet_id": wallet_id})
 
 
@@ -4487,7 +4487,7 @@ async def crypto_initiate_transfer(
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -4513,7 +4513,7 @@ async def crypto_travel_rule_check(transfer_id: str, amount_eur: str, jurisdicti
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -4532,7 +4532,7 @@ async def crypto_reconcile(wallet_id: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable", "wallet_id": wallet_id})
 
 
@@ -4551,7 +4551,7 @@ async def crypto_list_wallets(owner_id: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable", "owner_id": owner_id})
 
 
@@ -4577,7 +4577,7 @@ async def batch_create(name: str, rail: str, file_format: str, created_by: str) 
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -4596,7 +4596,7 @@ async def batch_submit(batch_id: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable", "batch_id": batch_id})
 
 
@@ -4615,7 +4615,7 @@ async def batch_get_status(batch_id: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable", "batch_id": batch_id})
 
 
@@ -4634,7 +4634,7 @@ async def batch_reconciliation_report(batch_id: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable", "batch_id": batch_id})
 
 
@@ -4656,7 +4656,7 @@ async def prefs_get(user_id: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable", "user_id": user_id})
 
 
@@ -4681,7 +4681,7 @@ async def prefs_set(user_id: str, category: str, key: str, value: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable", "user_id": user_id})
 
 
@@ -4700,7 +4700,7 @@ async def prefs_consent_status(user_id: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable", "user_id": user_id})
 
 
@@ -4724,7 +4724,7 @@ async def prefs_export_data(user_id: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable", "user_id": user_id})
 
 
@@ -4766,7 +4766,7 @@ async def audit_log_event(
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable", "entity_id": entity_id})
 
 
@@ -4794,7 +4794,7 @@ async def audit_search(
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable", "entity_id": entity_id})
 
 
@@ -4817,7 +4817,7 @@ async def audit_replay(entity_id: str, from_ts: str, to_ts: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable", "entity_id": entity_id})
 
 
@@ -4836,7 +4836,7 @@ async def audit_verify_integrity(source: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable", "source": source})
 
 
@@ -4852,7 +4852,7 @@ async def audit_retention_status() -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -4886,7 +4886,7 @@ async def fee_calculate(rule_id: str, transaction_amount: str) -> str:
         )
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable", "rule_id": rule_id})
 
 
@@ -4902,7 +4902,7 @@ async def fee_get_schedule() -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -4926,7 +4926,7 @@ async def fee_request_waiver(charge_id: str, account_id: str, reason: str) -> st
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable", "account_id": account_id})
 
 
@@ -4945,7 +4945,7 @@ async def fee_billing_summary(account_id: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable", "account_id": account_id})
 
 
@@ -4964,7 +4964,7 @@ async def fee_reconcile(account_id: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable", "account_id": account_id})
 
 
@@ -4983,7 +4983,7 @@ async def calendar_list_deadlines() -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5018,7 +5018,7 @@ async def calendar_create_deadline(
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5037,7 +5037,7 @@ async def calendar_get_upcoming(days_ahead: int = 30) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5053,7 +5053,7 @@ async def calendar_compliance_score() -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5080,7 +5080,7 @@ async def tenant_provision(name: str, tier: str, jurisdiction: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5100,7 +5100,7 @@ async def tenant_get_status(tenant_id: str) -> str:
         return json.dumps({"tenant": tenant, "quota": quota}, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5123,7 +5123,7 @@ async def tenant_suspend(tenant_id: str, reason: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5145,7 +5145,7 @@ async def tenant_check_quota(tenant_id: str, amount_gbp: str) -> str:
         )
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5164,7 +5164,7 @@ async def tenant_audit_log(tenant_id: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5183,7 +5183,7 @@ async def version_list_active() -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5199,7 +5199,7 @@ async def version_get_deprecations() -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5219,7 +5219,7 @@ async def version_check_compatibility(version_from: str, version_to: str) -> str
         return json.dumps({"from": version_from, "to": version_to, "matrix": result}, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5239,7 +5239,7 @@ async def version_get_changelog(version_from: str, version_to: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5280,7 +5280,7 @@ async def kyb_submit_application(
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5299,7 +5299,7 @@ async def kyb_get_status(application_id: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5318,7 +5318,7 @@ async def kyb_screen_ubos(application_id: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5337,7 +5337,7 @@ async def kyb_risk_assessment(application_id: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5356,7 +5356,7 @@ async def kyb_get_decision(application_id: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5393,7 +5393,7 @@ async def sanctions_screen_entity(
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5425,7 +5425,7 @@ async def sanctions_screen_transaction(
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5444,7 +5444,7 @@ async def sanctions_get_alerts(status: str = "open") -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5472,7 +5472,7 @@ async def sanctions_resolve_alert(
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5491,7 +5491,7 @@ async def sanctions_screening_stats(period: str = "daily") -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5538,7 +5538,7 @@ async def swift_build_mt103(
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5558,7 +5558,7 @@ async def swift_send_message(message_id: str, operator: str = "treasury_ops") ->
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5577,7 +5577,7 @@ async def swift_gpi_status(uetr: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5604,7 +5604,7 @@ async def swift_nostro_reconcile(
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5626,7 +5626,7 @@ async def swift_list_correspondents(currency: str = "") -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5648,7 +5648,7 @@ async def fx_get_rate(currency_pair: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5686,7 +5686,7 @@ async def fx_create_quote(
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5705,7 +5705,7 @@ async def fx_execute_quote(quote_id: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5724,7 +5724,7 @@ async def fx_get_hedge_exposure(currency_pair: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5740,7 +5740,7 @@ async def fx_compliance_summary() -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5787,7 +5787,7 @@ async def consent_grant(
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5810,7 +5810,7 @@ async def consent_validate(consent_id: str, required_scope: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5830,7 +5830,7 @@ async def consent_revoke(consent_id: str, actor: str = "customer") -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5850,7 +5850,7 @@ async def consent_list_tpps(tpp_type: str = "") -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5873,7 +5873,7 @@ async def consent_cbpii_check(consent_id: str, amount: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5910,7 +5910,7 @@ async def consumer_duty_assess_outcome(
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5926,7 +5926,7 @@ async def consumer_duty_get_dashboard() -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5957,7 +5957,7 @@ async def consumer_duty_detect_vulnerability(
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5973,7 +5973,7 @@ async def consumer_duty_failing_products() -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -5995,7 +5995,7 @@ async def consumer_duty_export_board_report(operator: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -6025,7 +6025,7 @@ async def audit_query_logs(
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -6058,7 +6058,7 @@ async def audit_export_report(
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -6074,7 +6074,7 @@ async def audit_health_check() -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -6099,7 +6099,7 @@ async def recon_run_daily(date_str: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -6118,7 +6118,7 @@ async def recon_get_report(date_str: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -6134,7 +6134,7 @@ async def recon_list_breaches() -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -6160,7 +6160,7 @@ async def fin060_generate(month: int, year: int) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -6180,7 +6180,7 @@ async def fin060_get_report(month: int, year: int) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -6202,7 +6202,7 @@ async def fin060_approve(report_id: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -6218,7 +6218,7 @@ async def fin060_dashboard() -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -6244,7 +6244,7 @@ async def fx_get_latest_rates(base: str = "GBP", symbols: str = "") -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -6268,7 +6268,7 @@ async def fx_convert_amount(amount: str, from_currency: str, to_currency: str) -
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -6288,7 +6288,7 @@ async def fx_get_historical_rates(date: str, base: str = "GBP") -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -6319,7 +6319,7 @@ async def psd2_create_consent(iban: str, valid_until: str) -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -6346,7 +6346,7 @@ async def psd2_get_transactions(
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
@@ -6369,7 +6369,7 @@ async def psd2_configure_autopull(iban: str, frequency: str = "daily") -> str:
         return json.dumps(result, indent=2)
     except httpx.HTTPStatusError as exc:
         return json.dumps({"error": str(exc), "status_code": exc.response.status_code})
-    except httpx.ConnectError:
+    except httpx.TransportError:
         return json.dumps({"error": "BANXE API unavailable"})
 
 
