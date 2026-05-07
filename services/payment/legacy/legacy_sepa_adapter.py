@@ -7,16 +7,20 @@ Transport dropped per ADR-025 §15-16:
   - DWH payment gRPC microservice (getByNostroAccount)
   - Redis cron / NestJS EventEmitter (syncTransactions, needsApprovalHandler)
   - TypeORM (TransactionEntity / FiatPaymentEntity)
+  - SCA factor / VOP approval (approveTransaction SMS/TOTP auth)
 
 Upstream TS method → PaymentRailPort mapping:
-  initTransaction()            → submit_payment(intent)  [stored as PENDING]
-  approveTransaction()         → advance_to(SUBMITTED)   [folded into submit confirm]
-  fetchTransactionStatus()     → get_payment_status()
-  syncTransactions() @Cron     → DROP (pull-on-demand in-memory)
-  needsApprovalHandler() @Cron → DROP (approval folded into submit phase)
+  approveTransaction(dto)        → advance_to(SUBMITTED)   [SCA dropped]
+  needsApprovalHandler() @Cron   → DROP (pull-on-demand)
+  syncTransactions() @Cron       → DROP (in-memory)
 
 State machine: PENDING → SUBMITTED → SETTLED / REJECTED / CANCELLED
+  PENDING → CANCELLED also allowed.
   Illegal transitions raise SepaApplicationError(code="invalid_state_transition").
+
+Idempotency: keyed by (customer_id, reference) composite — not intent idempotency_key.
+  Rationale: SEPA rulebook uniqueness is on (creditor+debtor+reference+amount);
+  using (customer_id, reference) as practical surrogate.
 
 Canon: ADR-025 §15-16 + services.payment.payment_port + SESSION-2026-05-07-WAVE-C
 """
@@ -39,11 +43,14 @@ from services.payment.payment_port import (
     PaymentStatus,
 )
 
-# ── Config ────────────────────────────────────────────────────────────────────
+# ── Constants ─────────────────────────────────────────────────────────────────
 
 _SEPA_RAILS: frozenset[PaymentRail] = frozenset({PaymentRail.SEPA_CT, PaymentRail.SEPA_INSTANT})
 _SCT_INST_MAX_EUR: Decimal = Decimal("100000.00")
-_SEPA_REFERENCE_MAX_LEN: int = 140  # ISO 20022 / SEPA rulebook
+_SEPA_REFERENCE_MAX_LEN: int = 140
+_CREDITOR_NAME_MAX_LEN: int = 70
+
+_SepaEventType = Literal["CREATED", "SUBMITTED", "SETTLED", "REJECTED", "CANCELLED"]
 
 
 # ── Validation helpers ────────────────────────────────────────────────────────
@@ -60,12 +67,12 @@ def _validate_iban(iban: str) -> bool:
 
 
 def _validate_bic(bic: str) -> bool:
-    """Return True if BIC matches SWIFT standard (8 or 11 alphanum chars)."""
+    """Return True if BIC matches SWIFT/RFC-9362 (8 or 11 chars)."""
     clean = bic.strip().upper()
     return bool(re.fullmatch(r"[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?", clean))
 
 
-# ── Internal state ────────────────────────────────────────────────────────────
+# ── State machine ─────────────────────────────────────────────────────────────
 
 
 class SepaPaymentStatus(str, Enum):
@@ -101,8 +108,11 @@ _TO_PAYMENT_STATUS: dict[SepaPaymentStatus, PaymentStatus] = {
 }
 
 
-class SepaPayment(BaseModel, frozen=True):
-    """Internal domain record for an in-flight SEPA payment."""
+# ── Domain models ─────────────────────────────────────────────────────────────
+
+
+class SepaPaymentRecord(BaseModel, frozen=True):
+    """Internal domain record — shadows SEPA TransactionEntity (TypeORM DROP)."""
 
     payment_id: str
     idempotency_key: str
@@ -110,12 +120,34 @@ class SepaPayment(BaseModel, frozen=True):
     debtor_iban: str
     creditor_iban: str
     creditor_bic: str | None
+    creditor_name: str
     amount: Decimal
     currency: str
     reference: str
     scheme: Literal["SCT", "SCT_INST"]
     status: SepaPaymentStatus
-    created_at: datetime
+    submitted_at: datetime
+    settled_at: datetime | None = None
+    error_code: str | None = None
+    error_message: str | None = None
+
+    model_config = {"arbitrary_types_allowed": True}
+
+
+class SepaAuditRecord(BaseModel, frozen=True):
+    """
+    Append-only audit event — I-24 compliance.
+
+    Separate from PaymentResult; persisted to ClickHouse in Wave D.
+    """
+
+    payment_id: str
+    event_type: _SepaEventType
+    amount: Decimal
+    currency: str
+    status_from: SepaPaymentStatus | None
+    status_to: SepaPaymentStatus
+    occurred_at: datetime
 
     model_config = {"arbitrary_types_allowed": True}
 
@@ -129,6 +161,21 @@ class SepaApplicationError(Exception):
         self.code = code
 
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+
+def _sepa_event_for(status: SepaPaymentStatus) -> _SepaEventType:
+    if status == SepaPaymentStatus.SUBMITTED:
+        return "SUBMITTED"
+    if status == SepaPaymentStatus.SETTLED:
+        return "SETTLED"
+    if status == SepaPaymentStatus.REJECTED:
+        return "REJECTED"
+    if status == SepaPaymentStatus.CANCELLED:
+        return "CANCELLED"
+    return "CREATED"
+
+
 # ── Adapter ───────────────────────────────────────────────────────────────────
 
 
@@ -136,26 +183,33 @@ class LegacySepaAdapter:
     """
     PaymentRailPort implementation — SEPA CT + SCT_INST (REWRITE-3).
 
-    In-memory store keyed by idempotency_key (dedup) and payment_id (lookup).
-    Not durable or concurrency-safe; acceptable for dev/test.
-    Production: replace with Modulr SEPA adapter (ModulrPaymentAdapter) or ClearBank.
+    Idempotency keyed by (customer_id, reference) composite — SEPA rulebook surrogate.
+    In-memory; not durable or concurrency-safe. Production: Modulr / ClearBank Wave D.
     """
 
     def __init__(self) -> None:
-        self._by_idempotency: dict[str, SepaPayment] = {}
-        self._by_payment_id: dict[str, SepaPayment] = {}
+        self._by_payment_id: dict[str, SepaPaymentRecord] = {}
+        self._by_composite_key: dict[str, SepaPaymentRecord] = {}
+        self._audit_log: list[SepaAuditRecord] = []
 
     # ── PaymentRailPort ───────────────────────────────────────────────────────
 
     def submit_payment(self, intent: PaymentIntent) -> PaymentResult:
+        """
+        initTransaction() semantic — validate, dedup by (customer_id, reference), store PENDING.
+        """
         if intent.rail not in _SEPA_RAILS:
             raise SepaApplicationError(
                 f"LegacySepaAdapter handles only SEPA rails, got {intent.rail}",
                 code="unsupported_rail",
             )
 
-        if intent.idempotency_key in self._by_idempotency:
-            return self._to_result(self._by_idempotency[intent.idempotency_key])
+        customer_id = str(
+            intent.metadata.get("customer_id", intent.debtor_account.account_holder_name)
+        )
+        composite_key = f"{customer_id}::{intent.reference}"
+        if composite_key in self._by_composite_key:
+            return self._to_result(self._by_composite_key[composite_key])
 
         debtor_iban = intent.debtor_account.iban or ""
         creditor_iban = intent.creditor_account.iban or ""
@@ -171,10 +225,30 @@ class LegacySepaAdapter:
         if creditor_bic and not _validate_bic(creditor_bic):
             raise SepaApplicationError(f"Invalid BIC: {creditor_bic!r}", code="invalid_bic")
 
+        creditor_name = intent.creditor_account.account_holder_name
+        if not creditor_name or not creditor_name.strip():
+            raise SepaApplicationError(
+                "Creditor name must not be empty", code="invalid_creditor_name"
+            )
+        if len(creditor_name) > _CREDITOR_NAME_MAX_LEN:
+            raise SepaApplicationError(
+                f"Creditor name exceeds {_CREDITOR_NAME_MAX_LEN} chars",
+                code="creditor_name_too_long",
+            )
+
+        if not intent.reference or not intent.reference.strip():
+            raise SepaApplicationError("Reference must not be empty", code="invalid_reference")
         if len(intent.reference) > _SEPA_REFERENCE_MAX_LEN:
             raise SepaApplicationError(
                 f"Reference exceeds SEPA max {_SEPA_REFERENCE_MAX_LEN} chars",
                 code="reference_too_long",
+            )
+
+        tup = intent.amount.as_tuple()
+        if tup.exponent < -2:
+            raise SepaApplicationError(
+                f"Amount must have at most 2 decimal places, got {intent.amount}",
+                code="invalid_amount_precision",
             )
 
         scheme: Literal["SCT", "SCT_INST"]
@@ -188,40 +262,73 @@ class LegacySepaAdapter:
         else:
             scheme = "SCT"
 
-        customer_id = intent.metadata.get("customer_id", intent.debtor_account.account_holder_name)
         payment_id = f"sepa-{secrets.token_hex(8)}"
-        now = datetime.now(UTC)
-        payment = SepaPayment(
+        record = SepaPaymentRecord(
             payment_id=payment_id,
             idempotency_key=intent.idempotency_key,
-            customer_id=str(customer_id),
+            customer_id=customer_id,
             debtor_iban=debtor_iban,
             creditor_iban=creditor_iban,
             creditor_bic=creditor_bic,
+            creditor_name=creditor_name,
             amount=intent.amount,
             currency=intent.currency,
             reference=intent.reference,
             scheme=scheme,
             status=SepaPaymentStatus.PENDING,
-            created_at=now,
+            submitted_at=datetime.now(UTC),
         )
-        self._by_idempotency[intent.idempotency_key] = payment
-        self._by_payment_id[payment_id] = payment
-        return self._to_result(payment)
+        self._store(record)
+        self._emit_audit(record, event_type="CREATED", status_from=None)
+        return self._to_result(record)
 
     def get_payment_status(self, provider_payment_id: str) -> PaymentResult:
-        payment = self._by_payment_id.get(provider_payment_id)
-        if payment is None:
+        record = self._by_payment_id.get(provider_payment_id)
+        if record is None:
             raise SepaApplicationError(
                 f"Payment not found: {provider_payment_id!r}",
                 code="payment_not_found",
             )
-        return self._to_result(payment)
+        return self._to_result(record)
 
     def health_check(self) -> bool:
         return True
 
-    # ── Extra (beyond port) ────────────────────────────────────────────────────
+    # ── Extra (beyond port) ───────────────────────────────────────────────────
+
+    def advance_to(
+        self,
+        payment_id: str,
+        new_status: SepaPaymentStatus,
+        *,
+        settled_at: datetime | None = None,
+        error_code: str | None = None,
+        error_message: str | None = None,
+    ) -> SepaPaymentRecord:
+        """approveTransaction() semantic — drive state machine (SCA dropped)."""
+        existing = self._by_payment_id.get(payment_id)
+        if existing is None:
+            raise SepaApplicationError(
+                f"Payment not found: {payment_id!r}", code="payment_not_found"
+            )
+        if new_status not in _VALID_TRANSITIONS[existing.status]:
+            raise SepaApplicationError(
+                f"Illegal transition: {existing.status} → {new_status}",
+                code="invalid_state_transition",
+            )
+        updated = existing.model_copy(
+            update={
+                "status": new_status,
+                "settled_at": settled_at,
+                "error_code": error_code,
+                "error_message": error_message,
+            }
+        )
+        self._store(updated)
+        self._emit_audit(
+            updated, event_type=_sepa_event_for(new_status), status_from=existing.status
+        )
+        return updated
 
     def list_payments(
         self,
@@ -229,7 +336,8 @@ class LegacySepaAdapter:
         customer_id: str | None = None,
         status: SepaPaymentStatus | None = None,
         scheme: Literal["SCT", "SCT_INST"] | None = None,
-    ) -> list[SepaPayment]:
+    ) -> list[SepaPaymentRecord]:
+        """List payments with optional filters (multi-tenant isolation by customer_id)."""
         results = list(self._by_payment_id.values())
         if customer_id is not None:
             results = [p for p in results if p.customer_id == customer_id]
@@ -239,33 +347,47 @@ class LegacySepaAdapter:
             results = [p for p in results if p.scheme == scheme]
         return results
 
-    def advance_to(self, payment_id: str, new_status: SepaPaymentStatus) -> SepaPayment:
-        """Drive state machine — used to simulate bank confirmations in tests."""
-        payment = self._by_payment_id.get(payment_id)
-        if payment is None:
-            raise SepaApplicationError(
-                f"Payment not found: {payment_id!r}", code="payment_not_found"
-            )
-        if new_status not in _VALID_TRANSITIONS[payment.status]:
-            raise SepaApplicationError(
-                f"Illegal transition: {payment.status} → {new_status}",
-                code="invalid_state_transition",
-            )
-        updated = payment.model_copy(update={"status": new_status})
-        self._by_payment_id[payment_id] = updated
-        self._by_idempotency[payment.idempotency_key] = updated
-        return updated
+    def collect_audit_records(self) -> list[SepaAuditRecord]:
+        """Return accumulated audit trail — I-24 append-only."""
+        return list(self._audit_log)
 
-    # ── Internal ───────────────────────────────────────────────────────────────
+    # ── Internal ──────────────────────────────────────────────────────────────
 
-    def _to_result(self, payment: SepaPayment) -> PaymentResult:
-        rail = PaymentRail.SEPA_INSTANT if payment.scheme == "SCT_INST" else PaymentRail.SEPA_CT
+    def _store(self, record: SepaPaymentRecord) -> None:
+        self._by_payment_id[record.payment_id] = record
+        composite = f"{record.customer_id}::{record.reference}"
+        self._by_composite_key[composite] = record
+
+    def _emit_audit(
+        self,
+        record: SepaPaymentRecord,
+        *,
+        event_type: _SepaEventType,
+        status_from: SepaPaymentStatus | None,
+    ) -> None:
+        self._audit_log.append(
+            SepaAuditRecord(
+                payment_id=record.payment_id,
+                event_type=event_type,
+                amount=record.amount,
+                currency=record.currency,
+                status_from=status_from,
+                status_to=record.status,
+                occurred_at=datetime.now(UTC),
+            )
+        )
+
+    def _to_result(self, record: SepaPaymentRecord) -> PaymentResult:
+        rail = PaymentRail.SEPA_INSTANT if record.scheme == "SCT_INST" else PaymentRail.SEPA_CT
         return PaymentResult(
-            idempotency_key=payment.idempotency_key,
-            provider_payment_id=payment.payment_id,
-            status=_TO_PAYMENT_STATUS[payment.status],
+            idempotency_key=record.idempotency_key,
+            provider_payment_id=record.payment_id,
+            status=_TO_PAYMENT_STATUS[record.status],
             rail=rail,
-            amount=payment.amount,
-            currency=payment.currency,
-            submitted_at=payment.created_at,
+            amount=record.amount,
+            currency=record.currency,
+            submitted_at=record.submitted_at,
+            error_code=record.error_code,
+            error_message=record.error_message,
+            estimated_settlement=record.settled_at,
         )
