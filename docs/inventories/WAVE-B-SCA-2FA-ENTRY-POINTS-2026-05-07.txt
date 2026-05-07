@@ -1,0 +1,15 @@
+18 banxe/banxe-dashboard/src/entities/TwoFA/model/confirmNewIdentity.ts
+15 banxe/banxe-dashboard/src/entities/TwoFA/model/confirmTwoFAModal.ts
+15 banxe/banxe-common/lib/graphql-through-grpc-connectors/2fa-connector/queries/index.ts
+14 banxe/banxe-dashboard/src/entities/TwoFA/ui/ConfirmTwoFAModal/index.tsx
+11 banxe/banxe-dashboard/src/entities/TwoFA/ui/TwoFAInput/index.tsx
+9 banxe/banxe-common/lib/graphql-through-grpc-connectors/2fa-connector/2fa-connector.service.ts
+8 banxe/banxe-auth/src/auth/auth.service.ts
+7 banxe/banxe-common/lib/graphql/scalars/index.ts
+6 banxe/banxe-dashboard/src/entities/TwoFA/types.ts
+6 banxe/banxe-auth/src/code/code.service.ts
+6 banxe/banxe-auth/src/code/code.resolver.ts
+5 banxe/banxe-dashboard/src/entities/TwoFA/ui/ConfirmNewIdentityModal/index.tsx
+5 banxe/banxe-common/lib/graphql-through-grpc-connectors/identity-connector/identity-connector.service.ts
+5 banxe/banxe-auth/src/auth/auth.resolver.ts
+4 banxe/banxe-common/lib/graphql-through-grpc-connectors/2fa-connector/queries/verify-2fa-token.query.ts

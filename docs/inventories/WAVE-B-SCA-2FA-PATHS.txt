@@ -1,0 +1,116 @@
+# Wave B SCA/2FA Source Paths — Verified
+# Source: BANXE-RAR-LISTING-2026-05-06.txt
+# Verified: 2026-05-07
+# Canon: ADR-015 + ADR-025 §15-16 + AUTH_MATRIX + AUTH_IMPORT_ORDER
+# Staging: evo1:/tmp/banxe-rar-stage/wave-b (read-only, NOT in repo)
+# Total staged: 984 files, 5.1 MB
+
+## Section 1: banxe/sumsub-test — KYC SCA identity verification (Node.js)
+banxe/sumsub-test/.gitignore
+banxe/sumsub-test/index.js
+banxe/sumsub-test/package.json
+banxe/sumsub-test/package-lock.json
+banxe/sumsub-test/sumsub.js
+
+## Section 2: banxe/banxe-auth/src — NestJS OTP/Challenge service (TypeScript)
+banxe/banxe-auth/src/app.module.ts
+banxe/banxe-auth/src/main.ts
+banxe/banxe-auth/src/auth/auth.module.ts
+banxe/banxe-auth/src/auth/auth.resolver.ts
+banxe/banxe-auth/src/auth/auth.service.ts
+banxe/banxe-auth/src/auth/jwt.strategy.ts
+banxe/banxe-auth/src/auth/graphql/inputs/add-device.input.ts
+banxe/banxe-auth/src/auth/graphql/inputs/add-my-device.input.ts
+banxe/banxe-auth/src/auth/graphql/inputs/authorization.input.ts
+banxe/banxe-auth/src/auth/graphql/inputs/challenge.input.ts
+banxe/banxe-auth/src/auth/graphql/inputs/check-email.input.ts
+banxe/banxe-auth/src/auth/graphql/inputs/check-phone.input.ts
+banxe/banxe-auth/src/auth/graphql/inputs/init.input.ts
+banxe/banxe-auth/src/auth/graphql/inputs/phone-or-email.input.ts
+banxe/banxe-auth/src/auth/graphql/inputs/refresh-token.input.ts
+banxe/banxe-auth/src/auth/graphql/inputs/set-password-hash.input.ts
+banxe/banxe-auth/src/auth/graphql/inputs/tmp-authorization.input.ts
+banxe/banxe-auth/src/auth/graphql/types/challenge.type.ts
+banxe/banxe-auth/src/auth/graphql/types/jwtoken.type.ts
+banxe/banxe-auth/src/auth/graphql/types/user-device.type.ts
+banxe/banxe-auth/src/auth/guards/gql-auth.guard.ts
+banxe/banxe-auth/src/auth/guards/role.guard.ts
+banxe/banxe-auth/src/code/code.entity.ts
+banxe/banxe-auth/src/code/code.module.ts
+banxe/banxe-auth/src/code/code.resolver.ts
+banxe/banxe-auth/src/code/code.service.ts
+banxe/banxe-auth/src/code/graphql/enums/type.enum.ts
+banxe/banxe-auth/src/code/graphql/inputs/check-code.input.ts
+banxe/banxe-auth/src/code/graphql/inputs/send-code.input.ts
+banxe/banxe-auth/src/code/graphql/types/code-status.type.ts
+banxe/banxe-auth/src/config/config.ts
+banxe/banxe-auth/src/config/local.ts
+banxe/banxe-auth/src/config/typeorm.ts
+banxe/banxe-auth/src/config/validation.config.ts
+banxe/banxe-auth/src/helpers/random-string.ts
+banxe/banxe-auth/src/user/graphql/enums/credential-state.enum.ts
+banxe/banxe-auth/src/user/graphql/enums/user-state.enum.ts
+banxe/banxe-auth/src/user/graphql/inputs/add-credentials.input.ts
+banxe/banxe-auth/src/user/graphql/inputs/email.input.ts
+banxe/banxe-auth/src/user/graphql/inputs/phone.input.ts
+banxe/banxe-auth/src/user/graphql/types/email.type.ts
+banxe/banxe-auth/src/user/graphql/types/phone.type.ts
+banxe/banxe-auth/src/user/graphql/types/user-credential.type.ts
+banxe/banxe-auth/src/user/graphql/types/user.type.ts
+banxe/banxe-auth/src/user/user.entity.ts
+banxe/banxe-auth/src/user/user.module.ts
+banxe/banxe-auth/src/user/user.repository.ts
+banxe/banxe-auth/src/user/user.resolver.ts
+banxe/banxe-auth/src/user/user.service.ts
+banxe/banxe-auth/src/_shared/decorators/decorators.ts
+banxe/banxe-auth/test/app.e2e-spec.ts
+
+## Section 3: banxe/banxe-common/lib — 2FA DTOs + gRPC connector (TypeScript/NestJS)
+banxe/banxe-common/lib/dtos/check-2fa-operation.dto.ts
+banxe/banxe-common/lib/graphql/enums/2fa-type.enum.ts
+banxe/banxe-common/lib/graphql/inputs/captcha.input.ts
+banxe/banxe-common/lib/graphql/inputs/recaptcha.input.ts
+banxe/banxe-common/lib/graphql/inputs/verify-2fa.input.ts
+banxe/banxe-common/lib/graphql/types/2fa-response.type.ts
+banxe/banxe-common/lib/graphql/types/send-2fa-token-response.type.ts
+banxe/banxe-common/lib/graphql-through-grpc-connectors/2fa-connector/2fa-connector.module.ts
+banxe/banxe-common/lib/graphql-through-grpc-connectors/2fa-connector/2fa-connector.service.ts
+banxe/banxe-common/lib/graphql-through-grpc-connectors/2fa-connector/index.ts
+banxe/banxe-common/lib/graphql-through-grpc-connectors/2fa-connector/interfaces/captcha.interface.ts
+banxe/banxe-common/lib/graphql-through-grpc-connectors/2fa-connector/queries/check-resend-one-time-code.query.ts
+banxe/banxe-common/lib/graphql-through-grpc-connectors/2fa-connector/queries/confirm-disabling-2fa.query.ts
+banxe/banxe-common/lib/graphql-through-grpc-connectors/2fa-connector/queries/confirm-enabling-2fa.query.ts
+banxe/banxe-common/lib/graphql-through-grpc-connectors/2fa-connector/queries/confirm-one-time-code.query.ts
+banxe/banxe-common/lib/graphql-through-grpc-connectors/2fa-connector/queries/create-2fa-operation-id.query.ts
+banxe/banxe-common/lib/graphql-through-grpc-connectors/2fa-connector/queries/disable-2fa.query.ts
+banxe/banxe-common/lib/graphql-through-grpc-connectors/2fa-connector/queries/disable-all-2fa.query.ts
+banxe/banxe-common/lib/graphql-through-grpc-connectors/2fa-connector/queries/enable-2fa.query.ts
+banxe/banxe-common/lib/graphql-through-grpc-connectors/2fa-connector/queries/generate-one-time-code.query.ts
+banxe/banxe-common/lib/graphql-through-grpc-connectors/2fa-connector/queries/generate-totp.query.ts
+banxe/banxe-common/lib/graphql-through-grpc-connectors/2fa-connector/queries/get-2fa-operation-id.query.ts
+banxe/banxe-common/lib/graphql-through-grpc-connectors/2fa-connector/queries/get-enabled-2fa.query.ts
+banxe/banxe-common/lib/graphql-through-grpc-connectors/2fa-connector/queries/get-recovery-code.query.ts
+banxe/banxe-common/lib/graphql-through-grpc-connectors/2fa-connector/queries/send-2fa-token.query.ts
+banxe/banxe-common/lib/graphql-through-grpc-connectors/2fa-connector/queries/verify-2fa-token.query.ts
+banxe/banxe-common/lib/graphql-through-grpc-connectors/2fa-connector/queries/verify-captcha-token.query.ts
+banxe/banxe-common/lib/helpers/check-2fa-operation.hepler.ts
+banxe/banxe-common/lib/interfaces/check-2fa-operation-errors.interface.ts
+banxe/banxe-common/lib/errors/enums/codes/tfa-api-error-code.enum.ts
+banxe/banxe-common/lib/errors/maps/statuses/tfa-api-error-status.map.ts
+banxe/banxe-common/lib/errors/maps/titles/tfa-api-error-code-title.map.ts
+
+## Section 4: banxe/banxe-dashboard/src/entities/TwoFA — React/TS UI (reference only)
+banxe/banxe-dashboard/src/entities/TwoFA/api/get2FAOperation.gateway.graphql
+banxe/banxe-dashboard/src/entities/TwoFA/api/getDefaultTimeout.gateway.graphql
+banxe/banxe-dashboard/src/entities/TwoFA/api/sendToken.gateway.graphql
+banxe/banxe-dashboard/src/entities/TwoFA/types.ts
+banxe/banxe-dashboard/src/entities/TwoFA/lib/approveTokens/index.ts
+banxe/banxe-dashboard/src/entities/TwoFA/lib/parseTwoFAErrors/index.ts
+banxe/banxe-dashboard/src/entities/TwoFA/lib/tfaFormFactory/index.ts
+banxe/banxe-dashboard/src/entities/TwoFA/model/confirmTwoFAForm.ts
+banxe/banxe-dashboard/src/entities/TwoFA/model/confirmTwoFAModal.ts
+banxe/banxe-dashboard/src/entities/TwoFA/model/confirmNewIdentity.ts
+banxe/banxe-dashboard/src/entities/TwoFA/model/currentTwoFAOperations.ts
+
+## Section 5: Additional — banxe-crypto-earn send-2fa DTO
+banxe/banxe-crypto-earn/src/earn/dtos/send-2fa.dto.ts
