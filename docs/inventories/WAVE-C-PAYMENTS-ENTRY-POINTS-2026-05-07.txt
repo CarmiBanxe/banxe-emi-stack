@@ -1,0 +1,33 @@
+WAVE-C PAYMENTS — TOP-20 ENTRY POINTS BY KEYWORD DENSITY
+Generated: 2026-05-07
+Branch: sprint5/wave-c-payments-import-2026-05-07
+Stage: /tmp/banxe-rar-stage/wave-c/ on evo1 (515 files, 3.0M)
+Keywords: submit|payment|transfer|sepa|fps|chaps|bacs|initiat|execute|process|dispatch
+
+RANK | SCORE | PATH                                                                                              | VERDICT        | PORT TARGET
+-----|-------|---------------------------------------------------------------------------------------------------|----------------|------------------------------------------
+   1 |   159 | banxe-fiat-backend/abs-api/src/abs/services/abs-customer.service.ts                              | EXCLUDE        | customer onboarding — not payment rail
+   2 |   104 | banxe-fiat-backend/abs-api/src/abs/services/abs-user.service.ts                                  | EXCLUDE        | user management — not payment rail
+   3 |    74 | banxe-fiat-backend/abs-api/src/abs/services/abs-customer-contract.service.ts                     | EXCLUDE        | contract/agreement — not payment rail
+   4 |    62 | banxe-fiat-backend/abs-api/src/abs/services/abs-legal-entity.service.ts                          | EXCLUDE        | KYC/entity — not payment rail
+   5 |    48 | banxe-transactions/src/transactions/services/cash/payment-transaction.service.ts                 | REWRITE-1      | get_payment_status() + audit mapping
+   6 |    42 | banxe-transactions/src/transactions/services/crypto/crypto-processing-transaction.service.ts     | SKIP-wave-c    | crypto — out of SEPA/FPS scope
+   7 |    37 | banxe-fiat-backend/abs-api/src/abs/services/abs-customer-payment.service.ts                     | REWRITE-2      | submit_payment() via ABS domain model
+   8 |    32 | sepa-service/src/transactions/create-outgoing-transactions.service.ts                            | REWRITE-3      | submit_payment() SEPA outbound
+   9 |    31 | banxe-fiat-backend/abs-api/src/abs/services/abs-agreement.service.ts                            | EXCLUDE        | agreement lifecycle — not payment rail
+  10 |    26 | banxe-fiat-backend/abs-api/src/abs-api/services/abs-api-customer-payment.service.ts              | REWRITE-4      | submit_payment() GCP Bifrost XML (DROP transport)
+  11 |    22 | banxe-fiat-backend/abs-api/src/abs/services/abs-cron-process.service.ts                         | SKIP-wave-c    | cron orchestration — infrastructure
+  12 |    19 | sepa-service/src/sepa-accounts/listeners/sync-account-status.listener.service.ts                 | SKIP-wave-c    | account status sync — not submit/verify
+  13 |    18 | banxe-transactions/src/transactions/services/cash-transaction.service.ts                         | REWRITE-5      | get_payment_status() enrichment
+  14 |    16 | sepa-service/src/sepa-accounts/listeners/sepa-account-confirm.listener.service.ts               | SKIP-wave-c    | account confirm listener — infrastructure
+  15 |    16 | sepa-service/src/sepa-accounts/get-sepa-accounts.service.ts                                     | SKIP-wave-c    | account query — not payment rail
+  16 |    15 | banxe-fiat-backend/abs-api/src/abs/services/abs-info-field.service.ts                           | EXCLUDE        | form field metadata — not payment
+  17 |    15 | banxe-fiat-backend/abs-api/src/abs/services/abs-credential.service.ts                           | EXCLUDE        | credential mgmt — not payment rail
+  18 |    12 | sepa-service/src/transactions/create-incoming-transactions.service.ts                            | REWRITE-6      | inbound SEPA — get_payment_status() receive side
+  19 |    12 | banxe-fiat-backend/abs-api/src/abs/entities/abs-process.entity.ts                               | EXCLUDE        | ORM entity — not a service
+  20 |    12 | banxe-fiat-backend/abs-api/src/abs-api/xml-map/get-customer-scoring-before-reg.xml-map.ts       | EXCLUDE        | XML scoring map — not payment rail
+
+TOP-3 REWRITE CANDIDATES (Wave C Step 1):
+  REWRITE-1: payment-transaction.service.ts  → LegacyTransactionsAdapter  → get_payment_status()
+  REWRITE-2: abs-customer-payment.service.ts → LegacyAbsPaymentAdapter    → submit_payment() (ABS domain)
+  REWRITE-3: create-outgoing-transactions.service.ts → LegacySepaAdapter  → submit_payment() (SEPA CT/INSTANT)
