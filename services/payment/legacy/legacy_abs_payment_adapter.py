@@ -32,6 +32,7 @@ from services.payment.payment_port import (
     PaymentResult,
     PaymentStatus,
 )
+from services.shared.errors import BanxeLegacyAdapterError
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -117,10 +118,9 @@ class AbsAuditRecord(BaseModel, frozen=True):
 # ── Error ─────────────────────────────────────────────────────────────────────
 
 
-class AbsApplicationError(Exception):
+class AbsApplicationError(BanxeLegacyAdapterError):
     def __init__(self, message: str, *, code: str) -> None:
-        super().__init__(message)
-        self.code = code
+        super().__init__(message, code=code)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

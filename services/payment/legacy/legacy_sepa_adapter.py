@@ -42,6 +42,7 @@ from services.payment.payment_port import (
     PaymentResult,
     PaymentStatus,
 )
+from services.shared.errors import BanxeLegacyAdapterError
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -155,10 +156,9 @@ class SepaAuditRecord(BaseModel, frozen=True):
 # ── Error ─────────────────────────────────────────────────────────────────────
 
 
-class SepaApplicationError(Exception):
+class SepaApplicationError(BanxeLegacyAdapterError):
     def __init__(self, message: str, *, code: str) -> None:
-        super().__init__(message)
-        self.code = code
+        super().__init__(message, code=code)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
