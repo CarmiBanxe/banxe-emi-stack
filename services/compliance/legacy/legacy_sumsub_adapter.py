@@ -30,7 +30,7 @@ State machine:
   APPROVED / REJECTED / EXPIRED → (terminal)
 
 I-02: RU/BY/IR/KP/CU/MM/AF/VE/SY blocked at create_workflow → HIGH_RISK_JURISDICTION.
-I-04: EDD if expected_transaction_volume ≥ £10k (INDIVIDUAL) / £50k (BUSINESS/SOLE_TRADER).
+I-04: EDD if expected_transaction_volume ≥ £10k (INDIVIDUAL/SOLE_TRADER) / £50k (BUSINESS).
 I-24: SumSubAuditRecord append-only — never folded into KYCWorkflowResult.
 
 Idempotency: keyed by customer_id — one active workflow per customer.
@@ -46,6 +46,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from services.compliance.legacy._edd import is_edd_required
+from services.compliance.legacy._jurisdictions import is_blocked
 from services.kyc.kyc_port import (
     KYCStatus,
     KYCType,
@@ -57,11 +59,6 @@ from services.shared.errors import BanxeLegacyAdapterError
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
-_BLOCKED_COUNTRIES: frozenset[str] = frozenset(
-    {"RU", "BY", "IR", "KP", "CU", "MM", "AF", "VE", "SY"}
-)
-_EDD_INDIVIDUAL_THRESHOLD: Decimal = Decimal("10000.00")  # I-04
-_EDD_CORPORATE_THRESHOLD: Decimal = Decimal("50000.00")  # I-04
 _WORKFLOW_TTL_DAYS: int = 30  # FCA MLR 2017
 
 _SumSubEventType = Literal[
@@ -161,17 +158,6 @@ class SumSubApplicationError(BanxeLegacyAdapterError):
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
-def _edd_required(request: KYCWorkflowRequest) -> bool:
-    if request.is_pep:
-        return True
-    threshold = (
-        _EDD_INDIVIDUAL_THRESHOLD
-        if request.kyc_type == KYCType.INDIVIDUAL
-        else _EDD_CORPORATE_THRESHOLD
-    )
-    return request.expected_transaction_volume >= threshold
-
-
 # ── Adapter ───────────────────────────────────────────────────────────────────
 
 
@@ -193,7 +179,7 @@ class LegacySumSubAdapter:
     def create_workflow(self, request: KYCWorkflowRequest) -> KYCWorkflowResult:
         """createApplicant() semantic — I-02/I-04 checks, store PENDING, idempotent."""
         for country_field in (request.nationality, request.country_of_residence):
-            if country_field.upper() in _BLOCKED_COUNTRIES:
+            if is_blocked(country_field):
                 raise SumSubApplicationError(
                     f"Blocked jurisdiction: {country_field!r} (I-02)",
                     code="blocked_jurisdiction",
@@ -219,7 +205,11 @@ class LegacySumSubAdapter:
             registration_number=request.registration_number,
             status=KYCStatus.PENDING,
             document_ids=(),
-            edd_required=_edd_required(request),
+            edd_required=is_edd_required(
+                income_gbp=request.expected_transaction_volume,
+                kyc_type=request.kyc_type.value,
+                is_pep=request.is_pep,
+            ),
             rejection_reason=None,
             risk_score=None,
             notes=(),

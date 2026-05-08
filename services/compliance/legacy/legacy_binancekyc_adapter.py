@@ -53,6 +53,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from services.compliance.legacy._edd import is_edd_required
+from services.compliance.legacy._jurisdictions import is_blocked
 from services.kyc.kyc_port import (
     KYCStatus,
     KYCType,
@@ -64,11 +66,6 @@ from services.shared.errors import BanxeLegacyAdapterError
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
-_BLOCKED_COUNTRIES: frozenset[str] = frozenset(
-    {"RU", "BY", "IR", "KP", "CU", "MM", "AF", "VE", "SY"}
-)
-_EDD_INDIVIDUAL_THRESHOLD: Decimal = Decimal("10000.00")  # I-04 individual / sole-trader
-_EDD_CORPORATE_THRESHOLD: Decimal = Decimal("50000.00")  # I-04 business
 _WORKFLOW_TTL_DAYS: int = 30  # FCA MLR 2017
 
 _BinanceEventType = Literal[
@@ -188,20 +185,6 @@ class BinanceKYCError(BanxeLegacyAdapterError):
         super().__init__(message, code=code)
 
 
-# ── EDD helper ────────────────────────────────────────────────────────────────
-
-
-def _compute_edd(request: KYCWorkflowRequest) -> bool:
-    if request.is_pep:
-        return True
-    threshold = (
-        _EDD_INDIVIDUAL_THRESHOLD
-        if request.kyc_type != KYCType.BUSINESS
-        else _EDD_CORPORATE_THRESHOLD
-    )
-    return request.expected_transaction_volume >= threshold
-
-
 # ── Adapter ───────────────────────────────────────────────────────────────────
 
 
@@ -225,7 +208,7 @@ class LegacyBinanceKYCAdapter:
     def create_workflow(self, request: KYCWorkflowRequest) -> KYCWorkflowResult:
         """initiateTier1() semantic — I-02/I-04 checks, store PENDING, idempotent."""
         for field_val in (request.nationality, request.country_of_residence):
-            if field_val.upper() in _BLOCKED_COUNTRIES:
+            if is_blocked(field_val):
                 raise BinanceKYCError(
                     f"Blocked jurisdiction: {field_val!r} (I-02)",
                     code="blocked_jurisdiction",
@@ -252,7 +235,11 @@ class LegacyBinanceKYCAdapter:
             current_tier=BinanceKYCTier.TIER_1_BASIC,
             status=KYCStatus.PENDING,
             document_ids=(),
-            edd_required=_compute_edd(request),
+            edd_required=is_edd_required(
+                income_gbp=request.expected_transaction_volume,
+                kyc_type=request.kyc_type.value,
+                is_pep=request.is_pep,
+            ),
             rejection_reason=None,
             risk_score=None,
             notes=(),
