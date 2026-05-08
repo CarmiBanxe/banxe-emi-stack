@@ -1,0 +1,15 @@
+297  /tmp/banxe-rar-stage/wave-e/crypto-api/crypto-api-wallet/src/wallet/btc.service.ts
+195  /tmp/banxe-rar-stage/wave-e/crypto-api/crypto-api-wallet/src/wallet/eth.service.ts
+176  /tmp/banxe-rar-stage/wave-e/crypto-api/crypto-api-wallet/src/wallet/db/address.service.ts
+144  /tmp/banxe-rar-stage/wave-e/crypto-api/crypto-api-wallet/src/wallet/xrp.service.ts
+125  /tmp/banxe-rar-stage/wave-e/crypto-api/crypto-api-wallet/src/api/controllers/controller-btc.service.ts
+122  /tmp/banxe-rar-stage/wave-e/crypto-api/crypto-api-wallet/src/wallet/dot.service.ts
+104  /tmp/banxe-rar-stage/wave-e/crypto-api/crypto-api-wallet/src/wallet/db/transaction.service.ts
+96  /tmp/banxe-rar-stage/wave-e/crypto-api/crypto-api-wallet/src/wallet/eos.service.ts
+96  /tmp/banxe-rar-stage/wave-e/crypto-api/crypto-api-rpc/src/blockchains/trx.service.ts
+94  /tmp/banxe-rar-stage/wave-e/crypto-api/crypto-api-wallet/src/api/controllers/controller-eth.service.ts
+85  /tmp/banxe-rar-stage/wave-e/crypto-api/crypto-api-wallet/src/api/api.service.ts
+84  /tmp/banxe-rar-stage/wave-e/crypto-api/crypto-api-rpc/src/blockchains/xrp.service.ts
+78  /tmp/banxe-rar-stage/wave-e/crypto-api/crypto-api-wallet/src/rpc/rpc.service.ts
+73  /tmp/banxe-rar-stage/wave-e/crypto-api/crypto-api-wallet/src/wallet/db/account.service.ts
+71  /tmp/banxe-rar-stage/wave-e/crypto-processing/crypto-processing-backend/src/queues-consumers/services/transactions/transaction-queues-fee-consumer.service.ts
