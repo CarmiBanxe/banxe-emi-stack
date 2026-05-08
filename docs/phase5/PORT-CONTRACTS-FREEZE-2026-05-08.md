@@ -107,16 +107,16 @@ Implementing adapters: `LegacyTotpAdapter` (`services/auth/legacy/legacy_totp_ad
 
 Implementing adapters: `LegacyScaAdapter` (`services/auth/legacy/legacy_sca_adapter.py`, Wave B)
 
-### OTPDeliveryPort (`services/auth/otp_delivery_port.py`) — **ACTIVE**
+### OTPDeliveryPort (`services/auth/otp_delivery_port.py`) — **FROZEN**
 
 | Method | Signature |
 |--------|-----------|
 | `generate_otp` | `(self, *, length: int = 6, alphabet: str = "digits") -> str` |
-| `send_otp` | `(self, ...) -> ...` |
-| `verify_otp` | `(self, ...) -> ...` |
-| `can_resend` | `(self, ...) -> ...` |
+| `send_otp` | `(self, *, channel: Literal["sms","email"], target: str, code: str, ttl_seconds: int) -> OtpDeliveryReceipt` |
+| `verify_otp` | `(self, *, channel: str, target: str, code: str) -> OtpVerifyResult` |
+| `can_resend` | `(self, *, channel: str, target: str, min_interval_seconds: int) -> ResendCheck` |
 
-Implementing adapters: `LegacyOTPAdapter` (`services/auth/legacy/legacy_otp_adapter.py`, Wave B — in progress)
+Implementing adapters: `LegacyOtpAdapter` (`services/auth/legacy/legacy_otp_adapter.py`, Wave B — REWRITE-1, 36 tests green)
 
 ### SCATokenIssuerPort (`services/auth/sca_token_issuer_port.py`) — **FROZEN**
 
