@@ -25,6 +25,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from services._legacy_common.audit import BaseAuditRecord
+from services._legacy_common.state_machine import assert_valid_transition
 from services.payment.payment_port import (
     PaymentDirection,
     PaymentIntent,
@@ -96,7 +98,7 @@ class AbsPaymentRecord(BaseModel, frozen=True):
     model_config = {"arbitrary_types_allowed": True}
 
 
-class AbsAuditRecord(BaseModel, frozen=True):
+class AbsAuditRecord(BaseAuditRecord, frozen=True):
     """
     Append-only audit event — I-24 compliance.
 
@@ -105,14 +107,11 @@ class AbsAuditRecord(BaseModel, frozen=True):
     """
 
     payment_id: str
-    event_type: _AbsEventType
+    event_type: _AbsEventType  # type: ignore[assignment]
     amount: Decimal
     currency: str
-    status_from: AbsPaymentStatus | None
-    status_to: AbsPaymentStatus
-    occurred_at: datetime
-
-    model_config = {"arbitrary_types_allowed": True}
+    status_from: AbsPaymentStatus | None  # type: ignore[assignment]
+    status_to: AbsPaymentStatus  # type: ignore[assignment]
 
 
 # ── Error ─────────────────────────────────────────────────────────────────────
@@ -240,11 +239,12 @@ class LegacyAbsPaymentAdapter:
                 f"ABS payment not found: {payment_id!r}",
                 code="payment_not_found",
             )
-        if new_status not in _VALID_TRANSITIONS[existing.status]:
-            raise AbsApplicationError(
-                f"Invalid state transition: {existing.status} → {new_status}",
-                code="invalid_state_transition",
-            )
+        assert_valid_transition(
+            current=existing.status,
+            target=new_status,
+            transitions=_VALID_TRANSITIONS,
+            adapter_error_cls=AbsApplicationError,
+        )
         updated = existing.model_copy(
             update={
                 "status": new_status,
@@ -292,6 +292,8 @@ class LegacyAbsPaymentAdapter:
     ) -> None:
         self._audit_log.append(
             AbsAuditRecord(
+                record_id=record.payment_id,
+                customer_id=record.customer_id,
                 payment_id=record.payment_id,
                 event_type=event_type,
                 amount=record.amount,

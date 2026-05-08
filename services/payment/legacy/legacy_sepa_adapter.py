@@ -36,6 +36,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from services._legacy_common.audit import BaseAuditRecord
+from services._legacy_common.state_machine import assert_valid_transition
 from services.payment.payment_port import (
     PaymentIntent,
     PaymentRail,
@@ -135,22 +137,21 @@ class SepaPaymentRecord(BaseModel, frozen=True):
     model_config = {"arbitrary_types_allowed": True}
 
 
-class SepaAuditRecord(BaseModel, frozen=True):
+class SepaAuditRecord(BaseAuditRecord, frozen=True):
     """
     Append-only audit event — I-24 compliance.
 
     Separate from PaymentResult; persisted to ClickHouse in Wave D.
+    scheme added in Phase 5 tranche 3 for ClickHouse partitioning (SCT vs SCT_INST).
     """
 
     payment_id: str
-    event_type: _SepaEventType
+    event_type: _SepaEventType  # type: ignore[assignment]
     amount: Decimal
     currency: str
-    status_from: SepaPaymentStatus | None
-    status_to: SepaPaymentStatus
-    occurred_at: datetime
-
-    model_config = {"arbitrary_types_allowed": True}
+    scheme: Literal["SCT", "SCT_INST"]
+    status_from: SepaPaymentStatus | None  # type: ignore[assignment]
+    status_to: SepaPaymentStatus  # type: ignore[assignment]
 
 
 # ── Error ─────────────────────────────────────────────────────────────────────
@@ -311,11 +312,12 @@ class LegacySepaAdapter:
             raise SepaApplicationError(
                 f"Payment not found: {payment_id!r}", code="payment_not_found"
             )
-        if new_status not in _VALID_TRANSITIONS[existing.status]:
-            raise SepaApplicationError(
-                f"Illegal transition: {existing.status} → {new_status}",
-                code="invalid_state_transition",
-            )
+        assert_valid_transition(
+            current=existing.status,
+            target=new_status,
+            transitions=_VALID_TRANSITIONS,
+            adapter_error_cls=SepaApplicationError,
+        )
         updated = existing.model_copy(
             update={
                 "status": new_status,
@@ -367,10 +369,13 @@ class LegacySepaAdapter:
     ) -> None:
         self._audit_log.append(
             SepaAuditRecord(
+                record_id=record.payment_id,
+                customer_id=record.customer_id,
                 payment_id=record.payment_id,
                 event_type=event_type,
                 amount=record.amount,
                 currency=record.currency,
+                scheme=record.scheme,
                 status_from=status_from,
                 status_to=record.status,
                 occurred_at=datetime.now(UTC),

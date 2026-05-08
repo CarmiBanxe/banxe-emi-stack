@@ -53,6 +53,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from services._legacy_common.audit import BaseAuditRecord
+from services._legacy_common.state_machine import assert_valid_transition
 from services.compliance.legacy._edd import is_edd_required
 from services.compliance.legacy._jurisdictions import is_blocked
 from services.kyc.kyc_port import (
@@ -164,17 +166,17 @@ class BinanceVerificationRecord(BaseModel, frozen=True):
     model_config = {"arbitrary_types_allowed": True}
 
 
-class BinanceKYCAuditRecord(BaseModel, frozen=True):
-    """Append-only audit event — I-24 compliance. Never folded into KYCWorkflowResult."""
+class BinanceKYCAuditRecord(BaseAuditRecord, frozen=True):
+    """Append-only audit event — I-24 compliance. Never folded into KYCWorkflowResult.
+
+    step added in Phase 5 tranche 3: tracks Binance-specific tier advancement context.
+    """
 
     workflow_id: str
-    customer_id: str
-    event_type: _BinanceEventType
-    status_from: KYCStatus | None
-    status_to: KYCStatus
-    occurred_at: datetime
-
-    model_config = {"arbitrary_types_allowed": True}
+    event_type: _BinanceEventType  # type: ignore[assignment]
+    step: str | None = None
+    status_from: KYCStatus | None  # type: ignore[assignment]
+    status_to: KYCStatus  # type: ignore[assignment]
 
 
 # ── Error ─────────────────────────────────────────────────────────────────────
@@ -338,12 +340,13 @@ class LegacyBinanceKYCAdapter:
     ) -> KYCWorkflowResult:
         """Advance workflow through post-TIER_2 states (risk engine / MLRO callbacks)."""
         record = self._require(workflow_id)
-        allowed = _VALID_TRANSITIONS.get(record.status, frozenset())
-        if target_status not in allowed:
-            raise BinanceKYCError(
-                f"Invalid transition {record.status} → {target_status}",
-                code="invalid_transition",
-            )
+        assert_valid_transition(
+            current=record.status,
+            target=target_status,
+            transitions=_VALID_TRANSITIONS,
+            adapter_error_cls=BinanceKYCError,
+            error_code="invalid_transition",
+        )
         now = datetime.now(UTC)
         new_tier = record.current_tier
         if target_status == KYCStatus.RISK_ASSESSMENT:
@@ -390,8 +393,9 @@ class LegacyBinanceKYCAdapter:
     ) -> None:
         self._audit_log.append(
             BinanceKYCAuditRecord(
-                workflow_id=record.workflow_id,
+                record_id=record.workflow_id,
                 customer_id=record.customer_id,
+                workflow_id=record.workflow_id,
                 event_type=event_type,
                 status_from=status_from,
                 status_to=record.status,
