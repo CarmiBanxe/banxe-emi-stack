@@ -291,7 +291,7 @@ class LegacySepaAdapter:
             )
         return self._to_result(record)
 
-    def health_check(self) -> bool:
+    def health(self) -> bool:
         return True
 
     # ── Extra (beyond port) ───────────────────────────────────────────────────

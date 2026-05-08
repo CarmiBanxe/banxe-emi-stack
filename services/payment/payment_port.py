@@ -180,6 +180,6 @@ class PaymentRailPort(Protocol):
         """Fetch current status of a submitted payment."""
         ...
 
-    def health_check(self) -> bool:
+    def health(self) -> bool:
         """Return True if the provider API is reachable."""
         ...
