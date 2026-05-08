@@ -1,150 +1,160 @@
 # SESSION-2026-05-09 — Sprint 6 Start Canon
 
 **Date:** 2026-05-09  
-**Phase:** Sprint 6 — Production Wiring + Wave B OTP Delivery Port  
-**Branch:** `docs/sprint-6-start-canon-2026-05-09`  
-**Upstream PRs merged:** Phase 5 tranche 5 #92 — all closed; roadmap PR #60 100% complete
+**Phase:** Sprint 6 — Production AUTH integrations (OTP Delivery Port)  
+**Branch (source PR):** docs/sprint-6-start-canon-2026-05-09 (squashed manually via PR #93)
 
 ---
 
-## Roadmap Status (as of 2026-05-09)
+## Phase 5 Status
 
-| Phase | Waves | PRs | Tests | Status |
-|-------|-------|-----|-------|--------|
-| Phase 4 — Migration | Wave A–E | #74–#88 | ~554 | ✅ 100% closed |
-| Phase 5 — Consolidation | Tranches 1–5 | #89–#92 | +108 | ✅ 100% closed |
-| **Total green** | — | — | **9526 passed, 5 skipped** | ✅ |
-
-**Roadmap PR #60** (BANXE.RAR → EMI Smart Refactor) — **closed 100%**.  
-**FCA CASS 15 / PS25/12 deadline 7 May 2026** — delivered on time.
+- PR #92 merged: Phase 5 consolidation CLOSED (Tranche 5 — release notes + production wiring stubs).
+- 9 hexagonal ports FROZEN (see docs/phase5/PORT-CONTRACTS-FREEZE-2026-05-08.md).
+- api/routers/auth.py remains transport-only; no changes in Phase 5.
+- 5 production stubs created in /production/ subdirs (Twilio, SendGrid, Modulr, Midaz, SumSub).
 
 ---
 
-## Frozen Port Contracts (9 total — FROZEN as of 2026-05-08)
+## Sprint 6–12 Roadmap (Binding)
 
-Reference: `docs/phase5/PORT-CONTRACTS-FREEZE-2026-05-08.md`
+### Sprint 6 — Production AUTH integrations (ACTIVE)
 
-| Port | File | Wave |
-|------|------|------|
-| `TokenManagerPort` | `services/auth/token_manager_port.py` | A |
-| `IAMPort` | `services/auth/` | A |
-| `TwoFactorPort` | `services/auth/two_factor_port.py` | B |
-| `ScaServicePort` | `services/auth/sca_service_port.py` | B |
-| `OtpDeliveryPort` | `services/auth/otp_delivery_port.py` | B |
-| `PaymentRailPort` | `services/payment/payment_port.py` | C |
-| `KYCWorkflowPort` | `services/kyc/kyc_port.py` | D |
-| `CryptoLedgerPort` | `services/ledger/crypto_ledger_port.py` | E |
-| `CryptoRpcPort` | `services/ledger/crypto_ledger_port.py` | E |
+Goal:
+- Replace TwilioOtpStub and SendGridOtpStub with real adapters behind OtpDeliveryPort (FROZEN).
 
-**Invariant:** Frozen port signatures are read-only. Any signature change requires a new ADR + minor version bump. Breaking changes reviewed in a separate PR.
+Adapters:
+- services/auth/production/twilio_otp_adapter.py
+- services/auth/production/sendgrid_otp_adapter.py
 
----
+Environment:
+- TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER
+- SENDGRID_API_KEY, SENDGRID_FROM_EMAIL
 
-## Production Wiring Backlog (Sprint 6 scope)
+Acceptance criteria:
+- Twilio adapter calls Verify API (sandbox) with correct from/locale/rate-limit behaviour.
+- SendGrid adapter uses Mail Send API with sandbox mode enabled by default in tests.
+- No changes to OtpDeliveryPort interface or semantics.
+- Integration tests against Twilio/SendGrid sandboxes.
+- Coverage ≥ 80% on new production adapters.
 
-Reference: `docs/phase5/RELEASE-NOTES-PHASE-5-2026-05-08.md` §"What Is NOT Done"
+### Sprint 7 — Production COMPLIANCE (SumSub)
 
-| Ticket | Stub | File | Required env vars |
-|--------|------|------|-------------------|
-| IL-OTP-PROD-01 | `TwilioOtpStub` | `services/auth/production/twilio_otp_stub.py` | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` |
-| IL-OTP-PROD-02 | `SendGridOtpStub` | `services/auth/production/twilio_otp_stub.py` | `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, `SENDGRID_OTP_TEMPLATE_ID` |
-| IL-SEPA-PROD-01 | `ModulrSepaStub` | `services/payment/production/modulr_sepa_stub.py` | `MODULR_API_KEY`, `MODULR_BASE_URL` |
-| IL-CRYPTO-PROD-01 | `MidazCryptoStub` | `services/ledger/production/midaz_crypto_stub.py` | `MIDAZ_API_KEY`, `MIDAZ_LEDGER_URL` |
-| IL-KYC-PROD-01 | `SumsubHttpStub` | `services/compliance/production/sumsub_http_stub.py` | `SUMSUB_APP_TOKEN`, `SUMSUB_SECRET_KEY`, `SUMSUB_BASE_URL` |
+Goal:
+- Replace SumsubHttpStub with real SumSub REST adapter + webhook handler.
 
-All stubs raise `NotImplementedError` — no network I/O in dev/test. Protocol conformance tested in `tests/test_production_stubs.py` (11 tests).
+Acceptance criteria:
+- Applicant create/status endpoints wired via KYCWorkflowPort.
+- Webhook signature verification via HMAC-SHA256 and SUMSUB_WEBHOOK_SECRET.
+- I-02, I-04, I-24, I-27 enforced end-to-end.
+- Integration tests vs SumSub sandbox.
+- Coverage ≥ 80%.
 
----
+### Sprint 8 — Production PAYMENTS (Modulr SEPA)
 
-## Sprint 6 Open Items
+Goal:
+- Replace ModulrSepaStub with real Modulr Payment Initiation adapter.
 
-### Wave B — OTP Delivery Port (active branch)
+Acceptance criteria:
+- SEPA CT initiation via Modulr sandbox endpoint.
+- Idempotency keys on all payment requests.
+- Webhook signature verification.
+- Integration tests vs Modulr sandbox.
+- Coverage ≥ 80%.
 
-**Branch:** `sprint5/wave-b-otp-delivery-port-2026-05-07`  
-**Status:** Port frozen; `LegacyOtpAdapter` green; `TwilioOtpStub` / `SendGridOtpStub` stubs placed.
+### Sprint 9 — Production CRYPTO/LEDGER (Midaz)
 
-Remaining for full Wave B production closure:
-- `LegacyScaAdapter` + `OtpDeliveryPort` integration path (via `SCAService`): verify `send_otp` → `verify_otp` round-trip is wired in `AuthApplicationService`
-- Redis adapter for OTP store durability (deferred per ADR-029 §Consequences; planned Wave C+)
-- Production adapters (IL-OTP-PROD-01, IL-OTP-PROD-02) — separate PRs, require sandbox integration tests
+Goal:
+- Replace MidazCryptoStub with real Midaz Ledger API adapter.
 
-### Auth Refactor (AUTH_REFACTOR_TASKS.md)
+Acceptance criteria:
+- Real account/transaction calls to Midaz.
+- Atomic transaction semantics enforced at adapter level.
+- Integration tests vs Midaz sandbox / local docker.
+- Coverage ≥ 80%.
 
-Phases A/B/C remain partially open:
-- Phase A: mark inline JWT locations and IAM operation boundaries — `api/routers/auth.py` verified thin; token_manager seam confirmed
-- Phase B: `AuthApplicationService` boundary extraction complete; IAM through `IAMPort` wired; SCA transport branching in router still present
-- Phase C: adapter seams for BANXE.RAR auth token logic and IAM logic — locked until Wave A adapters fully validated in staging
+### Sprint 10 — BANXE.RAR Remaining Inventory
 
-Import discipline governed by `AUTH_IMPORT_ORDER.md`:
-1. Router stays thin (transport only)
-2. Token issuance/refresh through `TokenManagerPort`
-3. IAM through `IAMPort`
-4. SCA through `ScaServicePort` / `SCAService`
-5. OTP through `OtpDeliveryPort` / `LegacyOtpAdapter`
+Goal:
+- Classify remaining BANXE.RAR directories (PASS/REWRITE/REJECT) and open inventory PRs.
 
----
+Candidates:
+- banxe/banxe-shared-libs
+- banxe/banxe-trade-view-new
+- internal_dev/support-services
+- internal_dev/trigger-system-services
+- internal_dev/finthech-services
+- banxe-digital/v-accounting
+- banxe-digital/crypto-exchange-api
+- banxe-uikit (likely DROP)
+- consul-configs (DROP)
+- neuron/* (separate ecosystem, assess relevance)
 
-## Canon Active (Sprint 6)
+Acceptance criteria:
+- Inventory PR per candidate with classification.
+- Follow-up adapter PRs for PASS items.
 
-| Document | Status | Rule |
-|----------|--------|------|
-| ADR-025 Agent Interaction Canon | ACCEPTED | OCAT, single-addressee, no confirmation on safe commands |
-| ADR-026 Guardian agent.bash | ACCEPTED | CB1-deny-path / CB2-secret-leak / CB3-frozen-sandbox / CB4-dangerous-cmd |
-| ADR-029 OtpDeliveryPort | Proposed → FROZEN | 4-method Protocol, `@runtime_checkable`, `LegacyOtpAdapter` REWRITE-1 |
-| PORT-CONTRACTS-FREEZE-2026-05-08 | FROZEN | 9 ports locked; signature change → new ADR + minor bump |
-| AUTH_IMPORT_ORDER | Active | 5-step import discipline for `services/auth/` |
-| AUTH_MATRIX | Reference | Component → port boundary map for Sprint 6 auth refactor |
+### Sprint 11 — AI-Agent Training Data
 
----
+Goal:
+- Extract domain knowledge from BANXE.RAR into docs/training/ for AI agents.
 
-## Architecture Invariants (all active)
+Output:
+- Structured documents: use-cases, business rules, error taxonomies.
+- No legacy code copies, only domain semantics.
 
-| ID | Rule | Enforced by |
-|----|------|-------------|
-| I-01 | `Decimal` only for monetary amounts | Semgrep `banxe-float-money` |
-| I-02 | Jurisdiction block: RU/BY/IR/KP/CU/MM/AF/VE/SY | `_jurisdictions.py` + SEPA adapter |
-| I-04 | EDD threshold: £10k individual / £50k corporate | `_edd.py` + SumSub/BinanceKYC |
-| I-08 | ClickHouse TTL ≥ 5 years | Semgrep `banxe-clickhouse-ttl-reduce` |
-| I-24 | Append-only audit trail — `BaseAuditRecord` frozen | `services/_legacy_common/audit.py` |
-| I-27 | HITL — MLRO sign-off required for EDD approval | `SumsubHttpStub.approve_edd` docstring gate |
+ADR:
+- ADR-035 (training data extraction methodology, Proposed → Accepted in this sprint).
 
----
+### Sprint 12 — End-to-End Production Verification
 
-## Transport Drops Completed (ADR-025 §15-16)
+Goal:
+- Full sandbox journey: registration → KYC → 2FA → SEPA payment → crypto transaction.
 
-| Transport | Replaced by |
-|-----------|-------------|
-| gRPC (all services) | In-memory adapters |
-| TypeORM repositories | Frozen Pydantic models + in-memory dicts |
-| NestJS DI / EventEmitter | Constructor injection / Protocol DI |
-| GCP Bifrost XML | In-memory stub; `ModulrSepaStub` planned |
-| RabbitMQ publishers | No event bus in scope; ClickHouse audit log |
-| Redis cron (OTP expiry) | In-memory TTL; Redis adapter planned |
-| Amplitude analytics | Removed (not FCA-regulated) |
+Acceptance criteria:
+- All steps executed through production adapters (Twilio, SendGrid, SumSub, Modulr, Midaz).
+- Smoke tests green in CI (sandbox only).
+- ADR-036 (roadmap completion) accepted with final release notes.
 
 ---
 
-## Sandbox-Priority Canon (Sprint 6+)
+## Sandbox-Priority Canon (Binding)
 
-All integration tests must run against sandboxes — no live money, no real KYC, no real OTPs in CI:
-
-| Vendor | Sandbox entry point | Auth |
-|--------|--------------------|----|
-| Twilio | Twilio sandbox (magic numbers) | `TWILIO_ACCOUNT_SID` test credentials |
-| SendGrid | SendGrid sandbox mode | `SENDGRID_SANDBOX=true` header |
-| Modulr | Modulr sandbox `api.modulrfinance.io/v1-sandbox` | `MODULR_API_KEY` test key |
-| Midaz | Midaz local docker or `staging.midaz.io` | `MIDAZ_API_KEY` staging |
-| SumSub | SumSub sandbox applicant fixtures | `SUMSUB_APP_TOKEN` test |
+- All external integrations use sandbox/test credentials in CI and default configs.
+- No real OTP/SMS/email, no real KYC applicants, no live money movements from test runs.
+- Production endpoints may be configured only in operator-controlled environments, never in CI.
 
 ---
 
-## Quality Gate Baseline (2026-05-09)
+## AI-Agent Training Canon (Binding)
 
-```
-ruff check .                → 0 issues
-semgrep banxe-rules.yml     → 0 findings
-pytest tests/               → 9526 passed, 5 skipped
-bandit -r -ll services/*/production/ → 0 Medium/High
-```
+- BANXE.RAR is treated as domain-knowledge corpus, not as code to be cloned.
+- Extracted material lives under docs/training/, structured for prompts/agents.
+- Any training dataset derived from BANXE.RAR must exclude secrets and personally identifiable data.
 
-Pre-commit hooks: Ruff ✅ Bandit ✅ Semgrep ✅ Pytest ✅ Biome ✅ Gitleaks ✅
+---
+
+## Frozen Contracts (No Changes Without ADR)
+
+- 9 hexagonal ports (see PORT-CONTRACTS-FREEZE-2026-05-08.md).
+- api/routers/auth.py (transport-only).
+- services/_legacy_common/*
+- services/auth/legacy/*, services/payment/legacy/*, services/compliance/legacy/*, services/ledger/legacy/*.
+- decisions/ADR-001..ADR-030.
+
+---
+
+## Execution Canon References
+
+- ADR-025 — Agent Interaction Canon (OCAT, whitelists, non-safe ops, best-decision principle).
+- ADR-026 — Guardian agent bash family (bash shim + factory/project scopes).
+- ADR-029 — OTP Delivery Port (contract, invariants, allowed adapter behaviours).
+
+---
+
+## Default Merge Pattern (Docs + Code)
+
+1. Branch from main → push to origin.
+2. gh pr create (no draft).
+3. gh pr checks <N> --watch --interval 15 (CI green).
+4. gh pr merge <N> --squash --delete-branch --admin (if branch protection requires).
+5. git checkout main && git pull.
