@@ -60,6 +60,7 @@ from services.kyc.kyc_port import (
     KYCWorkflowResult,
     RejectionReason,
 )
+from services.shared.errors import BanxeLegacyAdapterError
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -182,10 +183,9 @@ class BinanceKYCAuditRecord(BaseModel, frozen=True):
 # ── Error ─────────────────────────────────────────────────────────────────────
 
 
-class BinanceKYCError(Exception):
+class BinanceKYCError(BanxeLegacyAdapterError):
     def __init__(self, message: str, *, code: str) -> None:
-        super().__init__(message)
-        self.code = code
+        super().__init__(message, code=code)
 
 
 # ── EDD helper ────────────────────────────────────────────────────────────────

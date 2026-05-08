@@ -171,15 +171,15 @@ def test_protocol_conformance() -> None:
     adapter = _adapter()
     assert hasattr(adapter, "submit_payment")
     assert hasattr(adapter, "get_payment_status")
-    assert hasattr(adapter, "health_check")
+    assert hasattr(adapter, "health")
     from services.payment.payment_port import PaymentRailPort
 
     _port: PaymentRailPort = adapter  # type: ignore[assignment]
     assert _port is adapter
 
 
-def test_health_check_returns_true() -> None:
-    assert _adapter().health_check() is True
+def test_health_returns_true() -> None:
+    assert _adapter().health() is True
 
 
 # ── submit_payment — happy paths ──────────────────────────────────────────────

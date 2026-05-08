@@ -34,6 +34,7 @@ from services.payment.payment_port import (
     PaymentResult,
     PaymentStatus,
 )
+from services.shared.errors import BanxeLegacyAdapterError
 
 # ── Status mapping (parse() semantic) ─────────────────────────────────────────
 
@@ -99,10 +100,9 @@ class TransactionAuditRecord(BaseModel, frozen=True):
 # ── Error ─────────────────────────────────────────────────────────────────────
 
 
-class TransactionApplicationError(Exception):
+class TransactionApplicationError(BanxeLegacyAdapterError):
     def __init__(self, message: str, *, code: str) -> None:
-        super().__init__(message)
-        self.code = code
+        super().__init__(message, code=code)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -184,7 +184,7 @@ class LegacyTransactionsAdapter:
             )
         return self._to_result(record)
 
-    def health_check(self) -> bool:
+    def health(self) -> bool:
         return True
 
     # ── Extra (beyond port) ───────────────────────────────────────────────────

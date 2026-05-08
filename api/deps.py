@@ -202,8 +202,32 @@ def get_buffered_audit_port() -> BufferedAuditPort:
     """
     from src.safeguarding.buffered_audit_port import BufferedAuditPort
 
-    buffer_path = os.getenv("AUDIT_BUFFER_PATH", "/tmp/banxe-audit-buffer.db")  # noqa: S108  intentional default; production sets explicit path via env
+    buffer_path = os.getenv("AUDIT_BUFFER_PATH", "/tmp/banxe-audit-buffer.db")  # noqa: S108  # nosec B108 — intentional default; production sets explicit path via env
     return BufferedAuditPort(db_path=buffer_path)
+
+
+# ── Wave E: Crypto legacy adapter DI (ADR-031, Phase 5 Step 1) ───────────────
+
+
+@lru_cache(maxsize=1)
+def get_crypto_application_service():  # type: ignore[return]
+    """Crypto application service — REWRITE-7/8/9 legacy adapter composition.
+
+    CRYPTO_WALLET_ADAPTER / CRYPTO_PROCESSING_ADAPTER / CRYPTO_RPC_ADAPTER env vars
+    reserved for future real-adapter selection; scaffold only for now.
+    """
+    from services.ledger.crypto_application_service import CryptoApplicationService
+    from services.ledger.legacy.legacy_crypto_processing_adapter import (
+        LegacyCryptoProcessingAdapter,
+    )
+    from services.ledger.legacy.legacy_crypto_rpc_adapter import LegacyCryptoRpcAdapter
+    from services.ledger.legacy.legacy_crypto_wallet_adapter import LegacyCryptoWalletAdapter
+
+    return CryptoApplicationService(
+        wallet=LegacyCryptoWalletAdapter(),
+        processing=LegacyCryptoProcessingAdapter(),
+        rpc=LegacyCryptoRpcAdapter(),
+    )
 
 
 @lru_cache(maxsize=1)

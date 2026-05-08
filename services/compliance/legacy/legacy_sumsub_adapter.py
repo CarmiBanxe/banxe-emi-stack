@@ -53,6 +53,7 @@ from services.kyc.kyc_port import (
     KYCWorkflowResult,
     RejectionReason,
 )
+from services.shared.errors import BanxeLegacyAdapterError
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -152,10 +153,9 @@ class SumSubAuditRecord(BaseModel, frozen=True):
 # ── Error ─────────────────────────────────────────────────────────────────────
 
 
-class SumSubApplicationError(Exception):
+class SumSubApplicationError(BanxeLegacyAdapterError):
     def __init__(self, message: str, *, code: str) -> None:
-        super().__init__(message)
-        self.code = code
+        super().__init__(message, code=code)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

@@ -108,7 +108,7 @@ def test_adapter_surface_exists() -> None:
     adapter = _adapter()
     assert hasattr(adapter, "submit_payment")
     assert hasattr(adapter, "get_payment_status")
-    assert hasattr(adapter, "health_check")
+    assert hasattr(adapter, "health")
     assert hasattr(adapter, "register_external_transaction")
     assert hasattr(adapter, "advance_status")
     assert hasattr(adapter, "collect_audit_records")
@@ -122,8 +122,8 @@ def test_protocol_conformance() -> None:
     assert _port is adapter
 
 
-def test_health_check_returns_true() -> None:
-    assert _adapter().health_check() is True
+def test_health_returns_true() -> None:
+    assert _adapter().health() is True
 
 
 # ── submit_payment ────────────────────────────────────────────────────────────
