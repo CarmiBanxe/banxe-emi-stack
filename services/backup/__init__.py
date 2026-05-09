@@ -7,13 +7,17 @@ from services.backup.backup_port import (
     RestoreResult,
     RotationResult,
 )
+from services.backup.factory import BackupConfig, BackupDisabledError, get_backup_adapter
 from services.backup.pg_backup_adapter import PgDumpBackupAdapter
 
 __all__ = [
+    "BackupConfig",
+    "BackupDisabledError",
     "BackupMetadata",
     "BackupPort",
     "BackupResult",
     "PgDumpBackupAdapter",
     "RestoreResult",
     "RotationResult",
+    "get_backup_adapter",
 ]
