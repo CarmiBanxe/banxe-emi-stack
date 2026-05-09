@@ -34,6 +34,13 @@ from services.customer_lifecycle.lifecycle_observer import (
     TransitionObservedEvent,
     _decimal_str,
 )
+from services.events.event_bus import (
+    BanxeEventType,
+    DomainEvent,
+    EventBusPort,
+    KycReTriggerEvent,
+    build_kyc_retrigger_event,
+)
 from services.kyc.kyc_port import KYCStatus
 
 # ── Narrow ports for lifecycle guards ─────────────────────────────────────────
@@ -150,12 +157,15 @@ class KYCLifecycleEngine:
         fatca_crs: FatcaCrsPort | None = None,
         hitl: HITLLifecyclePort | None = None,
         observer: LifecycleObserverPort | None = None,
+        event_bus: EventBusPort | None = None,
     ) -> None:
         self._engine = engine or LifecycleEngine(InMemoryLifecycleStore())
         self._kyc: KYCGuardPort = kyc_guard or InMemoryKYCGuard()
         self._fatca_crs: FatcaCrsPort = fatca_crs or InMemoryFatcaCrsGuard()
         self._hitl: HITLLifecyclePort = hitl or InMemoryHITLLifecyclePort()
         self._observer: LifecycleObserverPort | None = observer
+        self._event_bus: EventBusPort | None = event_bus
+        self._pending_retriggers: dict[str, KycReTriggerEvent] = {}
 
     def transition(
         self,
@@ -272,6 +282,58 @@ class KYCLifecycleEngine:
                 )
             return result
         return None
+
+    def notify_attribute_change(
+        self,
+        customer_id: str,
+        event_type: BanxeEventType,
+        triggered_by: str,
+        previous_value: str,
+        new_value: str,
+    ) -> KycReTriggerEvent:
+        """Record a KYC re-trigger event for attribute changes (ADR-028, G-KYC-01/02).
+
+        JURISDICTION_CHANGED (CRITICAL): auto-suspends ACTIVE customers immediately.
+        Publishes to event_bus if wired; always records pending retrigger.
+        """
+        retrigger = build_kyc_retrigger_event(
+            event_type=event_type,
+            customer_id=customer_id,
+            triggered_by=triggered_by,
+            previous_value=previous_value,
+            new_value=new_value,
+        )
+        self._pending_retriggers[customer_id] = retrigger
+
+        if self._event_bus is not None:
+            self._event_bus.publish(
+                DomainEvent.create(
+                    event_type=event_type,
+                    source_service="kyc_lifecycle",
+                    payload={
+                        "triggered_by": triggered_by,
+                        "previous_value": previous_value,
+                        "new_value": new_value,
+                        "criticality": retrigger.criticality,
+                        "gap_ref": retrigger.gap_ref,
+                    },
+                    customer_id=customer_id,
+                )
+            )
+
+        if retrigger.criticality == "CRITICAL":
+            if self._engine.get_state(customer_id) == CustomerState.ACTIVE:
+                self._engine.transition(customer_id, LifecycleEvent.SUSPEND)
+
+        return retrigger
+
+    def get_pending_retrigger(self, customer_id: str) -> KycReTriggerEvent | None:
+        """Return pending KYC re-trigger for customer, or None if none recorded."""
+        return self._pending_retriggers.get(customer_id)
+
+    def clear_pending_retrigger(self, customer_id: str) -> None:
+        """Mark KYC re-verification as completed for customer."""
+        self._pending_retriggers.pop(customer_id, None)
 
     def get_state(self, customer_id: str) -> CustomerState:
         return self._engine.get_state(customer_id)
