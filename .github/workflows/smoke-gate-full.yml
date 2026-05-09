@@ -1,0 +1,79 @@
+name: Smoke Gate — Full Tier (ADR-035)
+# ADR-035 Step 4 | banxe-emi-stack
+#
+# Nightly full/live smoke gate. Brings up real infra (postgres, redis, clickhouse,
+# frankfurter) via docker/docker-compose.master.yml, then runs the smoke suite.
+#
+# Not a PR required check (that is smoke-gate-mock.yml / Step 2).
+# Failure triggers Step 5 alerting (CI_SMOKE_FAILURE AuditEvent).
+#
+# docker/docker-compose.master.yml `api` service is excluded — it requires
+# docker/Dockerfile which is not yet present; the test runner connects directly
+# to infra services via env vars.
+
+on:
+  schedule:
+    - cron: "0 3 * * *"   # 03:00 UTC nightly
+  workflow_dispatch:        # manual trigger for ad-hoc runs
+
+concurrency:
+  group: smoke-gate-full
+  cancel-in-progress: false  # never cancel a running nightly; queue instead
+
+jobs:
+  smoke-full:
+    name: Smoke Gate (real stack)
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    env:
+      POSTGRES_USER: banxe
+      POSTGRES_PASSWORD: changeme
+      POSTGRES_DB: banxe
+      DATABASE_URL: postgresql+asyncpg://banxe:changeme@localhost:5432/banxe
+      REDIS_URL: redis://localhost:6379/0
+      CLICKHOUSE_HOST: localhost
+      FRANKFURTER_BASE_URL: http://localhost:8087
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start infra services (postgres, redis, clickhouse, frankfurter)
+        run: |
+          docker compose -f docker/docker-compose.master.yml up -d \
+            postgres redis clickhouse frankfurter
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio httpx
+
+      - name: Wait for infra healthchecks
+        run: |
+          echo "Waiting for postgres..."
+          until docker compose -f docker/docker-compose.master.yml exec -T postgres \
+            pg_isready -U banxe; do sleep 2; done
+          echo "Waiting for redis..."
+          until docker compose -f docker/docker-compose.master.yml exec -T redis \
+            redis-cli ping | grep -q PONG; do sleep 2; done
+          echo "Waiting for clickhouse..."
+          until docker compose -f docker/docker-compose.master.yml exec -T clickhouse \
+            clickhouse-client --query "SELECT 1" 2>/dev/null; do sleep 2; done
+          echo "Waiting for frankfurter..."
+          until curl -sf http://localhost:8087/health; do sleep 2; done
+          echo "All infra services healthy."
+
+      - name: Run smoke suite (full tier)
+        run: |
+          python -m pytest tests/test_smoke/ \
+            --override-ini=addopts= \
+            -q --tb=short
+
+      - name: Tear down infra
+        if: always()
+        run: docker compose -f docker/docker-compose.master.yml down -v --remove-orphans
