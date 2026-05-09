@@ -9,6 +9,9 @@ filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::PendingDeprecationWarning",
 ]
+markers = [
+    "smoke: ADR-035 smoke surface matrix — mock tier, no network",
+]
 
 [tool.coverage.run]
 source = ["services", "api", "src"]
