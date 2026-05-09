@@ -36,6 +36,7 @@ from services.auth.auth_application_service import (
     AuthApplicationService,
     get_auth_application_service,
 )
+from services.auth.rate_limiter_factory import get_rate_limiter
 from services.auth.sca_application_service import (
     ScaApplicationError,
     ScaApplicationService,
@@ -77,7 +78,25 @@ _ERROR_CODE_TO_HTTP: dict[str, int] = {
     "invalid_token": 401,
     "token_expired": 401,
     "invalid_token_type": 401,
+    "rate_limited": 429,
 }
+
+# Rate limiter singleton (None if disabled via RATE_LIMIT_ENABLED=false)
+_rate_limiter = get_rate_limiter()
+
+
+def _check_rate_limit(client_id: str, endpoint: str) -> None:
+    """Enforce rate limit. Raises HTTPException 429 if exceeded."""
+    if _rate_limiter is None:
+        return
+    result = _rate_limiter.check_rate(client_id, endpoint)
+    if not result.allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Rate limit exceeded. Retry after {result.retry_after}s.",
+            headers={"Retry-After": str(result.retry_after or 60)},
+        )
+    _rate_limiter.record_attempt(client_id, endpoint)
 
 
 _SCA_ERROR_CODE_TO_HTTP: dict[str, int] = {
@@ -119,6 +138,10 @@ async def login(
 ) -> LoginResponse:
     """Thin delegation: identity resolution, PIN validation, token issuance, session
     persistence are all handled by AuthApplicationService.login()."""
+    # ADR-030: rate-limit check before auth operation
+    client_ip = request.client.host if request.client else "unknown"
+    _check_rate_limit(client_id=client_ip, endpoint="/auth/login")
+
     try:
         return await auth_app.login(
             db=db,
@@ -151,6 +174,10 @@ async def refresh_token_endpoint(
     auth_app: AuthApplicationService = Depends(get_auth_application_service),
 ) -> TokenRefreshResponse:
     """Thin delegation: token rotation handled by AuthApplicationService.refresh()."""
+    # ADR-030: rate-limit check on refresh (per token JTI or fallback to token prefix)
+    token_key = body.refresh_token[:16] if body.refresh_token else "unknown"
+    _check_rate_limit(client_id=token_key, endpoint="/auth/token/refresh")
+
     try:
         return await auth_app.refresh(refresh_token=body.refresh_token)
     except AuthApplicationError as exc:
