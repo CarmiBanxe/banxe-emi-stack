@@ -260,11 +260,15 @@ def get_webhook_reliability_port():
 
     WEBHOOK_RELIABILITY_ADAPTER env var:
       "in_memory" → InMemoryWebhookAdapter (default, dev/test)
-      "redis"     → RedisWebhookAdapter (ADR-034 Step 4, NotImplemented here)
+      "redis"     → RedisWebhookReliabilityAdapter (ADR-034 Step 4)
 
     Backoff/retry policy (ADR-034 §Webhook-reliability-matrix defaults):
-      WEBHOOK_MAX_ATTEMPTS    (int, default 3)
-      WEBHOOK_BACKOFF_SECONDS (csv floats, default "1.0,10.0,60.0")
+      WEBHOOK_MAX_ATTEMPTS       (int, default 3)
+      WEBHOOK_BACKOFF_SECONDS    (csv floats, default "1.0,10.0,60.0")
+
+    Redis-only env (ignored for in_memory):
+      REDIS_URL                  (default "redis://localhost:6379/0")
+      WEBHOOK_DEDUP_TTL_SECONDS  (int, default 86400 per ADR-034 §c)
     """
     from services.webhooks.in_memory_adapter import (
         DEFAULT_BACKOFF_SCHEDULE,
@@ -286,8 +290,27 @@ def get_webhook_reliability_port():
             max_attempts=max_attempts,
         )
 
-    # Production Redis adapter binding deferred to ADR-034 Step 4.
+    if adapter_name == "redis":
+        # ADR-034 Step 4: production Redis adapter + DLQ + Telegram alert hook.
+        import redis  # local import — heavy/unused for in_memory path
+
+        from services.alerting.di import get_alert_adapter
+        from services.webhooks.dlq_alert import TelegramDLQAlertHook
+        from services.webhooks.redis_adapter import RedisWebhookReliabilityAdapter
+
+        redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+        dedup_ttl_s = int(os.environ.get("WEBHOOK_DEDUP_TTL_SECONDS", "86400"))
+        redis_client = redis.Redis.from_url(redis_url, decode_responses=True)
+        alert_port = get_alert_adapter()
+        return RedisWebhookReliabilityAdapter(
+            redis_client=redis_client,
+            max_attempts=max_attempts,
+            backoff_schedule=backoff,
+            dlq_alert_hook=TelegramDLQAlertHook(alert_port=alert_port),
+            dedup_ttl_s=dedup_ttl_s,
+        )
+
     raise NotImplementedError(
-        f"WEBHOOK_RELIABILITY_ADAPTER={adapter_name!r}: only 'in_memory' is wired "
-        "in ADR-034 Step 2; Redis adapter pending Step 4."
+        f"WEBHOOK_RELIABILITY_ADAPTER={adapter_name!r}: supported values are "
+        "'in_memory' and 'redis'."
     )
