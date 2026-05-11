@@ -249,3 +249,45 @@ def get_recon_engine() -> ReconciliationEngine:
         ledger = StubLedgerAdapter()
 
     return ReconciliationEngine(ledger=ledger, audit=get_buffered_audit_port())
+
+
+# ── ADR-034: Webhook delivery reliability (WebhookReliabilityPort) ───────────
+
+
+@lru_cache(maxsize=1)
+def get_webhook_reliability_port():
+    """WebhookReliabilityPort — webhook delivery retry/backoff/dead-letter (ADR-034).
+
+    WEBHOOK_RELIABILITY_ADAPTER env var:
+      "in_memory" → InMemoryWebhookAdapter (default, dev/test)
+      "redis"     → RedisWebhookAdapter (ADR-034 Step 4, NotImplemented here)
+
+    Backoff/retry policy (ADR-034 §Webhook-reliability-matrix defaults):
+      WEBHOOK_MAX_ATTEMPTS    (int, default 3)
+      WEBHOOK_BACKOFF_SECONDS (csv floats, default "1.0,10.0,60.0")
+    """
+    from services.webhooks.in_memory_adapter import (
+        DEFAULT_BACKOFF_SCHEDULE,
+        DEFAULT_MAX_ATTEMPTS,
+        InMemoryWebhookAdapter,
+    )
+
+    adapter_name = os.environ.get("WEBHOOK_RELIABILITY_ADAPTER", "in_memory")
+    max_attempts = int(os.environ.get("WEBHOOK_MAX_ATTEMPTS", str(DEFAULT_MAX_ATTEMPTS)))
+    backoff_raw = os.environ.get("WEBHOOK_BACKOFF_SECONDS", "")
+    if backoff_raw:
+        backoff = tuple(float(x.strip()) for x in backoff_raw.split(",") if x.strip())
+    else:
+        backoff = DEFAULT_BACKOFF_SCHEDULE
+
+    if adapter_name == "in_memory":
+        return InMemoryWebhookAdapter(
+            backoff_schedule=backoff,
+            max_attempts=max_attempts,
+        )
+
+    # Production Redis adapter binding deferred to ADR-034 Step 4.
+    raise NotImplementedError(
+        f"WEBHOOK_RELIABILITY_ADAPTER={adapter_name!r}: only 'in_memory' is wired "
+        "in ADR-034 Step 2; Redis adapter pending Step 4."
+    )
