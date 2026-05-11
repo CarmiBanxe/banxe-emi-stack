@@ -33,7 +33,8 @@ class AlertConfig:
     @classmethod
     def from_env(cls) -> AlertConfig:
         webhook_url = os.environ.get("ALERT_N8N_WEBHOOK_URL", _DEFAULT_WEBHOOK_URL)
-        timeout = float(os.environ.get("ALERT_TIMEOUT", str(_DEFAULT_TIMEOUT)))
+        raw_timeout = os.environ.get("ALERT_TIMEOUT", str(_DEFAULT_TIMEOUT))
+        timeout = float(raw_timeout)  # nosemgrep: banxe-float-money — seconds, not money
         enabled = _env_bool(os.environ.get("ALERT_ENABLED"))
         return cls(webhook_url=webhook_url, timeout=timeout, enabled=enabled)
 
