@@ -11,8 +11,10 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 import os
 
+from services.backup.local_restore_drill_adapter import LocalRestoreDrillAdapter
 from services.backup.pg_backup_adapter import PgDumpBackupAdapter
 
 
@@ -67,4 +69,51 @@ def get_backup_adapter(config: BackupConfig | None = None) -> PgDumpBackupAdapte
         pg_password=cfg.pg_password,
         backup_dir=cfg.backup_dir,
         retention_count=cfg.retention_count,
+    )
+
+
+# ── ADR-029 Step 4 — Restore drill ──────────────────────────────────────────
+
+
+class RestoreDrillDisabledError(Exception):
+    """Raised when restore-drill operations are attempted while disabled."""
+
+
+@dataclass(frozen=True)
+class RestoreDrillConfig:
+    """Configuration for LocalRestoreDrillAdapter, loaded from environment."""
+
+    enabled: bool
+    validation_table: str
+    drill_db_prefix: str
+
+    @classmethod
+    def from_env(cls) -> RestoreDrillConfig:
+        return cls(
+            enabled=os.environ.get("RESTORE_DRILL_ENABLED", "false").lower() == "true",
+            validation_table=os.environ.get("RESTORE_DRILL_VALIDATION_TABLE", "cases"),
+            drill_db_prefix=os.environ.get("RESTORE_DRILL_DB_PREFIX", "postgres-restore-drill-"),
+        )
+
+
+@lru_cache(maxsize=1)
+def get_restore_drill_adapter(
+    config: RestoreDrillConfig | None = None,
+) -> LocalRestoreDrillAdapter:
+    """Create a configured LocalRestoreDrillAdapter from environment.
+
+    Raises:
+        RestoreDrillDisabledError: if RESTORE_DRILL_ENABLED is not "true".
+    """
+    cfg = config or RestoreDrillConfig.from_env()
+
+    if not cfg.enabled:
+        raise RestoreDrillDisabledError(
+            "Restore drill operations disabled (RESTORE_DRILL_ENABLED != 'true'). "
+            "Set RESTORE_DRILL_ENABLED=true in environment to enable."
+        )
+
+    return LocalRestoreDrillAdapter(
+        validation_table=cfg.validation_table,
+        drill_db_prefix=cfg.drill_db_prefix,
     )
