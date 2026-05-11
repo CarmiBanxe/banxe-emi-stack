@@ -1,7 +1,85 @@
 title = "banxe-emi-stack gitleaks config"
 
 [allowlist]
-description = "Test HMAC keys in test files"
+description = "Test fixtures + sample/example/template env files"
 paths = [
-  '''tests/.*'''
+  '''tests/.*''',
+  '''\.env\.example''',
+  '''\.env\.sample''',
+  '''\.env\.template''',
+  '''\.env\.test''',
+  '''\.env\.dev''',
 ]
+
+# ── ADR-032 §Cadence-and-ownership matrix coverage ──────────────────────────
+# Each rule below is anchored on an env-var name from the matrix in
+# ADR-032 §Cadence-and-ownership and matches a non-empty value. Rules are
+# intentionally narrow — they only fire when the env-var name appears with
+# an assignment to a non-trivial value (8+ chars). The full matrix is
+# also encoded in scripts/secret-rotation-gitleaks-audit.py (single source
+# of truth for CI coverage gate).
+
+[[rules]]
+id = "banxe-kc-client-secret"
+description = "ADR-032 matrix — KC_CLIENT_SECRET_* (×4, 90d cadence, CTIO approval)"
+regex = '''KC_CLIENT_SECRET_[A-Z0-9_]+\s*=\s*['"]?([A-Za-z0-9_\-=+/.]{8,})['"]?'''
+
+[[rules]]
+id = "banxe-kc-boot-admin-password"
+description = "ADR-032 matrix — KC_BOOT_ADMIN_PASSWORD (180d cadence, CEO approval)"
+regex = '''KC_BOOT_ADMIN_PASSWORD\s*=\s*['"]?([A-Za-z0-9_\-=+/.]{8,})['"]?'''
+
+[[rules]]
+id = "banxe-kc-db-password"
+description = "ADR-032 matrix — KC_DB_PASSWORD (365d cadence, CTIO approval)"
+regex = '''KC_DB_PASSWORD\s*=\s*['"]?([A-Za-z0-9_\-=+/.]{8,})['"]?'''
+
+[[rules]]
+id = "banxe-auth-secret-key"
+description = "ADR-032 matrix — AUTH_SECRET_KEY (JWT, 90d cadence, CTIO approval)"
+regex = '''AUTH_SECRET_KEY\s*=\s*['"]?([A-Za-z0-9_\-=+/.]{8,})['"]?'''
+
+[[rules]]
+id = "banxe-postgres-password"
+description = "ADR-032 matrix — POSTGRES_PASSWORD (365d cadence, CTIO approval)"
+regex = '''POSTGRES_PASSWORD\s*=\s*['"]?([A-Za-z0-9_\-=+/.]{8,})['"]?'''
+
+[[rules]]
+id = "banxe-clickhouse-password"
+description = "ADR-032 matrix — CLICKHOUSE_PASSWORD (365d cadence, CTIO approval)"
+regex = '''CLICKHOUSE_PASSWORD\s*=\s*['"]?([A-Za-z0-9_\-=+/.]{8,})['"]?'''
+
+[[rules]]
+id = "banxe-github-pat"
+description = "ADR-032 matrix — GitHub Actions PATs (GITHUB_PAT_*, 30d cadence, CEO approval)"
+regex = '''GITHUB_PAT_[A-Z0-9_]+\s*=\s*['"]?([A-Za-z0-9_\-=+/.]{8,})['"]?'''
+
+[[rules]]
+id = "banxe-marble-api-key"
+description = "ADR-032 matrix — MARBLE_API_KEY (180d cadence, CTIO approval)"
+regex = '''MARBLE_API_KEY\s*=\s*['"]?([A-Za-z0-9_\-=+/.]{8,})['"]?'''
+
+[[rules]]
+id = "banxe-jube-password"
+description = "ADR-032 matrix — JUBE_PASSWORD (180d cadence, CTIO approval)"
+regex = '''JUBE_PASSWORD\s*=\s*['"]?([A-Za-z0-9_\-=+/.]{8,})['"]?'''
+
+[[rules]]
+id = "banxe-sumsub-app-token"
+description = "ADR-032 matrix — SUMSUB_APP_TOKEN (180d cadence, CTIO approval)"
+regex = '''SUMSUB_APP_TOKEN\s*=\s*['"]?([A-Za-z0-9_\-=+/.]{8,})['"]?'''
+
+[[rules]]
+id = "banxe-sumsub-webhook-secret"
+description = "ADR-032 matrix — SUMSUB_WEBHOOK_SECRET (180d cadence, CTIO approval)"
+regex = '''SUMSUB_WEBHOOK_SECRET\s*=\s*['"]?([A-Za-z0-9_\-=+/.]{8,})['"]?'''
+
+[[rules]]
+id = "banxe-telegram-bot-token"
+description = "ADR-032 matrix — TELEGRAM_BOT_TOKEN (on-incident cadence, CEO approval)"
+regex = '''TELEGRAM_BOT_TOKEN\s*=\s*['"]?([A-Za-z0-9_\-=+/.:]{8,})['"]?'''
+
+[[rules]]
+id = "banxe-fca-regdata-password"
+description = "ADR-032 matrix — FCA_REGDATA_PASSWORD (90d cadence, CEO approval)"
+regex = '''FCA_REGDATA_PASSWORD\s*=\s*['"]?([A-Za-z0-9_\-=+/.]{8,})['"]?'''
