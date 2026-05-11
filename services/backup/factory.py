@@ -14,7 +14,9 @@ from dataclasses import dataclass
 from functools import lru_cache
 import os
 
+from services.backup.in_memory_offsite_adapter import InMemoryOffsiteAdapter
 from services.backup.local_restore_drill_adapter import LocalRestoreDrillAdapter
+from services.backup.offsite_upload_port import OffsiteUploadPort
 from services.backup.pg_backup_adapter import PgDumpBackupAdapter
 
 
@@ -116,4 +118,56 @@ def get_restore_drill_adapter(
     return LocalRestoreDrillAdapter(
         validation_table=cfg.validation_table,
         drill_db_prefix=cfg.drill_db_prefix,
+    )
+
+
+# ── ADR-029 Step 5 — Offsite upload ─────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class OffsiteUploadConfig:
+    """Configuration for the offsite upload adapter (ADR-029 §1)."""
+
+    enabled: bool
+    adapter: str  # "in_memory" | "minio"
+
+    @classmethod
+    def from_env(cls) -> OffsiteUploadConfig:
+        return cls(
+            enabled=os.environ.get("OFFSITE_UPLOAD_ENABLED", "false").lower() == "true",
+            adapter=os.environ.get("OFFSITE_UPLOAD_ADAPTER", "in_memory"),
+        )
+
+
+@lru_cache(maxsize=1)
+def get_offsite_upload_adapter(
+    config: OffsiteUploadConfig | None = None,
+) -> OffsiteUploadPort | None:
+    """Resolve an OffsiteUploadPort from env, or None when disabled.
+
+    Returns None when OFFSITE_UPLOAD_ENABLED != "true" (offsite tier is
+    optional — callers that need it must check for None and gracefully
+    skip the offsite step).
+
+    OFFSITE_UPLOAD_ADAPTER:
+      "in_memory" → InMemoryOffsiteAdapter (default; dev/test/sandbox)
+      "minio"     → NotImplementedError (real MinIO adapter pending
+                    ADR-029 §1 infra step on evo2)
+    """
+    cfg = config or OffsiteUploadConfig.from_env()
+
+    if not cfg.enabled:
+        return None
+
+    if cfg.adapter == "in_memory":
+        return InMemoryOffsiteAdapter()
+
+    if cfg.adapter == "minio":
+        raise NotImplementedError(
+            "OFFSITE_UPLOAD_ADAPTER='minio': real MinIO adapter pending "
+            "ADR-029 §1 infra step (MinIO on evo2 + bucket banxe-pg-backups)."
+        )
+
+    raise NotImplementedError(
+        f"OFFSITE_UPLOAD_ADAPTER={cfg.adapter!r}: supported values are 'in_memory' and 'minio'."
     )
