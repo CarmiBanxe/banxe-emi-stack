@@ -11,9 +11,11 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 import os
 
 from services.secrets.env_secret_rotator import EnvSecretRotator
+from services.secrets.rotation_audit_emitter import RotationAuditEmitter
 
 
 class SecretRotationDisabledError(Exception):
@@ -62,3 +64,17 @@ def get_secret_rotator(config: SecretRotationConfig | None = None) -> EnvSecretR
         env_file_path=cfg.env_file_path,
         managed_keys=cfg.managed_keys,
     )
+
+
+@lru_cache(maxsize=1)
+def get_rotation_audit_emitter() -> RotationAuditEmitter:
+    """Singleton RotationAuditEmitter wired to the shared ADR-027 BufferedAuditPort.
+
+    Reuses api.deps.get_buffered_audit_port() so all rotation events flow into
+    the same SQLite ring-buffer that the drain cron consumes. The audit port
+    factory itself is lazily resolved to avoid the api.deps import chain when
+    rotation audit emission is not in use.
+    """
+    from api.deps import get_buffered_audit_port
+
+    return RotationAuditEmitter(audit_port=get_buffered_audit_port())
