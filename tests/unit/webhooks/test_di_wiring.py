@@ -76,10 +76,26 @@ def test_di_singleton_scope_lru_cache_returns_same_instance() -> None:
     assert a is b
 
 
+def test_di_redis_adapter_resolves_after_step4(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ADR-034 Step 4 wires the 'redis' branch — no more NotImplementedError."""
+    from services.webhooks.redis_adapter import RedisWebhookReliabilityAdapter
+
+    monkeypatch.setenv("WEBHOOK_RELIABILITY_ADAPTER", "redis")
+    # redis.Redis.from_url() does not connect until the first command, so this
+    # is safe with no real Redis available in the test environment.
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+    get_webhook_reliability_port.cache_clear()
+    port = get_webhook_reliability_port()
+    assert isinstance(port, RedisWebhookReliabilityAdapter)
+
+
 def test_di_unknown_adapter_raises_not_implemented(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("WEBHOOK_RELIABILITY_ADAPTER", "redis")
+    """Genuinely unknown adapter values still raise NotImplementedError."""
+    monkeypatch.setenv("WEBHOOK_RELIABILITY_ADAPTER", "kafka")
     get_webhook_reliability_port.cache_clear()
-    with pytest.raises(NotImplementedError, match="Step 4"):
+    with pytest.raises(NotImplementedError, match="'in_memory' and 'redis'"):
         get_webhook_reliability_port()
