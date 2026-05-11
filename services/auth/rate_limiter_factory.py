@@ -10,8 +10,10 @@ Usage:
 
 from __future__ import annotations
 
+from functools import lru_cache
 import os
 
+from services.auth.rate_limit_audit_emitter import RateLimitAuditEmitter
 from services.auth.redis_rate_limiter import RedisRateLimiterAdapter
 
 
@@ -26,3 +28,16 @@ def get_rate_limiter() -> RedisRateLimiterAdapter | None:
         window_seconds=int(os.environ.get("RATE_LIMIT_WINDOW_SECONDS", "60")),
         lockout_seconds=int(os.environ.get("RATE_LIMIT_LOCKOUT_SECONDS", "300")),
     )
+
+
+@lru_cache(maxsize=1)
+def get_rate_limit_audit_emitter() -> RateLimitAuditEmitter:
+    """Singleton RateLimitAuditEmitter wired to the shared ADR-027
+    BufferedAuditPort singleton (api.deps.get_buffered_audit_port).
+
+    Lazy-imports api.deps to avoid pulling the full api.deps top-level chain
+    unless rate-limit audit emission is actually used.
+    """
+    from api.deps import get_buffered_audit_port
+
+    return RateLimitAuditEmitter(audit_port=get_buffered_audit_port())

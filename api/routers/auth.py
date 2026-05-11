@@ -10,6 +10,7 @@ Router only handles HTTP concerns: request parsing, exception mapping, response 
 
 from __future__ import annotations
 
+import contextlib
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -36,7 +37,11 @@ from services.auth.auth_application_service import (
     AuthApplicationService,
     get_auth_application_service,
 )
-from services.auth.rate_limiter_factory import get_rate_limiter
+from services.auth.rate_limit_audit_emitter import lookup_endpoint_meta
+from services.auth.rate_limiter_factory import (
+    get_rate_limit_audit_emitter,
+    get_rate_limiter,
+)
 from services.auth.sca_application_service import (
     ScaApplicationError,
     ScaApplicationService,
@@ -85,12 +90,59 @@ _ERROR_CODE_TO_HTTP: dict[str, int] = {
 _rate_limiter = get_rate_limiter()
 
 
-def _check_rate_limit(client_id: str, endpoint: str) -> None:
-    """Enforce rate limit. Raises HTTPException 429 if exceeded."""
+def _emit_rate_limit_audit(
+    endpoint: str,
+    client_id: str,
+    client_ip: str,
+    retry_after: int | None,
+) -> None:
+    """ADR-030 Step 4: emit AUTH_RATE_LIMIT_EXCEEDED before the 429 response.
+
+    Identity dimension + AuditEvent severity come from the ADR-030 §matrix
+    lookup. Endpoints not in the matrix get a generic INFO entry so the audit
+    trail still records the 429. Emitter failures are swallowed by the
+    underlying BufferedAuditPort (ADR-027) — they cannot break the 429 path.
+    """
+    meta = lookup_endpoint_meta(endpoint)
+    if meta is None:
+        identity_dimension, severity = ("unknown", "INFO")
+    else:
+        identity_dimension, severity = meta
+    # contextlib.suppress: a broken audit path MUST NOT block the 429
+    # response. BufferedAuditPort.record() already swallows internal errors
+    # per ADR-027, but any failure in factory resolution / matrix lookup
+    # would still propagate without this guard.
+    with contextlib.suppress(Exception):
+        emitter = get_rate_limit_audit_emitter()
+        emitter.emit_rate_limit_exceeded(
+            endpoint=endpoint,
+            identity_dimension=identity_dimension,
+            identity_value=client_id,
+            client_ip=client_ip,
+            limit=f"retry_after={retry_after or 60}s",
+            severity=severity,
+        )
+
+
+def _check_rate_limit(client_id: str, endpoint: str, client_ip: str | None = None) -> None:
+    """Enforce rate limit. Raises HTTPException 429 if exceeded.
+
+    On 429, emit an AUTH_RATE_LIMIT_EXCEEDED audit event via the ADR-027
+    BufferedAuditPort (per ADR-030 §Implementation-Plan item 4) before
+    raising. `client_ip` is recorded in the audit payload; defaults to
+    `client_id` when not separately known (e.g. login flows where client_id
+    already IS the IP).
+    """
     if _rate_limiter is None:
         return
     result = _rate_limiter.check_rate(client_id, endpoint)
     if not result.allowed:
+        _emit_rate_limit_audit(
+            endpoint=endpoint,
+            client_id=client_id,
+            client_ip=client_ip or client_id,
+            retry_after=result.retry_after,
+        )
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"Rate limit exceeded. Retry after {result.retry_after}s.",
