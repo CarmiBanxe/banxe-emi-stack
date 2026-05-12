@@ -1,0 +1,22 @@
+# /etc/cron.d/kc-backup — Keycloak backup cron (G-IAM-09 prep template)
+#
+# Anchors: G-IAM-09, IL-OPS-S12-1-DONE-EVIDENCE-AND-NEW-GAPS-2026-05-12,
+#          IL-OPS-ROADMAP-SPRINTS-S12-S25-APPROVED-2026-05-11 (Sprint S12.6).
+#
+# Deploy only after Central + operator approval per HITL gate in
+# G-IAM-09-BACKUP-POLICY.md §6.
+#
+# Schedule rationale: 02:30 daily is off-peak and avoids the n8n window at
+# 02:00. If ADR-029 specifies a different baseline, override at install time.
+#
+# Substitute placeholders at install time:
+#   {{WRAPPER_PATH}} — usually /usr/local/bin/kc-backup.sh
+#   {{LOG_PATH}}     — usually /var/log/keycloak/backup.log
+#
+# Format: m h dom mon dow user command
+
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Daily Keycloak Postgres backup → encrypted artifact → off-host copy.
+30 2 * * * root {{WRAPPER_PATH}} >> {{LOG_PATH}} 2>&1
