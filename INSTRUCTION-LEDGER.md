@@ -307,3 +307,37 @@
 - Production deploy + first restore drill remain gated by Central +
   operator approval; no evo1 deploy, no `pg_dump` execution against
   production, no `systemctl daemon-reload`, no `ssh evo1` performed.
+
+
+---
+
+### IL-S16-4-SAFEGUARDING-RECONCILIATION-PREP-2026-05-12
+- Date: 2026-05-12
+- Status: DONE (prep package only; no production deploy)
+- Scope: Sub-B autonomous prep for the Safeguarding + Reconciliation
+  engine (Sprint S16.4 / Block J + D-recon). Domain model + ports +
+  Modulr stub + algorithm sketch + offline validator + operator runbook.
+  Production deploy of the engine and the first LIVE run remain gated by
+  Central + operator + MLRO sign-off per HITL gate in the runbook.
+- Files created:
+  - `services/safeguarding/internal/reconciliation/domain.py` (D1)
+  - `services/safeguarding/internal/adapters/modulr_safeguarding_stub.py` (D2)
+  - `services/safeguarding/internal/reconciliation/algorithm.md` (D3)
+  - `services/safeguarding/scripts/validate-prep.sh` (D4, executable; 33/33 PASS)
+  - `docs/runbooks/safeguarding-reconciliation-deploy-2026-05-12.md` (D5)
+- Recon scope per FCA CASS 15 §15.10 + ADR-013/014/015: daily
+  reconciliation of e-money outstanding vs Modulr safeguarding-account
+  balance; threshold-based break detection (absolute minor-units +
+  relative basis-points + currency); ClickHouse Guardian audit per
+  ADR-027; MLRO notification on EMERGENCY threshold via Sprint S20.5
+  Telegram channel; idempotent on `run_id`.
+- Anchors: Sprint S16.4 (IL-OPS-ROADMAP-SPRINTS-S12-S25-APPROVED-2026-05-11),
+  ADR-013 (Midaz CBS primary), ADR-014 (composable financial stack),
+  ADR-015 (payment processing stack), ADR-027 (audit-trail durability),
+  FCA SUP 15, FCA CASS 15 §15.10,
+  IL-CANON-TERMINAL-B-AUTONOMOUS-FIXATION-2026-05-12,
+  IL-CANON-EXPLICIT-TARGET-INSTRUCTION-2026-05-12,
+  IL-CANON-SUB-B-PROMPT-VIA-FILE-2026-05-12.
+- Production deploy + first LIVE run remain gated by Central + operator +
+  MLRO sign-off; no evo1 deploy, no live Modulr API calls, no live DB
+  writes, no `ssh evo1`, no `systemctl daemon-reload` performed.
