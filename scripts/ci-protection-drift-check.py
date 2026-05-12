@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-ci-protection-drift-check.py — S16.6 CI governance drift sentry CLI.
+ci-protection-drift-check.py — CI governance drift sentry CLI
+(S16.6 baseline + S16.7 real-API reader).
 
 Compares the live branch-protection state on `main` against the S16.5
 baseline (`.github/protection-update-v2.json` by default) and reports any
@@ -11,9 +12,10 @@ Modes
 - `--dry-run-payload <path>` : load the payload from a JSON file (operator
   captured it earlier via `gh api .../branches/main/protection`). Pure
   offline — no network access.
-- (default)                  : real GitHub-API reader. **NOT WIRED YET** in
-  S16.6. CLI prints the diagnostic and exits 2 (cron-safe). Wiring requires
-  GH_TOKEN / PAT plumbing and lands in a follow-up step.
+- (default)                  : real GitHub-API reader if any of
+  CI_GOVERNANCE_GH_TOKEN / GH_TOKEN / GITHUB_TOKEN env vars is set.
+  Otherwise exits 2 (cron-safe). Real adapter is read-only —
+  GET /repos/{owner}/{repo}/branches/{branch}/protection — no mutation.
 
 Flags
 -----
@@ -22,6 +24,11 @@ Flags
 - `--emit-alert`             : when drift is detected, route an alert via
                                 the ADR-033 AlertRoutingPort. Off by
                                 default (cron-safe dry runs).
+- `--force-real-api`         : force the real GitHub-API reader even when
+                                --dry-run-payload is supplied. Useful for
+                                operator-driven validation runs that must
+                                hit the live state, ignoring any local
+                                payload snapshot.
 
 Exit codes
 ----------
@@ -65,36 +72,65 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         "--dry-run-payload",
         default=None,
         help="path to a JSON file containing a captured GitHub-API payload "
-        "(offline mode; bypasses the real-API reader)",
+        "(offline mode; bypasses the real-API reader unless --force-real-api)",
     )
     p.add_argument(
         "--emit-alert",
         action="store_true",
         help="route a drift alert via the ADR-033 AlertRoutingPort on drift",
     )
+    p.add_argument(
+        "--force-real-api",
+        action="store_true",
+        help="force the real GitHub-API reader (overrides --dry-run-payload)",
+    )
     return p
+
+
+def _load_payload_reader(path: str):
+    """Build an InMemoryProtectionReader from a captured JSON payload file."""
+    from services.ci_governance.in_memory_protection_reader import (
+        InMemoryProtectionReader,
+    )
+
+    payload_text = Path(path).read_text(encoding="utf-8")
+    payload = json.loads(payload_text)
+    return InMemoryProtectionReader(payload)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _build_arg_parser().parse_args(argv)
 
-    # Resolve the reader.
-    if args.dry_run_payload:
-        from services.ci_governance.in_memory_protection_reader import (
-            InMemoryProtectionReader,
-        )
+    from services.ci_governance.factory import (
+        get_real_gh_protection_reader,
+        resolve_gh_token,
+    )
 
-        payload_text = Path(args.dry_run_payload).read_text(encoding="utf-8")
+    # Reader-selection precedence:
+    #   1. --force-real-api  → real-API reader, ignore --dry-run-payload
+    #   2. --dry-run-payload → in-memory reader from the captured JSON
+    #   3. any token env present → real-API reader (auto)
+    #   4. otherwise → exit 2 (cron-safe)
+    if args.force_real_api:
+        if resolve_gh_token() is None:
+            logger.error(
+                "--force-real-api set but no token env (CI_GOVERNANCE_GH_TOKEN / "
+                "GH_TOKEN / GITHUB_TOKEN) is present"
+            )
+            return 2
+        reader = get_real_gh_protection_reader()
+    elif args.dry_run_payload:
         try:
-            payload = json.loads(payload_text)
+            reader = _load_payload_reader(args.dry_run_payload)
         except json.JSONDecodeError as exc:
             logger.error("dry-run-payload not valid JSON: %s", exc)
             return 2
-        reader = InMemoryProtectionReader(payload)
+    elif resolve_gh_token() is not None:
+        reader = get_real_gh_protection_reader()
     else:
         logger.error(
-            "real-API reader not wired yet (S16.6 deferred to follow-up); "
-            "re-invoke with --dry-run-payload <captured-gh-api.json>"
+            "no reader wired: supply --dry-run-payload <captured-gh-api.json> "
+            "OR set CI_GOVERNANCE_GH_TOKEN / GH_TOKEN / GITHUB_TOKEN in env"
         )
         return 2
 
