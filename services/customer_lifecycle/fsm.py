@@ -43,6 +43,16 @@ from services.events.event_bus import (
 )
 from services.kyc.kyc_port import KYCStatus
 
+# ADR-028 Step 5: BanxeEventType.value → Port trigger_type string mapping
+# (mirrored from services.kyc.kyc_retrigger_audit_emitter; kept here as a
+# module-local constant to avoid pulling the audit-emitter module into
+# fsm.py's import chain when no audit is wired).
+_BANXE_EVENT_TO_TRIGGER_TYPE: dict[str, str] = {
+    "kyc.role_changed": "role_changed",
+    "kyc.beneficial_owner_changed": "beneficial_owner_changed",
+    "kyc.jurisdiction_changed": "jurisdiction_changed",
+}
+
 # ── Narrow ports for lifecycle guards ─────────────────────────────────────────
 
 
@@ -158,6 +168,7 @@ class KYCLifecycleEngine:
         hitl: HITLLifecyclePort | None = None,
         observer: LifecycleObserverPort | None = None,
         event_bus: EventBusPort | None = None,
+        audit_emitter: object | None = None,
     ) -> None:
         self._engine = engine or LifecycleEngine(InMemoryLifecycleStore())
         self._kyc: KYCGuardPort = kyc_guard or InMemoryKYCGuard()
@@ -165,6 +176,9 @@ class KYCLifecycleEngine:
         self._hitl: HITLLifecyclePort = hitl or InMemoryHITLLifecyclePort()
         self._observer: LifecycleObserverPort | None = observer
         self._event_bus: EventBusPort | None = event_bus
+        # ADR-028 Step 5: optional KYC re-trigger audit emitter. When None,
+        # falls back to the lazy factory singleton inside notify_attribute_change.
+        self._audit_emitter: object | None = audit_emitter
         self._pending_retriggers: dict[str, KycReTriggerEvent] = {}
 
     def transition(
@@ -320,6 +334,32 @@ class KYCLifecycleEngine:
                     customer_id=customer_id,
                 )
             )
+
+        # ADR-028 Step 5: emit KYC_REVERIFICATION_TRIGGERED audit event after
+        # the bus publish. Wrapped in contextlib.suppress so an audit-sink
+        # failure cannot break event delivery (defence-in-depth complementing
+        # the ADR-027 BufferedAuditPort's own swallow).
+        import contextlib
+
+        with contextlib.suppress(Exception):
+            emitter = self._audit_emitter
+            if emitter is None:
+                from services.kyc.factory import get_kyc_retrigger_audit_emitter
+
+                emitter = get_kyc_retrigger_audit_emitter()
+            trigger_type = _BANXE_EVENT_TO_TRIGGER_TYPE.get(event_type.value)
+            if trigger_type is not None:
+                emitter.emit(
+                    customer_id=customer_id,
+                    trigger_type=trigger_type,
+                    trigger_payload={
+                        "previous_value": previous_value,
+                        "new_value": new_value,
+                        "criticality": retrigger.criticality,
+                        "gap_ref": retrigger.gap_ref,
+                    },
+                    requested_by=triggered_by,
+                )
 
         if retrigger.criticality == "CRITICAL":
             if self._engine.get_state(customer_id) == CustomerState.ACTIVE:
