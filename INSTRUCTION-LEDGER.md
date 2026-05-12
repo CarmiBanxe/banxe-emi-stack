@@ -244,3 +244,30 @@
 - Real proof SHA: ba3fccceaa376b6ec1273f416bd6fb916353fca6
 - Supersedes: prior anchor 7708d4c (ledger commit 693ecab)
 - Reason: 7708d4c does not modify the three IL-LINT-03 files; ba3fccc does.
+
+
+---
+
+### IL-OPS-S12-5-G-IAM-08-PREP-2026-05-12
+- Date: 2026-05-12
+- Status: DONE (prep package only; no production deploy)
+- Scope: Sub-B autonomous prep for G-IAM-08 mitigation (Keycloak DB
+  password exposed in keycloak.service ExecStart on evo1). This entry
+  documents repo-only scaffolding; production mitigation on evo1 remains
+  gated by Central + operator approval per HITL gate in the migration plan.
+- Files created (under `infra/keycloak/`):
+  - `G-IAM-08-MIGRATION-PLAN.md`
+  - `keycloak.service.d/g-iam-08-fix.conf.template`
+  - `db.password.template`
+  - `install-db-password-file.sh` (executable)
+  - `validate-g-iam-08-mitigation.sh` (executable; 17/17 PASS local run)
+  - `OPERATOR-RUNBOOK-G-IAM-08.md`
+- Recommended mitigation: native KC 26.x `--db-password-file=/etc/keycloak/db.password`
+  (file root:keycloak 0640); systemd drop-in replaces `ExecStart`. Rejected
+  alternative: `EnvironmentFile=` (leaks via `/proc/<pid>/environ`).
+- Anchors: G-IAM-08, IL-OPS-S12-1-DONE-EVIDENCE-AND-NEW-GAPS-2026-05-12,
+  IL-OPS-ROADMAP-SPRINTS-S12-S25-APPROVED-2026-05-11 (Sprint S12.5),
+  IL-CANON-TERMINAL-B-AUTONOMOUS-FIXATION-2026-05-12,
+  IL-CANON-EXPLICIT-TARGET-INSTRUCTION-2026-05-12.
+- Production mitigation remains gated by Central + operator approval; no
+  evo1 deploy, no `systemctl daemon-reload`, no ssh evo1 performed by this PR.
