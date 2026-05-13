@@ -29,6 +29,10 @@ Flags
                                 operator-driven validation runs that must
                                 hit the live state, ignoring any local
                                 payload snapshot.
+- `--history-path <path>`    : path to the append-only JSONL drift history
+                                file (default: env CI_GOVERNANCE_DRIFT_HISTORY_PATH
+                                or /var/cache/banxe/drift-history.jsonl).
+- `--no-history`             : skip appending to the drift history file.
 
 Exit codes
 ----------
@@ -83,6 +87,18 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         "--force-real-api",
         action="store_true",
         help="force the real GitHub-API reader (overrides --dry-run-payload)",
+    )
+    p.add_argument(
+        "--history-path",
+        default=None,
+        help="path to append-only JSONL drift history file "
+        "(default: env CI_GOVERNANCE_DRIFT_HISTORY_PATH "
+        "or /var/cache/banxe/drift-history.jsonl)",
+    )
+    p.add_argument(
+        "--no-history",
+        action="store_true",
+        help="skip appending to the drift history file",
     )
     return p
 
@@ -156,6 +172,21 @@ def main(argv: list[str] | None = None) -> int:
 
         with contextlib.suppress(Exception):
             get_drift_alert_emitter().emit(result)
+
+    # S16.9 — append to drift history store
+    if not args.no_history:
+        with contextlib.suppress(Exception):
+            from services.ci_governance.drift_history_store import DriftHistoryStore
+
+            history_path = (
+                args.history_path
+                or os.environ.get("CI_GOVERNANCE_DRIFT_HISTORY_PATH")
+                or "/var/cache/banxe/drift-history.jsonl"
+            )
+            import time
+
+            store = DriftHistoryStore(history_path=history_path, clock=time.time)
+            store.append_result(result)
 
     return 1
 
