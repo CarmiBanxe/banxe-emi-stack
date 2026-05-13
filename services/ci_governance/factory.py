@@ -142,6 +142,17 @@ def get_drift_metrics_exporter():
 
 
 @lru_cache(maxsize=1)
+def get_drift_html_renderer():
+    """Singleton DriftHtmlRenderer wired to the shared history store (S16.12)."""
+    from services.ci_governance.drift_html_renderer import DriftHtmlRenderer
+
+    return DriftHtmlRenderer(
+        history_store=get_drift_history_store(),
+        clock=time.time,
+    )
+
+
+@lru_cache(maxsize=1)
 def get_snapshot_writer():
     """Singleton ProtectionSnapshotWriter wired to the configured reader.
 
