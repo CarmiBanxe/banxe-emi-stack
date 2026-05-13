@@ -119,6 +119,18 @@ def get_drift_alert_emitter() -> DriftAlertEmitter:
 
 
 @lru_cache(maxsize=1)
+def get_drift_history_store():
+    """Singleton DriftHistoryStore; path from CI_GOVERNANCE_DRIFT_HISTORY_PATH env."""
+    from services.ci_governance.drift_history_store import DriftHistoryStore
+
+    history_path = os.environ.get(
+        "CI_GOVERNANCE_DRIFT_HISTORY_PATH",
+        "/var/cache/banxe/drift-history.jsonl",
+    )
+    return DriftHistoryStore(history_path=history_path, clock=time.time)
+
+
+@lru_cache(maxsize=1)
 def get_snapshot_writer():
     """Singleton ProtectionSnapshotWriter wired to the configured reader.
 
