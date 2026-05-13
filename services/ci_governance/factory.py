@@ -116,3 +116,16 @@ def get_drift_alert_emitter() -> DriftAlertEmitter:
     from services.alerting.di import get_alert_adapter
 
     return DriftAlertEmitter(alert_router=get_alert_adapter(), clock=time.time)
+
+
+@lru_cache(maxsize=1)
+def get_snapshot_writer():
+    """Singleton ProtectionSnapshotWriter wired to the configured reader.
+
+    Reuses the env-driven get_protection_reader() so the snapshot host
+    can be in_memory / gh_api / auto mode independently of the drift-
+    sentry host that consumes the snapshot file (S16.6 + S16.7 paths).
+    """
+    from services.ci_governance.snapshot_writer import ProtectionSnapshotWriter
+
+    return ProtectionSnapshotWriter(reader=get_protection_reader(), clock=time.time)
