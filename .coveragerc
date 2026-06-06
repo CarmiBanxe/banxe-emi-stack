@@ -14,5 +14,3 @@ omit =
     */clickhouse_client.py
     # RegData — live FIN060 generator (WeasyPrint + ClickHouse)
     services/reporting/fin060_generator.py
-    # Pure ABC provider-port contracts — no executable logic, tested via conformance suite
-    services/*/*_provider_port.py
