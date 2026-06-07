@@ -15,3 +15,39 @@ recorder are injected as interfaces; agents never implement them.
 """
 
 from __future__ import annotations
+
+from services.agents.notification_agent import (
+    AgentDecisionRecord,
+    AgentOutcome,
+    AutonomyLevel,
+    BudgetBreach,
+    ChannelCheckIntent,
+    ComplianceResult,
+    ConfirmationDecision,
+    CostCap,
+    CostWindow,
+    DecisionRecorder,
+    NotificationAgent,
+    NotificationMask,
+    NotificationSendIntent,
+    ProcessRef,
+    RequestCost,
+)
+
+__all__ = [
+    "AgentDecisionRecord",
+    "AgentOutcome",
+    "AutonomyLevel",
+    "BudgetBreach",
+    "ChannelCheckIntent",
+    "ComplianceResult",
+    "ConfirmationDecision",
+    "CostCap",
+    "CostWindow",
+    "DecisionRecorder",
+    "NotificationAgent",
+    "NotificationMask",
+    "NotificationSendIntent",
+    "ProcessRef",
+    "RequestCost",
+]
