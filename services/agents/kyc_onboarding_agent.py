@@ -42,7 +42,6 @@ logic.
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -50,6 +49,18 @@ from decimal import Decimal
 from enum import StrEnum
 import uuid
 
+from services.agents._lineage import (
+    AgentDecisionRecord,
+    AgentOutcome,
+    BudgetBreach,
+    ComplianceResult,
+    ConfirmationDecision,
+    CostCap,
+    CostWindow,
+    DecisionRecorder,
+    ProcessRef,
+    RequestCost,
+)
 from services.kyc.kyc_provider_port import (
     KYCProviderError,
     KYCProviderPort,
@@ -60,31 +71,6 @@ from services.kyc.kyc_provider_port import (
 # ---------------------------------------------------------------------------
 # Mask vocabulary
 # ---------------------------------------------------------------------------
-
-
-class ConfirmationDecision(StrEnum):
-    """HITL band selected by the confirmation_policy (ADR-047 / ADR-049 §D4)."""
-
-    AUTO = "auto"
-    REVIEW = "review"
-    BLOCK = "block"
-
-
-class ComplianceResult(StrEnum):
-    """Net L3 compliance-gate outcome carried on the lineage record (ADR-046)."""
-
-    PASS = "PASS"  # nosec B105 # noqa: S105 — compliance verdict, not a credential
-    FAIL = "FAIL"
-    ESCALATE = "ESCALATE"
-    NA = "N/A"
-
-
-class BudgetBreach(StrEnum):
-    """Cost-cap breach flag for the lineage record (ADR-047 §D2/§D4)."""
-
-    NONE = "NONE"
-    WARN = "WARN"
-    BREACH = "BREACH"
 
 
 class AutonomyLevel(StrEnum):
@@ -103,51 +89,8 @@ class IdentityDecision(StrEnum):
 
 
 # ---------------------------------------------------------------------------
-# Value types
+# Value types — mask config (the shared cost/lineage primitives live in ``_lineage``)
 # ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class ProcessRef:
-    """ADR-048 intent→process handle. Both fields required for a resolved intent."""
-
-    process_id: str
-    version: str
-
-    @property
-    def resolved(self) -> bool:
-        return bool(self.process_id) and bool(self.version)
-
-
-@dataclass(frozen=True)
-class RequestCost:
-    """Estimated cost of a single agent invocation (ADR-047 per-request dimensions)."""
-
-    tokens: int
-    cost: Decimal
-
-
-@dataclass(frozen=True)
-class CostCap:
-    """Hard caps in both token and monetary (Decimal) dimensions (ADR-047 §D2)."""
-
-    max_request_tokens: int
-    max_request_cost: Decimal
-    max_window_tokens: int
-    max_window_cost: Decimal
-
-
-@dataclass
-class CostWindow:
-    """Rolling per-window usage accumulator (ADR-047 §D2 per-window budget)."""
-
-    used_tokens: int = 0
-    used_cost: Decimal = Decimal("0")
-    window_ref: str = "kyc_onboarding_agent:default"
-
-    def add(self, cost: RequestCost) -> None:
-        self.used_tokens += cost.tokens
-        self.used_cost += cost.cost
 
 
 @dataclass(frozen=True)
@@ -232,60 +175,6 @@ class IdentityDecisionIntent:
     request_cost: RequestCost
     biometric_required: bool = False
     biometric_verified: bool = False
-
-
-@dataclass
-class AgentDecisionRecord:
-    """Decision-lineage record emitted per action (ADR-046 schema + ADR-047 cost)."""
-
-    record_id: str
-    timestamp: datetime
-    agent_id: str
-    triggering_event: str
-    intent: str
-    policies_evaluated: list[str]
-    compliance_result: ComplianceResult
-    reasoning_summary: str
-    confidence_score: float
-    action_taken: str
-    human_reviewed_by: str | None
-    correlation_id: str
-    # ADR-047 cost lineage (cost is a first-class lineage dimension).
-    cost_tokens: int = 0
-    cost_amount: Decimal = Decimal("0")
-    budget_window_ref: str = ""
-    budget_breach_flag: BudgetBreach = BudgetBreach.NONE
-    # MLRO escalation marker (`.claude/rules/agents.md`); set on compliance
-    # fail/escalate, low-confidence identity decisions, and blocked downgrades.
-    escalated_to: str | None = None
-
-
-@dataclass
-class AgentOutcome:
-    """Result of a masked action: the decision, whether a port was called, and the
-    lineage record that was emitted (always non-None — lineage is non-optional)."""
-
-    decision: ConfirmationDecision
-    executed: bool
-    record: AgentDecisionRecord
-    result: object | None = None
-    halt_reason: str | None = None
-    requires_step_up: bool = False
-    requires_hitl: bool = False
-    escalated_to: str | None = None
-
-
-class DecisionRecorder(ABC):
-    """Sink for :class:`AgentDecisionRecord` (ADR-046 producer→sink seam).
-
-    Injected, not implemented here: the ClickHouse/lineage wiring is out of scope
-    (ADR-049 §D7). The agent depends only on this interface.
-    """
-
-    @abstractmethod
-    async def record(self, record: AgentDecisionRecord) -> None:
-        """Persist one decision-lineage record. Must be durable before the action
-        is considered complete (ADR-046 §D4 producer obligation)."""
 
 
 # ---------------------------------------------------------------------------
