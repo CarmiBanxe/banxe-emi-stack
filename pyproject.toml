@@ -15,7 +15,7 @@ markers = [
 
 [tool.coverage.run]
 source = ["services", "api", "src"]
-omit = ["tests/*", "*/__pycache__/*", "*/migrations/*"]
+omit = ["tests/*", "*/__pycache__/*", "*/migrations/*", "services/*/*_provider_port.py"]
 concurrency = ["thread"]
 
 [tool.coverage.report]
