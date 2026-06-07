@@ -16,6 +16,18 @@ recorder are injected as interfaces; agents never implement them.
 
 from __future__ import annotations
 
+from services.agents._lineage import (
+    AgentDecisionRecord,
+    AgentOutcome,
+    BudgetBreach,
+    ComplianceResult,
+    ConfirmationDecision,
+    CostCap,
+    CostWindow,
+    DecisionRecorder,
+    ProcessRef,
+    RequestCost,
+)
 from services.agents.crm_agent import (
     ComplianceOverlay,
     CRMAgent,
@@ -26,30 +38,20 @@ from services.agents.crm_agent import (
     UpdateTierIntent,
 )
 from services.agents.notification_agent import (
-    AgentDecisionRecord,
-    AgentOutcome,
     AutonomyLevel,
-    BudgetBreach,
     ChannelCheckIntent,
-    ComplianceResult,
-    ConfirmationDecision,
-    CostCap,
-    CostWindow,
-    DecisionRecorder,
     NotificationAgent,
     NotificationMask,
     NotificationSendIntent,
-    ProcessRef,
-    RequestCost,
 )
 
-# NOTE: the agents share structurally-identical governance primitives
-# (ProcessRef, RequestCost, CostCap, CostWindow, DecisionRecorder, ComplianceResult,
-# ConfirmationDecision, BudgetBreach, AutonomyLevel, AgentDecisionRecord,
-# AgentOutcome). The package re-exports one canonical set (from notification_agent);
-# the CRM-specific public types are re-exported alongside. Import the per-agent
-# module directly (e.g. ``services.agents.crm_agent``) when the module-local
-# identity of a shared primitive matters.
+# NOTE: the agents share structurally-identical governance primitives (ProcessRef,
+# RequestCost, CostCap, CostWindow, DecisionRecorder, ComplianceResult,
+# ConfirmationDecision, BudgetBreach, AgentDecisionRecord, AgentOutcome). These now
+# live in the canonical ``services/agents/_lineage.py`` module and are re-exported
+# from here; each agent module imports the same single set (DRY — no per-module
+# duplicates). The mask-specific public types (AutonomyLevel, ComplianceOverlay, the
+# per-mask masks/intents) are re-exported from their owning agent module alongside.
 __all__ = [
     "AgentDecisionRecord",
     "AgentOutcome",
