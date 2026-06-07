@@ -16,6 +16,15 @@ recorder are injected as interfaces; agents never implement them.
 
 from __future__ import annotations
 
+from services.agents.crm_agent import (
+    ComplianceOverlay,
+    CRMAgent,
+    CRMMask,
+    GetUserIntent,
+    RegisterReferralIntent,
+    ResolveCodeIntent,
+    UpdateTierIntent,
+)
 from services.agents.notification_agent import (
     AgentDecisionRecord,
     AgentOutcome,
@@ -34,20 +43,34 @@ from services.agents.notification_agent import (
     RequestCost,
 )
 
+# NOTE: the agents share structurally-identical governance primitives
+# (ProcessRef, RequestCost, CostCap, CostWindow, DecisionRecorder, ComplianceResult,
+# ConfirmationDecision, BudgetBreach, AutonomyLevel, AgentDecisionRecord,
+# AgentOutcome). The package re-exports one canonical set (from notification_agent);
+# the CRM-specific public types are re-exported alongside. Import the per-agent
+# module directly (e.g. ``services.agents.crm_agent``) when the module-local
+# identity of a shared primitive matters.
 __all__ = [
     "AgentDecisionRecord",
     "AgentOutcome",
     "AutonomyLevel",
     "BudgetBreach",
+    "CRMAgent",
+    "CRMMask",
     "ChannelCheckIntent",
+    "ComplianceOverlay",
     "ComplianceResult",
     "ConfirmationDecision",
     "CostCap",
     "CostWindow",
     "DecisionRecorder",
+    "GetUserIntent",
     "NotificationAgent",
     "NotificationMask",
     "NotificationSendIntent",
     "ProcessRef",
+    "RegisterReferralIntent",
     "RequestCost",
+    "ResolveCodeIntent",
+    "UpdateTierIntent",
 ]
