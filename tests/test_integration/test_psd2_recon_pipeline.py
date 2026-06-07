@@ -38,15 +38,11 @@ class TestPSD2ReconPipeline:
 
     def test_adorsys_fetch_returns_xml(self, mock_adorsys_client):
         # Verify mock returns the XML string
-        result = asyncio.get_event_loop().run_until_complete(
-            mock_adorsys_client.fetch_statement("GB29NWBK60161331926819")
-        )
+        result = asyncio.run(mock_adorsys_client.fetch_statement("GB29NWBK60161331926819"))
         assert "BkToCstmrStmt" in result
 
     def test_adorsys_account_list_contains_iban(self, mock_adorsys_client):
-        accounts = asyncio.get_event_loop().run_until_complete(
-            mock_adorsys_client.get_account_list()
-        )
+        accounts = asyncio.run(mock_adorsys_client.get_account_list())
         assert "GB29NWBK60161331926819" in accounts
 
     def test_blocked_iban_country_ru_rejected(self):
