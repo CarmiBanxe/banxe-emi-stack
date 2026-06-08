@@ -64,6 +64,14 @@ from services.agents.notification_agent import (
     NotificationMask,
     NotificationSendIntent,
 )
+from services.agents.statement_agent import (
+    DeliverStatementIntent,
+    GenerateStatementIntent,
+    GetStatementIntent,
+    ListStatementsIntent,
+    StatementClientAgent,
+    StatementMask,
+)
 
 # NOTE: the agents share structurally-identical governance primitives (ProcessRef,
 # RequestCost, CostCap, CostWindow, DecisionRecorder, ComplianceResult,
@@ -92,11 +100,15 @@ __all__ = [
     "CostCap",
     "CostWindow",
     "DecisionRecorder",
+    "DeliverStatementIntent",
     "FreezeIntent",
+    "GenerateStatementIntent",
     "GetReportIntent",
+    "GetStatementIntent",
     "GetUserIntent",
     "IssueCardIntent",
     "ListReportsIntent",
+    "ListStatementsIntent",
     "NotificationAgent",
     "NotificationMask",
     "NotificationSendIntent",
@@ -109,6 +121,8 @@ __all__ = [
     "RequestExportIntent",
     "ResolveCodeIntent",
     "SpendingSummaryIntent",
+    "StatementClientAgent",
+    "StatementMask",
     "UnfreezeIntent",
     "UpdateTierIntent",
 ]
