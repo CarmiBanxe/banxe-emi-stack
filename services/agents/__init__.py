@@ -28,6 +28,15 @@ from services.agents._lineage import (
     ProcessRef,
     RequestCost,
 )
+from services.agents.analytics_agent import (
+    AnalyticsClientAgent,
+    AnalyticsMask,
+    GetReportIntent,
+    ListReportsIntent,
+    PortfolioViewIntent,
+    RequestExportIntent,
+    SpendingSummaryIntent,
+)
 from services.agents.cards_agent import (
     BlockIntent,
     CardsAgent,
@@ -66,6 +75,8 @@ from services.agents.notification_agent import (
 __all__ = [
     "AgentDecisionRecord",
     "AgentOutcome",
+    "AnalyticsClientAgent",
+    "AnalyticsMask",
     "AutonomyLevel",
     "BlockIntent",
     "BudgetBreach",
@@ -82,17 +93,22 @@ __all__ = [
     "CostWindow",
     "DecisionRecorder",
     "FreezeIntent",
+    "GetReportIntent",
     "GetUserIntent",
     "IssueCardIntent",
+    "ListReportsIntent",
     "NotificationAgent",
     "NotificationMask",
     "NotificationSendIntent",
+    "PortfolioViewIntent",
     "ProcessRef",
     "ReadCardIntent",
     "ReadLimitsIntent",
     "RegisterReferralIntent",
     "RequestCost",
+    "RequestExportIntent",
     "ResolveCodeIntent",
+    "SpendingSummaryIntent",
     "UnfreezeIntent",
     "UpdateTierIntent",
 ]
