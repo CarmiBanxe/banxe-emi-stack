@@ -74,6 +74,7 @@ from api.routers import (
     hitl,
     hmrc_reporting,
     insurance,
+    intent,
     kyb_onboarding,
     kyc,
     ledger,
@@ -175,6 +176,7 @@ app.include_router(notifications.router, prefix="/v1")
 app.include_router(fraud.router, prefix="/v1")
 app.include_router(consumer_duty.router, prefix="/v1")
 app.include_router(hitl.router, prefix="/v1")
+app.include_router(intent.router, prefix="/v1")  # L1 Intent Layer (ADR-049, S8)
 app.include_router(reporting.router, prefix="/v1")
 app.include_router(statements.router, prefix="/v1")
 app.include_router(watchman_webhook.router)  # POST /webhooks/watchman (IL-068)
