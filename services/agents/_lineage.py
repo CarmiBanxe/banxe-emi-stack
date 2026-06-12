@@ -173,6 +173,10 @@ class AgentOutcome:
     requires_step_up: bool = False
     requires_hitl: bool = False
     escalated_to: str | None = None
+    # Escalation SLA in hours (additive, defaults None). Set by masks with a
+    # regulatory notification deadline — e.g. the IncidentResponse mask carries the
+    # FCA SYSC 8.1 ≤2h CRITICAL CTO+CEO notification SLA. Other masks leave it None.
+    sla_hours: int | None = None
 
 
 class DecisionRecorder(ABC):
