@@ -35,8 +35,10 @@ jobs:
           if [ -z "$files" ]; then
             echo "docs_only=false" >> "$GITHUB_OUTPUT"; exit 0
           fi
-          # docs = anything under docs/ or any *.md file.
-          if printf '%s\n' "$files" | grep -qvE '^(docs/|.*\.md$)'; then
+          # docs = anything under docs/ or any *.md file. Capture non-docs lines
+          # (robust across grep implementations) rather than relying on `grep -qv`.
+          nondocs="$(printf '%s\n' "$files" | grep -vE '^(docs/|.*\.md$)' || true)"
+          if [ -n "$nondocs" ]; then
             echo "docs_only=false" >> "$GITHUB_OUTPUT"
           else
             echo "docs_only=true" >> "$GITHUB_OUTPUT"
