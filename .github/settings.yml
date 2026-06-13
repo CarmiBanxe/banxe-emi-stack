@@ -1,0 +1,49 @@
+# .github/settings.yml — banxe-emi-stack
+# Source of truth for branch protection on `main`. Format follows the
+# Repository Settings GitHub App (probot/settings) schema.
+#
+# FU-1 (Guardian protection) history:
+#   Phase 1 — diagnosed that code PRs could only merge with `--admin`.
+#   Phase 2 — patched branch protection on `main` to require the 9 real CI
+#             gates below (strict, enforce_admins: false), so code PRs merge
+#             on green without `--admin`.
+#   Phase 3 — (this file + the workflow changes in the same PR) closes the
+#             docs-only gap and codifies protection so drift is visible and
+#             future protection changes go through a PR.
+#
+# Live required-check provenance (app_id) at time of writing:
+#   - 8 contexts are emitted by GitHub Actions (app_id 15368).
+#   - "Semgrep OSS" was historically emitted by the external Semgrep SaaS app
+#     (app_id 57789), which is diff-aware and did NOT report on docs-only PRs,
+#     leaving that required context stuck "pending" and blocking docs-only PRs.
+#
+# Phase 3 fix: "Semgrep OSS" is now also produced in-repo by the
+# `semgrep-oss` job in .github/workflows/quality-gate.yml (GitHub Actions,
+# app_id 15368), which self-short-circuits to success on docs-only PRs and runs
+# the Semgrep OSS default ruleset (diff-scoped) on code PRs. For this to satisfy
+# branch protection, the required-check pin for "Semgrep OSS" must move from the
+# Semgrep app (57789) to GitHub Actions (15368). The probot/settings schema below
+# expresses required checks by context name only (app-agnostic); if your apply
+# mechanism preserves explicit app pins, re-pin "Semgrep OSS" to app_id 15368.
+#
+# NOTE: the `contexts:` list below intentionally mirrors the exact 9 required
+# status checks from the live API. Do not weaken this list for code paths.
+
+branches:
+  - name: main
+    protection:
+      required_status_checks:
+        strict: true
+        contexts:
+          - "Smoke Gate (mock tier)"
+          - "Pytest (coverage >= 80%)"
+          - "Ruff lint + format"
+          - "Semgrep (banxe-rules)"
+          - "Semgrep security rules"
+          - "Semgrep OSS"
+          - "Gitleaks - Secrets Scan"
+          - "Biome lint + format (Frontend)"
+          - "Vitest (frontend)"
+      enforce_admins: false
+      required_pull_request_reviews: null
+      restrictions: null
