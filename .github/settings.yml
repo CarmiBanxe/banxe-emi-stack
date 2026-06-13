@@ -13,16 +13,18 @@
 #
 # Live required-check provenance (app_id) at time of writing:
 #   - 8 contexts are emitted by GitHub Actions (app_id 15368).
-#   - "Semgrep OSS" was historically emitted by the external Semgrep SaaS app
-#     (app_id 57789), which is diff-aware and did NOT report on docs-only PRs,
-#     leaving that required context stuck "pending" and blocking docs-only PRs.
+#   - "Semgrep OSS" was emitted by GitHub Advanced Security / code scanning
+#     (app_id 57789) from the Semgrep SARIF uploaded by lint-python.yml. Because
+#     that workflow was path-filtered to **.py, docs-only PRs uploaded no SARIF,
+#     so the code-scanning "Semgrep OSS" check never reported, leaving the
+#     required context stuck "pending" and blocking docs-only PRs.
 #
-# Phase 3 fix: "Semgrep OSS" is now also produced in-repo by the
-# `semgrep-oss` job in .github/workflows/quality-gate.yml (GitHub Actions,
-# app_id 15368), which self-short-circuits to success on docs-only PRs and runs
-# the Semgrep OSS default ruleset (diff-scoped) on code PRs. For this to satisfy
-# branch protection, the required-check pin for "Semgrep OSS" must move from the
-# Semgrep app (57789) to GitHub Actions (15368). The probot/settings schema below
+# Phase 3 fix: "Semgrep OSS" is now produced in-repo by the `semgrep-oss` job in
+# .github/workflows/quality-gate.yml (GitHub Actions, app_id 15368), which
+# self-short-circuits to success on docs-only PRs and runs the Semgrep OSS
+# default ruleset (diff-scoped) on code PRs. For this to satisfy branch
+# protection, the required-check pin for "Semgrep OSS" must move from GitHub
+# Advanced Security (57789) to GitHub Actions (15368). The probot/settings schema below
 # expresses required checks by context name only (app-agnostic); if your apply
 # mechanism preserves explicit app pins, re-pin "Semgrep OSS" to app_id 15368.
 #
