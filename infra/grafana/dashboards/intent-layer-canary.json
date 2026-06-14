@@ -1,0 +1,185 @@
+{
+  "__inputs": [],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "10.0.0"
+    },
+    {
+      "type": "datasource",
+      "id": "vertamedia-clickhouse-datasource",
+      "name": "ClickHouse",
+      "version": "2.5.0"
+    }
+  ],
+  "annotations": { "list": [] },
+  "description": "FU-2 Intent Layer canary (Notifications-in-staging) — traffic, guardrail rate, compliance breakdown and confidence, from banxe.decision_records (agent_id='notification_agent'). Latency/gateway panels require the CanaryMetricsPort wired to a metrics backend (operator runtime step).",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "Canary traffic & safety",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" } } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+      "id": 2,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+          "rawSql": "SELECT toStartOfHour(timestamp) AS t, count() AS requests FROM banxe.decision_records WHERE agent_id = 'notification_agent' AND timestamp >= now() - INTERVAL 24 HOUR GROUP BY t ORDER BY t",
+          "refId": "A"
+        }
+      ],
+      "title": "Canary requests / hour (24h)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 3 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 1 },
+      "id": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+          "rawSql": "SELECT round(100 * countIf(compliance_result != 'PASS') / nullIf(count(), 0), 2) AS guardrail_pct FROM banxe.decision_records WHERE agent_id = 'notification_agent' AND timestamp >= now() - INTERVAL 24 HOUR",
+          "refId": "A"
+        }
+      ],
+      "title": "Guardrail-trigger rate (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 1 },
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+          "rawSql": "SELECT countIf(compliance_result = 'FAIL') AS compliance_fail FROM banxe.decision_records WHERE agent_id = 'notification_agent' AND timestamp >= now() - INTERVAL 24 HOUR",
+          "refId": "A"
+        }
+      ],
+      "title": "Compliance FAILs (24h) — must be 0",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" } } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+      "id": 5,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "pieType": "pie",
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+          "rawSql": "SELECT compliance_result, count() AS cnt FROM banxe.decision_records WHERE agent_id = 'notification_agent' AND timestamp >= now() - INTERVAL 24 HOUR GROUP BY compliance_result ORDER BY cnt DESC",
+          "refId": "A"
+        }
+      ],
+      "title": "Compliance-result breakdown (24h)",
+      "type": "piechart"
+    },
+    {
+      "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "none" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+      "id": 6,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+          "rawSql": "SELECT toStartOfHour(timestamp) AS t, round(avg(confidence_score), 3) AS avg_confidence FROM banxe.decision_records WHERE agent_id = 'notification_agent' AND timestamp >= now() - INTERVAL 24 HOUR GROUP BY t ORDER BY t",
+          "refId": "A"
+        }
+      ],
+      "title": "Avg classification confidence / hour (24h)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" } } },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 17 },
+      "id": 7,
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "vertamedia-clickhouse-datasource", "uid": "clickhouse" },
+          "rawSql": "SELECT if(timestamp >= now() - INTERVAL 24 HOUR, 'after', 'before') AS window, count() AS requests, countIf(compliance_result != 'PASS') AS guardrail_triggers FROM banxe.decision_records WHERE agent_id = 'notification_agent' AND timestamp >= now() - INTERVAL 48 HOUR GROUP BY window ORDER BY window",
+          "refId": "A"
+        }
+      ],
+      "title": "Before/after enable: requests & guardrail triggers",
+      "type": "table"
+    }
+  ],
+  "refresh": "5m",
+  "schemaVersion": 39,
+  "tags": ["intent-layer", "canary", "fu-2", "observability"],
+  "templating": { "list": [] },
+  "time": { "from": "now-24h", "to": "now" },
+  "timezone": "utc",
+  "title": "Intent Layer Canary (FU-2)",
+  "uid": "intent-layer-canary",
+  "version": 1,
+  "weekStart": ""
+}
