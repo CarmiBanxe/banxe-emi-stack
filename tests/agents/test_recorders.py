@@ -136,7 +136,10 @@ class _FakeClickHouseClient:
             r
             for r in self.rows
             if ("agent_id" not in params or r[idx["agent_id"]] == params["agent_id"])
-            and ("correlation_id" not in params or r[idx["correlation_id"]] == params["correlation_id"])
+            and (
+                "correlation_id" not in params
+                or r[idx["correlation_id"]] == params["correlation_id"]
+            )
         ]
         return list(reversed(out))
 

@@ -218,9 +218,7 @@ class ClickHouseDecisionRecorder(DecisionRecorder):
 
     def __init__(self, client: ClickHouseClient | None = None) -> None:
         self._client = client
-        self._insert_sql = (
-            f"INSERT INTO {_TABLE} (" + ", ".join(_COLUMNS) + ") VALUES"
-        )
+        self._insert_sql = f"INSERT INTO {_TABLE} (" + ", ".join(_COLUMNS) + ") VALUES"
 
     def _ch(self) -> ClickHouseClient:
         if self._client is None:
@@ -229,7 +227,9 @@ class ClickHouseDecisionRecorder(DecisionRecorder):
 
     async def record(self, record: AgentDecisionRecord) -> None:
         self._ch().insert(self._insert_sql, _to_row(record))
-        logger.debug("decision_records insert: record_id=%s agent=%s", record.record_id, record.agent_id)
+        logger.debug(
+            "decision_records insert: record_id=%s agent=%s", record.record_id, record.agent_id
+        )
 
     def query(
         self,
