@@ -35,6 +35,9 @@ jobs:
       CLICKHOUSE_HOST: localhost
       CLICKHOUSE_DB: banxe
       FRANKFURTER_BASE_URL: http://localhost:8087
+      # Optional LLM gateway target (FU-2). Set the `LLM_GATEWAY_URL` repo variable
+      # to enable the healthcheck below; empty/unset => the step is skipped, CI stays green.
+      LLM_GATEWAY_URL: ${{ vars.LLM_GATEWAY_URL }}
 
     steps:
       - uses: actions/checkout@v4
@@ -68,6 +71,23 @@ jobs:
           echo "Waiting for frankfurter..."
           until curl -sf http://localhost:8087/health; do sleep 2; done
           echo "All infra services healthy."
+
+      - name: LLM gateway healthcheck (optional, FU-2)
+        # Only runs when the LLM_GATEWAY_URL repo variable is set; otherwise skipped
+        # (not failed) so CI stays green when no gateway is wired. See docs/llm-gateway-dev.md.
+        if: ${{ env.LLM_GATEWAY_URL != '' }}
+        run: |
+          echo "Pinging LLM gateway at ${LLM_GATEWAY_URL}/health/liveliness ..."
+          for i in $(seq 1 5); do
+            if curl -fsS -m 10 "${LLM_GATEWAY_URL}/health/liveliness"; then
+              echo " — LLM gateway live"
+              exit 0
+            fi
+            echo "attempt ${i}: no response yet, retrying..."
+            sleep 3
+          done
+          echo "::error::LLM gateway did not respond at ${LLM_GATEWAY_URL}" >&2
+          exit 1
 
       - name: Run smoke suite (full tier)
         run: |
