@@ -92,9 +92,7 @@ def test_unresolved_intent_returns_governance_event(enabled):
 def test_referral_crm_dispatches_real_mask(enabled):
     """FU-2 Phase 7: Referral / CRM is the one low-risk capability the canary widens to —
     its read path (resolve_referral_code) dispatches to the real CRMAgent mask."""
-    resp = client.post(
-        "/v1/intent", json={"intent_text": "refer", "correlation_id": "c-crm-1"}
-    )
+    resp = client.post("/v1/intent", json={"intent_text": "refer", "correlation_id": "c-crm-1"})
     assert resp.status_code == 200
     body = resp.json()
     assert body["enabled"] is True

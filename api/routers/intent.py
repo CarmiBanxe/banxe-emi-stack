@@ -411,9 +411,7 @@ def submit_intent(body: IntentRequest) -> IntentResponse:
         # Resolved, but the capability is outside the staging canary allow-list — no
         # dispatch, no L2 mask, no lineage write. The scope guard that keeps the canary
         # narrow (and prod fully dark) per FU-2 Phase 7.
-        return IntentResponse(
-            enabled=True, disposition="CANARY_HELD", detail=disposition.reason
-        )
+        return IntentResponse(enabled=True, disposition="CANARY_HELD", detail=disposition.reason)
 
     if disposition.kind is DispositionKind.GOVERNANCE_EVENT:
         return IntentResponse(
