@@ -24,6 +24,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import lru_cache
+import os
+import time
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -48,8 +50,22 @@ from services.intent_layer.composition import (
     InMemoryDecisionRecorder,
 )
 from services.intent_layer.config import intent_layer_enabled
-from services.intent_layer.models import DispositionKind
-from services.intent_layer.ports import DispatchRequest
+from services.intent_layer.models import (
+    ConfidenceBand,
+    Disposition,
+    DispositionKind,
+    ResolvedIntent,
+)
+from services.intent_layer.observability import (
+    CanaryEvent,
+    CanaryMetricsPort,
+    CanaryObserver,
+    InMemoryCanaryMetrics,
+    InstrumentedLLMClassifier,
+    NullCanaryMetrics,
+    canary_env,
+)
+from services.intent_layer.ports import DispatchRequest, NullLLMClassifier
 from services.intent_layer.router import IntentRouter
 from services.notifications.notification_provider_port import (
     DeliveryResult,
@@ -182,6 +198,7 @@ class _Composition:
     classifier: IntentClassifier
     router: IntentRouter
     recorder: InMemoryDecisionRecorder
+    observer: CanaryObserver
     enabled: bool
 
 
@@ -195,19 +212,42 @@ def _catalog() -> IntentCatalog:
     return load_catalog()
 
 
+def get_canary_metrics() -> CanaryMetricsPort:
+    """Select the canary metrics sink from ``CANARY_METRICS`` (composition seam).
+
+    Default (unset/``null``) → :class:`NullCanaryMetrics` (no-op): no metrics
+    backend is touched and prod stays silent. ``inmemory`` → a recordable sink for
+    local/staging diagnostics. A real Prometheus/StatsD/ClickHouse port is injected
+    here at the operator runtime step. Any other value fails closed."""
+    choice = os.environ.get("CANARY_METRICS", "null").strip().lower()
+    if choice in ("", "null", "none"):
+        return NullCanaryMetrics()
+    if choice == "inmemory":
+        return InMemoryCanaryMetrics()
+    raise ValueError(f"CANARY_METRICS={choice!r} is invalid; expected 'null' or 'inmemory'")
+
+
 def get_composition() -> _Composition:
     """Build the request-time composition. The flag is read fresh each call (safe
-    pre-activation toggling); the catalogue and the lineage sink are singletons."""
+    pre-activation toggling); the catalogue and the lineage sink are singletons.
+
+    The S1 LLM-gateway seam is wrapped in :class:`InstrumentedLLMClassifier` so any
+    live gateway call is timed/counted; wrapping the Null classifier is inert (the
+    fuzzy fallback is never consulted while dark)."""
     enabled = intent_layer_enabled()
+    env = canary_env()
+    metrics = get_canary_metrics()
     dispatcher = CapabilityDispatcher(
         handlers=_LIVE_HANDLERS,
         producers=ProducerBundle.null(),
         recorder=_RECORDER,
     )
+    llm = InstrumentedLLMClassifier(NullLLMClassifier(), metrics, env=env)
     return _Composition(
-        classifier=IntentClassifier(_catalog(), enabled=enabled),
+        classifier=IntentClassifier(_catalog(), enabled=enabled, llm=llm),
         router=IntentRouter(dispatcher, enabled=enabled),
         recorder=_RECORDER,
+        observer=CanaryObserver(metrics, env=env),
         enabled=enabled,
     )
 
@@ -239,6 +279,40 @@ def _to_record_model(record: AgentDecisionRecord) -> DecisionRecordModel:
     )
 
 
+# ── Canary observability ───────────────────────────────────────────────────────
+
+
+def _observe_canary(
+    comp: _Composition,
+    resolved: ResolvedIntent,
+    disposition: Disposition,
+    latency_ms: float,
+) -> None:
+    """Emit the FU-2 Phase 6 canary signals for a live (enabled) disposition.
+
+    Reached ONLY when the layer is enabled (NOT_ENABLED short-circuits earlier), so a
+    dark/prod deployment never lands here. ``success`` is false only for a dispatch the
+    L2 mask rejected — a GOVERNANCE_EVENT (UNRESOLVED → process-gap) is a correct,
+    expected outcome, not an error. Labels carry no PII (R-SEC)."""
+    record = comp.recorder.get_by_correlation(disposition.correlation_id)
+    receipt = disposition.receipt
+    dispatched = disposition.kind is DispositionKind.DISPATCHED
+    success = not dispatched or bool(getattr(receipt, "accepted", False))
+    error_reason = None if success else "dispatch_rejected"
+    comp.observer.observe(
+        CanaryEvent(
+            capability=disposition.capability or resolved.capability or "unknown",
+            disposition=disposition.kind.value,
+            latency_ms=latency_ms,
+            success=success,
+            compliance_result=record.compliance_result.value if record else "N/A",
+            high_risk_flag=resolved.band is not ConfidenceBand.AUTO,
+            error_reason=error_reason,
+            correlation_id=disposition.correlation_id,
+        )
+    )
+
+
 # ── Routes ───────────────────────────────────────────────────────────────────
 
 
@@ -251,11 +325,17 @@ def submit_intent(body: IntentRequest) -> IntentResponse:
     event loop. Off → NOT_ENABLED (no dispatch). UNRESOLVED → governance event.
     """
     comp = get_composition()
+    start = time.monotonic()
     resolved = comp.classifier.classify(body.intent_text, correlation_id=body.correlation_id)
     disposition = comp.router.route(resolved)
+    latency_ms = (time.monotonic() - start) * 1000
 
     if disposition.kind is DispositionKind.NOT_ENABLED:
+        # Dark/prod path: emit NOTHING (gating on enabled is gating on staging).
         return IntentResponse(enabled=False, disposition="NOT_ENABLED", detail=disposition.reason)
+
+    # Canary is live for this request → record the observability signals.
+    _observe_canary(comp, resolved, disposition, latency_ms)
 
     if disposition.kind is DispositionKind.GOVERNANCE_EVENT:
         return IntentResponse(
