@@ -66,3 +66,4 @@ async def create_all_tables() -> None:
         from api.db import models as _  # noqa: F401 — register ORM models
 
         await conn.run_sync(Base.metadata.create_all)
+# FU-1 validation: code-path PR sentinel (comment-only; no behaviour change).
