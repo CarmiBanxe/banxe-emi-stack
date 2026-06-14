@@ -192,3 +192,5 @@ The enhanced shortfall alert includes: Slack #compliance-alerts, Email CEO+CTIO,
 2. BreachDetector.check_and_escalate()
 3. ReconAnalysisSkill.analyze()
 4. BreachPredictionSkill.predict() per DISCREPANCY account
+
+<!-- FU-1 validation: docs-only PR sentinel (2026-06-14). Verifies docs-only short-circuit under the 9-gate regime. -->
