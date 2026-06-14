@@ -41,6 +41,12 @@ from services.agents.notification_agent import (
     NotificationAgent,
     NotificationMask,
 )
+from services.intent_layer.canary import canary_policy_from_env
+from services.intent_layer.canary_metrics import (
+    CounterCanaryObserver,
+    FanOutCanaryObserver,
+    LoggingCanaryObserver,
+)
 from services.intent_layer.catalog import IntentCatalog
 from services.intent_layer.classifier import IntentClassifier
 from services.intent_layer.composition import (
@@ -176,6 +182,12 @@ _LIVE_HANDLERS = {"Notifications": _notifications_handler}
 # correlation_id the POST returned (a per-request recorder would lose it).
 _RECORDER = InMemoryDecisionRecorder()
 
+# Stable singleton canary observer (FU-2 Phase 5): structured logs for alerting +
+# in-process counters the /canary/metrics probe reads. Accumulates across requests so
+# the canary's volume / withhold / error signal is monitorable for the whole process.
+_CANARY_METRICS = CounterCanaryObserver()
+_CANARY_OBSERVER = FanOutCanaryObserver((LoggingCanaryObserver(), _CANARY_METRICS))
+
 
 @dataclass(frozen=True)
 class _Composition:
@@ -204,9 +216,12 @@ def get_composition() -> _Composition:
         producers=ProducerBundle.null(),
         recorder=_RECORDER,
     )
+    # Canary gate (FU-2 Phase 5): an enabled layer auto-dispatches ONLY allowlisted,
+    # non-high-risk capabilities. Policy is read fresh each call (safe toggling).
+    canary = canary_policy_from_env()
     return _Composition(
         classifier=IntentClassifier(_catalog(), enabled=enabled),
-        router=IntentRouter(dispatcher, enabled=enabled),
+        router=IntentRouter(dispatcher, enabled=enabled, canary=canary, observer=_CANARY_OBSERVER),
         recorder=_RECORDER,
         enabled=enabled,
     )
@@ -289,3 +304,11 @@ def get_decision(correlation_id: str) -> DecisionRecordModel:
     if record is None:
         raise HTTPException(status_code=404, detail="no decision record for correlation_id")
     return _to_record_model(record)
+
+
+@router.get("/intent/canary/metrics")
+def get_canary_metrics() -> dict[str, int]:
+    """Read-only canary monitoring counters (FU-2 Phase 5): canary intents seen,
+    dispatched, withheld (not-canary / high-risk) and error totals. Backs canary
+    observation in staging; no PII, just decision counts."""
+    return _CANARY_METRICS.snapshot()

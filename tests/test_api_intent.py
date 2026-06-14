@@ -20,12 +20,16 @@ client = TestClient(app)
 
 @pytest.fixture()
 def enabled(monkeypatch) -> None:
+    # The realistic FU-2 Phase-5 canary config: layer on + Notifications allowlisted.
+    # Without the allowlist the (default-deny) gate would withhold every capability.
     monkeypatch.setenv("INTENT_LAYER_ENABLED", "true")
+    monkeypatch.setenv("INTENT_LAYER_CANARY_CAPABILITIES", "Notifications")
 
 
 @pytest.fixture()
 def disabled(monkeypatch) -> None:
     monkeypatch.setenv("INTENT_LAYER_ENABLED", "false")
+    monkeypatch.delenv("INTENT_LAYER_CANARY_CAPABILITIES", raising=False)
 
 
 def test_disabled_returns_not_enabled_no_dispatch(disabled):
@@ -76,14 +80,17 @@ def test_unresolved_intent_returns_governance_event(enabled):
     assert body["governance_event"]["status"] == "UNRESOLVED"
 
 
-def test_payments_is_unrouted_in_process(enabled):
-    """Payments is owned by banxe-payment-core — honestly unrouted in-process, no record."""
+def test_payments_is_withheld_high_risk(enabled):
+    """Payments is high-risk: the canary denylist withholds it (manual/governance flow),
+    never auto-dispatched — even though the layer is enabled. No record is emitted."""
     resp = client.post("/v1/intent", json={"intent_text": "pay", "correlation_id": "c-pay-1"})
     assert resp.status_code == 200
     body = resp.json()
-    assert body["disposition"] == "DISPATCHED"
+    assert body["disposition"] == "GOVERNANCE_EVENT"
     assert body["decision_record"] is None
-    assert "no in-process L2 mask" in body["detail"]
+    assert "high-risk" in body["governance_event"]["reason"]
+    # Nothing was dispatched, so no lineage record exists for it.
+    assert client.get("/v1/intent/decision/c-pay-1").status_code == 404
 
 
 def test_get_decision_missing_returns_404(enabled):

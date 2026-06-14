@@ -9,7 +9,9 @@ import pytest
 
 from services.intent_layer.config import (
     INTENT_LAYER_ENABLED_ENV,
+    current_environment,
     intent_layer_enabled,
+    per_env_flag_name,
 )
 
 
@@ -39,3 +41,45 @@ def test_reads_process_environ_by_default(monkeypatch):
     assert intent_layer_enabled() is True
     monkeypatch.delenv(INTENT_LAYER_ENABLED_ENV, raising=False)
     assert intent_layer_enabled() is False
+
+
+# ── FU-2 Phase 5: per-environment scoping ────────────────────────────────────────
+
+
+def test_environment_defaults_to_production_when_unset():
+    assert current_environment(env={}) == "production"
+
+
+@pytest.mark.parametrize("key", ["APP_ENV", "ENVIRONMENT"])
+def test_environment_read_from_either_key(key):
+    assert current_environment(env={key: "Staging"}) == "staging"
+
+
+def test_per_env_flag_name():
+    assert per_env_flag_name("staging") == "INTENT_LAYER_ENABLED_STAGING"
+
+
+def test_staging_override_enables_only_in_staging():
+    env = {"APP_ENV": "staging", "INTENT_LAYER_ENABLED_STAGING": "true"}
+    assert intent_layer_enabled(env=env) is True
+
+
+def test_staging_override_does_not_leak_into_production():
+    # A staging override MUST NOT enable the layer in production (no global flag set).
+    env = {"APP_ENV": "production", "INTENT_LAYER_ENABLED_STAGING": "true"}
+    assert intent_layer_enabled(env=env) is False
+
+
+def test_per_env_override_takes_precedence_over_global():
+    # Even with the global flag true, a per-env "false" override keeps that env dark.
+    env = {
+        "APP_ENV": "staging",
+        INTENT_LAYER_ENABLED_ENV: "true",
+        "INTENT_LAYER_ENABLED_STAGING": "false",
+    }
+    assert intent_layer_enabled(env=env) is False
+
+
+def test_global_flag_still_applies_when_no_override():
+    env = {"APP_ENV": "staging", INTENT_LAYER_ENABLED_ENV: "true"}
+    assert intent_layer_enabled(env=env) is True
