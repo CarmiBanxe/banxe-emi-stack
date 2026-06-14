@@ -115,6 +115,48 @@ def test_unrouted_capability_returns_not_accepted_receipt():
     assert "no in-process L2 mask" in (receipt.detail or "")
 
 
+def test_high_risk_denylist_blocks_dispatch_even_with_handler():
+    """FU-2 Phase 7 backstop: with the denylist enforced, a high-risk capability is
+    refused at the dispatch boundary EVEN if a handler was (mistakenly) registered for
+    it — no producer runs, no handler is invoked, no record is written."""
+    recorder = InMemoryDecisionRecorder()
+    dispatcher = CapabilityDispatcher(
+        handlers={"Payments": _ok_handler},  # misconfigured: a handler for a money flow
+        producers=ProducerBundle.null(),
+        recorder=recorder,
+        enforce_high_risk_denylist=True,
+    )
+    receipt = dispatcher.dispatch(_request(capability="Payments"))
+    assert receipt.accepted is False
+    assert receipt.agent == "(blocked)"
+    assert "mechanically blocked" in (receipt.detail or "")
+    assert receipt.metadata["blocked"] == "high_risk"
+    assert recorder.get_by_correlation("corr-x") is None  # handler never ran
+
+
+def test_high_risk_denylist_allows_low_risk_capability():
+    recorder = InMemoryDecisionRecorder()
+    dispatcher = CapabilityDispatcher(
+        handlers={"Notifications": _ok_handler},
+        producers=ProducerBundle.null(),
+        recorder=recorder,
+        enforce_high_risk_denylist=True,
+    )
+    receipt = dispatcher.dispatch(_request(capability="Notifications"))
+    assert receipt.accepted is True
+    assert recorder.get_by_correlation("corr-x") is not None
+
+
+def test_denylist_off_by_default_keeps_generic_dispatch():
+    # The generic L1→L2 mechanism stays policy-free unless the canary turns it on.
+    dispatcher = CapabilityDispatcher(
+        handlers={"Payments": _ok_handler},
+        producers=ProducerBundle.null(),
+        recorder=InMemoryDecisionRecorder(),
+    )
+    assert dispatcher.dispatch(_request(capability="Payments")).accepted is True
+
+
 def test_dispatch_from_sync_context_runs_handler():
     recorder = InMemoryDecisionRecorder()
     dispatcher = CapabilityDispatcher(

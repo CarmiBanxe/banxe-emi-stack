@@ -34,6 +34,7 @@ from collections.abc import Awaitable, Callable
 from concurrent.futures import ThreadPoolExecutor
 
 from services.agents._lineage import AgentDecisionRecord, AgentOutcome, DecisionRecorder
+from services.intent_layer.canary import is_high_risk_capability, normalize_capability
 from services.intent_layer.ports import (
     AgentDispatchPort,
     DispatchReceipt,
@@ -140,12 +141,11 @@ def _run_sync(coro: Awaitable[AgentOutcome]) -> AgentOutcome:
 def _cap_key(capability: str) -> str:
     """Normalise a catalogue capability label to a stable registry key.
 
-    Catalogue labels carry adornments (``"Analytics / Reporting (ADR-054)"``);
-    the key is the lowercased lead token before any ``/`` or ``(`` — so
-    ``"Notifications"`` → ``"notifications"`` and the example above → ``"analytics"``.
+    Thin alias for :func:`services.intent_layer.canary.normalize_capability` — the
+    single source of truth for the key shape, so handler registration here and the
+    canary allow-list gating in the router never diverge.
     """
-    head = capability.split("(")[0].split("/")[0]
-    return " ".join(head.lower().split())
+    return normalize_capability(capability)
 
 
 class CapabilityDispatcher(AgentDispatchPort):
@@ -161,6 +161,7 @@ class CapabilityDispatcher(AgentDispatchPort):
         check_request_builder: Callable[[DispatchRequest], ComplianceCheckRequest] | None = None,
         est_tokens: int = _DEFAULT_EST_TOKENS,
         risk_class: str = "STANDARD",
+        enforce_high_risk_denylist: bool = False,
     ) -> None:
         self._handlers = {_cap_key(k): v for k, v in handlers.items()}
         self._producers = producers
@@ -168,8 +169,31 @@ class CapabilityDispatcher(AgentDispatchPort):
         self._build_check = check_request_builder or default_check_request
         self._est_tokens = est_tokens
         self._risk_class = risk_class
+        # FU-2 Phase 7 canary policy: when set, a money/FX/wallet/card/KYC/SAR/sanctions
+        # capability is mechanically refused at this boundary (defense-in-depth backstop
+        # behind the router's allow-list). Off by default so the generic L1→L2 dispatch
+        # mechanism stays policy-free; the staging canary composition turns it ON.
+        self._enforce_high_risk_denylist = enforce_high_risk_denylist
 
     def dispatch(self, request: DispatchRequest) -> DispatchReceipt:
+        # Hard guardrail (FU-2 Phase 7, defense-in-depth): a money/FX/wallet/card/KYC/
+        # SAR/sanctions capability is mechanically refused at the dispatch boundary —
+        # BEFORE any producer runs or handler is consulted — even if it was mistakenly
+        # added to the canary allow-list or a handler was registered for it. The
+        # router's allow-list is the first gate; this is the fail-closed backstop.
+        if self._enforce_high_risk_denylist and is_high_risk_capability(request.capability):
+            return DispatchReceipt(
+                accepted=False,
+                agent="(blocked)",
+                detail=(
+                    f"high-risk capability {request.capability!r} is mechanically blocked "
+                    "from canary dispatch (FU-2 Phase 7 denylist)"
+                ),
+                metadata={
+                    "blocked": "high_risk",
+                    "capability_key": normalize_capability(request.capability),
+                },
+            )
         outputs = self._produce(request)
         handler = self._handlers.get(_cap_key(request.capability))
         if handler is None:

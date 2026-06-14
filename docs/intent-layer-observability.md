@@ -10,6 +10,12 @@ This is the gate you read **before** expanding the canary beyond Notifications: 
 defines what "the canary is behaving" means in concrete, queryable terms, and the
 exact thresholds that trigger a rollback.
 
+> **Update — FU-2 Phase 7:** the canary has since been widened in staging by one
+> low-risk capability (**Referral / CRM**), with explicit env-bound scope and a
+> three-layer high-risk denylist. See **§5** for the expanded scope, its
+> promotion/rollback thresholds, and the rollback levers. §1–§4 below describe the
+> Phase 6 Notifications baseline and still apply.
+
 ---
 
 ## 1. What is the canary?
@@ -147,4 +153,93 @@ baseline window):
 
 No `INTENT_LAYER_CANARY_CAPABILITIES` change and no prod flip is involved in either
 activation or rollback. Widening the canary beyond Notifications is a **separate**
-future step, gated on this dashboard staying green across a full enable window.
+step (see §5), gated on this dashboard staying green across a full enable window.
+
+---
+
+## 5. FU-2 Phase 7 — canary expansion (Referral / CRM)
+
+> **Status (FU-2 Phase 7):** the canary is widened in **staging only** by exactly **one**
+> additional low-risk capability — **Referral / CRM** — and the scope is made explicit,
+> env-bound and fail-closed. `INTENT_LAYER_ENABLED` stays `false` in prod; high-risk flows
+> stay mechanically blocked. See banxe-architecture **IL-219**.
+
+### 5.1 What was added, and why it is low-risk
+
+| Capability | Mask path used | Why low-risk |
+| --- | --- | --- |
+| **Notifications** (unchanged) | `NotificationAgent.check_channel` | channel-availability **read** — no money, no PII write. |
+| **Referral / CRM** (NEW) | `CRMAgent.resolve_referral_code` | a referral-code **resolve** — AUTO-eligible read, **no money movement, no balance change, no PII profile read, no state mutation**. The mask's lowest-consequence op (ADR-049 §D3). The mutating CRM ops (`register_referral`, `update_user_tier`) are **not** wired into the canary. |
+
+Both are informational/reversible reads. Payments, FX, Wallet, Card, KYC, SAR and
+sanctions remain **out of scope** and are **mechanically** blocked (§5.3).
+
+### 5.2 Scope configuration (staging only)
+
+```bash
+# staging
+INTENT_LAYER_ENABLED=true
+BANXE_ENV=staging
+INTENT_LAYER_CANARY_CAPABILITIES="Notifications,Referral / CRM"
+```
+
+* `INTENT_LAYER_CANARY_CAPABILITIES` is an allow-list of capability labels the canary may
+  dispatch. Default (unset) = `Notifications` only (the Phase 6 state).
+* It is honoured **only when `BANXE_ENV == staging`**. In any other environment the
+  effective allow-list is **empty** — so even with the flag and the list set, prod holds
+  every intent dark (`CANARY_HELD`, no dispatch). Proven by
+  `tests/test_api_intent.py::test_non_staging_holds_even_when_enabled`.
+
+### 5.3 Hard guardrails (defense-in-depth)
+
+A money/FX/wallet/card/KYC/SAR/sanctions capability can **never** be dispatched by the
+canary, enforced at **three** independent layers (`services/intent_layer/canary.py`):
+
+1. **Allow-list subtraction** — `canary_capabilities()` drops any high-risk entry from the
+   configured list (a mistaken `…CANARY_CAPABILITIES="…,Payments"` silently loses Payments).
+2. **Router scope gate** — a resolved capability outside the allow-list returns
+   `CANARY_HELD`, never dispatched (`IntentRouter`).
+3. **Dispatch-boundary backstop** — `CapabilityDispatcher(enforce_high_risk_denylist=True)`
+   refuses a high-risk capability **before any producer runs or handler is consulted**,
+   even if one was mistakenly added to the allow-list or a handler was registered for it.
+
+The denylist is `HIGH_RISK_CAPABILITY_KEYS` (exact keys) + `HIGH_RISK_TOKENS` (substrings:
+`payment`, `fx`, `exchange`, `wallet`, `balance`, `card`, `kyc`, `onboard`, `sanction`,
+`sar`, `aml`, `transfer`, `withdraw`, `deposit`, `money`, `fund`, `swift`, `iban`). Covered
+by `tests/test_intent_layer/test_canary.py` and `…/test_composition.py`.
+
+### 5.4 Promotion / rollback thresholds for the expanded scope
+
+The §4 metric set and queries apply per-capability (the `capability` label already
+partitions them; the ClickHouse queries filter by `agent_id` — `notification_agent` for
+Notifications, **`crm_agent`** for Referral / CRM). Promotion of the expanded scope holds
+only when **both** capabilities satisfy these over a rolling 24h enable window vs the prior
+24h baseline:
+
+**Promote / keep expanded** (all must hold, per capability):
+
+* **Error rate:** `errors_total / requests_total` ≤ **1%** and ≤ **+0.5pp** over baseline.
+* **Guardrail triggers:** `guardrail_triggers_total` rate ≤ **2×** baseline; **zero**
+  `compliance_fail` (both canary paths are reads — a read must never FAIL compliance).
+* **No safety spike:** no increase in `safety_violation` / high-risk guardrail signals;
+  **zero** `CANARY_HELD`-bypass or `blocked=high_risk` dispatch attempts in staging logs
+  (any such line means a high-risk intent reached the boundary — investigate config).
+* **Latency:** canary p95 ≤ **750 ms**; gateway p95 ≤ **2 s** (when wired).
+
+**Roll back** — ANY one, sustained ≥10 min (or a single hard breach), on **either**
+capability:
+
+* error rate > **2%**, or any `compliance_fail`;
+* guardrail-trigger rate > **3×** baseline;
+* canary p95 > **1.5 s**, or gateway error rate > **5%**;
+* any high-risk capability observed as `DISPATCHED` (must be impossible — treat as a P1).
+
+### 5.5 Rollback levers (flags/env only — no code change, no deploy)
+
+| To revert to… | Set in staging | Effect on next request |
+| --- | --- | --- |
+| **Notifications-only** (Phase 6) | `INTENT_LAYER_CANARY_CAPABILITIES="Notifications"` | Referral / CRM → `CANARY_HELD` (no dispatch); Notifications continues. |
+| **Full dark mode** | `INTENT_LAYER_ENABLED=false` | every intent short-circuits to `NOT_ENABLED` before any dispatch/metric/log. |
+
+Narrowing the scope is a config-only change and takes effect on the **very next** request;
+no prod flip is ever involved.
