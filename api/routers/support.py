@@ -23,6 +23,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from services.intent_layer.shadow import maybe_mirror_intent
 from services.support.complaint_triage_agent import ComplaintTriageAgent
 from services.support.customer_support_agent import CustomerSupportAgent
 from services.support.escalation_agent import EscalationAgent
@@ -225,6 +226,12 @@ async def create_ticket(
     resp = _ticket_to_response(ticket)
     resp.auto_resolved = faq.auto_resolved
     resp.is_formal_complaint = triage.is_formal_complaint
+    # FU-2 Phase 8: production shadow-mode. Fire-and-forget — mirrors a sampled slice of
+    # this intent-like request into the Intent Layer (classify-only, no live action) and
+    # logs how its decision compares to this mechanistic baseline. A no-op unless
+    # INTENT_LAYER_SHADOW_ENABLED_PROD=true in production; never alters this response. The
+    # descriptor is a non-PII endpoint label, never the ticket subject/body (R-SEC).
+    maybe_mirror_intent("support ticket", baseline_capability="Support", correlation_id=ticket.id)
     return resp
 
 
