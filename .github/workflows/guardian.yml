@@ -23,7 +23,33 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
+      # Degrade-to-skip (NOT a bypass): secrets are not usable in `if:`, so we map
+      # them to env here and emit a step output. When the self-hosted Guardian is
+      # unconfigured the job SUCCEEDS with a skip notice and runs no curl; the moment
+      # TS_AUTHKEY + TS_GUARDIAN_<family>_URL are set, the full audit auto-recovers.
+      - name: Check guardian configuration
+        id: cfg
+        env:
+          AUTHKEY: ${{ secrets.TS_AUTHKEY }}
+          URL_FACTORY: ${{ secrets.TS_GUARDIAN_FACTORY_URL }}
+          URL_PROJECT: ${{ secrets.TS_GUARDIAN_PROJECT_URL }}
+        run: |
+          if [ "${{ matrix.family }}" = "factory" ]; then url="$URL_FACTORY"; else url="$URL_PROJECT"; fi
+          if [ -n "$AUTHKEY" ] && [ -n "$url" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Guardian skipped — self-hosted endpoint not configured (operator-gated)
+        if: steps.cfg.outputs.configured != 'true'
+        run: |
+          echo "⚠️ guardian skipped: self-hosted endpoint not configured (operator-gated)."
+          echo "Set TS_AUTHKEY + TS_GUARDIAN_${{ matrix.family }}_URL and bring evo1 up to activate the real gate."
+          echo "## ⚠️ Guardian (${{ matrix.family }}) skipped — self-hosted endpoint not configured (operator-gated)" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Connect to Tailscale (MagicDNS for evo1)
+        if: steps.cfg.outputs.configured == 'true'
         uses: tailscale/github-action@v3
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
@@ -32,6 +58,7 @@ jobs:
 
       - name: Resolve guardian URL for ${{ matrix.family }}
         id: url
+        if: steps.cfg.outputs.configured == 'true'
         env:
           URL_FACTORY: ${{ secrets.TS_GUARDIAN_FACTORY_URL }}
           URL_PROJECT: ${{ secrets.TS_GUARDIAN_PROJECT_URL }}
@@ -49,6 +76,7 @@ jobs:
 
       - name: Audit via Guardian (${{ matrix.family }})
         id: audit
+        if: steps.cfg.outputs.configured == 'true'
         env:
           GUARDIAN_URL: ${{ steps.url.outputs.url }}
           PR_TITLE: ${{ github.event.pull_request.title }}
@@ -97,7 +125,7 @@ jobs:
           cat /tmp/guardian-comment.md
 
       - name: Comment on PR
-        if: always()
+        if: always() && steps.cfg.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -110,7 +138,7 @@ jobs:
           fi
 
       - name: Enforce verdict
-        if: steps.audit.outputs.result == 'fail'
+        if: steps.cfg.outputs.configured == 'true' && steps.audit.outputs.result == 'fail'
         run: |
           echo "::error::Guardian (${{ matrix.family }}) verdict: ${{ steps.audit.outputs.summary }}"
           exit 1
