@@ -14,6 +14,8 @@ All tables use MergeTree engine with 5-year TTL (FCA I-08 invariant).
 | `002_create_safeguarding_breaches.sql` | `banxe.safeguarding_breaches` | FCA CASS 15.12 breach records |
 | `003_create_recon_summary_mv.sql` | `banxe.recon_daily_summary` | Daily summary materialized view |
 | `004_create_fca_notifications.sql` | `banxe.fca_notifications` | FCA RegData submission audit |
+| `005_create_mcp_tool_events.sql` | `banxe.mcp_tool_events` | MCP tool-call metrics (IL-MCP-01) |
+| `006_create_decision_records.sql` | `banxe.decision_records` | Agent decision-lineage sink (ADR-046, FU-2; written only when `DECISION_RECORDER=clickhouse`) |
 
 ## How to Apply
 
