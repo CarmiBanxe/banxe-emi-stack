@@ -24,6 +24,7 @@ from functools import lru_cache
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from services.intent_layer.shadow import maybe_mirror_intent
 from services.referral.referral_agent import ReferralAgent
 
 router = APIRouter(tags=["referral"])
@@ -92,7 +93,7 @@ async def track_referral(req: TrackReferralRequest) -> dict:
     HTTP 422 on invalid code, self-referral, or already-referred customer.
     """
     try:
-        return _get_agent().track_referral(
+        result = _get_agent().track_referral(
             referee_id=req.referee_id,
             code_str=req.code,
             ip_address=req.ip_address,
@@ -100,6 +101,17 @@ async def track_referral(req: TrackReferralRequest) -> dict:
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    # FU-2 Phase 8: production shadow-mode. Fire-and-forget — mirrors a sampled slice of
+    # this intent-like request into the Intent Layer (classify-only, no live action) and
+    # logs how its decision compares to this mechanistic baseline. A no-op unless
+    # INTENT_LAYER_SHADOW_ENABLED_PROD=true in production; never alters this response. The
+    # descriptor is a non-PII endpoint label, never referee/IP/device data (R-SEC).
+    maybe_mirror_intent(
+        "referral",
+        baseline_capability="Referral / CRM",
+        correlation_id=result.get("referral_id"),
+    )
+    return result
 
 
 @router.post("/v1/referral/{referral_id}/advance")

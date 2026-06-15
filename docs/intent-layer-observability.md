@@ -49,10 +49,11 @@ ClickHouse port at the operator runtime step).
 | `llm_gateway_request_latency_ms` | observation | `env` | S1-gateway call latency (only when a live gateway is wired). |
 | `llm_gateway_errors_total` | counter | `env`, `reason` | S1-gateway call failures, keyed by exception type. |
 
-**Not yet available — `mismatch_count`.** A canary-vs-baseline comparator would need a
-shadow/baseline decision to diff against. No such comparator exists today (Notifications
-is a read with no prior automated baseline), so this metric is intentionally **omitted
-rather than fabricated**. Add it when a baseline comparator is introduced.
+**`mismatch_count` — introduced in FU-2 Phase 8.** The Phase 6 canary had no baseline to
+diff against, so this metric was deliberately omitted. **Production shadow-mode (Phase 8)**
+introduces the baseline-vs-shadow comparator and emits
+`intent_layer_shadow_baseline_vs_shadow_mismatch_total` (`env`, `mode=shadow`,
+`capability`). See **§6**.
 
 ### Structured logs (always-on, no backend required)
 
@@ -243,3 +244,80 @@ capability:
 
 Narrowing the scope is a config-only change and takes effect on the **very next** request;
 no prod flip is ever involved.
+
+---
+
+## 6. Production shadow-mode (FU-2 Phase 8)
+
+> **Status (FU-2 Phase 8):** the first *production* exposure of the Intent Layer — a
+> **shadow** one. A small, low-risk slice of prod intent-like traffic is mirrored through
+> the classifier + router **classify-only**, purely to log and compare what the Intent
+> Layer *would* decide against the mechanistic baseline that actually served the request.
+> It performs **no live action**: no payment, no KYC/CRM write, no notification send, no
+> lineage. `INTENT_LAYER_ENABLED` stays `false` in prod (the live `/v1/intent` path is
+> still dark); shadow-mode is a separate, independently-gated pipeline.
+
+Prerequisites (all already shipped): FU-2 runtime prep (ClickHouse baseline, dry-run
+harness), the staging canary (Phase 5/7) and its observability (Phase 6, §1–§5).
+
+### 6.1 What is mirrored, and how it stays safe
+
+| | |
+| --- | --- |
+| **Surfaces (the slice)** | A sampled subset of three existing prod entrypoints: notification scheduling (`POST /v1/notifications-hub/send`), support tickets (`POST /v1/support/tickets`), CRM referrals (`POST /v1/referral/track`). Each calls the fire-and-forget hook `services.intent_layer.shadow.maybe_mirror_intent(...)` *after* the live work, passing a **non-PII descriptor** (an endpoint label, never user content — R-SEC). |
+| **Pipeline** | `services/intent_layer/shadow.py` — `ShadowPipeline` runs classify + route with a `NullShadowDispatcher` that **never acts** (no producer, no L2 mask, no L3 port, no lineage). Even a resolved, in-scope intent yields only a *proposed* capability. |
+| **No live action** | Guaranteed three ways: (1) the Null dispatcher cannot call anything; (2) high-risk capabilities are subtracted from the shadow allow-list (router holds them `CANARY_HELD`); (3) every error/timeout is swallowed (`shadow_error`) and the live response is returned untouched. |
+| **Gating** | Active **only** when `INTENT_LAYER_SHADOW_ENABLED_PROD=true` **and** `BANXE_ENV=production`, then only for the deterministically-sampled slice (`INTENT_LAYER_SHADOW_SAMPLE_PCT`, default 1%). Outside production the effective scope is empty — a leaked flag is inert. |
+| **Scope** | Same low-risk capabilities as the staging canary (Notifications, Referral / CRM) — **never wider** (the high-risk denylist from §5.3 is reused verbatim). |
+
+### 6.2 Shadow metric set (tagged `env=prod, mode=shadow`)
+
+Defined in `services/intent_layer/shadow.py`; sink selected by `CANARY_METRICS` (same
+seam as the canary — default `null`/no-op, `inmemory` for diagnostics).
+
+| Metric | Type | Labels | Meaning |
+| --- | --- | --- | --- |
+| `intent_layer_shadow_requests_total` | counter | `capability`, `env`, `mode`, `disposition` | `shadow_request_count` — mirrored volume per shadow disposition (`DISPATCHED` = would-engage / `CANARY_HELD` / `GOVERNANCE_EVENT`). |
+| `intent_layer_shadow_errors_total` | counter | `env`, `mode`, `reason` | `shadow_error_count` — swallowed shadow-pipeline failures (never reach the client). |
+| `intent_layer_shadow_baseline_vs_shadow_mismatch_total` | counter | `capability`, `env`, `mode` | `baseline_vs_shadow_mismatch_count` — how often the Intent Layer would have classified to a **different** capability than the mechanistic baseline (including resolving it to nothing). |
+
+**Structured log (always-on):** logger `banxe.intent_layer.shadow`, one line per mirror:
+`env, mode=shadow, disposition, baseline_capability, shadow_capability, mismatch,
+correlation_id`. No intent text, no PII.
+
+### 6.3 Dashboards / how to read the mismatch metric
+
+* **`shadow_request_count` by `disposition`** — confirms the slice is flowing and how the
+  Intent Layer would have classified it. `DISPATCHED` means *would-engage* (no action taken).
+* **`shadow_error_count`** — must stay ~0. A non-zero rate means the shadow pipeline is
+  unhealthy; it never affects users, but investigate before trusting the comparison.
+* **`baseline_vs_shadow_mismatch_total / shadow_requests_total`** — the headline signal for
+  any future live rollout. A **high, stable** mismatch rate on a surface (e.g. Support →
+  the Intent Layer has no canonical process, so it is always a mismatch) says "do not route
+  this surface live yet". A **low** mismatch rate (e.g. Notifications, Referral / CRM, where
+  the descriptor resolves to the matching capability) is evidence the Intent Layer agrees
+  with the baseline. Filter everything by `env=prod, mode=shadow`.
+
+### 6.4 Enable / disable (config/env only — no code change, no deploy)
+
+**Enable a tiny prod slice:**
+
+```
+BANXE_ENV=production
+INTENT_LAYER_SHADOW_ENABLED_PROD=true
+INTENT_LAYER_SHADOW_SAMPLE_PCT=1            # 1% of the eligible slice (deterministic)
+# optional — defaults to the staging canary scope; never add high-risk surfaces:
+# INTENT_LAYER_SHADOW_CAPABILITIES=Notifications,Referral / CRM
+CANARY_METRICS=inmemory                     # or a real Prometheus/ClickHouse port
+```
+
+**Instant rollback** — any one, effective on the **very next** request:
+
+| To… | Set | Effect |
+| --- | --- | --- |
+| **Stop shadow entirely** | `INTENT_LAYER_SHADOW_ENABLED_PROD=false` | every request short-circuits before any shadow work — no log, no metric. |
+| **Mirror nothing (keep flag on)** | `INTENT_LAYER_SHADOW_SAMPLE_PCT=0` | sampling admits no request. |
+| **Narrow the scope** | `INTENT_LAYER_SHADOW_CAPABILITIES="Notifications"` | other capabilities resolve but are held in the comparison only. |
+
+`INTENT_LAYER_ENABLED` is **not** involved and stays `false` in prod — shadow-mode never
+flips the live dispatch gate.
