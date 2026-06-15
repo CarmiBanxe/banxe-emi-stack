@@ -50,6 +50,24 @@ response = await client.chat.completions.create(
 Always prefer the most constrained alias for the task — do not default to `reasoning` for tasks
 that `ai` can handle. `reasoning` is expensive and quota-limited.
 
+> **WARNING — `reasoning` alias is PENDING_PASS (2026-05-03):**
+> `reasoning` (qwen3:235b-a22b) is **NOT authorised for production compliance flows** until
+> P3.2 PASS is recorded in `banxe-architecture/docs/ROADMAP-MATRIX.md §AI Plane — Alias status`.
+>
+> **Forbidden uses of `reasoning` until P3.2 PASS:**
+> - AML / sanctions screening
+> - KYC decision support
+> - SAR filing workflows
+> - FIN060 generation or signing
+> - Any flow that produces a regulatory artefact
+>
+> **Allowed uses until P3.2 PASS:** planning, ADR drafting, architectural analysis, developer Q&A.
+> Use `ai-heavy` as the fallback for all production compliance tasks.
+>
+> Canonical authority: ADR-034 §reasoning note, ADR-023 §ADR-034 EMI applicability,
+> `banxe-architecture/docs/ROADMAP-MATRIX.md §AI Plane — Alias status`.
+> Violation = I-33 breach (P0 incident).
+
 ---
 
 ## Retry and fallback behaviour

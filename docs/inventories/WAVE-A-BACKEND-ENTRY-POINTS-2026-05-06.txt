@@ -1,0 +1,15 @@
+5  banxe/banxe-tx-auth/src/redis/redis-currencies.service.ts
+5  banxe/banxe-tx-auth/.eslintrc.js
+4  banxe/banxe-tx-auth/src/redis/redis.service.ts
+4  banxe/banxe-tx-auth/src/auth/strategy/jwt.strategy.ts
+4  banxe/banxe-identity-config-manager/.eslintrc.js
+4  banxe/auth-service/.eslintrc.js
+3  banxe/banxe-tx-auth/src/redis/redis-addresses.service.ts
+2  banxe/banxe-tx-auth/src/auth/auth.module.ts
+1  banxe/banxe-tx-auth/src/rabbitmq-external/dtos/crypto-transaction-payload.dto.ts
+1  banxe/banxe-tx-auth/src/auth/interfaces/jwks.interface.ts
+1  banxe/banxe-tx-auth/src/auth/guard/role.guard.ts
+1  banxe/banxe-tx-auth/src/auth/guard/auth.guard.ts
+0  banxe/banxe-tx-auth/src/transfers/transfers.service.ts
+0  banxe/banxe-tx-auth/src/transactions/graphql/types/transaction.type.ts
+0  banxe/banxe-tx-auth/src/shared/constants/common.constant.ts

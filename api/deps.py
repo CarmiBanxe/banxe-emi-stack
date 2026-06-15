@@ -12,8 +12,14 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator
 from functools import lru_cache
 import os
+from typing import TYPE_CHECKING
 
 from sqlalchemy.ext.asyncio import AsyncSession
+
+if TYPE_CHECKING:
+    from src.safeguarding.buffered_audit_port import BufferedAuditPort
+
+    from services.recon.recon_engine import ReconciliationEngine
 
 from services.customer.customer_service import InMemoryCustomerService
 from services.database import AsyncSessionLocal
@@ -114,6 +120,12 @@ def get_totp_service() -> TOTPService:
     return TOTPService()
 
 
+# TwoFactorPort alias: TOTPService implements the TwoFactorPort Protocol
+# structurally. Use get_two_factor_port at injection sites where the
+# semantic dependency is the 2FA verification port (Sprint 4 Track A Block 7).
+get_two_factor_port = get_totp_service
+
+
 @lru_cache(maxsize=1)
 def get_sca_service_di() -> SCAService:
     """PSD2 SCA challenge service — DI-managed singleton."""
@@ -176,3 +188,129 @@ def require_role(*roles):
         return identity
 
     return _check
+
+
+# ── ADR-027: Audit-trail durability (BufferedAuditPort) ──────────────────────
+
+
+@lru_cache(maxsize=1)
+def get_buffered_audit_port() -> BufferedAuditPort:
+    """Production audit sink: SQLite ring-buffer (ADR-027 step 2).
+
+    Events are buffered in SQLite until the drain cron (step 3) flushes to ClickHouse.
+    AUDIT_BUFFER_PATH → SQLite path (default: /tmp/banxe-audit-buffer.db)
+    """
+    from src.safeguarding.buffered_audit_port import BufferedAuditPort
+
+    buffer_path = os.getenv("AUDIT_BUFFER_PATH", "/tmp/banxe-audit-buffer.db")  # noqa: S108  # nosec B108 — intentional default; production sets explicit path via env
+    return BufferedAuditPort(db_path=buffer_path)
+
+
+# ── Wave E: Crypto legacy adapter DI (ADR-031, Phase 5 Step 1) ───────────────
+
+
+@lru_cache(maxsize=1)
+def get_crypto_application_service():  # type: ignore[return]
+    """Crypto application service — REWRITE-7/8/9 legacy adapter composition.
+
+    CRYPTO_WALLET_ADAPTER / CRYPTO_PROCESSING_ADAPTER / CRYPTO_RPC_ADAPTER env vars
+    reserved for future real-adapter selection; scaffold only for now.
+    """
+    from services.ledger.crypto_application_service import CryptoApplicationService
+    from services.ledger.legacy.legacy_crypto_processing_adapter import (
+        LegacyCryptoProcessingAdapter,
+    )
+    from services.ledger.legacy.legacy_crypto_rpc_adapter import LegacyCryptoRpcAdapter
+    from services.ledger.legacy.legacy_crypto_wallet_adapter import LegacyCryptoWalletAdapter
+
+    return CryptoApplicationService(
+        wallet=LegacyCryptoWalletAdapter(),
+        processing=LegacyCryptoProcessingAdapter(),
+        rpc=LegacyCryptoRpcAdapter(),
+    )
+
+
+@lru_cache(maxsize=1)
+def get_recon_engine() -> ReconciliationEngine:
+    """Production ReconciliationEngine with durable audit sink (ADR-027 step 2).
+
+    LEDGER_ADAPTER=stub  → StubLedgerAdapter (default, in-memory)
+    LEDGER_ADAPTER=midaz → MidazLedgerAdapter (requires MIDAZ_BASE_URL)
+
+    NOTE: ReconciliationEngine (CASS 15) was previously only instantiated in tests.
+    This provider creates the first production wiring per ADR-027 step 2.
+    """
+    from services.recon.recon_engine import ReconciliationEngine
+
+    ledger_name = os.environ.get("LEDGER_ADAPTER", "stub")
+    if ledger_name == "midaz":
+        ledger = MidazLedgerAdapter()
+    else:
+        ledger = StubLedgerAdapter()
+
+    return ReconciliationEngine(ledger=ledger, audit=get_buffered_audit_port())
+
+
+# ── ADR-034: Webhook delivery reliability (WebhookReliabilityPort) ───────────
+
+
+@lru_cache(maxsize=1)
+def get_webhook_reliability_port():
+    """WebhookReliabilityPort — webhook delivery retry/backoff/dead-letter (ADR-034).
+
+    WEBHOOK_RELIABILITY_ADAPTER env var:
+      "in_memory" → InMemoryWebhookAdapter (default, dev/test)
+      "redis"     → RedisWebhookReliabilityAdapter (ADR-034 Step 4)
+
+    Backoff/retry policy (ADR-034 §Webhook-reliability-matrix defaults):
+      WEBHOOK_MAX_ATTEMPTS       (int, default 3)
+      WEBHOOK_BACKOFF_SECONDS    (csv floats, default "1.0,10.0,60.0")
+
+    Redis-only env (ignored for in_memory):
+      REDIS_URL                  (default "redis://localhost:6379/0")
+      WEBHOOK_DEDUP_TTL_SECONDS  (int, default 86400 per ADR-034 §c)
+    """
+    from services.webhooks.in_memory_adapter import (
+        DEFAULT_BACKOFF_SCHEDULE,
+        DEFAULT_MAX_ATTEMPTS,
+        InMemoryWebhookAdapter,
+    )
+
+    adapter_name = os.environ.get("WEBHOOK_RELIABILITY_ADAPTER", "in_memory")
+    max_attempts = int(os.environ.get("WEBHOOK_MAX_ATTEMPTS", str(DEFAULT_MAX_ATTEMPTS)))
+    backoff_raw = os.environ.get("WEBHOOK_BACKOFF_SECONDS", "")
+    if backoff_raw:
+        backoff = tuple(float(x.strip()) for x in backoff_raw.split(",") if x.strip())
+    else:
+        backoff = DEFAULT_BACKOFF_SCHEDULE
+
+    if adapter_name == "in_memory":
+        return InMemoryWebhookAdapter(
+            backoff_schedule=backoff,
+            max_attempts=max_attempts,
+        )
+
+    if adapter_name == "redis":
+        # ADR-034 Step 4: production Redis adapter + DLQ + Telegram alert hook.
+        import redis  # local import — heavy/unused for in_memory path
+
+        from services.alerting.di import get_alert_adapter
+        from services.webhooks.dlq_alert import TelegramDLQAlertHook
+        from services.webhooks.redis_adapter import RedisWebhookReliabilityAdapter
+
+        redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+        dedup_ttl_s = int(os.environ.get("WEBHOOK_DEDUP_TTL_SECONDS", "86400"))
+        redis_client = redis.Redis.from_url(redis_url, decode_responses=True)
+        alert_port = get_alert_adapter()
+        return RedisWebhookReliabilityAdapter(
+            redis_client=redis_client,
+            max_attempts=max_attempts,
+            backoff_schedule=backoff,
+            dlq_alert_hook=TelegramDLQAlertHook(alert_port=alert_port),
+            dedup_ttl_s=dedup_ttl_s,
+        )
+
+    raise NotImplementedError(
+        f"WEBHOOK_RELIABILITY_ADAPTER={adapter_name!r}: supported values are "
+        "'in_memory' and 'redis'."
+    )

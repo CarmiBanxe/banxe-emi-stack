@@ -1,0 +1,31 @@
+# Keycloak systemd drop-in — G-IAM-08 mitigation template
+# ---------------------------------------------------------------------------
+# Purpose:
+#   Replace the inline `--db-password=<literal>` argument on Keycloak's
+#   ExecStart with `--db-password-file=/etc/keycloak/db.password` so that
+#   the DB password is never visible in `ps -ef` / `/proc/<pid>/cmdline`.
+#
+# Anchors:
+#   G-IAM-08
+#   IL-OPS-S12-1-DONE-EVIDENCE-AND-NEW-GAPS-2026-05-12
+#   IL-OPS-ROADMAP-SPRINTS-S12-S25-APPROVED-2026-05-11 (Sprint S12.5)
+#
+# Operator substitution required at deploy time:
+#   {{KC_HOME}} → live Keycloak install root, e.g. /home/banxe/keycloak-26.2.5
+#
+# Install path: /etc/systemd/system/keycloak.service.d/g-iam-08-fix.conf
+# Requires:     /etc/keycloak/db.password exists, mode 0640, owner root:keycloak.
+# ---------------------------------------------------------------------------
+
+[Service]
+# Reset the inherited ExecStart so this drop-in fully replaces it.
+ExecStart=
+ExecStart={{KC_HOME}}/bin/kc.sh start \
+  --optimized \
+  --db=postgres \
+  --db-url=jdbc:postgresql://127.0.0.1:15433/keycloak \
+  --db-username=keycloak \
+  --db-password-file=/etc/keycloak/db.password \
+  --http-enabled=true \
+  --hostname-strict=false \
+  --proxy-headers=xforwarded

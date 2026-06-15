@@ -64,6 +64,18 @@ repos:
         always_run: false
         files: ^src/
 
+  # ── IAM credentials guard (INV-IAM-01) ────────────────────────────────────
+  # Blocks direct passwords/secrets in YAML/JSON/Python config files.
+  # Source: ADR-022 §7 enforcement, banxe-architecture I-34.
+  - repo: local
+    hooks:
+      - id: iam-no-direct-creds
+        name: IAM credentials guard (INV-IAM-01)
+        entry: bash -c "cd /home/mmber/banxe-emi-stack && grep -rn --include='*.yaml' --include='*.yml' --include='*.json' -E '(password|client_secret|db_password|api_key|auth_token|access_token|private_key)\s*[:=]\s*\"[^\"$<{]{4,}\"' . --exclude-dir=.semgrep --exclude-dir=tests --exclude-dir=node_modules --exclude-dir=.claude && echo 'IAM-01 direct-credentials found -- commit blocked' && exit 1 || exit 0"
+        language: system
+        pass_filenames: false
+        always_run: true
+
   # ── Security + Tests (local) ────────────────────────────────────────────
   - repo: local
     hooks:

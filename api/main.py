@@ -54,6 +54,7 @@ from api.routers import (
     consumer_duty,
     consumer_duty_v2,
     crypto_custody,
+    crypto_legacy,
     customer_lifecycle,
     customers,
     device_fingerprint,
@@ -73,6 +74,7 @@ from api.routers import (
     hitl,
     hmrc_reporting,
     insurance,
+    intent,
     kyb_onboarding,
     kyc,
     ledger,
@@ -174,6 +176,7 @@ app.include_router(notifications.router, prefix="/v1")
 app.include_router(fraud.router, prefix="/v1")
 app.include_router(consumer_duty.router, prefix="/v1")
 app.include_router(hitl.router, prefix="/v1")
+app.include_router(intent.router, prefix="/v1")  # L1 Intent Layer (ADR-049, S8)
 app.include_router(reporting.router, prefix="/v1")
 app.include_router(statements.router, prefix="/v1")
 app.include_router(watchman_webhook.router)  # POST /webhooks/watchman (IL-068)
@@ -291,3 +294,6 @@ app.include_router(fos_escalation.router, prefix="/v1")  # FOS Escalation (IL-FO
 app.include_router(hmrc_reporting.router, prefix="/v1")  # HMRC Reporting (IL-HMR-01)
 app.include_router(client_statements.router, prefix="/v1")  # Client Statements (IL-CST-01)
 app.include_router(customer_lifecycle.router, prefix="/v1")  # Customer Lifecycle FSM (IL-LCY-01)
+app.include_router(
+    crypto_legacy.router, prefix="/v1/crypto-legacy"
+)  # Crypto Legacy Wave E (ADR-031, Phase 5 Step 1)

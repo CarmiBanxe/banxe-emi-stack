@@ -65,6 +65,11 @@ class BanxeEventType(str, Enum):
     FIN060_GENERATED = "reporting.fin060_generated"
     REGDATA_SUBMITTED = "reporting.regdata_submitted"
 
+    # KYC re-trigger (ADR-028)
+    ROLE_CHANGED = "kyc.role_changed"  # KYC re-trigger: G-KYC-01 — org role change → mandatory KYC re-verification
+    BENEFICIAL_OWNER_CHANGED = "kyc.beneficial_owner_changed"  # KYC re-trigger: G-KYC-01 — UBO change → mandatory KYC re-verification
+    JURISDICTION_CHANGED = "kyc.jurisdiction_changed"  # KYC re-trigger: G-KYC-02 — jurisdiction/country change → CRITICAL re-verification
+
 
 # ── Base event ─────────────────────────────────────────────────────────────────
 
@@ -287,6 +292,53 @@ class RabbitMQEventBus:  # pragma: no cover
         thread = threading.Thread(target=_consume, daemon=True, name=f"rmq-{routing_key}")
         thread.start()
         logger.info("RabbitMQ subscribe thread started: %s → %s", routing_key, handler.__name__)
+
+
+# ── KYC re-trigger events (ADR-028) ───────────────────────────────────────────
+
+_KYC_RETRIGGER_GAP_REF: dict[BanxeEventType, str] = {
+    BanxeEventType.ROLE_CHANGED: "G-KYC-01",
+    BanxeEventType.BENEFICIAL_OWNER_CHANGED: "G-KYC-01",
+    BanxeEventType.JURISDICTION_CHANGED: "G-KYC-02",
+}
+
+_KYC_RETRIGGER_CRITICALITY: dict[BanxeEventType, str] = {
+    BanxeEventType.ROLE_CHANGED: "HIGH",
+    BanxeEventType.BENEFICIAL_OWNER_CHANGED: "HIGH",
+    BanxeEventType.JURISDICTION_CHANGED: "CRITICAL",
+}
+
+
+@dataclass
+class KycReTriggerEvent:
+    """Raised when a customer attribute change mandates KYC re-verification (ADR-028)."""
+
+    event_type: BanxeEventType
+    customer_id: str
+    triggered_by: str  # actor who caused the change
+    previous_value: str  # value before change
+    new_value: str  # value after change
+    criticality: str  # "CRITICAL" | "HIGH" | "STANDARD"
+    gap_ref: str  # e.g. "G-KYC-01"
+
+
+def build_kyc_retrigger_event(
+    event_type: BanxeEventType,
+    customer_id: str,
+    triggered_by: str,
+    previous_value: str,
+    new_value: str,
+) -> KycReTriggerEvent:
+    """Build a KycReTriggerEvent with criticality and gap_ref derived from event_type."""
+    return KycReTriggerEvent(
+        event_type=event_type,
+        customer_id=customer_id,
+        triggered_by=triggered_by,
+        previous_value=previous_value,
+        new_value=new_value,
+        criticality=_KYC_RETRIGGER_CRITICALITY.get(event_type, "STANDARD"),
+        gap_ref=_KYC_RETRIGGER_GAP_REF.get(event_type, ""),
+    )
 
 
 # ── Factory ────────────────────────────────────────────────────────────────────

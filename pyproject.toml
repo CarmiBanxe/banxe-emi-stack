@@ -9,10 +9,13 @@ filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::PendingDeprecationWarning",
 ]
+markers = [
+    "smoke: ADR-035 smoke surface matrix — mock tier, no network",
+]
 
 [tool.coverage.run]
 source = ["services", "api", "src"]
-omit = ["tests/*", "*/__pycache__/*", "*/migrations/*"]
+omit = ["tests/*", "*/__pycache__/*", "*/migrations/*", "services/*/*_provider_port.py"]
 concurrency = ["thread"]
 
 [tool.coverage.report]
@@ -114,6 +117,7 @@ python_version = "3.12"
 ignore_missing_imports = true
 warn_return_any = false
 warn_unused_ignores = true
+explicit_package_bases = true
 exclude = ["tests/", ".venv/", "services/safeguarding-engine/"]
 # Progressive adoption — IL-ANN-01. Only new src/ modules type-checked strictly.
 # Remove per-module ignores as annotation coverage grows.

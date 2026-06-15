@@ -1,1 +1,4 @@
 - 2026-04-17 [9c140ef] feat(payments): wire PaymentService+LedgerPort in DI, align router type hints — Phase 2 P0
+- 2026-05-06 [93252ad] feat(audit): wire BufferedAuditPort into production + AUDIT_FAIL_CLOSED flag (ADR-027 step 2)
+- 2026-05-08 [9a26400] feat(ledger): Wave E DI wiring — CryptoApplicationService + /v1/crypto-legacy router (ADR-031, Phase 5 Step 1)
+- 2026-05-09 [79219b8] feat(wave-b): TwilioOtpAdapter (Verify v2) + SendGridOtpAdapter (Mail Send API) — Sprint 6, ADR-029

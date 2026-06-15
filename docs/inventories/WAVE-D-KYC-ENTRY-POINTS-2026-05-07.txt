@@ -1,0 +1,71 @@
+# Wave D — KYC/Compliance Entry-Points Inventory
+# Generated: 2026-05-07 | Branch: sprint5/wave-d-kyc-import-2026-05-07
+# Source: /home/banxe/banxe-rar-listing-2026-05-06.txt (evo1)
+# Total KYC-relevant TS/PY files: 548 (post-filter, no dist/spec/UI/mobile)
+# Canon: ADR-025 §15-16 + SESSION-2026-05-07-WAVE-D-KYC-START
+
+## Top-15 Entry Points (REWRITE candidates, ranked by semantic density)
+
+Rank | Lines | File | TS Method Coverage | REWRITE ID
+-----|-------|------|--------------------|----------
+1    |  979  | banxe/banxe-fiat-backend/banxe-identity/src/sumsub-connector/sumsub-connector.service.ts | createApplicant, submitUserDocuments, getApplicantData, applicantReviewed webhook, checkCryptoTransaction, getAccessToken, sendCompanyDocuments | REWRITE-4
+2    |  668  | banxe/banxe-fiat-backend/banxe-identity/src/bkyc/bkyc.service.ts | createBlankApplication, fillUpApplication, acceptApplication, declineApplication, searchApplications, updateApplicationStep | REWRITE-5
+3    |  621  | banxe-digital/binance-kyc/src/kyc/services/kyc.service.ts | handleKYCWebhook, generateKYCURL, checkKYCStatus, createSubAccount, linkMultipleAccounts, unlinkAccount | REWRITE-6
+4    |  490  | banxe/banxe-fiat-backend/banxe-identity/src/sumsub-connector/sumsub-connector-applicant.service.ts | getNewApplicantData (address + country resolution for SumSub applicant creation) | (supports REWRITE-4)
+5    |  ~300 | banxe/banxe-fiat-backend/banxe-identity/src/sumsub-connector/client/sumsub.client.ts | HMAC-signed HTTP client to SumSub REST API | (supports REWRITE-4)
+6    |  ~200 | banxe/banxe-fiat-backend/banxe-sumsub/src/sumsub-api/services/sumsub-api-applicants.service.ts | createAccessTokenForApplicant, createApplicant (thin REST wrapper) | (supports REWRITE-4)
+7    |   82  | banxe/banxe-fiat-backend/banxe-sumsub/src/sumsub/services/sumsub.service.ts | createAccessTokenForApplicant (SDK token orchestration) | (supports REWRITE-4)
+8    |  ~150 | banxe/banxe-fiat-backend/banxe-sumsub/src/sumsub-api/services/sumsub-api-documents.service.ts | addApplicantDocument, getDocumentById, getDocumentsStatus | (supports REWRITE-4)
+9    |  ~120 | banxe/banxe-fiat-backend/banxe-identity/src/bkyc/bkyc-document.service.ts | uploadApplicationDocument, acceptApplicationDocument, declineApplicationDocument | (supports REWRITE-5)
+10   |  ~100 | banxe/sepa-service/src/sumsub-integration/sumsub-integration.service.ts | SumSub webhook relay from SEPA service (applicant-reviewed → SEPA flow unlock) | DROP (handled by webhook in REWRITE-4)
+11   |  ~80  | neuron/scoring-service/src/sumsub/services/sumsub.service.ts | identity scoring via SumSub applicant data | separate domain (scoring)
+12   |  ~80  | neuron/scoring-service/src/sumsub/services/identity.service.ts | getApplicantData for risk scoring | separate domain (scoring)
+13   |  ~60  | banxe/banxe-common/lib/graphql-through-grpc-connectors/sumsub-connector/sumsub-connector.service.ts | gRPC relay for SumSub queries (GraphQL through gRPC) | DROP (gRPC transport)
+14   |  ~50  | banxe/banxe-fiat-backend/banxe-sumsub/src/users/users.service.ts | findUser by userId (lookup for access token creation) | DROP (in-memory in REWRITE-4)
+15   |  ~40  | banxe-digital/crypto-exchange-api/src/binance-kyc/binance-kyc.service.ts | Proxy to binance-kyc service (generateKYCURL, checkStatus) | DROP (external API proxy)
+
+## Transport Drop List (ADR-025 §15-16)
+
+- TypeORM: BKYCApplicationEntity, KYCInfoEntity, KYCLinkEntity, SumsubConfigEntity, AvailableErc20TokenForSumsubEntity
+- RabbitMQ: RabbitMQPublisherService, RabbitmqPublisherService (all @RMQ patterns)
+- gRPC: GrpcCompaniesConnector, GrpcAddressesConnector, AbsLegalEntityConnector, AbsScoringConnector
+- NestJS DI: @InjectRepository, @Injectable, @TryCatch decorator, NestJS Logger
+- External HTTP clients: SumsubClient (HMAC-signed axios), CryptoExchangeApiDirectService, VirtualAbsClientService
+- Config: ConfigService (SUMSUB_SOURCE_KEY, MAIN_ACCOUNT_ID, etc.)
+- GraphQL: @Resolver, @Query, @Mutation, @Args decorators
+- Amplitude analytics: AmplitudeService (KYC event tracking)
+
+## Provider Stack Identified
+
+Primary KYC Provider: SumSub
+  - API: REST (HMAC-signed, axios-based client)
+  - Applicant flow: create → submit docs → review webhook → APPROVED/REJECTED
+  - Document types: PASSPORT, ID_CARD, DRIVERS, SELFIE, UTILITY_BILL, BANK_STATEMENT
+  - Reject labels: FORGERY, BAD_QUALITY, EXPIRED, NOT_SUPPORTED, DAMAGED, LOW_QUALITY, FACE_NOT_FOUND
+
+Secondary KYC: Binance KYC (crypto onboarding via exchange API)
+  - Webhook-driven: handleKYCWebhook → update KYCInfoEntity
+  - URL-based flow: generateKYCURL → redirect to Binance KYC portal
+
+B2B KYC: BKYC (Banxe internal KYB — legal entity onboarding)
+  - ABS integration: AbsLegalEntityConnector, AbsScoringConnector
+  - Multi-step application: blank → fill-up → document upload → accept/decline
+  - MLRO review: EDD trigger on high-risk entities
+
+## Existing Port Status
+
+services/kyc/kyc_port.py — KYCWorkflowPort FULLY DEFINED
+  Methods: create_workflow, get_workflow, submit_documents, approve_edd, reject_workflow, health
+  Status enums: PENDING, DOCUMENT_REVIEW, RISK_ASSESSMENT, EDD_REQUIRED, MLRO_REVIEW, APPROVED, REJECTED, EXPIRED
+  ADR-030_REQUIRED: NO — port already complete
+
+## Staging Location (evo1, NOT in repo)
+
+/tmp/banxe-rar-stage/wave-d/
+  banxe/banxe-fiat-backend/banxe-identity/src/bkyc/bkyc.service.ts          (668 lines)
+  banxe/banxe-fiat-backend/banxe-identity/src/bkyc/bkyc-document.service.ts  (N lines)
+  banxe/banxe-fiat-backend/banxe-identity/src/sumsub-connector/sumsub-connector.service.ts   (979 lines)
+  banxe/banxe-fiat-backend/banxe-identity/src/sumsub-connector/sumsub-connector-applicant.service.ts (490 lines)
+  banxe/banxe-fiat-backend/banxe-sumsub/src/sumsub/services/sumsub.service.ts (82 lines)
+  banxe-digital/binance-kyc/src/kyc/services/kyc.service.ts                   (621 lines)
+  Total staging size: 184K

@@ -1,0 +1,23 @@
+factory :8195 -> FAIL: <urlopen error [Errno -3] Temporary failure in name resolution>
+project :8196 -> FAIL: <urlopen error [Errno -3] Temporary failure in name resolution>
+factory :8195 -> HTTP 200
+project :8196 -> HTTP 200
+evo1_ip=192.168.0.72
+
+=== DNS / Hostname resolution ===
+evo1 hostname: NOT in /etc/hosts, NOT in WSL2 DNS
+evo1 IP (from ssh evo1 hostname -I): 192.168.0.72
+Direct HTTP from Legion via IP: 192.168.0.72:8195 -> HTTP 200 (OK)
+Direct HTTP from Legion via IP: 192.168.0.72:8196 -> HTTP 200 (OK)
+
+=== Conclusion ===
+Reachability: OK via IP. Need-hostname-fix.
+Action required: GUARDIAN_BASE_URL must use IP (http://192.168.0.72:8195) OR
+add to /etc/hosts: 192.168.0.72 evo1
+Recommended: add to /etc/hosts (operator runs: sudo sh -c 'echo "192.168.0.72 evo1" >> /etc/hosts')
+
+=== D5 Smoke verdict ===
+result: unknown
+summary: unknown scope 'claude.bash' — expected one of: factory, project
+This is EXPECTED — claude.bash scope not yet configured in Guardian rules.
+Guardian is healthy and returning structured verdicts. Shim handles 'unknown' as exit 0 (proceed).
