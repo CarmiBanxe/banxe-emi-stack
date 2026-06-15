@@ -15,11 +15,18 @@ import logging
 from typing import Protocol
 import uuid
 
+from src.recon_core import within_tolerance
+
 logger = logging.getLogger(__name__)
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
+# CASS 7.15 line-item penny-exact tolerance (per-IBAN MATCHED/DISCREPANCY).
 RECON_TOLERANCE_GBP: Decimal = Decimal("0.01")
+# CASS 7.15 HITL escalation threshold — a DIFFERENT regime parameter from the £0.01
+# tolerance and from CASS 15's aggregate break. Injected into the shared
+# BreachEvaluator by ReconAgent. Deliberately NOT unified — see ADR-SAF-01 and
+# docs/architecture/RECON-CORE-BOUNDARY.md.
 BREACH_HITL_THRESHOLD: Decimal = Decimal("100")
 
 
@@ -166,7 +173,8 @@ class ReconciliationEngineV2:
                 status = "MISSING_LEDGER"
             elif iban not in stmt_map:
                 status = "MISSING_STATEMENT"
-            elif discrepancy <= RECON_TOLERANCE_GBP:
+            elif within_tolerance(ledger_amt, stmt_amt, RECON_TOLERANCE_GBP):
+                # Shared Decimal-safe compare — same |ledger - stmt| <= tolerance rule.
                 status = "MATCHED"
             else:
                 status = "DISCREPANCY"

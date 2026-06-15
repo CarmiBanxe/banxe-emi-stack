@@ -109,6 +109,16 @@ class KYCWorkflowResult:
         return self.status in (KYCStatus.EDD_REQUIRED, KYCStatus.MLRO_REVIEW)
 
 
+# ADR-028 §matrix canonical trigger types for KYC reverification.
+KYC_RETRIGGER_TYPES: tuple[str, ...] = (
+    "role_changed",
+    "beneficial_owner_changed",
+    "sanctions_match",
+    "jurisdiction_changed",
+    "periodic_review_due",
+)
+
+
 class KYCWorkflowPort(Protocol):
     """Hexagonal port for KYC/KYB workflow orchestration."""
 
@@ -118,3 +128,16 @@ class KYCWorkflowPort(Protocol):
     def approve_edd(self, workflow_id: str, mlro_user_id: str) -> KYCWorkflowResult: ...
     def reject_workflow(self, workflow_id: str, reason: RejectionReason) -> KYCWorkflowResult: ...
     def health(self) -> bool: ...
+
+    # ADR-028 Step 4: trigger KYC re-verification for an existing customer.
+    # `trigger_type` MUST be one of KYC_RETRIGGER_TYPES (5 canonical values).
+    # `trigger_payload` carries trigger-specific context (e.g. previous/new
+    # value for role/jurisdiction changes; sanctions hit details).
+    # `requested_by` identifies the upstream actor (LifecycleFSM, MLRO, ...).
+    def trigger_reverification(
+        self,
+        customer_id: str,
+        trigger_type: str,
+        trigger_payload: dict,
+        requested_by: str | None = None,
+    ) -> None: ...

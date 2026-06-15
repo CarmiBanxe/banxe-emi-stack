@@ -1,0 +1,12 @@
+# offhost-target.example — choose ONE off-host target at deploy time.
+# Operator: substitute into the wrapper template's {{OFFHOST_TARGET}}.
+# NEVER commit credentials or live host names to git.
+
+# Variant A: S3-compatible (MinIO bucket per ADR-029 §1 if in scope).
+# OFFHOST_TARGET=s3://banxe-pg-backups/keycloak/<host>/
+
+# Variant B: rsync to evo2 (or other off-host fileserver).
+# OFFHOST_TARGET=banxe@evo2:/data/banxe/backups/keycloak/
+
+# Variant C: SSH+scp via dedicated backup user (operator preference).
+# OFFHOST_TARGET=banxe-backup@evo2:/data/banxe/backups/keycloak/
