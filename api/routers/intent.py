@@ -38,11 +38,21 @@ from services.agents._lineage import (
 from services.agents._lineage import (
     ProcessRef as LineageProcessRef,
 )
+from services.agents.crm_agent import CRMAgent, CRMMask, ResolveCodeIntent
 from services.agents.notification_agent import (
     ChannelCheckIntent,
     NotificationAgent,
     NotificationMask,
 )
+from services.crm.crm_provider_port import (
+    CRMProviderPort,
+    CRMUser,
+    CRMUserId,
+    ReferralCode,
+    ReferralEvent,
+    RegisterReferralResult,
+)
+from services.intent_layer.canary import canary_capabilities
 from services.intent_layer.catalog import IntentCatalog
 from services.intent_layer.classifier import IntentClassifier
 from services.intent_layer.composition import (
@@ -183,10 +193,60 @@ async def _notifications_handler(
     return await agent.check_channel(intent, compliance_result=outputs.compliance_result)
 
 
+class _StubCRMProvider(CRMProviderPort):
+    """In-process CRM provider stub for the staging canary: ``resolve_referral_code``
+    is a low-consequence, read-only, non-PII lookup that always resolves so a
+    referral-code intent flows end-to-end without live infra. The mutating ops
+    (register/tier) are inert here — the canary handler only drives the read; a real
+    adapter replaces this at the operator runtime step."""
+
+    async def register_referral(self, event: ReferralEvent) -> RegisterReferralResult:
+        return RegisterReferralResult(accepted=False, reason="canary_read_only")
+
+    async def resolve_referral_code(self, code: ReferralCode) -> CRMUserId | None:
+        return "crm-canary-owner"
+
+    async def get_user(self, user_id: CRMUserId) -> CRMUser | None:
+        return None
+
+    async def update_user_tier(self, user_id: CRMUserId, tier: str, correlation_id: str) -> None:
+        return None
+
+
+# A fixed, synthetic referral code for the canary read — never a client-supplied or
+# PII value (R-SEC). The probe only checks that the read path resolves cleanly.
+_CANARY_REFERRAL_CODE = "CANARY-PROBE"
+
+
+async def _crm_handler(
+    request: DispatchRequest, outputs, recorder: DecisionRecorder
+) -> AgentOutcome:
+    """Dispatch a resolved Referral / CRM intent to the real ``CRMAgent`` mask via its
+    lowest-consequence path — ``resolve_referral_code`` (AUTO-eligible, read-only, no
+    PII, no state change, no money movement). This is the one low-risk capability the
+    Phase 7 canary widens to beyond Notifications."""
+    agent = CRMAgent(
+        provider_port=_StubCRMProvider(),
+        recorder=recorder,
+        mask=CRMMask(cost_cap=DEFAULT_COST_CAP),
+    )
+    intent = ResolveCodeIntent(
+        intent_text=request.resolved_intent.raw_text,
+        process_ref=_lineage_ref(request.process_refs),
+        code=_CANARY_REFERRAL_CODE,
+        correlation_id=request.correlation_id,
+        confidence_score=outputs.confidence_score,
+        request_cost=outputs.request_cost,
+    )
+    return await agent.resolve_referral_code(intent, compliance_result=outputs.compliance_result)
+
+
 # In-process masks this deployment can dispatch. Payments/FX/Wallet are owned by
 # banxe-payment-core and are reached cross-repo at the operator runtime step;
-# they return an honest "unrouted" receipt here.
-_LIVE_HANDLERS = {"Notifications": _notifications_handler}
+# they return an honest "unrouted" receipt here. The Referral / CRM read is the
+# Phase 7 canary widening (low-risk, AUTO-eligible read); whether it actually
+# dispatches is still bounded by INTENT_LAYER_CANARY_CAPABILITIES (staging only).
+_LIVE_HANDLERS = {"Notifications": _notifications_handler, "Referral / CRM": _crm_handler}
 
 # Stable singleton sink so the GET endpoint can resolve a record by the same
 # correlation_id the POST returned (a per-request recorder would lose it).
@@ -241,11 +301,20 @@ def get_composition() -> _Composition:
         handlers=_LIVE_HANDLERS,
         producers=ProducerBundle.null(),
         recorder=_RECORDER,
+        # FU-2 Phase 7: the canary mechanically refuses any high-risk capability at the
+        # dispatch boundary — the fail-closed backstop behind the router's allow-list.
+        enforce_high_risk_denylist=True,
     )
     llm = InstrumentedLLMClassifier(NullLLMClassifier(), metrics, env=env)
     return _Composition(
         classifier=IntentClassifier(_catalog(), enabled=enabled, llm=llm),
-        router=IntentRouter(dispatcher, enabled=enabled),
+        router=IntentRouter(
+            dispatcher,
+            enabled=enabled,
+            # FU-2 Phase 7: bound the canary to the env-gated, high-risk-subtracted
+            # allow-list. Empty outside staging → resolved intents are held dark.
+            canary_capabilities=canary_capabilities(),
+        ),
         recorder=_RECORDER,
         observer=CanaryObserver(metrics, env=env),
         enabled=enabled,
@@ -334,8 +403,15 @@ def submit_intent(body: IntentRequest) -> IntentResponse:
         # Dark/prod path: emit NOTHING (gating on enabled is gating on staging).
         return IntentResponse(enabled=False, disposition="NOT_ENABLED", detail=disposition.reason)
 
-    # Canary is live for this request → record the observability signals.
+    # Canary is live for this request → record the observability signals (a held
+    # disposition is a correct, expected non-dispatch — visible but not an error).
     _observe_canary(comp, resolved, disposition, latency_ms)
+
+    if disposition.kind is DispositionKind.CANARY_HELD:
+        # Resolved, but the capability is outside the staging canary allow-list — no
+        # dispatch, no L2 mask, no lineage write. The scope guard that keeps the canary
+        # narrow (and prod fully dark) per FU-2 Phase 7.
+        return IntentResponse(enabled=True, disposition="CANARY_HELD", detail=disposition.reason)
 
     if disposition.kind is DispositionKind.GOVERNANCE_EVENT:
         return IntentResponse(

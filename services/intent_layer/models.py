@@ -59,6 +59,8 @@ class DispositionKind(str, Enum):
     DISPATCHED = "DISPATCHED"  # handed off to the L2 client-facing agent
     NOT_ENABLED = "NOT_ENABLED"  # INTENT_LAYER_ENABLED is false — safe pre-activation no-op
     GOVERNANCE_EVENT = "GOVERNANCE_EVENT"  # UNRESOLVED intent → HITL / process-gap backlog
+    CANARY_HELD = "CANARY_HELD"  # resolved, but the capability is outside the staging
+    #                              canary allow-list — held dark, NO dispatch (FU-2 Phase 7)
 
 
 # ── Value objects ───────────────────────────────────────────────────────────────

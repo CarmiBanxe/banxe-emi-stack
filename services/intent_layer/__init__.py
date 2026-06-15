@@ -19,7 +19,10 @@ Composition example (wiring is composition-root work, not done in this package):
     catalog = IntentCatalog.from_files(MAP_PATH, REGISTRY_PATH)
     enabled = intent_layer_enabled()
     classifier = IntentClassifier(catalog, enabled=enabled, llm=my_s1_llm_port)
-    router = IntentRouter(my_agent_dispatch_port, enabled=enabled)
+    # FU-2 Phase 7: bound the canary to the env-gated, high-risk-subtracted scope.
+    router = IntentRouter(
+        my_agent_dispatch_port, enabled=enabled, canary_capabilities=canary_capabilities()
+    )
 
     resolved = classifier.classify("send money to Alice")
     disposition = router.route(resolved)
@@ -27,6 +30,14 @@ Composition example (wiring is composition-root work, not done in this package):
 
 from __future__ import annotations
 
+from services.intent_layer.canary import (
+    CANARY_CAPABILITIES_ENV,
+    HIGH_RISK_CAPABILITY_KEYS,
+    HIGH_RISK_TOKENS,
+    canary_capabilities,
+    is_high_risk_capability,
+    normalize_capability,
+)
 from services.intent_layer.catalog import IntentCatalog, UnresolvableProcessError
 from services.intent_layer.classifier import IntentClassifier
 from services.intent_layer.config import (
@@ -54,9 +65,15 @@ from services.intent_layer.ports import (
 from services.intent_layer.router import IntentRouter
 
 __all__ = [
+    "CANARY_CAPABILITIES_ENV",
+    "HIGH_RISK_CAPABILITY_KEYS",
+    "HIGH_RISK_TOKENS",
     "INTENT_LAYER_ENABLED_ENV",
     "AgentDispatchPort",
     "ConfidenceBand",
+    "canary_capabilities",
+    "is_high_risk_capability",
+    "normalize_capability",
     "Disposition",
     "DispositionKind",
     "DispatchReceipt",
