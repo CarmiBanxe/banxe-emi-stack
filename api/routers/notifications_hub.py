@@ -21,6 +21,7 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from services.intent_layer.shadow import maybe_mirror_intent
 from services.notification_hub.channel_dispatcher import ChannelDispatcher
 from services.notification_hub.delivery_tracker import DeliveryTracker
 from services.notification_hub.models import (
@@ -108,6 +109,12 @@ async def send_notification(body: SendNotificationRequest) -> dict:  # type: ign
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    # FU-2 Phase 8: production shadow-mode. Fire-and-forget — mirrors a sampled slice of
+    # this intent-like request into the Intent Layer (classify-only, no live action) and
+    # logs how its decision compares to this mechanistic baseline. A no-op unless
+    # INTENT_LAYER_SHADOW_ENABLED_PROD=true in production; never alters this response. The
+    # descriptor is a non-PII endpoint label, never the notification body (R-SEC).
+    maybe_mirror_intent("manage notifications", baseline_capability="Notifications")
     return result
 
 

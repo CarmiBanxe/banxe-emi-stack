@@ -64,6 +64,11 @@ from services.agents.notification_agent import (
     NotificationMask,
     NotificationSendIntent,
 )
+from services.agents.recorders import (
+    ClickHouseDecisionRecorder,
+    InMemoryDecisionRecorder,
+    get_decision_recorder,
+)
 from services.agents.statement_agent import (
     DeliverStatementIntent,
     GenerateStatementIntent,
@@ -94,6 +99,7 @@ __all__ = [
     "CardsMask",
     "ChangeLimitIntent",
     "ChannelCheckIntent",
+    "ClickHouseDecisionRecorder",
     "ComplianceOverlay",
     "ComplianceResult",
     "ConfirmationDecision",
@@ -106,6 +112,7 @@ __all__ = [
     "GetReportIntent",
     "GetStatementIntent",
     "GetUserIntent",
+    "InMemoryDecisionRecorder",
     "IssueCardIntent",
     "ListReportsIntent",
     "ListStatementsIntent",
@@ -125,4 +132,5 @@ __all__ = [
     "StatementMask",
     "UnfreezeIntent",
     "UpdateTierIntent",
+    "get_decision_recorder",
 ]
