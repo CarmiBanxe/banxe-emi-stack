@@ -159,7 +159,7 @@ class LegacyJwtStrategyAdapter:
             )
         try:
             req = Request(self._jwks_uri, headers={"Accept": "application/json"})  # noqa: S310  # nosec B310 — scheme guarded above
-            with urlopen(req, timeout=self._jwks_timeout_sec) as resp:  # noqa: S310  # nosec B310 — scheme guarded above
+            with urlopen(req, timeout=self._jwks_timeout_sec) as resp:  # noqa: S310  # nosec B310 — scheme guarded above  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected  # https scheme guarded JWKS fetch (nosec B310)
                 raw = resp.read().decode("utf-8")
         except Exception as exc:  # network / parse / SSL — uniform error
             raise TokenValidationError(

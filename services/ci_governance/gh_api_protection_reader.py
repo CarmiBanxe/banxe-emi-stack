@@ -64,7 +64,7 @@ def _default_http_client(url: str, headers: dict[str, str], method: str) -> tupl
         )
     req = urllib.request.Request(url, headers=headers, method="GET")  # noqa: S310
     try:
-        with urllib.request.urlopen(req) as resp:  # noqa: S310  # nosec B310 — https scheme guard above
+        with urllib.request.urlopen(req) as resp:  # noqa: S310  # nosec B310 — https scheme guard above  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected  # https scheme guard (nosec B310)
             return resp.status, resp.read()
     except urllib.error.HTTPError as exc:
         return exc.code, exc.read()

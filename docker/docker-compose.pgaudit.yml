@@ -4,7 +4,9 @@ version: "3.9"
 # Port: 5433 (avoids conflict with main PostgreSQL on 5432)
 
 services:
-  postgres-pgaudit:
+  postgres-pgaudit:  # nosemgrep: yaml.docker-compose.security.writable-filesystem-service.writable-filesystem-service  # dev/stateful service writes to mounted volume; read_only unsafe
+    security_opt:  # nosemgrep: yaml.docker-compose.security.writable-filesystem-service.writable-filesystem-service  # stateful/dev service writes to mounted volume; read_only unsafe here
+      - "no-new-privileges:true"
     image: pgvector/pgvector:pg17
     container_name: banxe-pgaudit
     ports:

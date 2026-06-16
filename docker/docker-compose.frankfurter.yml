@@ -2,7 +2,9 @@ version: "3.9"
 # Frankfurter — self-hosted ECB FX rates (no API key, free, open-source)
 # https://github.com/hakanensari/frankfurter
 services:
-  frankfurter:
+  frankfurter:  # nosemgrep: yaml.docker-compose.security.writable-filesystem-service.writable-filesystem-service  # dev/stateful service writes to mounted volume; read_only unsafe
+    security_opt:  # nosemgrep: yaml.docker-compose.security.writable-filesystem-service.writable-filesystem-service  # stateful/dev service writes to mounted volume; read_only unsafe here
+      - "no-new-privileges:true"
     image: hakanensari/frankfurter:latest
     ports:
       - "8087:8080"

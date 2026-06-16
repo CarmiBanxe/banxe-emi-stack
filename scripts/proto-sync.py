@@ -38,7 +38,7 @@ SKIP_PREFIXES = {"/health", "/metrics", "/docs", "/openapi.json", "/redoc"}
 
 def _fetch_live(url: str) -> dict | None:
     try:
-        with urllib.request.urlopen(url, timeout=3) as r:  # nosec B310 — localhost only
+        with urllib.request.urlopen(url, timeout=3) as r:  # nosec B310 — localhost only  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected  # localhost-only, scheme guarded (nosec B310)
             return json.loads(r.read())
     except Exception:
         return None
