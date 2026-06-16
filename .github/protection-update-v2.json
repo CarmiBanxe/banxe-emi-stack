@@ -1,0 +1,22 @@
+{
+  "_comment_anchors": "S16.5 G-CI-02 prep — extends ADR-035 Step 3 baseline (.github/protection-update.json: 3 checks) to cover all current CI gates. The two `guardian-*` contexts are externally provided GitHub App checks (app_id 15368 in live state on 2026-05-12); they are preserved here so this PUT body does not weaken protection. All other contexts map to a job name in .github/workflows/*.yml. Verified by scripts/validate-g-ci-02-prep.sh.",
+  "required_status_checks": {
+    "strict": true,
+    "checks": [
+      { "context": "guardian-factory" },
+      { "context": "guardian-project" },
+      { "context": "Smoke Gate (mock tier)" },
+      { "context": "Smoke Gate (real stack)" },
+      { "context": "Gitleaks - Secrets Scan" },
+      { "context": "Ruff lint + format" },
+      { "context": "Biome lint + format (Frontend)" },
+      { "context": "Pytest (coverage >= 80%)" },
+      { "context": "Semgrep (banxe-rules)" },
+      { "context": "Vitest (frontend)" },
+      { "context": "Alembic — schema drift check" }
+    ]
+  },
+  "enforce_admins": false,
+  "required_pull_request_reviews": null,
+  "restrictions": null
+}

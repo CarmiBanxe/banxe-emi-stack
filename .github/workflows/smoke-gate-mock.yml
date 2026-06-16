@@ -1,0 +1,35 @@
+name: Smoke Gate — Mock Tier (ADR-035)
+# ADR-035 Step 2 | banxe-emi-stack
+#
+# Required status check for PRs -> main.
+# Runs only the mock smoke surface matrix: no network, no live integrations.
+# Completes in < 3 min. Nightly full-stack tier is smoke-gate-full.yml (Step 4).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  smoke-mock:
+    name: Smoke Gate (mock tier)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio httpx
+
+      - name: Run mock smoke suite
+        run: |
+          python -m pytest tests/test_smoke/test_smoke_mock.py \
+            --override-ini=addopts= \
+            -q --tb=short

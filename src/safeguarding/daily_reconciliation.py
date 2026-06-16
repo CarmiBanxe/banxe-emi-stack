@@ -24,9 +24,19 @@ from decimal import Decimal
 from enum import Enum
 import logging
 
+from src.recon_core import (
+    BreachEvaluator,
+    ReconAuditEvent,
+    emit_recon_audit,
+    evaluate_balances,
+)
+
 logger = logging.getLogger(__name__)
 
-# CASS 7.15.17R: penny-exact tolerance
+# CASS 7.15.17R: penny-exact tolerance.
+# Regime parameter — injected into the shared BreachEvaluator as breach_kind="BREAK".
+# Deliberately DISTINCT from the CASS 7.15 line-item HITL threshold (£100); see ADR-SAF-01
+# and docs/architecture/RECON-CORE-BOUNDARY.md. Thresholds are inputs, never unified.
 RECON_TOLERANCE_GBP = Decimal("0.01")
 
 
@@ -105,18 +115,24 @@ class DailyReconciliation:
                 notes="External bank statement not yet received.",
             )
 
-        diff = self.internal - self.external
-        abs_diff = abs(diff)
+        # CASS 15 aggregate penny-exact compare via the shared recon core.
+        # breach_kind="BREAK" + tolerance are this regime's injected parameters; the
+        # core stays regime-agnostic. abs_diff > tolerance ⇒ BREAK, else MATCHED —
+        # identical boundary to the previous inline `abs_diff <= tolerance` check.
+        evaluator = BreachEvaluator(threshold=self.tolerance, breach_kind="BREAK")
+        core = evaluate_balances(self.internal, self.external, evaluator)
+        diff = core.difference
+        abs_diff = core.abs_difference
 
-        if abs_diff <= self.tolerance:
-            status = ReconStatus.MATCHED
-            notes = "Reconciliation passed — within penny-exact tolerance."
-        else:
+        if core.is_breach:
             status = ReconStatus.BREAK
             notes = (
                 f"Reconciliation break: £{abs_diff:,.2f} exceeds tolerance £{self.tolerance}. "
                 "Escalate to MLRO + CFO immediately (CASS 7.15.17R)."
             )
+        else:
+            status = ReconStatus.MATCHED
+            notes = "Reconciliation passed — within penny-exact tolerance."
 
         result = ReconciliationResult(
             recon_date=self.recon_date,
@@ -129,4 +145,17 @@ class DailyReconciliation:
 
         log_fn = logger.info if status == ReconStatus.MATCHED else logger.critical
         log_fn("CASS recon: %s", result.summary())
+
+        # Shared audit-trail emit (additive; carries the recon date ref + magnitude,
+        # never raw balances — R-SEC). Does not affect the returned result.
+        emit_recon_audit(
+            ReconAuditEvent.from_magnitude(
+                regime="CASS15",
+                recon_ref=self.recon_date.isoformat(),
+                is_breach=core.is_breach,
+                breach_kind=core.breach_kind,
+                amount=abs_diff,
+                threshold=self.tolerance,
+            )
+        )
         return result

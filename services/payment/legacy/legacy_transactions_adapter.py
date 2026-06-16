@@ -27,6 +27,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from services._legacy_common.audit import BaseAuditRecord
 from services.payment.payment_port import (
     PaymentDirection,
     PaymentIntent,
@@ -34,6 +35,7 @@ from services.payment.payment_port import (
     PaymentResult,
     PaymentStatus,
 )
+from services.shared.errors import BanxeLegacyAdapterError
 
 # ── Status mapping (parse() semantic) ─────────────────────────────────────────
 
@@ -77,32 +79,29 @@ class TransactionRecord(BaseModel, frozen=True):
     model_config = {"arbitrary_types_allowed": True}
 
 
-class TransactionAuditRecord(BaseModel, frozen=True):
+class TransactionAuditRecord(BaseAuditRecord, frozen=True):
     """
     Audit mapping of resolveBaseBalances() — SEPARATE from PaymentResult (I-24).
 
     Captures pre/post status transition events; never folded into the port return value.
     In production: persisted to ClickHouse append-only table (Wave D).
+    TransactionRecord has no customer_id; base field inherits as None.
     """
 
     transaction_id: str
-    event_type: _AuditEventType
+    event_type: _AuditEventType  # type: ignore[assignment]
     amount: Decimal
     currency: str
-    status_from: PaymentStatus | None
-    status_to: PaymentStatus
-    occurred_at: datetime
-
-    model_config = {"arbitrary_types_allowed": True}
+    status_from: PaymentStatus | None  # type: ignore[assignment]
+    status_to: PaymentStatus  # type: ignore[assignment]
 
 
 # ── Error ─────────────────────────────────────────────────────────────────────
 
 
-class TransactionApplicationError(Exception):
+class TransactionApplicationError(BanxeLegacyAdapterError):
     def __init__(self, message: str, *, code: str) -> None:
-        super().__init__(message)
-        self.code = code
+        super().__init__(message, code=code)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -184,7 +183,7 @@ class LegacyTransactionsAdapter:
             )
         return self._to_result(record)
 
-    def health_check(self) -> bool:
+    def health(self) -> bool:
         return True
 
     # ── Extra (beyond port) ───────────────────────────────────────────────────
@@ -278,6 +277,8 @@ class LegacyTransactionsAdapter:
     ) -> None:
         self._audit_log.append(
             TransactionAuditRecord(
+                record_id=record.transaction_id,
+                customer_id=None,
                 transaction_id=record.transaction_id,
                 event_type=event_type,
                 amount=record.amount,
