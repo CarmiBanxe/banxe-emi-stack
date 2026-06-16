@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from datetime import date
 
+from src.recon_core import BreachEvaluator, ReconAuditEvent, emit_recon_audit
+
 from services.recon.reconciliation_engine_v2 import (
     BREACH_HITL_THRESHOLD,
     HITLProposal,
@@ -49,7 +51,25 @@ class ReconAgent:
             statement_entries or [],
         )
 
-        if report.breach_detected and report.net_discrepancy_gbp > BREACH_HITL_THRESHOLD:
+        # CASS 7.15 HITL gate via the shared recon core. breach_kind="HITL" +
+        # BREACH_HITL_THRESHOLD are this regime's injected parameters; the strict
+        # `net > £100` boundary is preserved exactly (== £100 is NOT a breach).
+        evaluator = BreachEvaluator(threshold=BREACH_HITL_THRESHOLD, breach_kind="HITL")
+        decision = evaluator.evaluate(report.net_discrepancy_gbp)
+
+        # Shared audit-trail emit (additive; recon-date ref + magnitude only — R-SEC).
+        emit_recon_audit(
+            ReconAuditEvent.from_magnitude(
+                regime="CASS7.15",
+                recon_ref=report.recon_date,
+                is_breach=report.breach_detected and decision.is_breach,
+                breach_kind=decision.breach_kind,
+                amount=report.net_discrepancy_gbp,
+                threshold=BREACH_HITL_THRESHOLD,
+            )
+        )
+
+        if report.breach_detected and decision.is_breach:
             return self._engine.resolve_breach(report.report_id, "recon_agent")
 
         return report

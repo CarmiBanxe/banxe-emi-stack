@@ -184,9 +184,9 @@ class TestWithdrawSAR:
         )
         assert withdrawn.status == SARStatus.WITHDRAWN
 
-    def test_cannot_withdraw_submitted(self, svc: SARService, draft_sar: SARReport) -> None:
+    async def test_cannot_withdraw_submitted(self, svc: SARService, draft_sar: SARReport) -> None:
         svc.approve_sar(sar_id=draft_sar.sar_id, mlro_id="mlro-001")
-        svc.submit_sar(sar_id=draft_sar.sar_id)
+        await svc.submit_sar(sar_id=draft_sar.sar_id)
         with pytest.raises(SARServiceError, match="cannot withdraw"):
             svc.withdraw_sar(
                 sar_id=draft_sar.sar_id,
@@ -196,30 +196,32 @@ class TestWithdrawSAR:
 
 
 class TestSubmitSAR:
-    def test_submit_approved_sar(self, svc: SARService, draft_sar: SARReport) -> None:
+    async def test_submit_approved_sar(self, svc: SARService, draft_sar: SARReport) -> None:
         svc.approve_sar(sar_id=draft_sar.sar_id, mlro_id="mlro-001")
-        submitted = svc.submit_sar(sar_id=draft_sar.sar_id)
+        submitted = await svc.submit_sar(sar_id=draft_sar.sar_id)
         assert submitted.status == SARStatus.SUBMITTED
         assert submitted.nca_reference is not None
         assert submitted.nca_reference.startswith("SAR-")
         assert submitted.submitted_at is not None
 
-    def test_cannot_submit_draft(self, svc: SARService, draft_sar: SARReport) -> None:
+    async def test_cannot_submit_draft(self, svc: SARService, draft_sar: SARReport) -> None:
         with pytest.raises(SARServiceError, match="must be MLRO_APPROVED"):
-            svc.submit_sar(sar_id=draft_sar.sar_id)
+            await svc.submit_sar(sar_id=draft_sar.sar_id)
 
-    def test_nca_reference_format(self, svc: SARService, draft_sar: SARReport) -> None:
+    async def test_nca_reference_format(self, svc: SARService, draft_sar: SARReport) -> None:
         svc.approve_sar(sar_id=draft_sar.sar_id, mlro_id="mlro-001")
-        submitted = svc.submit_sar(sar_id=draft_sar.sar_id)
+        submitted = await svc.submit_sar(sar_id=draft_sar.sar_id)
         # Format: SAR-YYYYMM-{8 hex chars uppercase}
         parts = submitted.nca_reference.split("-")
         assert len(parts) == 3
         assert parts[0] == "SAR"
         assert len(parts[1]) == 6  # YYYYMM
 
-    def test_is_submittable_false_after_submit(self, svc: SARService, draft_sar: SARReport) -> None:
+    async def test_is_submittable_false_after_submit(
+        self, svc: SARService, draft_sar: SARReport
+    ) -> None:
         svc.approve_sar(sar_id=draft_sar.sar_id, mlro_id="mlro-001")
-        submitted = svc.submit_sar(sar_id=draft_sar.sar_id)
+        submitted = await svc.submit_sar(sar_id=draft_sar.sar_id)
         assert submitted.is_submittable is False
 
 
@@ -279,7 +281,7 @@ class TestListAndStats:
         assert s.total == 0
         assert s.submission_rate == 0.0
 
-    def test_stats_submission_rate(self, svc: SARService) -> None:
+    async def test_stats_submission_rate(self, svc: SARService) -> None:
         # Create 2 SARs: 1 submitted, 1 withdrawn → rate = 50%
         sar1 = svc.file_sar(
             transaction_id="tx-e",
@@ -302,7 +304,7 @@ class TestListAndStats:
             fraud_score=0,
         )
         svc.approve_sar(sar_id=sar1.sar_id, mlro_id="mlro-001")
-        svc.submit_sar(sar_id=sar1.sar_id)
+        await svc.submit_sar(sar_id=sar1.sar_id)
         svc.withdraw_sar(sar_id=sar2.sar_id, mlro_id="mlro-001", reason="not suspicious")
         s = svc.stats()
         assert s.total == 2

@@ -11,6 +11,39 @@ on:
     branches: [main]
 
 jobs:
+  # -- Detect docs-only PRs (FU-1 Phase 3)
+  # Lets the "Semgrep OSS" gate self-short-circuit on docs-only PRs instead of
+  # hanging. All other jobs already run on every PR to main and are unaffected.
+  changes:
+    name: Detect docs-only PR
+    runs-on: ubuntu-latest
+    outputs:
+      docs_only: ${{ steps.detect.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Detect whether the PR touches code or docs only
+        id: detect
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          base='${{ github.event.pull_request.base.sha }}'
+          files="$(git diff --name-only "$base...HEAD")"
+          printf 'Changed files:\n%s\n' "$files"
+          if [ -z "$files" ]; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          # docs = anything under docs/ or any *.md file. Capture non-docs lines
+          # (robust across grep implementations) rather than relying on `grep -qv`.
+          nondocs="$(printf '%s\n' "$files" | grep -vE '^(docs/|.*\.md$)' || true)"
+          if [ -n "$nondocs" ]; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "docs_only=true" >> "$GITHUB_OUTPUT"
+          fi
+
   # -- Secrets scan (P0 security gate)
   secrets-scan:
     name: Gitleaks - Secrets Scan
@@ -114,6 +147,43 @@ jobs:
         run: pip install semgrep
       - name: Run Semgrep
         run: semgrep --config .semgrep/banxe-rules.yml --error
+
+  # -- Semgrep OSS (registry default ruleset) — FU-1 Phase 3
+  # In-repo owner of the required "Semgrep OSS" context (GitHub Actions / app 15368),
+  # replacing the external Semgrep SaaS app (app 57789) that never reported on
+  # docs-only PRs. Diff-scoped on PRs so it enforces newly changed code without
+  # failing on pre-existing findings in untouched files; full-tree on push to main.
+  # Requires the required-check pin for "Semgrep OSS" to move from app 57789 to
+  # GitHub Actions (see .github/settings.yml and the FU-1 Phase 3 PR notes).
+  semgrep-oss:
+    name: Semgrep OSS
+    needs: changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install semgrep
+        if: needs.changes.outputs.docs_only != 'true'
+        run: pip install semgrep
+      - name: Run Semgrep OSS (registry default ruleset)
+        if: needs.changes.outputs.docs_only != 'true'
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base='${{ github.event.pull_request.base.sha }}'
+            mapfile -t paths < <(git diff --name-only "$base...HEAD" | grep -vE '^(docs/|.*\.md$)' || true)
+            if [ "${#paths[@]}" -eq 0 ]; then
+              echo "No non-docs files changed; nothing for Semgrep OSS to scan."
+              exit 0
+            fi
+            printf 'Scanning changed files:\n%s\n' "${paths[*]}"
+            semgrep scan --config p/default --error "${paths[@]}"
+          else
+            semgrep scan --config p/default --error .
+          fi
+      - name: Docs-only PR — Semgrep OSS not required
+        if: needs.changes.outputs.docs_only == 'true'
+        run: echo "Docs-only PR; Semgrep OSS scan not required. Reporting success."
 
   # -- Frontend tests
   vitest:

@@ -2,6 +2,12 @@ name: Lint Python (Ruff)
 # IL-BIOME-01 | banxe-emi-stack
 # Dedicated Python linting workflow — runs faster than full quality-gate.
 # Full test + coverage gate: quality-gate.yml
+#
+# FU-1 Phase 3: PRs to main always trigger this workflow so the required
+# "Semgrep security rules" context is reported even on docs-only PRs. The
+# scanning jobs self-short-circuit to success when a PR touches docs only,
+# so docs-only PRs no longer hang on a never-reported required check, while
+# code PRs keep full Ruff + Semgrep enforcement unchanged.
 
 on:
   push:
@@ -10,40 +16,82 @@ on:
       - "pyproject.toml"
       - ".github/workflows/lint-python.yml"
   pull_request:
-    paths:
-      - "**.py"
-      - "pyproject.toml"
+    branches: [main]
 
 permissions:
   security-events: write
   contents: read
 
 jobs:
+  changes:
+    name: Detect docs-only PR
+    runs-on: ubuntu-latest
+    outputs:
+      docs_only: ${{ steps.detect.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Detect whether the PR touches code or docs only
+        id: detect
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          base='${{ github.event.pull_request.base.sha }}'
+          files="$(git diff --name-only "$base...HEAD")"
+          printf 'Changed files:\n%s\n' "$files"
+          if [ -z "$files" ]; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          # docs = anything under docs/ or any *.md file. If every changed file
+          # is docs, this is a docs-only PR and the security scans are not required.
+          # Capture non-docs lines (robust across grep implementations) rather
+          # than relying on `grep -qv` exit semantics.
+          nondocs="$(printf '%s\n' "$files" | grep -vE '^(docs/|.*\.md$)' || true)"
+          if [ -n "$nondocs" ]; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "docs_only=true" >> "$GITHUB_OUTPUT"
+          fi
+
   ruff:
     name: Ruff lint + format
+    needs: changes
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Ruff lint (check mode, GitHub annotations)
+        if: needs.changes.outputs.docs_only != 'true'
         uses: astral-sh/ruff-action@v3
         with:
           args: "check --output-format=github"
       - name: Ruff format (check only)
+        if: needs.changes.outputs.docs_only != 'true'
         uses: astral-sh/ruff-action@v3
         with:
           args: "format --check"
+      - name: Docs-only PR — Ruff not required
+        if: needs.changes.outputs.docs_only == 'true'
+        run: echo "Docs-only PR; Ruff lint not required. Reporting success."
 
   semgrep:
     name: Semgrep security rules
+    needs: changes
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Install semgrep
+        if: needs.changes.outputs.docs_only != 'true'
         run: pip install semgrep
       - name: Run Semgrep (banxe custom rules)
+        if: needs.changes.outputs.docs_only != 'true'
         run: semgrep --config .semgrep/banxe-rules.yml --error --sarif-output=semgrep.sarif || true
       - name: Upload SARIF
+        if: needs.changes.outputs.docs_only != 'true'
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
         with:
           sarif_file: semgrep.sarif
+      - name: Docs-only PR — Semgrep security rules not required
+        if: needs.changes.outputs.docs_only == 'true'
+        run: echo "Docs-only PR; Semgrep security rules scan not required. Reporting success."

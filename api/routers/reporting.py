@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 from functools import lru_cache
+import os
 
 from fastapi import APIRouter, HTTPException
 
@@ -34,7 +35,15 @@ from api.models.reporting import (
     SARStatsResponse,
     WithdrawSARRequest,
 )
-from services.aml.sar_service import SARService, SARServiceError, SARStatus
+from services.aml.sar_service import (
+    LiveNCAClient,
+    NCAClient,
+    SARService,
+    SARServiceError,
+    SARStatus,
+    SARSubmissionError,
+    StubNCAClient,
+)
 from services.reporting.regdata_return import RegDataReturnService, ReturnStatus
 
 router = APIRouter(tags=["Compliance Reporting"])
@@ -43,9 +52,20 @@ router = APIRouter(tags=["Compliance Reporting"])
 # ── Service factories (overridable in tests via dependency_overrides) ──────────
 
 
+def _build_nca_client() -> NCAClient:
+    """Cutover seam (stub ↔ live).
+
+    LiveNCAClient IFF both NCA_SAR_API_KEY and NCA_ORGANISATION_ID are present;
+    otherwise StubNCAClient so dev/test/CI without credentials keep working.
+    """
+    if os.environ.get("NCA_SAR_API_KEY") and os.environ.get("NCA_ORGANISATION_ID"):
+        return LiveNCAClient()
+    return StubNCAClient()
+
+
 @lru_cache(maxsize=1)
 def _get_sar_service() -> SARService:
-    return SARService()
+    return SARService(nca_client=_build_nca_client())
 
 
 @lru_cache(maxsize=1)
@@ -257,17 +277,21 @@ def approve_sar(sar_id: str, body: MLRODecisionRequest) -> SARResponse:
     response_model=SARResponse,
     summary="Submit MLRO-approved SAR to NCA SAROnline",
 )
-def submit_sar(sar_id: str) -> SARResponse:
+async def submit_sar(sar_id: str) -> SARResponse:
     """
     Submit an MLRO-approved SAR to NCA SAROnline.
     Requires status=MLRO_APPROVED — POCA 2002 s.330 MLRO gate is mandatory.
-    STATUS: NCA SAROnline is STUBBED until NCA credentials are provisioned.
+    NCA client is selected by _build_nca_client(): LiveNCAClient when NCA
+    credentials are present, else StubNCAClient (offline).
     """
     svc = _get_sar_service()
     try:
-        sar = svc.submit_sar(sar_id=sar_id)
+        sar = await svc.submit_sar(sar_id=sar_id)
     except SARServiceError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
+    except SARSubmissionError as exc:
+        # Upstream NCA SAROnline failure — surfaced, not swallowed (502).
+        raise HTTPException(status_code=502, detail=f"NCA SAROnline submission failed: {exc}")
     return _sar_to_response(sar)
 
 

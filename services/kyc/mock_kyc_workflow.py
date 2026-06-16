@@ -84,6 +84,10 @@ class MockKYCWorkflow:
 
     def __init__(self) -> None:
         self._workflows: dict[str, KYCWorkflowResult] = {}
+        # ADR-028 Step 4: in-memory log of trigger_reverification calls for
+        # test inspection. Each entry is a dict with customer_id, trigger_type,
+        # trigger_payload, requested_by.
+        self.trigger_reverification_calls: list[dict] = []
 
     def _now(self) -> datetime:
         return datetime.now(UTC)
@@ -220,6 +224,28 @@ class MockKYCWorkflow:
 
     def health(self) -> bool:
         return True
+
+    def trigger_reverification(
+        self,
+        customer_id: str,
+        trigger_type: str,
+        trigger_payload: dict,
+        requested_by: str | None = None,
+    ) -> None:
+        """ADR-028 Step 4: record the trigger_reverification request.
+
+        Mock implementation — production BallerineAdapter will dispatch to
+        the workflow engine. This Mock simply appends to
+        trigger_reverification_calls for test assertions.
+        """
+        self.trigger_reverification_calls.append(
+            {
+                "customer_id": customer_id,
+                "trigger_type": trigger_type,
+                "trigger_payload": dict(trigger_payload),
+                "requested_by": requested_by,
+            }
+        )
 
 
 _bl_logger = _logging.getLogger(__name__)

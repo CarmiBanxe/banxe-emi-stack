@@ -57,8 +57,8 @@ class OtpDeliveryPort(Protocol):
 
     Implementations:
       LegacyOtpAdapter  — in-memory backend (dev/test, REWRITE-1)
-      TwilioOtpAdapter  — SMS via Twilio (future production adapter)
-      SendGridOtpAdapter — email via SendGrid (future production adapter)
+      TwilioOtpAdapter  — SMS/email via Twilio Verify v2 (Sprint 6)
+      SendGridOtpAdapter — email via SendGrid Mail Send API (Sprint 6)
     """
 
     def generate_otp(self, *, length: int = 6, alphabet: str = "digits") -> str:
