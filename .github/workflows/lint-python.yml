@@ -29,7 +29,7 @@ jobs:
     outputs:
       docs_only: ${{ steps.detect.outputs.docs_only }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Detect whether the PR touches code or docs only
@@ -60,7 +60,7 @@ jobs:
     needs: changes
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Ruff lint (check mode, GitHub annotations)
         if: needs.changes.outputs.docs_only != 'true'
         uses: astral-sh/ruff-action@v3
@@ -80,7 +80,7 @@ jobs:
     needs: changes
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install semgrep
         if: needs.changes.outputs.docs_only != 'true'
         run: pip install semgrep
