@@ -40,14 +40,14 @@ jobs:
       LLM_GATEWAY_URL: ${{ vars.LLM_GATEWAY_URL }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Start infra services (postgres, redis, clickhouse, frankfurter)
         run: |
           docker compose -f docker/docker-compose.master.yml up -d \
             postgres redis clickhouse frankfurter
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: "pip"
