@@ -102,7 +102,7 @@ class EnvSecretRotator:
         self._save_state()
 
         next_due = now + timedelta(days=self._interval_days)
-        logger.info("rotated secret %s (next due: %s)", secret_id, next_due.date())
+        logger.info("rotated secret %s (next due: %s)", secret_id, next_due.date())  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure  # logs secret_id + date, never the secret value
         return RotationResult(success=True, secret_id=secret_id, rotated_at=now, next_due=next_due)
 
     def get_rotation_status(self, secret_id: str) -> RotationStatus:

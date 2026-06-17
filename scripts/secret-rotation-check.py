@@ -66,7 +66,7 @@ def main() -> int:
         )
 
     if overdue:
-        logger.warning(
+        logger.warning(  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure  # logs secret_id (identifier) + count, never the secret value
             "secret-rotation-check: %d OVERDUE secret(s): %s",
             len(overdue),
             ", ".join(s.secret_id for s in overdue),

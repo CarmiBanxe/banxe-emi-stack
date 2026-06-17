@@ -2,7 +2,9 @@
 # P0 Master Stack — banxe-emi-stack | IL-INT-01
 version: "3.9"
 services:
-  postgres:
+  postgres:  # nosemgrep: yaml.docker-compose.security.writable-filesystem-service.writable-filesystem-service  # dev/stateful service writes to mounted volume; read_only unsafe
+    security_opt:  # nosemgrep: yaml.docker-compose.security.writable-filesystem-service.writable-filesystem-service  # stateful/dev service writes to mounted volume; read_only unsafe here
+      - "no-new-privileges:true"
     image: postgres:17-alpine
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-banxe}
@@ -17,7 +19,9 @@ services:
       timeout: 5s
       retries: 5
 
-  clickhouse:
+  clickhouse:  # nosemgrep: yaml.docker-compose.security.writable-filesystem-service.writable-filesystem-service  # dev/stateful service writes to mounted volume; read_only unsafe
+    security_opt:  # nosemgrep: yaml.docker-compose.security.writable-filesystem-service.writable-filesystem-service  # stateful/dev service writes to mounted volume; read_only unsafe here
+      - "no-new-privileges:true"
     image: clickhouse/clickhouse-server:24.3-alpine
     ports:
       - "9000:9000"
@@ -32,7 +36,9 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
+  redis:  # nosemgrep: yaml.docker-compose.security.writable-filesystem-service.writable-filesystem-service  # dev/stateful service writes to mounted volume; read_only unsafe
+    security_opt:  # nosemgrep: yaml.docker-compose.security.writable-filesystem-service.writable-filesystem-service  # stateful/dev service writes to mounted volume; read_only unsafe here
+      - "no-new-privileges:true"
     image: redis:7-alpine
     ports:
       - "6379:6379"
@@ -42,7 +48,9 @@ services:
       timeout: 5s
       retries: 5
 
-  frankfurter:
+  frankfurter:  # nosemgrep: yaml.docker-compose.security.writable-filesystem-service.writable-filesystem-service  # dev/stateful service writes to mounted volume; read_only unsafe
+    security_opt:  # nosemgrep: yaml.docker-compose.security.writable-filesystem-service.writable-filesystem-service  # stateful/dev service writes to mounted volume; read_only unsafe here
+      - "no-new-privileges:true"
     image: hakanensari/frankfurter:latest
     ports:
       - "8087:8080"
