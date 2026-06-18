@@ -14,3 +14,11 @@ Three read-only hexagonal ports + InMemory impls (no live adapters, I-10-safe; D
 ## Invariants
 Read/aggregate only. No trade execution, transfer initiation, model runs, or state mutation.
 Consumers (TreasuryAgent/ForecastAgent) and >£100k CFO sign-off HITL land in a follow-up shard.
+
+## Alignment — canon test API (2026-06-19, Channel C)
+Aligned InMemory ports to canon tests (tests = spec; tests unchanged). Files: fx_exposure_port.py, liquidity_forecast_port.py.
+- FXExposurePort: `InMemoryFXExposurePort(positions)` seeds via constructor; `FXExposureView` → `total_exposure_gbp`, `positions: list`, empty `as_of="1970-01-01"`.
+- LiquidityForecastPort: `InMemoryLiquidityForecastPort(inputs, current_position, inputs_raises, position_raises)`; `get_current_position` default `Decimal("0")`; missing-inputs error message matches "No forecast inputs".
+- Preserved: frozen value objects, async, Decimal (I-01), read-only invariants. NOSTRO port unchanged.
+- Verify: `ruff check services/treasury` clean; `pytest tests/test_treasury/test_fx_exposure_port.py tests/test_treasury/test_liquidity_forecast_port.py` = 13 passed.
+- Out of scope (pre-existing, NOT touched): `tests/test_treasury/test_nostro_recon_port.py::test_result_carries_as_of_from_balance` (NOSTROReconPort lookup-key bug) — separate follow-up per this brief's "do not touch nostro".

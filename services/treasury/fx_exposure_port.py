@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from dataclasses import dataclass
 from decimal import Decimal
 
@@ -21,8 +22,8 @@ class FXPosition:
 @dataclass(frozen=True)
 class FXExposureView:
     as_of: str
-    positions: tuple[FXPosition, ...]
-    total_net_exposure_gbp: Decimal
+    positions: list[FXPosition]
+    total_exposure_gbp: Decimal
 
 
 class FXExposurePort(ABC):
@@ -33,8 +34,10 @@ class FXExposurePort(ABC):
 
 
 class InMemoryFXExposurePort(FXExposurePort):
-    def __init__(self) -> None:
+    def __init__(self, positions: Iterable[FXPosition] | None = None) -> None:
         self._positions: dict[str, FXPosition] = {}
+        for position in positions or ():
+            self.seed(position)
 
     def seed(self, position: FXPosition) -> None:
         self._positions[position.currency_pair] = position
@@ -45,7 +48,7 @@ class InMemoryFXExposurePort(FXExposurePort):
         return self._positions[currency_pair]
 
     async def get_total_exposure(self) -> FXExposureView:
-        positions = tuple(self._positions.values())
-        as_of = positions[0].as_of if positions else ""
+        positions = list(self._positions.values())
+        as_of = positions[0].as_of if positions else "1970-01-01"
         total = sum((abs(p.net_exposure_gbp) for p in positions), Decimal("0"))
-        return FXExposureView(as_of=as_of, positions=positions, total_net_exposure_gbp=total)
+        return FXExposureView(as_of=as_of, positions=positions, total_exposure_gbp=total)

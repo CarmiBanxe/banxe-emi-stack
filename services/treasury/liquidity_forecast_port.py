@@ -28,22 +28,28 @@ class LiquidityForecastPort(ABC):
 
 
 class InMemoryLiquidityForecastPort(LiquidityForecastPort):
-    def __init__(self) -> None:
-        self._inputs: dict[int, LiquidityForecastInputs] = {}
-        self._positions: dict[str, Decimal] = {}
-
-    def seed(self, inputs: LiquidityForecastInputs) -> None:
-        self._inputs[inputs.horizon_days] = inputs
-
-    def seed_position(self, date: str, amount: Decimal) -> None:
-        self._positions[date] = amount
+    def __init__(
+        self,
+        inputs: LiquidityForecastInputs | None = None,
+        current_position: Decimal | None = None,
+        inputs_raises: Exception | None = None,
+        position_raises: Exception | None = None,
+    ) -> None:
+        self._inputs = inputs
+        self._current_position = current_position
+        self._inputs_raises = inputs_raises
+        self._position_raises = position_raises
 
     async def get_forecast_inputs(self, horizon_days: int) -> LiquidityForecastInputs:
-        if horizon_days not in self._inputs:
-            raise LiquidityForecastPortError(f"no inputs for horizon {horizon_days}")
-        return self._inputs[horizon_days]
+        if self._inputs_raises is not None:
+            raise self._inputs_raises
+        if self._inputs is None:
+            raise LiquidityForecastPortError("No forecast inputs configured")
+        return self._inputs
 
     async def get_current_position(self, date: str) -> Decimal:
-        if date not in self._positions:
-            raise LiquidityForecastPortError(f"no position for {date}")
-        return self._positions[date]
+        if self._position_raises is not None:
+            raise self._position_raises
+        if self._current_position is None:
+            return Decimal("0")
+        return self._current_position
