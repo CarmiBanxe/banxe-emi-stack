@@ -37,16 +37,15 @@ class NOSTROReconPort(ABC):
 
 class InMemoryNOSTROReconPort(NOSTROReconPort):
     def __init__(self) -> None:
-        self._balances: dict[tuple[str, str], NostroBalance] = {}
+        self._balances: dict[str, NostroBalance] = {}
 
     def seed(self, balance: NostroBalance) -> None:
-        self._balances[(balance.account_id, balance.as_of)] = balance
+        self._balances[balance.account_id] = balance
 
     async def get_nostro_balances(self, account_id: str, as_of: str) -> NostroBalance:
-        key = (account_id, as_of)
-        if key not in self._balances:
-            raise NostroReconPortError(f"unknown account: {account_id} @ {as_of}")
-        return self._balances[key]
+        if account_id not in self._balances:
+            raise NostroReconPortError(f"unknown account: {account_id}")
+        return self._balances[account_id]
 
     async def reconcile(self, account_id: str, as_of: str) -> ReconciliationResult:
         bal = await self.get_nostro_balances(account_id, as_of)
