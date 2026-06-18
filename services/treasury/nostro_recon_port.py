@@ -1,5 +1,7 @@
 """ADR-078 D2 — NOSTROReconPort (read-only contract). No transfer initiation."""
+
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from decimal import Decimal
 

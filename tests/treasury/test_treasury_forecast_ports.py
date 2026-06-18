@@ -1,12 +1,23 @@
 """ADR-078 invariants: read-only contracts, Decimal (I-01), no mutate/trade/transfer ops."""
+
 from decimal import Decimal
+
 import pytest
+
 from services.treasury.fx_exposure_port import (
-    InMemoryFXExposurePort, FXExposurePortError, FXExposurePort)
-from services.treasury.nostro_recon_port import (
-    InMemoryNOSTROReconPort, NOSTROReconPortError, NOSTROReconPort)
+    FXExposurePort,
+    FXExposurePortError,
+    InMemoryFXExposurePort,
+)
 from services.treasury.liquidity_forecast_port import (
-    InMemoryLiquidityForecastPort, LiquidityForecastPort)
+    InMemoryLiquidityForecastPort,
+    LiquidityForecastPort,
+)
+from services.treasury.nostro_recon_port import (
+    InMemoryNOSTROReconPort,
+    NOSTROReconPort,
+    NOSTROReconPortError,
+)
 
 FORBIDDEN = ("execute", "trade", "transfer", "approve", "write", "mutate", "set_", "run_model")
 

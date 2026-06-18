@@ -1,5 +1,7 @@
 """ADR-078 D3 — LiquidityForecastPort (read-only contract). No model runs, no mutation."""
+
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from decimal import Decimal
 
@@ -19,8 +21,9 @@ class LiquidityForecastPort(ABC):
 
 
 class InMemoryLiquidityForecastPort(LiquidityForecastPort):
-    def __init__(self, inputs: dict[str, Decimal] | None = None,
-                 position: Decimal = Decimal("0")) -> None:
+    def __init__(
+        self, inputs: dict[str, Decimal] | None = None, position: Decimal = Decimal("0")
+    ) -> None:
         self._inputs = dict(inputs or {})
         self._position = position
 

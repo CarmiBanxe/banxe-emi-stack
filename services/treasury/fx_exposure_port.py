@@ -1,5 +1,7 @@
 """ADR-078 D1 — FXExposurePort (read-only contract). No trade execution."""
+
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from decimal import Decimal
 
