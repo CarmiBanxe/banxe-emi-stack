@@ -1,12 +1,14 @@
+"""ADR-078 D3 — LiquidityForecastPort (read-only). Frozen inputs, async, no model runs."""
+
 from __future__ import annotations
 
-import abc
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from decimal import Decimal
 
 
 class LiquidityForecastPortError(Exception):
-    """Raised when LiquidityForecastPort cannot fulfil a request."""
+    """Raised on liquidity forecast read failures."""
 
 
 @dataclass(frozen=True)
@@ -18,32 +20,18 @@ class LiquidityForecastInputs:
     projected_outflows_gbp: Decimal
 
 
-class LiquidityForecastPort(abc.ABC):
-    """Supply read-only inputs for a rolling liquidity forecast.
-
-    DOES: provide opening balance, projected inflows/outflows, current position.
-    DOES NOT: execute forecasting models or distribute forecast packs.
-    soul: forecast-agent — modelling and distribution are out of scope.
-    """
-
-    @abc.abstractmethod
-    async def get_forecast_inputs(self, horizon_days: int) -> LiquidityForecastInputs:
-        """Return forecast inputs for the requested horizon."""
-        ...  # pragma: no cover
-
-    @abc.abstractmethod
-    async def get_current_position(self, as_of: str) -> Decimal:
-        """Return current GBP liquidity position as of a date."""
-        ...  # pragma: no cover
+class LiquidityForecastPort(ABC):
+    @abstractmethod
+    async def get_forecast_inputs(self, horizon_days: int) -> LiquidityForecastInputs: ...
+    @abstractmethod
+    async def get_current_position(self, date: str) -> Decimal: ...
 
 
 class InMemoryLiquidityForecastPort(LiquidityForecastPort):
-    """Configurable in-memory stub for unit tests."""
-
     def __init__(
         self,
         inputs: LiquidityForecastInputs | None = None,
-        current_position: Decimal = Decimal("0"),
+        current_position: Decimal | None = None,
         inputs_raises: Exception | None = None,
         position_raises: Exception | None = None,
     ) -> None:
@@ -59,7 +47,9 @@ class InMemoryLiquidityForecastPort(LiquidityForecastPort):
             raise LiquidityForecastPortError("No forecast inputs configured")
         return self._inputs
 
-    async def get_current_position(self, as_of: str) -> Decimal:
+    async def get_current_position(self, date: str) -> Decimal:
         if self._position_raises is not None:
             raise self._position_raises
+        if self._current_position is None:
+            return Decimal("0")
         return self._current_position

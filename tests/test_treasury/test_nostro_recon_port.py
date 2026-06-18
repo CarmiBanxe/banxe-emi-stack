@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
 from decimal import Decimal
 
 import pytest
@@ -8,6 +9,7 @@ from services.treasury.nostro_recon_port import (
     InMemoryNOSTROReconPort,
     NostroBalance,
     NostroReconPortError,
+    ReconciliationResult,
 )
 
 
@@ -90,3 +92,15 @@ async def test_result_carries_as_of_from_balance() -> None:
     port = _port(_bal("ACCT-001", as_of="2026-05-31"))
     result = await port.reconcile("ACCT-001", "2026-06-09")
     assert result.as_of == "2026-05-31"
+
+
+def test_nostro_balance_is_frozen_value_object() -> None:
+    bal = _bal()
+    with pytest.raises(FrozenInstanceError):
+        bal.internal_gbp = Decimal("1")  # type: ignore[misc]
+
+
+def test_reconciliation_result_is_frozen_value_object() -> None:
+    result = ReconciliationResult(matched=True, difference_gbp=Decimal("0"), as_of="2026-06-09")
+    with pytest.raises(FrozenInstanceError):
+        result.matched = False  # type: ignore[misc]
