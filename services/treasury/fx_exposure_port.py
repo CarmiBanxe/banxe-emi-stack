@@ -1,8 +1,9 @@
-"""ADR-078 D1 — FXExposurePort (read-only contract). No trade execution."""
+"""ADR-078 D1 — FXExposurePort (read-only). Frozen value objects, async, no trades."""
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from decimal import Decimal
 
 
@@ -10,24 +11,41 @@ class FXExposurePortError(Exception):
     """Raised on FX exposure read failures."""
 
 
+@dataclass(frozen=True)
+class FXPosition:
+    currency_pair: str
+    net_exposure_gbp: Decimal
+    as_of: str
+
+
+@dataclass(frozen=True)
+class FXExposureView:
+    as_of: str
+    positions: tuple[FXPosition, ...]
+    total_net_exposure_gbp: Decimal
+
+
 class FXExposurePort(ABC):
     @abstractmethod
-    def get_exposure(self, ccy: str) -> Decimal:
-        """Return signed FX exposure for a single currency (read-only)."""
-
+    async def get_exposure(self, currency_pair: str) -> FXPosition: ...
     @abstractmethod
-    def get_total_exposure(self) -> Decimal:
-        """Return aggregate absolute FX exposure across all currencies."""
+    async def get_total_exposure(self) -> FXExposureView: ...
 
 
 class InMemoryFXExposurePort(FXExposurePort):
-    def __init__(self, positions: dict[str, Decimal] | None = None) -> None:
-        self._positions: dict[str, Decimal] = dict(positions or {})
+    def __init__(self) -> None:
+        self._positions: dict[str, FXPosition] = {}
 
-    def get_exposure(self, ccy: str) -> Decimal:
-        if ccy not in self._positions:
-            raise FXExposurePortError(f"unknown ccy: {ccy}")
-        return self._positions[ccy]
+    def seed(self, position: FXPosition) -> None:
+        self._positions[position.currency_pair] = position
 
-    def get_total_exposure(self) -> Decimal:
-        return sum((abs(v) for v in self._positions.values()), Decimal("0"))
+    async def get_exposure(self, currency_pair: str) -> FXPosition:
+        if currency_pair not in self._positions:
+            raise FXExposurePortError(f"unknown currency_pair: {currency_pair}")
+        return self._positions[currency_pair]
+
+    async def get_total_exposure(self) -> FXExposureView:
+        positions = tuple(self._positions.values())
+        as_of = positions[0].as_of if positions else ""
+        total = sum((abs(p.net_exposure_gbp) for p in positions), Decimal("0"))
+        return FXExposureView(as_of=as_of, positions=positions, total_net_exposure_gbp=total)
