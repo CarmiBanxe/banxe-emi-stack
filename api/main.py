@@ -113,6 +113,7 @@ from api.routers import (
     transaction_monitor,
     treasury,
     user_preferences,
+    voice_support,
     watchman_webhook,
     webhook_orchestrator,
 )
@@ -182,6 +183,7 @@ app.include_router(consumer_duty.router, prefix="/v1")
 app.include_router(hitl.router, prefix="/v1")
 app.include_router(adverse_media.router, prefix="/v1")  # Adverse-media screening (GAP-064, IMPL-1)
 app.include_router(crypto_aml_graph.router, prefix="/v1")  # Crypto-AML graph (GAP-068)
+app.include_router(voice_support.router, prefix="/v1")  # Voice-AI support (GAP-069)
 app.include_router(intent.router, prefix="/v1")  # L1 Intent Layer (ADR-049, S8)
 app.include_router(reporting.router, prefix="/v1")
 app.include_router(statements.router, prefix="/v1")
