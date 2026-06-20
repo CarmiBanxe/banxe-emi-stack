@@ -35,6 +35,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from api.routers import (
+    adverse_media,
     api_gateway,
     api_versioning,
     ato_prevention,
@@ -176,6 +177,7 @@ app.include_router(notifications.router, prefix="/v1")
 app.include_router(fraud.router, prefix="/v1")
 app.include_router(consumer_duty.router, prefix="/v1")
 app.include_router(hitl.router, prefix="/v1")
+app.include_router(adverse_media.router, prefix="/v1")  # Adverse-media screening (GAP-064, IMPL-1)
 app.include_router(intent.router, prefix="/v1")  # L1 Intent Layer (ADR-049, S8)
 app.include_router(reporting.router, prefix="/v1")
 app.include_router(statements.router, prefix="/v1")
