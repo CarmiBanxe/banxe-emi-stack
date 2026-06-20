@@ -103,6 +103,20 @@ class TestMarketMaking:
         assert long < flat  # inventory risk skews quotes down
 
 
+class TestPricingBranches:
+    def test_bs_put_intrinsic_at_expiry(self) -> None:
+        assert black_scholes_price(80, 100, 0.0, 0.0, 0.2, call=False) == 20
+
+    def test_sabr_non_atm_smile(self) -> None:
+        otm = sabr_implied_vol(100, 120, 1.0, alpha=0.2, beta=1.0, rho=-0.3, nu=0.4)
+        assert otm > 0
+
+    def test_greeks_at_expiry_branch(self) -> None:
+        g = greeks(120, 100, 0.0, 0.0, 0.2, call=True)
+        assert g.delta == 1.0
+        assert g.gamma == 0.0
+
+
 class TestService:
     def test_recommend_bundles_advisory_metrics(self) -> None:
         rec = QuantAdvisoryService().recommend(
@@ -111,6 +125,20 @@ class TestService:
         assert rec.price > 0
         assert rec.var99 > 0
         assert rec.execution_allowed is False
+
+    def test_service_price_all_models(self) -> None:
+        svc = QuantAdvisoryService()
+        bs = svc.price(PricingModel.BLACK_SCHOLES, 100, 100, 1.0, 0.0, sigma=0.2)
+        bates = svc.price(PricingModel.BATES, 100, 100, 1.0, 0.0, sigma=0.2)
+        assert bs > 0
+        assert bates > 0
+
+    def test_service_vol_surface_and_stress(self) -> None:
+        svc = QuantAdvisoryService()
+        surface = svc.vol_surface(100, 1.0, [90, 100, 110])
+        assert len(surface) == 3
+        assert all(p.implied_vol > 0 for p in surface)
+        assert len(svc.stress(1_000_000, 0.2)) >= 1
 
 
 class TestAdvisoryOnlyGuard:

@@ -15,14 +15,24 @@ metrics, which are computed in float by construction.
 from __future__ import annotations
 
 import cmath
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 import math
 from statistics import NormalDist
 
-from scipy.integrate import quad
-
 _N = NormalDist()
+
+
+def _simpson(f: Callable[[float], float], a: float, b: float, n: int = 2000) -> float:
+    """Composite Simpson's rule — self-contained deterministic integrator (no deps)."""
+    if n % 2:
+        n += 1
+    h = (b - a) / n
+    total = f(a) + f(b)
+    for i in range(1, n):
+        total += (4.0 if i % 2 else 2.0) * f(a + i * h)
+    return total * h / 3.0
 
 
 class PricingModel(str, Enum):
@@ -83,8 +93,8 @@ def heston_price(
         cf = cmath.exp(cterm + dterm * p.v0 + 1j * phi * math.log(s))
         return (cmath.exp(-1j * phi * math.log(k)) * cf / (1j * phi)).real
 
-    p1 = 0.5 + (1.0 / math.pi) * quad(lambda phi: integrand(phi, 1), 1e-8, 100.0)[0]
-    p2 = 0.5 + (1.0 / math.pi) * quad(lambda phi: integrand(phi, 2), 1e-8, 100.0)[0]
+    p1 = 0.5 + (1.0 / math.pi) * _simpson(lambda phi: integrand(phi, 1), 1e-8, 100.0)
+    p2 = 0.5 + (1.0 / math.pi) * _simpson(lambda phi: integrand(phi, 2), 1e-8, 100.0)
     call_price = s * p1 - k * math.exp(-r * t) * p2
     if call:
         return max(call_price, 0.0)
