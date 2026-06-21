@@ -15,11 +15,18 @@ event_id -> None). No monetary numerics, no float (I-01 trivially).
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 import secrets
 
 SANDBOX_SOURCE = "sandbox-mock"
+_MAX_ID_ATTEMPTS = 5
+
+
+def _default_event_id() -> str:
+    """Safe default audit-id generator (overridable via constructor DI)."""
+    return f"LH-{secrets.token_hex(6)}"
 
 
 class LoginOutcome(str, Enum):
@@ -82,8 +89,10 @@ class LoginHistoryPort(ABC):
 class SandboxLoginHistoryProvider(LoginHistoryPort):
     """Sandbox config-as-data provider (mock-safe; no live auth, no Midaz, no KYC; PII-masked)."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, id_generator: Callable[[], str] | None = None) -> None:
+        # DI: external id generation injected via constructor (safe default); never a module singleton.
         self._by_id: dict[str, LoginHistoryRecord] = {}
+        self._gen_id: Callable[[], str] = id_generator or _default_event_id
 
     def record(
         self,
@@ -94,8 +103,17 @@ class SandboxLoginHistoryProvider(LoginHistoryPort):
         user_ref: str,
         outcome: LoginOutcome,
     ) -> LoginHistoryRecord:
+        event_id = self._gen_id()
+        attempts = 0
+        while event_id in self._by_id:  # audit integrity: never silently overwrite a prior record
+            attempts += 1
+            if attempts >= _MAX_ID_ATTEMPTS:
+                raise RuntimeError(
+                    "login-history: could not generate a unique event_id (fail-closed)"
+                )
+            event_id = self._gen_id()
         rec = LoginHistoryRecord(
-            event_id=f"LH-{secrets.token_hex(6)}",
+            event_id=event_id,
             login_event=login_event,
             timestamp=timestamp,  # caller-supplied; no wall-clock here
             masked_ip=mask_ip(ip),  # PII-masked before storage

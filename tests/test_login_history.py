@@ -93,3 +93,40 @@ def test_fence_no_midaz_ledger_kyc_no_wallclock_no_float() -> None:
     )
     # no float usage
     assert "float(" not in text and ": float" not in text and "-> float" not in text
+
+
+def test_di_injected_id_generator_deterministic() -> None:
+    # DI: id_generator injected via constructor (deterministic in tests; CodeRabbit DI fix)
+    seq = iter(["LH-aaa", "LH-bbb"])
+    p = SandboxLoginHistoryProvider(id_generator=lambda: next(seq))
+    r = p.record(
+        login_event="x",
+        timestamp="2026-06-21T00:00:00Z",
+        ip="1.2.3.4",
+        user_ref="u",
+        outcome=LoginOutcome.SUCCESS,
+    )
+    assert r.event_id == "LH-aaa"
+
+
+def test_collision_safe_no_silent_overwrite() -> None:
+    # audit integrity: colliding id must not overwrite a prior record (CodeRabbit fix)
+    import pytest
+
+    const = SandboxLoginHistoryProvider(id_generator=lambda: "LH-fixed")
+    const.record(
+        login_event="a",
+        timestamp="2026-06-21T00:00:00Z",
+        ip="1.1.1.1",
+        user_ref="u",
+        outcome=LoginOutcome.SUCCESS,
+    )
+    with pytest.raises(RuntimeError):  # fail-closed after retries, no overwrite
+        const.record(
+            login_event="b",
+            timestamp="2026-06-21T00:01:00Z",
+            ip="2.2.2.2",
+            user_ref="u",
+            outcome=LoginOutcome.FAILURE,
+        )
+    assert len(const.list_history()) == 1  # prior audit record preserved
