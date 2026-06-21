@@ -114,7 +114,9 @@ def test_no_gcp_bifrost_import() -> None:
     import services.payment.legacy.legacy_sepa_adapter as mod
 
     assert not hasattr(mod, "requestToGCPProcessing")
-    assert not any("bifrost" in k for k in sys.modules)
+    # sepa-scoped (matches test_no_typeorm_import convention): the SEPA adapter must not pull in
+    # the GCP Bifrost transport; the standalone Wave-D bifrost_adapter (ADR-025 §15-16) is unrelated.
+    assert not any("bifrost" in k for k in sys.modules if "sepa" in k)
 
 
 def test_no_typeorm_import() -> None:
