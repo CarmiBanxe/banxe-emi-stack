@@ -468,3 +468,42 @@
   clean; semgrep banxe-rules clean; Decimal-only (I-01).
 - Landing: sandbox-autonomous mode — green PR auto-merged when CLEAN.
 - Anchors: D-GL-BUILD-SPEC (IL-484) §5 DoD #5; ADR-013; I-01, I-04, I-24, I-27.
+
+### IL-CBS-DRECON-3LEG-2026-06-26
+- Date: 2026-06-26
+- Status: DONE (offline; no live infra)
+- Scope: D-recon / E-safeguard runtime — first increment: CASS 15 three-leg
+  tie-out (D-RECON-BUILD-SPEC IL-474 §3). A (Midaz ledger) == B (safeguarding
+  account) == C (payment rail) within the penny-exact tolerance (£0.01),
+  reusing the shared `src/recon_core` mechanics (`evaluate_balances` +
+  `BreachEvaluator("BREAK")`). Adds the missing **Leg C** source
+  (`RailBalancePort` + `InMemoryRailBalancePort`) and the `three_leg_reconcile`
+  tie-out with signed-difference SHORTFALL detection (client-fund ledger > 
+  safeguarding account ⇒ under-safeguarded → escalate MLRO/CFO, CASS 15).
+- ADR-102 CANONICAL DECISION (live-audit, origin/main ebfeac6): the safeguarding
+  recon stack is consolidated onto **`src/recon_core/`** (shared mechanics, #164)
+  with a regime split — **CASS 15 = `src/safeguarding/`** (£0.01 BREAK), CASS 7.15
+  = `services/recon/reconciliation_engine_v2` (£100 HITL). Legacy/dormant
+  `reconciliation_engine.py` (old cron) + `recon_engine.py` (tests-only) are NOT
+  extended. This increment targets the CASS 15 (`src/safeguarding/`) path only.
+- BEST-DECISION REORDER (stated): the operator's recommended first increment
+  "SafeguardingAccountPort (Leg B)" ALREADY EXISTS as `BankStatementPort` in
+  `src/safeguarding/agent.py` (Leg A = `LedgerBalancePort`, Leg B =
+  `BankStatementPort`, A-vs-B recon + breach + audit already implemented).
+  Building it would duplicate (ADR-102). The genuine foundational gap is the
+  THIRD leg + the A==B==C tie-out — delivered here.
+- Files created:
+  - `src/safeguarding/three_leg.py` (RailBalancePort/InMemoryRailBalancePort,
+    ThreeLegStatus, ThreeLegResult, three_leg_reconcile)
+  - `tests/test_safeguarding_three_leg.py` (11 tests: MATCHED/BREAK/PENDING,
+    penny tolerance, shortfall vs surplus, signed diff, rail port)
+- Out of scope (next increments): wire 3-leg into SafeguardingAgent.run();
+  BreachNotifyPort + MLRO/CFO HITL escalation port; unified `safeguarding_events`
+  audit-table consolidation.
+- Verification: 11 new + 95 back-compat (src_safeguarding, src_safeguarding_agent,
+  recon_core) pass offline; ruff + format clean; semgrep banxe-rules clean;
+  Decimal-only (I-01). Additive — 2-leg `daily_reconciliation.py` / orchestrator
+  untouched.
+- Landing: sandbox-autonomous mode — green PR auto-merged when CLEAN.
+- Anchors: D-RECON-BUILD-SPEC (IL-474) §3 (3-leg); ADR-SAF-01; recon_core S6.2
+  boundary (#164); I-01, I-24.
