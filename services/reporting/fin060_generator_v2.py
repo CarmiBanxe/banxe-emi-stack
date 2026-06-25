@@ -130,9 +130,15 @@ class FIN060Generator:
             autonomy_level="L4",
         )
 
-    def submit_to_regdata(self, report_id: str) -> None:
-        """BT-006 stub — RegData API not yet integrated."""
-        raise NotImplementedError("BT-006: RegData API not integrated")
+    def submit_to_regdata(self, report_id: str) -> HITLProposal:
+        """BT-006: RegData submission gate — I-27 HITL, CFO must authorise (never auto-submits)."""
+        return HITLProposal(
+            action="submit_to_regdata",
+            entity_id=report_id,
+            requires_approval_from="CFO",
+            reason=f"FIN060 RegData submission for report {report_id} requires CFO authorisation",
+            autonomy_level="L4",
+        )
 
     def get_report(self, month: int, year: int) -> FIN060Report | None:
         """L1 auto — retrieve report by period."""

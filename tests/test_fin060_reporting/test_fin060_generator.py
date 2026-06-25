@@ -152,12 +152,22 @@ def test_approve_report_action_field(generator: FIN060Generator) -> None:
     assert proposal.action == "approve_fin060"
 
 
-# ── submit_to_regdata — BT-006 stub ──────────────────────────────────────────
+# ── submit_to_regdata — BT-006 HITL gate ─────────────────────────────────────
 
 
-def test_submit_to_regdata_raises_not_implemented(generator: FIN060Generator) -> None:
-    with pytest.raises(NotImplementedError, match="BT-006"):
-        generator.submit_to_regdata("report-123")
+def test_submit_to_regdata_returns_hitl_proposal(generator: FIN060Generator) -> None:
+    """BT-006: submit_to_regdata returns HITLProposal — never auto-submits (I-27, L4)."""
+    proposal = generator.submit_to_regdata("report-123")
+    assert proposal.action == "submit_to_regdata"
+    assert proposal.entity_id == "report-123"
+    assert proposal.requires_approval_from == "CFO"
+    assert proposal.autonomy_level == "L4"
+
+
+def test_submit_to_regdata_does_not_raise(generator: FIN060Generator) -> None:
+    """BT-006: submit_to_regdata must not raise (soft HITL gate, not a hard error)."""
+    result = generator.submit_to_regdata("report-456")
+    assert result is not None
 
 
 # ── get_dashboard ─────────────────────────────────────────────────────────────

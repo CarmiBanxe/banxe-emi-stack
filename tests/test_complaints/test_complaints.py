@@ -103,11 +103,24 @@ class TestComplaintsEngine:
         engine.acknowledge(c.complaint_id)
         assert len(engine.audit_log) >= 2
 
-    def test_escalate_to_fos_raises_bt010(self):
-        """BT-010: FOS escalation is a stub."""
+    def test_escalate_to_fos_returns_queued_escalation(self):
+        """BT-010: FOS escalation returns queued FOSEscalation (not submitted, P1 soft stub)."""
+        from services.complaints.complaints_models import FOSEscalation
+
         engine = _make_engine()
-        with pytest.raises(NotImplementedError, match="BT-010"):
-            engine.escalate_to_fos("CMP001")
+        result = engine.escalate_to_fos("CMP001")
+        assert isinstance(result, FOSEscalation)
+        assert result.complaint_id == "CMP001"
+        assert "BT-010" in result.reason
+
+    def test_escalate_to_fos_appends_audit_log(self):
+        """BT-010: FOS escalation is append-only logged (I-24)."""
+        engine = _make_engine()
+        engine.escalate_to_fos("CMP001")
+        assert any(
+            e.get("event") == "complaint.fos_escalation_queued"
+            for e in engine.audit_log
+        )
 
     def test_get_sla_approaching_returns_open(self):
         engine = _make_engine()

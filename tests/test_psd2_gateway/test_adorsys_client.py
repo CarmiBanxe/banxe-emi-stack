@@ -222,8 +222,8 @@ def test_get_balances_missing_consent_raises() -> None:
 # ── BT-007: initiate_payment_via_psd2 ─────────────────────────────────────
 
 
-def test_initiate_payment_raises_not_implemented() -> None:
-    """BT-007: PISP payment stub must raise NotImplementedError."""
+def test_initiate_payment_raises_runtime_error() -> None:
+    """BT-007: PISP payment stub raises RuntimeError — live bank connection required (P1)."""
     client, _, _ = _make_client()
-    with pytest.raises(NotImplementedError, match="BT-007"):
+    with pytest.raises(RuntimeError, match="BT-007"):
         client.initiate_payment_via_psd2()
