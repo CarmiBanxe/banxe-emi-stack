@@ -5,14 +5,17 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 
 # --- Safeguarding Request ---
 class SafeguardingRequest(BaseModel):
     """Record a new safeguarding obligation."""
 
-    client_fund_amount: Decimal
+    # External/API contract accepts either `amount` or `client_fund_amount`.
+    client_fund_amount: Decimal = Field(
+        validation_alias=AliasChoices("client_fund_amount", "amount")
+    )
     currency: str = "GBP"
     source: str = "e-money-receipt"
     reference: Optional[str] = None
@@ -29,6 +32,11 @@ class SafeguardingResponse(BaseModel):
     safeguarded: bool = False
     safeguarded_at: Optional[datetime] = None
     created_at: datetime
+
+    @property
+    def amount(self) -> Decimal:
+        """Canonical alias for the obligation amount (== client_fund_amount)."""
+        return self.client_fund_amount
 
 
 # --- Position ---

@@ -43,8 +43,8 @@ def create_app() -> FastAPI:
     metrics_app = make_asgi_app()
     app.mount("/metrics", metrics_app)
 
-    # Include API router
-    app.include_router(api_router, prefix="/api/v1")
+    # Include API router (api_router already carries the /api/v1 prefix — do not double it)
+    app.include_router(api_router)
 
     return app
 
