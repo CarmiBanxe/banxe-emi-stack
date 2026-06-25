@@ -1,10 +1,10 @@
 """
 tests/test_consumer_duty/test_consumer_duty_reporter.py
-Tests for ConsumerDutyReporter: dashboard, BT-005 stub, board report HITL.
-IL-CDO-01 | Phase 50 | Sprint 35
+Tests for ConsumerDutyReporter: annual report, dashboard, board report HITL.
+IL-CDO-01 | Phase 50 | Sprint 35 | BT-005 resolved
 
 ≥15 tests covering:
-- generate_annual_report raises NotImplementedError (BT-005)
+- generate_annual_report returns structured PS22/9 s.1.4 assessment (BT-005)
 - generate_outcome_dashboard structure
 - export_board_report returns HITLProposal (I-27, CFO approval)
 """
@@ -13,8 +13,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
-
-import pytest
 
 from services.consumer_duty.consumer_duty_reporter import ConsumerDutyReporter
 from services.consumer_duty.models_v2 import (
@@ -48,29 +46,75 @@ def make_reporter() -> tuple[
     return reporter, outcome_store, governance_store, alert_store
 
 
-# ── generate_annual_report tests ──────────────────────────────────────────────
+# ── generate_annual_report tests (BT-005 resolved) ───────────────────────────
 
 
-def test_generate_annual_report_raises_not_implemented() -> None:
-    """Test BT-005: generate_annual_report raises NotImplementedError."""
+def test_generate_annual_report_returns_dict() -> None:
+    """BT-005: generate_annual_report returns dict (no longer raises)."""
     reporter, _, _, _ = make_reporter()
-    with pytest.raises(NotImplementedError, match="BT-005"):
-        reporter.generate_annual_report(2026)
+    result = reporter.generate_annual_report(2026)
+    assert isinstance(result, dict)
 
 
-def test_generate_annual_report_error_message() -> None:
-    """Test BT-005 error message includes 'Consumer Duty Annual Report'."""
+def test_generate_annual_report_has_assessment_year() -> None:
+    """BT-005: result contains the requested assessment_year."""
     reporter, _, _, _ = make_reporter()
-    with pytest.raises(NotImplementedError, match="Consumer Duty Annual Report"):
-        reporter.generate_annual_report(2025)
+    result = reporter.generate_annual_report(2026)
+    assert result["assessment_year"] == 2026
 
 
-def test_generate_annual_report_any_year_raises() -> None:
-    """Test BT-005 stub raises for any year."""
+def test_generate_annual_report_year_preserved() -> None:
+    """BT-005: year is preserved correctly for different input years."""
     reporter, _, _, _ = make_reporter()
-    for year in [2024, 2025, 2026]:
-        with pytest.raises(NotImplementedError):
-            reporter.generate_annual_report(year)
+    assert reporter.generate_annual_report(2024)["assessment_year"] == 2024
+    assert reporter.generate_annual_report(2025)["assessment_year"] == 2025
+
+
+def test_generate_annual_report_has_regulatory_ref() -> None:
+    """BT-005: result references PS22/9 s.1.4 regulatory basis."""
+    reporter, _, _, _ = make_reporter()
+    result = reporter.generate_annual_report(2026)
+    assert result["regulatory_ref"] == "PS22/9 s.1.4"
+
+
+def test_generate_annual_report_has_outcome_summary() -> None:
+    """BT-005: result includes outcome_summary from dashboard."""
+    reporter, _, _, _ = make_reporter()
+    result = reporter.generate_annual_report(2026)
+    assert "outcome_summary" in result
+    assert isinstance(result["outcome_summary"], dict)
+
+
+def test_generate_annual_report_has_generated_at() -> None:
+    """BT-005: result includes generated_at timestamp."""
+    reporter, _, _, _ = make_reporter()
+    result = reporter.generate_annual_report(2026)
+    assert "generated_at" in result
+    assert isinstance(result["generated_at"], str)
+
+
+def test_generate_annual_report_pass_when_no_failures() -> None:
+    """BT-005: assessment_status is PASS when no failing outcomes."""
+    reporter, _, _, _ = make_reporter()
+    result = reporter.generate_annual_report(2026)
+    assert result["assessment_status"] == "PASS"
+
+
+def test_generate_annual_report_fail_when_has_failures() -> None:
+    """BT-005: assessment_status is FAIL when there are failing outcomes."""
+    reporter, outcome_store, _, _ = make_reporter()
+    assessor = OutcomeAssessor(outcome_store)
+    assessor.assess_outcome("c1", OutcomeType.PRODUCTS_SERVICES, {"score": "0.5"})
+    result = reporter.generate_annual_report(2026)
+    assert result["assessment_status"] == "FAIL"
+
+
+def test_generate_annual_report_has_failing_products_count() -> None:
+    """BT-005: result includes failing_products_count."""
+    reporter, _, _, _ = make_reporter()
+    result = reporter.generate_annual_report(2026)
+    assert "failing_products_count" in result
+    assert result["failing_products_count"] == 0
 
 
 # ── generate_outcome_dashboard tests ─────────────────────────────────────────
