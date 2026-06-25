@@ -439,3 +439,32 @@
 - Landing: sandbox-autonomous mode — green PR auto-merged when CLEAN.
 - Anchors: D-GL-BUILD-SPEC (IL-484) §5 DoD #8 (API edge); ADR-013; FCA CASS
   7.15; I-01, I-28.
+
+### IL-CBS-DGL-APPROVAL-2026-06-26
+- Date: 2026-06-26
+- Status: DONE (offline; no live infra)
+- Scope: D-gl high-value approval audit (fourth cross-repo runtime increment,
+  D-GL-BUILD-SPEC IL-484 DoD #5 `test_high_value_posting_requires_approval`).
+  A posting ≥ HIGH_VALUE_THRESHOLD (£50k) is staged (never auto-posted, I-04)
+  and recorded PENDING in an append-only approval store (I-24). A NAMED human
+  must `approve_high_value` (posts the entry) or `reject_high_value` (does not);
+  both raise on a blank approver (I-27 — AI proposes, never auto-approves). The
+  bool `high_value_approved` fast-path is unchanged (back-compat).
+- Files created:
+  - `services/ledger/approval_models.py` (ApprovalDecision, HighValueApproval
+    Decimal model, ApprovalStorePort, append-only InMemoryApprovalStore)
+  - `tests/test_high_value_approval.py` (8 tests: PENDING recorded, approve
+    requires human + posts, reject requires human + no post, append-only store,
+    below-threshold direct post, unknown raises)
+- Files modified:
+  - `services/ledger/gl_service.py` (stage high-value entry + record PENDING;
+    `approve_high_value` / `reject_high_value` with named-approver guard + audit;
+    builds the JournalEntry before the high-value branch)
+- Out of scope (deferred / operator-gated): Fineract fallback (no API ref).
+  This completes the in-codebase D-gl runtime increments; next per critical
+  path = E-safeguard / D-recon runtime (recon_port + D-gl Leg A now landed).
+- Verification: 146 ledger/api tests pass offline (incl. back-compat
+  gl_service / payment_posting / lifecycle / adapter / api); ruff + format
+  clean; semgrep banxe-rules clean; Decimal-only (I-01).
+- Landing: sandbox-autonomous mode — green PR auto-merged when CLEAN.
+- Anchors: D-GL-BUILD-SPEC (IL-484) §5 DoD #5; ADR-013; I-01, I-04, I-24, I-27.
