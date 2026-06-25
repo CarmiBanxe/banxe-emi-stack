@@ -90,6 +90,52 @@ def _parse_args() -> tuple[date | None, bool]:
     return recon_date, dry_run
 
 
+def _run_safeguarding_agent(recon_date: date, dry_run: bool) -> int:
+    """Run SafeguardingAgent (CASS 15 aggregate + 3-leg tie-out).
+
+    Returns one of EXIT_MATCHED / EXIT_DISCREPANCY / EXIT_PENDING / EXIT_FATAL.
+    Never raises — exceptions are caught and returned as EXIT_FATAL.
+    """
+    try:
+        from src.safeguarding.agent import (  # noqa: PLC0415
+            SafeguardingAgent,
+            SafeguardingAgentPorts,
+        )
+        from src.safeguarding.audit_trail import AuditTrail  # noqa: PLC0415
+        from src.safeguarding.three_leg import InMemoryRailBalancePort  # noqa: PLC0415
+
+        from services.recon.safeguarding_adapters import (  # noqa: PLC0415
+            MidazClientFundsPort,
+            StatementBankPort,
+            ZeroStreakCounter,
+        )
+
+        clickhouse_url = __import__("os").environ.get("CLICKHOUSE_URL", "")
+        ports = SafeguardingAgentPorts(
+            ledger=MidazClientFundsPort(),
+            bank=StatementBankPort(),
+            audit=AuditTrail(clickhouse_url=clickhouse_url, dry_run=dry_run),
+            streak_counter=ZeroStreakCounter(),
+            # Leg C rail: starts as InMemoryRailBalancePort (PENDING path).
+            # Wire a real RailBalancePort when the payment-rail adapter is ready.
+            rail=InMemoryRailBalancePort(),
+        )
+        agent = SafeguardingAgent(ports, fca_notify=not dry_run)
+        result = agent.run(recon_date)
+        logger.info(
+            "SafeguardingAgent: %s exit=%d three_leg=%s",
+            result.status_label,
+            result.exit_code,
+            result.three_leg_result.status.value if result.three_leg_result else "skipped",
+        )
+        # Map SafeguardingAgent exit codes to cron constants
+        # EXIT_BREACH → EXIT_DISCREPANCY (same semantics, different constant names)
+        return EXIT_DISCREPANCY if result.exit_code == 1 else result.exit_code
+    except Exception as exc:
+        logger.error("SafeguardingAgent failed (non-fatal to cron): %s", exc, exc_info=True)
+        return EXIT_FATAL
+
+
 def main() -> int:
     # ── 1. Locate repo root ───────────────────────────────────────────────────
     # This file lives at  <repo>/services/recon/cron_daily_recon.py
@@ -109,44 +155,57 @@ def main() -> int:
     if dry_run:
         logger.info("DRY RUN: no ClickHouse writes, no webhooks")
 
-    # ── 5. Run reconciliation pipeline ───────────────────────────────────────
+    # ── 5. Run reconciliation pipeline (legacy per-account path) ─────────────
+    legacy_exit = EXIT_FATAL
     try:
         from services.recon.midaz_reconciliation import run_daily_recon  # noqa: PLC0415
 
         summary = run_daily_recon(recon_date=recon_date, dry_run=dry_run)
-    except Exception as exc:
-        logger.critical("FATAL — reconciliation pipeline crashed: %s", exc, exc_info=True)
-        return EXIT_FATAL
-
-    # ── 6. Structured summary for journald ───────────────────────────────────
-    status = summary.get("overall_status", "FATAL")
-    logger.info(
-        "STATUS=%s date=%s matched=%d discrepancy=%d pending=%d total=%d",
-        status,
-        summary.get("recon_date", "?"),
-        summary.get("matched", 0),
-        summary.get("discrepancy", 0),
-        summary.get("pending", 0),
-        summary.get("total_accounts", 0),
-    )
-
-    # ── 7. Exit code → systemd service result / on-failure alerting ─────────
-    if status == "DISCREPANCY":
-        logger.warning(
-            "CASS 7.15.29R: shortfall detected — MLRO must investigate within 1 business day"
+        status = summary.get("overall_status", "FATAL")
+        logger.info(
+            "STATUS=%s date=%s matched=%d discrepancy=%d pending=%d total=%d",
+            status,
+            summary.get("recon_date", "?"),
+            summary.get("matched", 0),
+            summary.get("discrepancy", 0),
+            summary.get("pending", 0),
+            summary.get("total_accounts", 0),
         )
-        return EXIT_DISCREPANCY
+        if status == "DISCREPANCY":
+            logger.warning(
+                "CASS 7.15.29R: shortfall detected — MLRO must investigate within 1 business day"
+            )
+            legacy_exit = EXIT_DISCREPANCY
+        elif status == "PENDING":
+            legacy_exit = EXIT_PENDING
+        elif status == "MATCHED":
+            legacy_exit = EXIT_MATCHED
+        else:
+            logger.error("Unknown status: %s", status)
+            legacy_exit = EXIT_FATAL
+    except Exception as exc:
+        logger.critical("FATAL — legacy reconciliation pipeline crashed: %s", exc, exc_info=True)
+        legacy_exit = EXIT_FATAL
 
-    if status == "PENDING":
-        logger.info("No bank statement available — PENDING (non-critical for sandbox)")
-        return EXIT_PENDING
+    # ── 6. Run SafeguardingAgent (CASS 15 aggregate + 3-leg tie-out) ──────────
+    agent_exit = _run_safeguarding_agent(recon_date or date.today(), dry_run)
 
-    if status == "MATCHED":
-        logger.info("All accounts matched — safeguarding requirement satisfied")
-        return EXIT_MATCHED
+    # ── 7. Worst-case exit: escalate if either path detected a problem ────────
+    # EXIT_DISCREPANCY (1) > EXIT_PENDING (2) in severity ordering, but both
+    # are non-zero and non-fatal. Use max() with custom ordering:
+    #   FATAL(3) > DISCREPANCY(1) > PENDING(2) > MATCHED(0)
+    severity = {EXIT_MATCHED: 0, EXIT_PENDING: 1, EXIT_DISCREPANCY: 2, EXIT_FATAL: 3}
+    worst = max(legacy_exit, agent_exit, key=lambda c: severity.get(c, 3))
 
-    logger.error("Unknown status: %s", status)
-    return EXIT_FATAL
+    if worst != legacy_exit:
+        logger.warning(
+            "SafeguardingAgent detected additional issue: legacy=%d agent=%d → exit=%d",
+            legacy_exit,
+            agent_exit,
+            worst,
+        )
+
+    return worst
 
 
 if __name__ == "__main__":
