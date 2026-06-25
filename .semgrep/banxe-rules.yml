@@ -166,3 +166,43 @@ rules:
     paths:
       include:
         - "banxe_mcp/**"
+
+  # ── Architecture-Conformance track (E9): NeuroNext / Bitrix forward-guard ──────
+  # ADR-126: NeuroNext RETIRED, PAYBIS is the sole external crypto provider.
+  # Bitrix removed from EMI. These rules forbid REINTRODUCTION in runtime code.
+  # NOTE: rules live here (not in .semgrep/banxe-rules/) because every CI/pre-commit/
+  # Makefile invocation loads `--config .semgrep/banxe-rules.yml` (the FILE) — the
+  # .semgrep/banxe-rules/ DIRECTORY is not loaded by any invocation, and semgrep YAML
+  # cannot `include` other config files. Single guard mechanism (ADR-102), actually enforced.
+  # A legitimate retirement/governance reference may use `# nosemgrep: <rule-id>`.
+  - id: banxe-no-neuronext-reintroduction
+    pattern-regex: '(?i)neuronex'
+    message: |
+      NeuroNext is RETIRED (ADR-126). PAYBIS is the sole external crypto provider.
+      Reintroducing NeuroNext is forbidden; rollback must never re-route to NeuroNext.
+    languages: [generic]
+    severity: ERROR
+    paths:
+      include:
+        - "**/services/**"
+        - "**/app/**"
+      exclude:
+        - "**/tests/**"
+        - "**/docs/**"
+        - "**/.semgrep/**"
+
+  - id: banxe-no-bitrix-reintroduction
+    pattern-regex: '(?i)(bitrix|битрикс)'
+    message: |
+      Bitrix processes are removed from EMI (Architecture-Conformance track).
+      Reintroducing Bitrix in runtime code is forbidden.
+    languages: [generic]
+    severity: ERROR
+    paths:
+      include:
+        - "**/services/**"
+        - "**/app/**"
+      exclude:
+        - "**/tests/**"
+        - "**/docs/**"
+        - "**/.semgrep/**"
