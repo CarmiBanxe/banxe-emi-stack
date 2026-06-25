@@ -21,10 +21,14 @@ def event_loop() -> Generator:
 
 @pytest.fixture(scope="session")
 def settings() -> Settings:
+    # Use the real Settings field names (app/config.py): lowercase database_url /
+    # redis_url, and the split clickhouse_* fields (there is no clickhouse_url).
+    # The model keeps extra="forbid", so kwargs must match field names exactly.
     return Settings(
-        DATABASE_URL="postgresql+asyncpg://test:test@localhost:5432/safeguarding_test",
-        REDIS_URL="redis://localhost:6379/1",
-        CLICKHOUSE_URL="clickhouse://localhost:9000/safeguarding_test",
+        database_url="postgresql+asyncpg://test:test@localhost:5432/safeguarding_test",
+        redis_url="redis://localhost:6379/1",
+        clickhouse_host="localhost",
+        clickhouse_database="safeguarding_test",
     )
 
 
@@ -42,7 +46,7 @@ async def client(app) -> AsyncGenerator:
 
 @pytest_asyncio.fixture
 async def db_session(settings) -> AsyncGenerator[AsyncSession, None]:
-    engine = create_async_engine(settings.DATABASE_URL)
+    engine = create_async_engine(settings.database_url)
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
     async with session_factory() as session:
         yield session
