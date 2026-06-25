@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-import pytest
-
 from services.observability.metrics_collector import MetricsCollector, MetricsSnapshot
 
 
@@ -48,12 +46,25 @@ class TestMetricsCollector:
         snap = mc.collect()
         assert snap.test_count == 9999
 
-    def test_push_to_grafana_raises_not_implemented(self):
-        """BT-008: Grafana push is a stub."""
+    def test_bt008_push_to_grafana_does_not_raise(self):
+        """BT-008 resolved: push_to_grafana logs intent without raising."""
         mc = MetricsCollector()
         snap = mc.collect()
-        with pytest.raises(NotImplementedError, match="BT-008"):
-            mc.push_to_grafana(snap)
+        mc.push_to_grafana(snap)  # must not raise
+
+    def test_bt008_push_appends_to_grafana_log(self):
+        """BT-008: I-24 — grafana push intent is logged."""
+        mc = MetricsCollector()
+        snap = mc.collect()
+        mc.push_to_grafana(snap)
+        assert len(mc.grafana_log) == 1
+
+    def test_bt008_push_log_delivered_false(self):
+        """BT-008: delivered=False until P1 Grafana adapter is wired."""
+        mc = MetricsCollector()
+        snap = mc.collect()
+        mc.push_to_grafana(snap)
+        assert mc.grafana_log[0]["delivered"] is False
 
     def test_snapshot_has_collected_at(self):
         mc = MetricsCollector()

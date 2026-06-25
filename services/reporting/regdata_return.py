@@ -149,8 +149,8 @@ class LiveRegDataClient:  # pragma: no cover
     """
 
     def submit(self, return_: RegDataReturn, pdf_path: Path) -> str:
-        raise NotImplementedError(
-            "LiveRegDataClient not implemented. "
+        raise RuntimeError(
+            "LiveRegDataClient.submit: FCA_REGDATA_API_KEY not configured. "
             "Set FCA_REGDATA_API_KEY and FCA_FRN, then implement HTTP POST to RegData."
         )
 

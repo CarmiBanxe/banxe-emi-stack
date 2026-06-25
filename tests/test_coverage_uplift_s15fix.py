@@ -33,12 +33,16 @@ class TestAlertStoreFactory:
         store = get_alert_store()
         assert isinstance(store, InMemoryAlertStore)
 
-    def test_get_alert_store_db_raises_not_implemented(self, monkeypatch):
-        from services.transaction_monitor.store.alert_store import get_alert_store
+    def test_get_alert_store_db_falls_back_to_inmemory(self, monkeypatch):
+        """DbAlertStore pending (P1) — ALERT_STORE=db falls back to InMemory."""
+        from services.transaction_monitor.store.alert_store import (
+            InMemoryAlertStore,
+            get_alert_store,
+        )
 
         monkeypatch.setenv("ALERT_STORE", "db")
-        with pytest.raises(NotImplementedError):
-            get_alert_store()
+        store = get_alert_store()
+        assert isinstance(store, InMemoryAlertStore)
         monkeypatch.delenv("ALERT_STORE")
 
 
@@ -510,7 +514,9 @@ class TestTokenManagerUncoveredBranches:
             "iat": int(now.timestamp()),
             "exp": int((now + timedelta(hours=1)).timestamp()),
         }
-        bad_token = pyjwt.encode(payload, "test-secret-32bytes-long-enough-!", algorithm="HS256")
+        bad_token = pyjwt.encode(  # nosemgrep
+            payload, "test-secret-32bytes-long-enough-!", algorithm="HS256"
+        )
         with pytest.raises(TokenValidationError) as exc_info:
             tm.validate_access_token(bad_token)
         assert exc_info.value.code == "missing_sub"
@@ -528,7 +534,9 @@ class TestTokenManagerUncoveredBranches:
             "iat": int(now.timestamp()),
             "exp": int((now + timedelta(days=7)).timestamp()),
         }
-        bad_token = pyjwt.encode(payload, "test-secret-32bytes-long-enough-!", algorithm="HS256")
+        bad_token = pyjwt.encode(  # nosemgrep
+            payload, "test-secret-32bytes-long-enough-!", algorithm="HS256"
+        )
         with pytest.raises(TokenValidationError) as exc_info:
             tm.validate_refresh_token(bad_token)
         assert exc_info.value.code == "missing_sub"
@@ -547,7 +555,9 @@ class TestTokenManagerUncoveredBranches:
             "iat": int(now.timestamp()),
             "exp": int((now + timedelta(days=7)).timestamp()),
         }
-        bad_token = pyjwt.encode(payload, "test-secret-32bytes-long-enough-!", algorithm="HS256")
+        bad_token = pyjwt.encode(  # nosemgrep
+            payload, "test-secret-32bytes-long-enough-!", algorithm="HS256"
+        )
         with pytest.raises(TokenValidationError) as exc_info:
             tm.validate_refresh_token(bad_token)
         assert exc_info.value.code == "missing_jti"

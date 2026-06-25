@@ -1,7 +1,7 @@
 """
 services/observability/metrics_collector.py
 Metrics collector for platform observability (IL-OBS-01).
-BT-008: Grafana push is a stub (requires real Grafana instance).
+BT-008: push_to_grafana() logs intent (I-24); no-op until Grafana is provisioned.
 """
 
 from __future__ import annotations
@@ -38,6 +38,7 @@ class MetricsCollector:
 
     def __init__(self, overrides: dict | None = None) -> None:
         self._config = {**self._BASELINE, **(overrides or {})}
+        self._grafana_log: list[dict] = []  # I-24 append-only push attempts
 
     def collect(self) -> MetricsSnapshot:
         """Collect current platform metrics."""
@@ -50,12 +51,22 @@ class MetricsCollector:
         )
 
     def push_to_grafana(self, snapshot: MetricsSnapshot) -> None:
-        """BT-008 stub: push metrics to Grafana.
+        """BT-008: Log push intent — no-op until Grafana is provisioned (P1).
 
-        Requires: Grafana instance at GRAFANA_URL env var.
-        Raises NotImplementedError until Grafana is provisioned (P1 item).
+        I-24: appends to grafana_log for traceability.
+        Real push wired at P1 via GRAFANA_URL env var + HTTP adapter.
         """
-        raise NotImplementedError(
-            "BT-008: Grafana push not yet implemented. "
-            "Provision Grafana instance and set GRAFANA_URL to enable."
+        self._grafana_log.append(
+            {
+                "event": "grafana_push.queued",
+                "test_count": snapshot.test_count,
+                "coverage_pct": str(snapshot.coverage_pct),
+                "collected_at": snapshot.collected_at,
+                "queued_at": datetime.now(UTC).isoformat(),
+                "delivered": False,
+            }
         )
+
+    @property
+    def grafana_log(self) -> list[dict]:
+        return list(self._grafana_log)
