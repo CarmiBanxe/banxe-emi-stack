@@ -23,6 +23,7 @@ from src.safeguarding.agent import (
 from src.safeguarding.audit_trail import AuditTrail
 from src.safeguarding.breach_detector import BreachAlert, BreachDetector, BreachSeverity
 from src.safeguarding.daily_reconciliation import ReconStatus
+from src.safeguarding.three_leg import InMemoryRailBalancePort, ThreeLegStatus
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -274,3 +275,132 @@ class TestFCANotification:
         agent = SafeguardingAgent(ports, fca_notify=True, detector=mock_detector)
         agent.run(date(2026, 4, 13))
         mock_detector.notify_fca.assert_called_once_with(mock_alert, dry_run=False)
+
+
+# ── Three-leg wiring in SafeguardingAgent ─────────────────────────────────────
+
+
+RUN_DATE = date(2026, 6, 26)
+
+
+def _make_ports_with_rail(
+    ledger_bal: Decimal = Decimal("100000"),
+    bank_bal: Decimal | None = Decimal("100000"),
+    rail_bal: Decimal | None = Decimal("100000"),
+    streak: int = 0,
+) -> SafeguardingAgentPorts:
+    rail_port = InMemoryRailBalancePort()
+    if rail_bal is not None:
+        rail_port.set_balance(RUN_DATE, rail_bal)
+    return SafeguardingAgentPorts(
+        ledger=StubLedgerPort(ledger_bal),
+        bank=StubBankStatementPort(bank_bal),
+        audit=AuditTrail(clickhouse_url="", dry_run=True),
+        streak_counter=InMemoryStreakCounter(streak),
+        rail=rail_port,
+    )
+
+
+class TestThreeLegWiring:
+    def test_no_rail_port_skips_three_leg(self):
+        """rail=None → three_leg_result is None (backward-compatible)."""
+        ports = _make_ports()
+        agent = _make_agent(ports)
+        result = agent.run(RUN_DATE)
+        assert result.three_leg_result is None
+
+    def test_three_legs_all_match(self):
+        """A == B == C → three_leg_result.status MATCHED, exit MATCHED."""
+        ports = _make_ports_with_rail(Decimal("100000"), Decimal("100000"), Decimal("100000"))
+        agent = _make_agent(ports)
+        result = agent.run(RUN_DATE)
+        assert result.three_leg_result is not None
+        assert result.three_leg_result.status == ThreeLegStatus.MATCHED
+        assert result.exit_code == EXIT_MATCHED
+
+    def test_three_leg_break_escalates_to_breach(self):
+        """2-leg MATCHED but Leg C diverges → 3-leg BREAK → exit BREACH."""
+        ports = _make_ports_with_rail(
+            Decimal("100000"), Decimal("100000"), Decimal("80000")  # C differs by £20k
+        )
+        agent = _make_agent(ports)
+        result = agent.run(RUN_DATE)
+        assert result.three_leg_result is not None
+        assert result.three_leg_result.status == ThreeLegStatus.BREAK
+        assert result.exit_code == EXIT_BREACH
+
+    def test_three_leg_shortfall_flagged(self):
+        """A (ledger) > B (safeguarding) → shortfall=True in three_leg_result."""
+        ports = _make_ports_with_rail(
+            Decimal("120000"), Decimal("100000"), Decimal("120000")
+        )
+        agent = _make_agent(ports)
+        result = agent.run(RUN_DATE)
+        assert result.three_leg_result is not None
+        assert result.three_leg_result.shortfall is True
+        assert result.exit_code == EXIT_BREACH
+
+    def test_three_leg_pending_when_rail_missing(self):
+        """Leg C balance unavailable → three_leg_result.status PENDING."""
+        ports = _make_ports_with_rail(Decimal("100000"), Decimal("100000"), rail_bal=None)
+        agent = _make_agent(ports)
+        result = agent.run(RUN_DATE)
+        assert result.three_leg_result is not None
+        assert result.three_leg_result.status == ThreeLegStatus.PENDING
+
+    def test_summary_includes_three_leg_status(self):
+        """summary() shows 3-leg status line when rail port is wired."""
+        ports = _make_ports_with_rail(Decimal("100000"), Decimal("100000"), Decimal("100000"))
+        agent = _make_agent(ports)
+        result = agent.run(RUN_DATE)
+        assert "3-leg" in result.summary()
+        assert "MATCHED" in result.summary()
+
+    def test_summary_shows_shortfall_label(self):
+        """summary() includes SHORTFALL when three_leg_result.shortfall=True."""
+        ports = _make_ports_with_rail(Decimal("120000"), Decimal("100000"), Decimal("120000"))
+        agent = _make_agent(ports)
+        result = agent.run(RUN_DATE)
+        assert "SHORTFALL" in result.summary()
+
+    def test_audit_payload_includes_three_leg_status(self):
+        """AuditEvent payload carries three_leg_status when rail is wired."""
+        captured: list[object] = []
+
+        class CapturingAuditTrail(AuditTrail):
+            def log(self, event):  # type: ignore[override]
+                captured.append(event)
+
+        rail_port = InMemoryRailBalancePort()
+        rail_port.set_balance(RUN_DATE, Decimal("100000"))
+        ports = SafeguardingAgentPorts(
+            ledger=StubLedgerPort(Decimal("100000")),
+            bank=StubBankStatementPort(Decimal("100000")),
+            audit=CapturingAuditTrail(clickhouse_url="", dry_run=True),
+            streak_counter=InMemoryStreakCounter(),
+            rail=rail_port,
+        )
+        agent = _make_agent(ports)
+        agent.run(RUN_DATE)
+        assert captured
+        event = captured[0]
+        assert event.payload["three_leg_status"] == "MATCHED"
+        assert event.payload["three_leg_shortfall"] is False
+
+    def test_fatal_does_not_propagate_three_leg_error(self):
+        """If rail port raises, agent catches and returns EXIT_FATAL (never raises)."""
+
+        class BrokenRailPort:
+            def get_rail_balance_gbp(self, as_of):
+                raise RuntimeError("rail timeout")
+
+        ports = SafeguardingAgentPorts(
+            ledger=StubLedgerPort(Decimal("100000")),
+            bank=StubBankStatementPort(Decimal("100000")),
+            audit=AuditTrail(clickhouse_url="", dry_run=True),
+            streak_counter=InMemoryStreakCounter(),
+            rail=BrokenRailPort(),
+        )
+        agent = _make_agent(ports)
+        result = agent.run(RUN_DATE)
+        assert result.exit_code == EXIT_FATAL
