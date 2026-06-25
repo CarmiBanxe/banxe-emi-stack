@@ -4,7 +4,7 @@ FCA DISP complaint lifecycle engine (IL-DSP-01).
 SLA: 15 days simple, 35 days complex, 56 days final response.
 I-01: redress amounts as Decimal.
 I-24: ComplaintStore and AuditLog append-only.
-BT-010: escalate_to_fos() raises NotImplementedError.
+BT-010: escalate_to_fos() returns soft-stub FOSEscalation (FOS portal → P1).
 """
 
 from __future__ import annotations
@@ -71,7 +71,7 @@ class InMemoryComplaintStore:
 class ComplaintsEngine:
     """FCA DISP complaint lifecycle engine.
 
-    BT-010: escalate_to_fos() raises NotImplementedError (FOS portal → P1).
+    BT-010: escalate_to_fos() returns soft-stub FOSEscalation (FOS portal → P1).
     """
 
     def __init__(self, store: ComplaintStorePort | None = None) -> None:
@@ -146,11 +146,28 @@ class ComplaintsEngine:
         return resolution
 
     def escalate_to_fos(self, complaint_id: str) -> FOSEscalation:
-        """BT-010 stub: FOS portal integration requires P1 infrastructure."""
-        raise NotImplementedError(
-            "BT-010: FOS portal escalation not yet implemented. "
-            "Requires FOS API integration (P1 item)."
+        """BT-010: FOS portal integration is P1. Returns queued escalation (not submitted)."""
+        import logging
+
+        logger = logging.getLogger(__name__)
+        escalation = FOSEscalation(
+            complaint_id=complaint_id,
+            reason="BT-010: FOS portal integration pending (P1). Escalation queued, not submitted.",
+            escalated_at=datetime.now(UTC).isoformat(),
         )
+        self._audit_log.append(
+            {
+                "event": "complaint.fos_escalation_queued",
+                "complaint_id": complaint_id,
+                "submitted": False,
+                "queued_at": escalation.escalated_at,
+            }
+        )
+        logger.warning(
+            "BT-010: FOS escalation queued but not submitted (P1). complaint_id=%s",
+            complaint_id,
+        )
+        return escalation
 
     def get_sla_approaching(self, warning_days: int = 5) -> list[Complaint]:
         """Return complaints approaching SLA deadline."""
