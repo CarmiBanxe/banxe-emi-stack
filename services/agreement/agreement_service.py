@@ -216,7 +216,7 @@ class DocuSignStub:  # pragma: no cover
     """
 
     def send_signature_request(self, agreement: Agreement, customer_email: str) -> str:
-        raise NotImplementedError(
+        raise RuntimeError(
             "DocuSignStub: set DOCUSIGN_API_KEY + DOCUSIGN_ACCOUNT_ID, "
             "then implement REST POST to /envelopes."
         )
