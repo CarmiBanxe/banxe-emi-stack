@@ -263,9 +263,7 @@ class TestGabrielApiApprove:
         ).json()
         sid = created["submission_id"]
         client.post(f"/v1/gabriel/returns/{sid}/approve", json={"approved_by": "MLRO"})
-        resp = client.post(
-            f"/v1/gabriel/returns/{sid}/approve", json={"approved_by": "MLRO"}
-        )
+        resp = client.post(f"/v1/gabriel/returns/{sid}/approve", json={"approved_by": "MLRO"})
         assert resp.status_code == 422
 
 

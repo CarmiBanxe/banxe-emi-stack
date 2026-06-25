@@ -86,9 +86,7 @@ async def list_gabriel_returns() -> list[SubmissionRecordResponse]:
     return [_to_response(r) for r in _governor.list_records()]
 
 
-@router.get(
-    "/gabriel/returns/{submission_id}", response_model=SubmissionRecordResponse
-)
+@router.get("/gabriel/returns/{submission_id}", response_model=SubmissionRecordResponse)
 async def get_gabriel_return(submission_id: str) -> SubmissionRecordResponse:
     """Get a single submission record by submission_id."""
     record = _governor.get_by_id(submission_id)
@@ -185,15 +183,15 @@ async def reject_gabriel_return(
     "/gabriel/deadline/{return_type}/{return_period}",
     response_model=DeadlineStatusResponse,
 )
-async def get_gabriel_deadline(
-    return_type: str, return_period: str
-) -> DeadlineStatusResponse:
+async def get_gabriel_deadline(return_type: str, return_period: str) -> DeadlineStatusResponse:
     """Return the FCA Gabriel filing deadline for a given return type and period."""
     rt = _parse_return_type(return_type)
     try:
         ds = _governor.get_deadline_status(rt, return_period)
     except (ValueError, KeyError) as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
     return DeadlineStatusResponse(
         return_type=ds.return_type.value,
         return_period=ds.return_period,
