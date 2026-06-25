@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-import pytest
-
 from services.fatca_crs.hmrc_models import (
     AccountHolder,
     HMRCReport,
@@ -131,12 +129,36 @@ class TestHMRCReporterGeneration:
         assert "RU" in BLOCKED_JURISDICTIONS
         assert "GB" not in BLOCKED_JURISDICTIONS
 
-    def test_bt012_submit_raises(self):
-        """BT-012: HMRC gateway is a stub."""
+    def test_bt012_submit_returns_hitl_proposal(self):
+        """BT-012 / I-27: submit returns proposal, never auto-submits to HMRC."""
         reporter = _make_reporter()
         report = reporter._do_generate(2025)
-        with pytest.raises(NotImplementedError, match="BT-012"):
-            reporter.submit_to_hmrc_gateway(report)
+        result = reporter.submit_to_hmrc_gateway(report)
+        assert isinstance(result, HMRCHITLProposal)
+
+    def test_bt012_submit_proposal_not_auto_approved(self):
+        """I-27: HMRC submission proposals start unapproved."""
+        reporter = _make_reporter()
+        report = reporter._do_generate(2025)
+        proposal = reporter.submit_to_hmrc_gateway(report)
+        assert isinstance(proposal, HMRCHITLProposal)
+        assert proposal.approved is False
+
+    def test_bt012_submit_proposal_requires_cfo_mlro(self):
+        """I-27: HMRC submission requires CFO + MLRO dual sign-off."""
+        reporter = _make_reporter()
+        report = reporter._do_generate(2025)
+        proposal = reporter.submit_to_hmrc_gateway(report)
+        assert isinstance(proposal, HMRCHITLProposal)
+        assert "CFO" in proposal.requires_approval_from
+        assert "MLRO" in proposal.requires_approval_from
+
+    def test_bt012_submit_appended_to_proposals(self):
+        """Proposal is registered in reporter.proposals (I-24 append)."""
+        reporter = _make_reporter()
+        report = reporter._do_generate(2025)
+        reporter.submit_to_hmrc_gateway(report)
+        assert any("submit" in p.action for p in reporter.proposals)
 
 
 class TestHMRCValidation:
