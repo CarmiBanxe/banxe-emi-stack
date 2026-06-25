@@ -380,3 +380,35 @@
 - Anchors: `banxe-architecture` D-GL-BUILD-SPEC (IL-484) §5 DoD #8; ADR-013
   (Midaz CBS primary); FCA CASS 7.15 daily reconciliation; I-01 (Decimal),
   I-24 (audit append-only), I-28 (LedgerPort-only).
+
+### IL-CBS-DGL-LIFECYCLE-2026-06-26
+- Date: 2026-06-26
+- Status: DONE (offline; no live infra)
+- Scope: D-gl GL-core transaction lifecycle (second cross-repo runtime
+  increment promoting D-GL-BUILD-SPEC IL-484 DoD #4 `test_transaction_lifecycle`).
+  Mirrors the Midaz transaction lifecycle, additive over the legacy immediate
+  `post_journal_entry`: stage `create_journal_entry` (PENDING) → `commit`
+  (COMMITTED, counts) | `cancel` (CANCELLED, no balance); `revert` a
+  POSTED/COMMITTED entry (original → REVERSED, dropped from balance, plus a
+  lineage reversing entry — single mechanism, no double-count); `annotate`
+  (records-only NOTED, never a balance impact). Balance now derives from
+  POSTED + COMMITTED (`BALANCE_AFFECTING_STATUSES`); legacy POSTED still counts.
+- Files modified:
+  - `services/ledger/ledger_models.py` (PostingStatus += COMMITTED/CANCELLED/
+    NOTED; `BALANCE_AFFECTING_STATUSES`)
+  - `services/ledger/ledger_port.py` (5 lifecycle methods on the Protocol)
+  - `services/ledger/inmemory_ledger.py` (lifecycle impl + balance derivation)
+  - `services/ledger/gl_service.py` (commit/cancel/revert/annotate wrappers,
+    each records a GLAuditEntry — I-24)
+- Files created:
+  - `tests/test_ledger_lifecycle.py` (14 tests: create→commit, cancel,
+    revert-nets-to-zero, annotate-no-balance, legacy back-compat, audit rows)
+- Out of scope (deferred): Fineract fallback + ledger factory; api-router 503
+  mapping; high-value approval audit persistence.
+- Verification: 226 ledger/recon tests pass offline (incl. back-compat
+  gl_service / payment_posting / ledger_adapter / reconciliation / api_ledger);
+  ruff + format clean; semgrep banxe-rules clean; Decimal-only (I-01); no live
+  Midaz/ClickHouse. LedgerPort Protocol additive; only InMemoryLedger implements
+  it (Midaz/Stub adapters are recon-shaped, unaffected).
+- Landing: sandbox-autonomous mode — green PR auto-merged when CLEAN.
+- Anchors: D-GL-BUILD-SPEC (IL-484) §3.3/§5 DoD #4; ADR-013; I-01, I-24, I-28.
