@@ -334,3 +334,128 @@ class TestReconEngineBreachNotify:
         )
         engine.run_daily_recon(RECON_DATE)
         assert port.events[0].requires_approval_from == "MLRO"
+
+
+# ── E2E: ReconciliationEngine → GabrielBreachHandler → ReturnsGovernor ────────
+
+
+class TestReconToGabrielChain:
+    """Full D-recon → K-gabriel chain integration tests.
+
+    Verifies that a CASS 15 shortfall detected by ReconciliationEngine creates a
+    DRAFT SubmissionRecord in ReturnsGovernor via GabrielBreachHandler, and that
+    the MLRO can approve it (I-27 HITL gate).
+    """
+
+    @staticmethod
+    def _shortfall_engine(governor, registrar) -> ReconciliationEngine:
+        from services.gabriel.breach_handler import GabrielBreachHandler
+
+        handler = GabrielBreachHandler(governor=governor, registrar=registrar)
+        ledger = InMemoryLedgerPort()
+        ledger.add_client_fund("CLIENT-001", Decimal("50000.00"))
+        ledger.add_safeguarding("SAFEG-001", Decimal("49000.00"))  # 1 000 shortfall
+        return ReconciliationEngine(ledger=ledger, breach_notifier=handler)
+
+    def test_shortfall_creates_draft_in_governor(self) -> None:
+        from services.gabriel.gabriel_models import InMemoryGabrielAuditPort
+        from services.gabriel.breach_handler import InMemoryBreachRegistrar
+        from services.gabriel.returns_governor import ReturnsGovernor
+
+        gov = ReturnsGovernor(audit=InMemoryGabrielAuditPort())
+        reg = InMemoryBreachRegistrar()
+        engine = self._shortfall_engine(gov, reg)
+        engine.run_daily_recon(RECON_DATE)
+        records = gov.list_records()
+        assert len(records) == 1
+
+    def test_draft_return_type_is_breach_report(self) -> None:
+        from services.gabriel.gabriel_models import (
+            GabrielReturnType,
+            InMemoryGabrielAuditPort,
+        )
+        from services.gabriel.breach_handler import InMemoryBreachRegistrar
+        from services.gabriel.returns_governor import ReturnsGovernor
+
+        gov = ReturnsGovernor(audit=InMemoryGabrielAuditPort())
+        reg = InMemoryBreachRegistrar()
+        engine = self._shortfall_engine(gov, reg)
+        engine.run_daily_recon(RECON_DATE)
+        assert gov.list_records()[0].return_type == GabrielReturnType.BREACH_REPORT
+
+    def test_draft_status_is_draft(self) -> None:
+        from services.gabriel.gabriel_models import (
+            GabrielReturnStatus,
+            InMemoryGabrielAuditPort,
+        )
+        from services.gabriel.breach_handler import InMemoryBreachRegistrar
+        from services.gabriel.returns_governor import ReturnsGovernor
+
+        gov = ReturnsGovernor(audit=InMemoryGabrielAuditPort())
+        reg = InMemoryBreachRegistrar()
+        engine = self._shortfall_engine(gov, reg)
+        engine.run_daily_recon(RECON_DATE)
+        assert gov.list_records()[0].status == GabrielReturnStatus.DRAFT
+
+    def test_draft_source_recon_id_set(self) -> None:
+        from services.gabriel.gabriel_models import InMemoryGabrielAuditPort
+        from services.gabriel.breach_handler import InMemoryBreachRegistrar
+        from services.gabriel.returns_governor import ReturnsGovernor
+
+        gov = ReturnsGovernor(audit=InMemoryGabrielAuditPort())
+        reg = InMemoryBreachRegistrar()
+        engine = self._shortfall_engine(gov, reg)
+        engine.run_daily_recon(RECON_DATE)
+        record = gov.list_records()[0]
+        assert record.source_recon_id is not None
+        assert len(record.source_recon_id) > 0
+
+    def test_no_shortfall_no_draft(self) -> None:
+        from services.gabriel.gabriel_models import InMemoryGabrielAuditPort
+        from services.gabriel.breach_handler import (
+            GabrielBreachHandler,
+            InMemoryBreachRegistrar,
+        )
+        from services.gabriel.returns_governor import ReturnsGovernor
+
+        gov = ReturnsGovernor(audit=InMemoryGabrielAuditPort())
+        reg = InMemoryBreachRegistrar()
+        handler = GabrielBreachHandler(governor=gov, registrar=reg)
+        ledger = InMemoryLedgerPort()
+        ledger.add_client_fund("CLIENT-001", Decimal("50000.00"))
+        ledger.add_safeguarding("SAFEG-001", Decimal("50000.00"))  # balanced
+        engine = ReconciliationEngine(ledger=ledger, breach_notifier=handler)
+        engine.run_daily_recon(RECON_DATE)
+        assert gov.list_records() == []
+
+    def test_mlro_can_approve_draft(self) -> None:
+        """Full HITL path: shortfall → DRAFT → MLRO approves → SUBMITTED (I-27)."""
+        from services.gabriel.gabriel_models import (
+            GabrielReturnStatus,
+            InMemoryGabrielAuditPort,
+            InMemoryGabrielSubmissionPort,
+        )
+        from services.gabriel.breach_handler import InMemoryBreachRegistrar
+        from services.gabriel.returns_governor import ReturnsGovernor
+
+        gov = ReturnsGovernor(audit=InMemoryGabrielAuditPort())
+        reg = InMemoryBreachRegistrar()
+        engine = self._shortfall_engine(gov, reg)
+        engine.run_daily_recon(RECON_DATE)
+        draft = gov.list_records()[0]
+        sub_port = InMemoryGabrielSubmissionPort()
+        submitted = gov.approve(draft.submission_id, "MLRO-TestUser", sub_port)
+        assert submitted.status == GabrielReturnStatus.SUBMITTED
+        assert len(sub_port.submitted) == 1
+
+    def test_registrar_receives_breach_event(self) -> None:
+        from services.gabriel.gabriel_models import InMemoryGabrielAuditPort
+        from services.gabriel.breach_handler import InMemoryBreachRegistrar
+        from services.gabriel.returns_governor import ReturnsGovernor
+
+        gov = ReturnsGovernor(audit=InMemoryGabrielAuditPort())
+        reg = InMemoryBreachRegistrar()
+        engine = self._shortfall_engine(gov, reg)
+        engine.run_daily_recon(RECON_DATE)
+        assert len(reg.registered) == 1
+        assert reg.registered[0].shortfall == Decimal("1000.00")
