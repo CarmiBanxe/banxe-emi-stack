@@ -233,6 +233,47 @@ class GLService:
 
         return posted
 
+    # ── Transaction lifecycle (mirrors Midaz; each records an audit row, I-24) ──
+
+    def commit_entry(self, entry_id: str, actor: str = "SYSTEM") -> JournalEntry:
+        """PENDING -> COMMITTED (now counts toward balance)."""
+        committed = self._ledger.commit_journal_entry(entry_id)
+        self._record_lifecycle_audit("COMMIT_JOURNAL_ENTRY", committed, actor)
+        return committed
+
+    def cancel_entry(self, entry_id: str, actor: str = "SYSTEM") -> JournalEntry:
+        """PENDING -> CANCELLED (voided, no balance impact)."""
+        cancelled = self._ledger.cancel_journal_entry(entry_id)
+        self._record_lifecycle_audit("CANCEL_JOURNAL_ENTRY", cancelled, actor)
+        return cancelled
+
+    def revert_entry(self, entry_id: str, actor: str = "SYSTEM") -> JournalEntry:
+        """Revert a POSTED/COMMITTED entry; returns the lineage reversing entry."""
+        reversing = self._ledger.revert_journal_entry(entry_id)
+        self._record_lifecycle_audit("REVERT_JOURNAL_ENTRY", reversing, actor)
+        return reversing
+
+    def annotate_entry(self, entry_id: str, note: str) -> GLAuditEntry:
+        """Attach a records-only NOTED annotation (never a balance impact, I-24)."""
+        annotation = self._ledger.annotate_journal_entry(entry_id, note)
+        self._audit.record(annotation)
+        return annotation
+
+    def _record_lifecycle_audit(self, action: str, entry: JournalEntry, actor: str) -> None:
+        total_debit = sum(
+            (p.amount for p in entry.postings if p.direction == PostingDirection.DEBIT),
+            Decimal("0"),
+        )
+        self._record_audit(
+            entry_id=entry.entry_id,
+            action=action,
+            status=entry.status,
+            total_amount=total_debit,
+            currency=entry.postings[0].currency,
+            actor=actor,
+            details=f"status={entry.status.value}",
+        )
+
     # ── Private helpers ──────────────────────────────────────────────────────
 
     def _validate_balance(self, postings: list[Posting]) -> None:
