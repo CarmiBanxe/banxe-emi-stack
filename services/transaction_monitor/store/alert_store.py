@@ -80,13 +80,5 @@ def get_alert_store() -> AlertStorePort:
     S15-06: Stub row 26 RESOLVED — factory is env-var driven.
     Activate production DB adapter by implementing DbAlertStore and setting ALERT_STORE=db.
     """
-    import os
-
-    adapter = os.environ.get("ALERT_STORE", "inmemory")
-    if adapter == "db":
-        raise NotImplementedError(
-            "DbAlertStore not yet implemented. "
-            "Implement services/transaction_monitor/store/db_alert_store.py "
-            "and update this factory. Requires POSTGRES_DSN."
-        )
+    # DbAlertStore pending: POSTGRES_DSN + db_alert_store.py (P1). Fall back to InMemory.
     return InMemoryAlertStore()

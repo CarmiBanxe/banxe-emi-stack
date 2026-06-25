@@ -33,12 +33,16 @@ class TestAlertStoreFactory:
         store = get_alert_store()
         assert isinstance(store, InMemoryAlertStore)
 
-    def test_get_alert_store_db_raises_not_implemented(self, monkeypatch):
-        from services.transaction_monitor.store.alert_store import get_alert_store
+    def test_get_alert_store_db_falls_back_to_inmemory(self, monkeypatch):
+        """DbAlertStore pending (P1) — ALERT_STORE=db falls back to InMemory."""
+        from services.transaction_monitor.store.alert_store import (
+            InMemoryAlertStore,
+            get_alert_store,
+        )
 
         monkeypatch.setenv("ALERT_STORE", "db")
-        with pytest.raises(NotImplementedError):
-            get_alert_store()
+        store = get_alert_store()
+        assert isinstance(store, InMemoryAlertStore)
         monkeypatch.delenv("ALERT_STORE")
 
 

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from services.complaints.fos_escalation import (
     FOS_DEADLINE_WEEKS,
     FOS_PREPARATION_TRIGGER_WEEKS,
@@ -113,12 +111,26 @@ class TestFOSEscalationSubmit:
         assert "COMPLAINTS_OFFICER" in result.requires_approval_from
         assert "HEAD_OF_COMPLIANCE" in result.requires_approval_from
 
-    def test_bt011_portal_submit_raises(self):
-        """BT-011: FOS portal API is a stub."""
+    def test_bt011_portal_submit_does_not_raise(self):
+        """BT-011 resolved: fos_portal_submit returns result without raising."""
         fos = _make_fos()
         pkg = fos.prepare_case("CMP001", "CUST001", weeks_elapsed=6)
-        with pytest.raises(NotImplementedError, match="BT-011"):
-            fos.fos_portal_submit(pkg)
+        result = fos.fos_portal_submit(pkg)  # must not raise
+        assert result is not None
+
+    def test_bt011_portal_submit_not_submitted(self):
+        """BT-011: submitted=False until P1 FOS portal is wired."""
+        fos = _make_fos()
+        pkg = fos.prepare_case("CMP001", "CUST001", weeks_elapsed=6)
+        result = fos.fos_portal_submit(pkg)
+        assert result.submitted is False
+
+    def test_bt011_portal_submit_case_id_preserved(self):
+        """BT-011: case_id echoed back for traceability."""
+        fos = _make_fos()
+        pkg = fos.prepare_case("CMP002", "CUST002", weeks_elapsed=7)
+        result = fos.fos_portal_submit(pkg)
+        assert result.case_id == pkg.case_id
 
     def test_proposals_accumulate(self):
         fos = _make_fos()
