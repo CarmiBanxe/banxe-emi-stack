@@ -99,7 +99,9 @@ class RegDataGabrielAdapter:
             safeguarding_method=_DEFAULT_SAFEGUARDING_METHOD,
         )
         submission_id = self._fin060_client.submit(ret, pdf_path)
-        logger.info("FIN060 submitted to FCA RegData: period=%s ref=%s", record.return_period, submission_id)
+        logger.info(
+            "FIN060 submitted to FCA RegData: period=%s ref=%s", record.return_period, submission_id
+        )
         return _replace(
             record,
             status=GabrielReturnStatus.SUBMITTED,
