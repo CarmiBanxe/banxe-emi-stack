@@ -42,6 +42,11 @@ class BreachEvent:
     shortfall: Decimal  # abs(client_funds - safeguarding); always positive
     detected_at: str  # ISO-8601 datetime UTC
     requires_approval_from: str  # "MLRO"
+    # E-D-CROSS-REPO-HANDOFF §4 contract fields:
+    account_id: str = "AGGREGATE"  # account_id for single-account breaches
+    severity: str = "CRITICAL"  # always CRITICAL for shortfalls
+    hitl_decision_ref: str = ""  # set after HITL MLRO approval
+    idempotency_key: str = ""  # "{recon_id}:{recon_date}" — deduplicates replays
 
 
 @runtime_checkable

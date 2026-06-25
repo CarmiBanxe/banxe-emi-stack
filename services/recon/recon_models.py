@@ -48,6 +48,15 @@ RECON_TOLERANCE: Decimal = Decimal("0.01")
 # Large value threshold for flagging (I-04).
 LARGE_VALUE_THRESHOLD: Decimal = Decimal("50000")
 
+# D-5: cron runs at 07:00 UTC Monday–Friday; recon must complete before this hour.
+RECON_CUTOFF_HOUR_UTC: int = 7
+
+
+def check_cutoff(now_utc: datetime, cutoff_hour: int = RECON_CUTOFF_HOUR_UTC) -> bool:
+    """Return True if now_utc is strictly before the daily recon cut-off (D-5 invariant)."""
+    return now_utc.hour < cutoff_hour
+
+
 # Blocked jurisdictions (I-02).
 BLOCKED_JURISDICTIONS: frozenset[str] = frozenset(
     {
@@ -114,6 +123,7 @@ class ReconResult:
     large_values_flagged: int = 0
     excluded_jurisdictions: tuple[str, ...] = ()
     created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    completed_before_cutoff: bool = True  # D-5: False if run past 07:00 UTC
 
     def __post_init__(self) -> None:
         for fld in ("client_funds_total", "safeguarding_total", "difference"):

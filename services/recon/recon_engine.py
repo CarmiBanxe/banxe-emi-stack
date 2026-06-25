@@ -32,6 +32,7 @@ from services.recon.recon_models import (
     ReconAuditEntry,
     ReconResult,
     ReconStatus,
+    check_cutoff,
 )
 from services.recon.recon_port import LedgerPort
 
@@ -194,10 +195,15 @@ class ReconciliationEngine:
                             shortfall=abs(difference),
                             detected_at=datetime.now(UTC).isoformat(),
                             requires_approval_from="MLRO",
+                            account_id="AGGREGATE",
+                            severity="CRITICAL",
+                            hitl_decision_ref="",
+                            idempotency_key=f"{recon_id}:{recon_date}",
                         )
                     )
 
         status = ReconStatus.BALANCED if not discrepancies else ReconStatus.DISCREPANCY
+        now_utc = datetime.now(UTC)
 
         result = ReconResult(
             recon_id=recon_id,
@@ -209,6 +215,7 @@ class ReconciliationEngine:
             discrepancies=tuple(discrepancies),
             large_values_flagged=large_values_flagged,
             excluded_jurisdictions=tuple(sorted(set(excluded))),
+            completed_before_cutoff=check_cutoff(now_utc),
         )
 
         # I-24: audit trail.
