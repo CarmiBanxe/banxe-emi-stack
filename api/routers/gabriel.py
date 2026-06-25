@@ -23,6 +23,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, status
 
+from api.deps import get_gabriel_governor
 from api.models.gabriel import (
     ApproveRequest,
     CreateDraftRequest,
@@ -32,19 +33,19 @@ from api.models.gabriel import (
 )
 from services.gabriel.gabriel_models import (
     GabrielReturnType,
-    InMemoryGabrielAuditPort,
     InMemoryGabrielSubmissionPort,
     SubmissionRecord,
 )
-from services.gabriel.returns_governor import ReturnsGovernor
 
 logger = logging.getLogger("banxe.api.gabriel")
 
 router = APIRouter(tags=["Gabriel Returns (K-gabriel)"])
 
 # ── Singletons (sandbox InMemory; swap for real adapters in production) ───────
+# _governor shared with GabrielBreachHandler via get_gabriel_governor() so that
+# DRAFTs created by ReconciliationEngine.breach_notifier are visible to the API.
 
-_governor = ReturnsGovernor(audit=InMemoryGabrielAuditPort())
+_governor = get_gabriel_governor()
 _submission_port = InMemoryGabrielSubmissionPort()
 
 
@@ -86,9 +87,7 @@ async def list_gabriel_returns() -> list[SubmissionRecordResponse]:
     return [_to_response(r) for r in _governor.list_records()]
 
 
-@router.get(
-    "/gabriel/returns/{submission_id}", response_model=SubmissionRecordResponse
-)
+@router.get("/gabriel/returns/{submission_id}", response_model=SubmissionRecordResponse)
 async def get_gabriel_return(submission_id: str) -> SubmissionRecordResponse:
     """Get a single submission record by submission_id."""
     record = _governor.get_by_id(submission_id)
@@ -185,15 +184,15 @@ async def reject_gabriel_return(
     "/gabriel/deadline/{return_type}/{return_period}",
     response_model=DeadlineStatusResponse,
 )
-async def get_gabriel_deadline(
-    return_type: str, return_period: str
-) -> DeadlineStatusResponse:
+async def get_gabriel_deadline(return_type: str, return_period: str) -> DeadlineStatusResponse:
     """Return the FCA Gabriel filing deadline for a given return type and period."""
     rt = _parse_return_type(return_type)
     try:
         ds = _governor.get_deadline_status(rt, return_period)
     except (ValueError, KeyError) as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
     return DeadlineStatusResponse(
         return_type=ds.return_type.value,
         return_period=ds.return_period,
