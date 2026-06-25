@@ -251,12 +251,15 @@ def get_gabriel_breach_handler() -> GabrielBreachHandler:
     if adapter_name == "regdata":
         from services.gabriel.regdata_gabriel_adapter import RegDataGabrielAdapter
         from services.recon.fca_regdata_client import FCARegDataClient
-        from services.reporting.regdata_return import LiveRegDataClient, MockFIN060Generator
+        from services.reporting.regdata_return import (
+            LiveRegDataClient,
+            RealFIN060Generator,
+        )
 
         registrar = RegDataGabrielAdapter(
             breach_client=FCARegDataClient(),
             fin060_client=LiveRegDataClient(),
-            fin060_generator=MockFIN060Generator(),
+            fin060_generator=RealFIN060Generator(),
         )
     else:
         registrar = InMemoryBreachRegistrar()
