@@ -26,6 +26,7 @@ from services.gabriel.gabriel_models import (
     GabrielAuditPort,
     GabrielReturnStatus,
     GabrielReturnType,
+    GabrielSubmissionPort,
     InMemoryGabrielAuditPort,
     ReturnSchedule,
     SubmissionRecord,
@@ -192,3 +193,76 @@ class ReturnsGovernor:
         if not record.fca_item_code:
             errors.append("fca_item_code is required")
         return errors
+
+    # ── Public: query ─────────────────────────────────────────────────────────
+
+    def list_records(self) -> list[SubmissionRecord]:
+        """Return all records in creation order."""
+        return list(self._records.values())
+
+    def get_by_id(self, submission_id: str) -> SubmissionRecord | None:
+        """Lookup a record by submission_id (linear scan — records are small)."""
+        for record in self._records.values():
+            if record.submission_id == submission_id:
+                return record
+        return None
+
+    # ── Public: HITL transitions ──────────────────────────────────────────────
+
+    def approve(
+        self,
+        submission_id: str,
+        approved_by: str,
+        submission_port: GabrielSubmissionPort,
+    ) -> SubmissionRecord:
+        """HITL gate: validate record, call submission_port.submit(), audit.
+
+        I-27: The ONLY path that calls GabrielSubmissionPort.submit().
+              Requires an explicit human-initiated POST /approve request.
+        """
+        from dataclasses import replace as _replace
+
+        record = self.get_by_id(submission_id)
+        if record is None:
+            raise KeyError(f"No record with submission_id={submission_id!r}")
+        errors = self.validate_for_submission(record)
+        if errors:
+            raise ValueError(f"Invalid for submission: {'; '.join(errors)}")
+        approved = _replace(record, status=GabrielReturnStatus.APPROVED)
+        submitted = submission_port.submit(approved)
+        self._records[record.idempotency_key] = submitted
+        self._audit.record(
+            GabrielAuditEntry(
+                submission_id=submitted.submission_id,
+                action="APPROVED_SUBMITTED",
+                actor=approved_by,
+                occurred_at=datetime.now(UTC).isoformat(),
+                details=f"submitted_at={submitted.submitted_at} ref={submitted.submission_ref}",
+            )
+        )
+        return submitted
+
+    def reject(
+        self,
+        submission_id: str,
+        rejected_by: str,
+        reason: str,
+    ) -> SubmissionRecord:
+        """HITL gate: mark record REJECTED, audit the decision."""
+        from dataclasses import replace as _replace
+
+        record = self.get_by_id(submission_id)
+        if record is None:
+            raise KeyError(f"No record with submission_id={submission_id!r}")
+        rejected = _replace(record, status=GabrielReturnStatus.REJECTED)
+        self._records[record.idempotency_key] = rejected
+        self._audit.record(
+            GabrielAuditEntry(
+                submission_id=rejected.submission_id,
+                action="REJECTED",
+                actor=rejected_by,
+                occurred_at=datetime.now(UTC).isoformat(),
+                details=reason,
+            )
+        )
+        return rejected
