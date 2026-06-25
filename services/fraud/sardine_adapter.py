@@ -61,10 +61,10 @@ class SardineFraudAdapter:
             )
 
     def score(self, request: FraudScoringRequest) -> FraudScoringResult:
-        # TODO: implement live Sardine.ai API call
-        # Blocked on: SARDINE_CLIENT_ID + SARDINE_SECRET_KEY (CEO action)
-        raise NotImplementedError(
-            "SardineFraudAdapter.score() not yet implemented. "
+        # BT-014: HTTP call not yet implemented — keys provisioned but endpoint pending.
+        # Use FRAUD_ADAPTER=mock (or jube) until Sardine live integration lands (P1).
+        raise RuntimeError(
+            "SardineFraudAdapter.score(): live HTTP call not implemented. "
             "Set FRAUD_ADAPTER=mock for sandbox testing."
         )
 

@@ -222,8 +222,13 @@ async def test_api_accounts_and_health(async_client):
         json={"balance": "100.00", "balance_source": "manual"},
     )
     assert bal.status_code in (200, 201)
-    # NOTE: GET /accounts (list) and GET /accounts/{id} remain API-layer Phase 3.6
-    # stubs (not in the service-method scope) — intentionally not exercised here.
+    # BT-015: GET /accounts returns empty list (Phase 3.6 soft stub)
+    listed = await async_client.get("/api/v1/accounts")
+    assert listed.status_code == 200
+    assert listed.json() == []
+    # BT-015: GET /accounts/{id} returns 404 (Phase 3.6 soft stub)
+    fetched = await async_client.get(f"/api/v1/accounts/{acct_id}")
+    assert fetched.status_code == 404
 
 
 # ───────────────────────── MCP breach_report 'report' action ─────────────────────────
@@ -233,3 +238,118 @@ async def test_mcp_breach_report_report_action():
 
     result = await breach_report({"action": "report", "severity": "critical", "description": "x"})
     assert result.get("severity") == "critical"
+
+
+# ───────────────────────── BT-015: integration soft stubs ─────────────────────────
+
+@pytest.mark.asyncio
+async def test_bt015_bank_api_get_balance_does_not_raise():
+    from app.integrations.bank_api_client import BankApiClient
+
+    client = BankApiClient()
+    result = await client.get_account_balance("acc-001")
+    assert result == Decimal("0")
+
+
+@pytest.mark.asyncio
+async def test_bt015_bank_api_get_balance_appends_call_log():
+    from app.integrations.bank_api_client import BankApiClient
+
+    client = BankApiClient()
+    await client.get_account_balance("acc-001")
+    assert len(client._call_log) == 1
+    assert client._call_log[0]["provisioned"] is False
+
+
+@pytest.mark.asyncio
+async def test_bt015_bank_api_get_all_balances_returns_empty_list():
+    from app.integrations.bank_api_client import BankApiClient
+
+    client = BankApiClient()
+    result = await client.get_all_balances()
+    assert result == []
+
+
+@pytest.mark.asyncio
+async def test_bt015_bank_api_import_statement_returns_empty_dict():
+    from app.integrations.bank_api_client import BankApiClient
+
+    client = BankApiClient()
+    result = await client.import_statement("acc-001", b"CAMT053data")
+    assert result == {}
+    assert client._call_log[0]["bytes_received"] == 11
+
+
+@pytest.mark.asyncio
+async def test_bt015_notification_telegram_does_not_raise():
+    from app.integrations.notification_client import NotificationClient
+
+    client = NotificationClient()
+    result = await client.send_telegram_alert("-100", "test alert")
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_bt015_notification_email_returns_false():
+    from app.integrations.notification_client import NotificationClient
+
+    client = NotificationClient()
+    result = await client.send_email_alert(["mlro@banxe.com"], "Breach", "body")
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_bt015_notification_n8n_returns_empty_dict():
+    from app.integrations.notification_client import NotificationClient
+
+    client = NotificationClient()
+    result = await client.trigger_n8n_workflow("wf-001", {"key": "val"})
+    assert result == {}
+
+
+@pytest.mark.asyncio
+async def test_bt015_notification_breach_chain_returns_empty_dict():
+    from app.integrations.notification_client import NotificationClient
+
+    client = NotificationClient()
+    result = await client.notify_breach_chain({"breach_type": "shortfall", "amount": "500"})
+    assert result == {}
+    assert client._notification_log[0]["breach_type"] == "shortfall"
+
+
+@pytest.mark.asyncio
+async def test_bt015_midaz_client_fund_total_returns_zero():
+    from app.integrations.midaz_client import MidazClient
+
+    client = MidazClient("http://midaz")
+    result = await client.get_client_fund_total("GBP")
+    assert result == Decimal("0")
+
+
+@pytest.mark.asyncio
+async def test_bt015_midaz_ledger_balances_returns_empty_dict():
+    from app.integrations.midaz_client import MidazClient
+
+    client = MidazClient("http://midaz")
+    result = await client.get_ledger_balances()
+    assert result == {}
+
+
+@pytest.mark.asyncio
+async def test_bt015_compliance_log_event_returns_empty_dict():
+    from app.integrations.compliance_client import ComplianceClient
+
+    client = ComplianceClient("http://compliance")
+    result = await client.log_regulatory_event("position_calculated", {"amount": "100"})
+    assert result == {}
+    assert client._event_log[0]["event_type"] == "position_calculated"
+
+
+@pytest.mark.asyncio
+async def test_bt015_compliance_notify_breach_returns_empty_dict():
+    from app.integrations.compliance_client import ComplianceClient
+
+    client = ComplianceClient("http://compliance")
+    result = await client.notify_breach({"breach_type": "shortfall"})
+    assert result == {}
+    assert client._event_log[0]["breach_type"] == "shortfall"
