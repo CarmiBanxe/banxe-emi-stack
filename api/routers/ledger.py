@@ -21,6 +21,10 @@ from api.models.ledger import (
     AccountListResponse,
     AccountResponse,
 )
+from services.ledger.ledger_port import LedgerInfrastructureError
+
+# Returned when the ledger backend (Midaz) is unreachable / 5xx — fail-closed.
+_LEDGER_UNAVAILABLE = "Ledger temporarily unavailable"
 
 router = APIRouter(tags=["Ledger"])
 
@@ -77,10 +81,13 @@ async def list_accounts() -> AccountListResponse:
         accounts = [AccountResponse(**a) for a in _MOCK_ACCOUNTS]
         return AccountListResponse(accounts=accounts, total=len(accounts))
 
-    from services.ledger import midaz_client  # pragma: no cover
+    from services.ledger import midaz_client
 
-    raw = await midaz_client.list_accounts()  # pragma: no cover
-    accounts = [  # pragma: no cover
+    try:
+        raw = await midaz_client.list_accounts()
+    except LedgerInfrastructureError as exc:
+        raise HTTPException(status_code=503, detail=_LEDGER_UNAVAILABLE) from exc
+    accounts = [
         AccountResponse(
             account_id=a.get("id", ""),
             name=a.get("name", ""),
@@ -90,9 +97,7 @@ async def list_accounts() -> AccountListResponse:
         )
         for a in raw
     ]
-    return AccountListResponse(  # pragma: no cover
-        accounts=accounts, total=len(accounts)
-    )
+    return AccountListResponse(accounts=accounts, total=len(accounts))
 
 
 @router.get(
@@ -121,12 +126,15 @@ async def get_balance(account_id: str) -> AccountBalanceResponse:
             currency=data["currency"],
         )
 
-    from services.ledger import midaz_client  # pragma: no cover
+    from services.ledger import midaz_client
 
-    balance = await midaz_client.get_balance(account_id)  # pragma: no cover
-    if balance is None:  # pragma: no cover
+    try:
+        balance = await midaz_client.get_balance(account_id)
+    except LedgerInfrastructureError as exc:
+        raise HTTPException(status_code=503, detail=_LEDGER_UNAVAILABLE) from exc
+    if balance is None:
         raise HTTPException(status_code=404, detail=f"Account {account_id} not found")
-    return AccountBalanceResponse(  # pragma: no cover
+    return AccountBalanceResponse(
         account_id=account_id,
         available=str(balance),
         total=str(balance),

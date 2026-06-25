@@ -412,3 +412,30 @@
   it (Midaz/Stub adapters are recon-shaped, unaffected).
 - Landing: sandbox-autonomous mode — green PR auto-merged when CLEAN.
 - Anchors: D-GL-BUILD-SPEC (IL-484) §3.3/§5 DoD #4; ADR-013; I-01, I-24, I-28.
+
+### IL-CBS-DGL-API503-2026-06-26
+- Date: 2026-06-26
+- Status: DONE (offline; no live infra)
+- Scope: D-gl API fail-closed mapping (third cross-repo runtime increment),
+  completing DoD #8 at the API edge. The ledger API production branch
+  previously surfaced raw httpx errors (and `midaz_client` swallowed nothing
+  explicitly); now `midaz_client.get_balance`/`list_accounts` fail closed
+  (transport/5xx → `LedgerInfrastructureError`; 4xx / no-GBP → safe default),
+  and `api/routers/ledger.py` maps `LedgerInfrastructureError` → **HTTP 503**
+  (Ledger temporarily unavailable), keeping reachable "not found" → **404**.
+  The previously `# pragma: no cover` production paths are now covered.
+- Files modified:
+  - `services/ledger/midaz_client.py` (fail-closed get_balance/list_accounts;
+    removed a dead un-awaited client.get line in the rewritten get_balance body)
+  - `api/routers/ledger.py` (LedgerInfrastructureError → 503; None → 404)
+- Files created:
+  - `tests/test_api_ledger_failclosed.py` (503 on infra error, 404 on None,
+    200 happy, for both balance + list endpoints; fake midaz_client injected,
+    `_is_sandbox` forced False — offline)
+- Out of scope (deferred): Fineract fallback (operator-gated, no API ref — see
+  C steer); high-value approval audit (next increment).
+- Verification: API + ledger suites pass offline (incl. existing sandbox API
+  tests); ruff + format clean; semgrep banxe-rules clean; Decimal-only (I-01).
+- Landing: sandbox-autonomous mode — green PR auto-merged when CLEAN.
+- Anchors: D-GL-BUILD-SPEC (IL-484) §5 DoD #8 (API edge); ADR-013; FCA CASS
+  7.15; I-01, I-28.
