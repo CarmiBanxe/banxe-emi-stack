@@ -89,12 +89,35 @@ class TestStatementGenerator:
         stmt = gen.generate("CUST001", "2026-01-01", "2026-01-31")
         assert stmt.format == StatementFormat.JSON
 
-    def test_bt013_email_raises(self):
-        """BT-013: email delivery is a stub."""
+    def test_bt013_email_does_not_raise(self):
+        """BT-013 resolved: email_statement logs intent without raising."""
         gen = _make_generator()
         stmt = gen.generate("CUST001", "2026-01-01", "2026-01-31")
-        with pytest.raises(NotImplementedError, match="BT-013"):
-            gen.email_statement(stmt, "test@example.com")
+        gen.email_statement(stmt, "test@example.com")  # must not raise
+
+    def test_bt013_email_appends_to_log(self):
+        """BT-013: email intent logged to statement_log (I-24)."""
+        gen = _make_generator()
+        stmt = gen.generate("CUST001", "2026-01-01", "2026-01-31")
+        gen.email_statement(stmt, "user@example.com")
+        queued = [e for e in gen.statement_log if e.get("event") == "email_statement.queued"]
+        assert len(queued) == 1
+
+    def test_bt013_email_log_has_email_address(self):
+        """BT-013: log entry captures destination email for audit."""
+        gen = _make_generator()
+        stmt = gen.generate("CUST001", "2026-01-01", "2026-01-31")
+        gen.email_statement(stmt, "audit@bank.com")
+        entry = next(e for e in gen.statement_log if e.get("event") == "email_statement.queued")
+        assert entry["email"] == "audit@bank.com"
+
+    def test_bt013_email_log_delivered_false(self):
+        """BT-013: log marks delivered=False until P1 email service wired."""
+        gen = _make_generator()
+        stmt = gen.generate("CUST001", "2026-01-01", "2026-01-31")
+        gen.email_statement(stmt, "x@y.com")
+        entry = next(e for e in gen.statement_log if e.get("event") == "email_statement.queued")
+        assert entry["delivered"] is False
 
     def test_statement_has_period_start_end(self):
         gen = _make_generator()
