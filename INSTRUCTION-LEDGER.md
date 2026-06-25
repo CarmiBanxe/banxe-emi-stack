@@ -341,3 +341,42 @@
 - Production deploy + first LIVE run remain gated by Central + operator +
   MLRO sign-off; no evo1 deploy, no live Modulr API calls, no live DB
   writes, no `ssh evo1`, no `systemctl daemon-reload` performed.
+
+### IL-CBS-DGL-FAILCLOSED-2026-06-26
+- Date: 2026-06-26
+- Status: DONE (offline; no live infra)
+- Scope: D-gl GL-core fail-closed fix — first cross-repo runtime increment
+  promoting the `banxe-architecture` D-GL-BUILD-SPEC (IL-484) DoD #8
+  (`test_midaz_unavailable_surfaces_infra_failure`). The Midaz ledger adapter
+  previously swallowed transport/HTTP failures and returned a SILENT
+  `Decimal("0")` / `None` / `[]` — a false zero balance that can drive a wrong
+  reconciliation tie-out or safeguarding figure. Now an unreachable backend /
+  transport-timeout / 5xx raises `LedgerInfrastructureError` (the failure
+  SURFACES); a reachable, definite answer (4xx, or HTTP-200 with no GBP item)
+  keeps the safe default. The reconciliation engine (confirmed direct consumer)
+  maps the surfaced error per-account to a fail-closed `ERROR` result — never a
+  false `MATCHED`/`DISCREPANCY`.
+- Files modified:
+  - `services/ledger/ledger_port.py` (new `LedgerInfrastructureError`)
+  - `services/ledger/midaz_adapter.py` (3 methods fail-closed: get_balance /
+    create_transaction / list_transactions)
+  - `services/recon/reconciliation_engine.py` (per-account fail-closed `ERROR`)
+  - `tests/test_ledger_adapter.py` (3 silent-fallback assertions → `raises`)
+- Files created:
+  - `tests/test_midaz_fail_closed.py`
+  - `tests/test_recon_failclosed.py`
+- Out of scope (deferred): transaction lifecycle (commit/cancel/revert),
+  Fineract fallback adapter + ledger factory, high-value approval persistence,
+  and the `api/routers/ledger.py` 503 mapping (separate `midaz_client` path,
+  `# pragma: no cover` — follow-up). Protocol method set unchanged; only the
+  exception is added → no adapter-wide ripple.
+- Verification: 238 tests pass offline (44 fail-closed/updated + 194
+  back-compat: gl_service / payment_posting / reconciliation / api_ledger /
+  api_recon); ruff + ruff-format clean; semgrep banxe-rules clean; Decimal-only
+  (I-01); no secrets; no live Midaz/ClickHouse calls.
+- Landing discipline: cross-repo runtime authorized by operator; D-gl chosen as
+  first block; narrow first increment per operator directive. No live infra
+  activation. No self-merge — PR opened for operator review/merge.
+- Anchors: `banxe-architecture` D-GL-BUILD-SPEC (IL-484) §5 DoD #8; ADR-013
+  (Midaz CBS primary); FCA CASS 7.15 daily reconciliation; I-01 (Decimal),
+  I-24 (audit append-only), I-28 (LedgerPort-only).

@@ -13,6 +13,17 @@ from typing import Protocol
 from services.ledger.ledger_models import Account, JournalEntry
 
 
+class LedgerInfrastructureError(RuntimeError):
+    """Ledger backend is unreachable / returned a server error.
+
+    Raised so an infrastructure failure SURFACES (fail-closed) instead of being
+    silently masked as a zero balance / empty result. Distinct from a genuine
+    "not found" or "no balance" answer from a reachable backend (which stays
+    ``None`` / ``Decimal("0")`` / ``[]``). Consumers (e.g. reconciliation) must
+    treat this as fail-closed — never as a real ``0`` tie-out.
+    """
+
+
 class LedgerPort(Protocol):
     """Port for General Ledger operations."""
 
