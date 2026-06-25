@@ -152,12 +152,45 @@ def test_approve_report_action_field(generator: FIN060Generator) -> None:
     assert proposal.action == "approve_fin060"
 
 
-# ── submit_to_regdata — BT-006 stub ──────────────────────────────────────────
+# ── submit_to_regdata — L4 HITL proposal (I-27) ──────────────────────────────
 
 
-def test_submit_to_regdata_raises_not_implemented(generator: FIN060Generator) -> None:
-    with pytest.raises(NotImplementedError, match="BT-006"):
-        generator.submit_to_regdata("report-123")
+def test_submit_to_regdata_returns_hitl_proposal(generator: FIN060Generator) -> None:
+    proposal = generator.submit_to_regdata("report-123")
+    assert isinstance(proposal, HITLProposal)
+
+
+def test_submit_to_regdata_requires_cfo(generator: FIN060Generator) -> None:
+    proposal = generator.submit_to_regdata("report-123")
+    assert proposal.requires_approval_from == "CFO"
+
+
+def test_submit_to_regdata_autonomy_l4(generator: FIN060Generator) -> None:
+    proposal = generator.submit_to_regdata("report-123")
+    assert proposal.autonomy_level == "L4"
+
+
+def test_submit_to_regdata_action_field(generator: FIN060Generator) -> None:
+    proposal = generator.submit_to_regdata("report-123")
+    assert proposal.action == "submit_fin060_to_regdata"
+
+
+def test_submit_to_regdata_reason_contains_report_id(generator: FIN060Generator) -> None:
+    proposal = generator.submit_to_regdata("report-abc-99")
+    assert "report-abc-99" in proposal.reason
+
+
+def test_submit_to_regdata_reason_mentions_cass15(generator: FIN060Generator) -> None:
+    proposal = generator.submit_to_regdata("report-123")
+    assert "CASS 15" in proposal.reason or "15.12" in proposal.reason
+
+
+def test_submit_to_regdata_different_ids_have_different_entity_ids(
+    generator: FIN060Generator,
+) -> None:
+    p1 = generator.submit_to_regdata("report-001")
+    p2 = generator.submit_to_regdata("report-002")
+    assert p1.entity_id != p2.entity_id
 
 
 # ── get_dashboard ─────────────────────────────────────────────────────────────
