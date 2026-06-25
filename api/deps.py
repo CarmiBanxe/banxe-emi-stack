@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 if TYPE_CHECKING:
     from src.safeguarding.buffered_audit_port import BufferedAuditPort
 
+    from services.gabriel.breach_handler import GabrielBreachHandler
     from services.recon.recon_engine import ReconciliationEngine
 
 from services.customer.customer_service import InMemoryCustomerService
@@ -231,14 +232,46 @@ def get_crypto_application_service():  # type: ignore[return]
 
 
 @lru_cache(maxsize=1)
+def get_gabriel_breach_handler() -> GabrielBreachHandler:
+    """GabrielBreachHandler singleton — bridges D-recon breaches to K-gabriel DRAFTs.
+
+    D-recon spec §4: wired into ReconciliationEngine.breach_notifier so that every
+    CASS 15 shortfall creates a DRAFT in ReturnsGovernor (I-27: HITL-gated, no
+    autonomous FCA submission).
+
+    GABRIEL_ADAPTER=stub    → InMemoryBreachRegistrar (default, no FCA calls)
+    GABRIEL_ADAPTER=regdata → RegDataGabrielAdapter (production, requires FCA env vars)
+    """
+    from services.gabriel.breach_handler import GabrielBreachHandler, InMemoryBreachRegistrar
+    from services.gabriel.gabriel_models import InMemoryGabrielAuditPort
+    from services.gabriel.returns_governor import ReturnsGovernor
+
+    governor = ReturnsGovernor(audit=InMemoryGabrielAuditPort())
+    adapter_name = os.environ.get("GABRIEL_ADAPTER", "stub")
+    if adapter_name == "regdata":
+        from services.gabriel.regdata_gabriel_adapter import RegDataGabrielAdapter
+        from services.recon.fca_regdata_client import FCARegDataClient
+        from services.reporting.regdata_return import LiveRegDataClient, MockFIN060Generator
+
+        registrar = RegDataGabrielAdapter(
+            breach_client=FCARegDataClient(),
+            fin060_client=LiveRegDataClient(),
+            fin060_generator=MockFIN060Generator(),
+        )
+    else:
+        registrar = InMemoryBreachRegistrar()
+    return GabrielBreachHandler(governor=governor, registrar=registrar)
+
+
+@lru_cache(maxsize=1)
 def get_recon_engine() -> ReconciliationEngine:
     """Production ReconciliationEngine with durable audit sink (ADR-027 step 2).
 
     LEDGER_ADAPTER=stub  → StubLedgerAdapter (default, in-memory)
     LEDGER_ADAPTER=midaz → MidazLedgerAdapter (requires MIDAZ_BASE_URL)
 
-    NOTE: ReconciliationEngine (CASS 15) was previously only instantiated in tests.
-    This provider creates the first production wiring per ADR-027 step 2.
+    K-gabriel breach handler is always wired (GABRIEL_ADAPTER=stub|regdata).
+    D-recon spec §4: every CASS 15 shortfall creates a DRAFT in ReturnsGovernor.
     """
     from services.recon.recon_engine import ReconciliationEngine
 
@@ -248,7 +281,11 @@ def get_recon_engine() -> ReconciliationEngine:
     else:
         ledger = StubLedgerAdapter()
 
-    return ReconciliationEngine(ledger=ledger, audit=get_buffered_audit_port())
+    return ReconciliationEngine(
+        ledger=ledger,
+        audit=get_buffered_audit_port(),
+        breach_notifier=get_gabriel_breach_handler(),
+    )
 
 
 # ── ADR-034: Webhook delivery reliability (WebhookReliabilityPort) ───────────

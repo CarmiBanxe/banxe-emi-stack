@@ -40,6 +40,22 @@ class _ReturnsGovernorPort(Protocol):
     def create_breach_draft(self, breach_event: BreachEvent) -> object: ...
 
 
+# ── Stubs ─────────────────────────────────────────────────────────────────────
+
+
+class InMemoryBreachRegistrar:
+    """Stub BreachRegistrarPort — stores events in memory (no FCA calls).
+
+    Use in sandbox / test composition roots where RegDataGabrielAdapter is not wired.
+    """
+
+    def __init__(self) -> None:
+        self.registered: list[BreachEvent] = []
+
+    def register_breach_event(self, event: BreachEvent) -> None:
+        self.registered.append(event)
+
+
 # ── Handler ───────────────────────────────────────────────────────────────────
 
 
