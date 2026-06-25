@@ -274,7 +274,7 @@ class TestFCANotification:
 
         agent = SafeguardingAgent(ports, fca_notify=True, detector=mock_detector)
         agent.run(date(2026, 4, 13))
-        mock_detector.notify_fca.assert_called_once_with(mock_alert, dry_run=False)
+        mock_detector.notify_fca.assert_called_once_with(mock_alert, dry_run=False, notifier=None)
 
 
 # ── Three-leg wiring in SafeguardingAgent ─────────────────────────────────────
