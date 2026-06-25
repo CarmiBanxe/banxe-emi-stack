@@ -8,9 +8,8 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-import httpx
 import pytest
 
 from services.reporting.regdata_return import (
@@ -232,110 +231,44 @@ class TestLiveRegDataClient:
         with pytest.raises(RuntimeError, match="FCA_REGDATA_API_KEY"):
             client.submit(_make_return(), pdf)
 
-    def test_posts_to_regdata_url_and_returns_submission_id(self, monkeypatch, tmp_path):
-        import services.reporting.regdata_return as m
-
-        monkeypatch.setattr(m, "REGDATA_API_KEY", "test-key-abc")
-        monkeypatch.setattr(m, "REGDATA_URL", "https://mock.regdata.test/api/v1/returns")
-
-        mock_response = MagicMock()
-        mock_response.json.return_value = {"submission_id": "REG-20260315-001"}
-        mock_response.raise_for_status.return_value = None
-
-        pdf = tmp_path / "FIN060_202603.pdf"
-        pdf.write_bytes(b"%PDF-1.4 test content")
-
-        with patch("httpx.post", return_value=mock_response) as mock_post:
-            client = LiveRegDataClient()
-            sid = client.submit(_make_return(), pdf)
-
-        assert sid == "REG-20260315-001"
-        mock_post.assert_called_once()
-        call_kwargs = mock_post.call_args
-        assert call_kwargs[0][0] == "https://mock.regdata.test/api/v1/returns"
-        assert "Authorization" in call_kwargs[1]["headers"]
-        assert "Bearer test-key-abc" in call_kwargs[1]["headers"]["Authorization"]
-
-    def test_returns_fallback_id_when_response_missing_submission_id(self, monkeypatch, tmp_path):
-        import services.reporting.regdata_return as m
-
-        monkeypatch.setattr(m, "REGDATA_API_KEY", "key-xyz")
-        monkeypatch.setattr(m, "REGDATA_URL", "https://mock.regdata.test/api/v1/returns")
-
-        mock_response = MagicMock()
-        mock_response.json.return_value = {}  # no submission_id key
-        mock_response.raise_for_status.return_value = None
-
+    def test_submit_always_raises_runtime_error(self, tmp_path):
+        # BT-006v2: LiveRegDataClient.submit is a RuntimeError stub until FCA_REGDATA_API_KEY
+        # is provisioned and live HTTP POST is implemented (P1).
+        client = LiveRegDataClient()
         pdf = tmp_path / "FIN060_202603.pdf"
         pdf.write_bytes(b"%PDF-1.4 stub")
-
-        with patch("httpx.post", return_value=mock_response):
-            client = LiveRegDataClient()
-            sid = client.submit(_make_return(frn="654321"), pdf)
-
-        assert "654321" in sid
-        assert "202603" in sid
-
-    def test_propagates_http_status_error(self, monkeypatch, tmp_path):
-        import services.reporting.regdata_return as m
-
-        monkeypatch.setattr(m, "REGDATA_API_KEY", "key-abc")
-        monkeypatch.setattr(m, "REGDATA_URL", "https://mock.regdata.test/api/v1/returns")
-
-        pdf = tmp_path / "FIN060_202603.pdf"
-        pdf.write_bytes(b"%PDF-1.4 stub")
-
-        mock_response = MagicMock()
-        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-            "403 Forbidden", request=MagicMock(), response=MagicMock()
-        )
-
-        with patch("httpx.post", return_value=mock_response):
-            client = LiveRegDataClient()
-            with pytest.raises(httpx.HTTPStatusError):
-                client.submit(_make_return(), pdf)
-
-    def test_posts_frn_and_period_in_form_data(self, monkeypatch, tmp_path):
-        import services.reporting.regdata_return as m
-
-        monkeypatch.setattr(m, "REGDATA_API_KEY", "key-test")
-        monkeypatch.setattr(m, "REGDATA_URL", "https://mock.regdata.test/api/v1/returns")
-
-        mock_response = MagicMock()
-        mock_response.json.return_value = {"submission_id": "S-001"}
-        mock_response.raise_for_status.return_value = None
-
-        pdf = tmp_path / "FIN060_202603.pdf"
-        pdf.write_bytes(b"%PDF-1.4 stub")
-
-        with patch("httpx.post", return_value=mock_response) as mock_post:
-            client = LiveRegDataClient()
-            client.submit(_make_return(frn="999000"), pdf)
-
-        data = mock_post.call_args[1]["data"]
-        assert data["frn"] == "999000"
-        assert data["period_start"] == "2026-03-01"
-        assert data["return_type"] == "FIN060"
-
-    def test_pdf_included_in_multipart_files(self, monkeypatch, tmp_path):
-        import services.reporting.regdata_return as m
-
-        monkeypatch.setattr(m, "REGDATA_API_KEY", "key-test")
-        monkeypatch.setattr(m, "REGDATA_URL", "https://mock.regdata.test/api/v1/returns")
-
-        mock_response = MagicMock()
-        mock_response.json.return_value = {"submission_id": "S-002"}
-        mock_response.raise_for_status.return_value = None
-
-        pdf = tmp_path / "FIN060_202603.pdf"
-        pdf.write_bytes(b"%PDF-1.4 real content")
-
-        with patch("httpx.post", return_value=mock_response) as mock_post:
-            client = LiveRegDataClient()
+        with pytest.raises(RuntimeError, match="FCA_REGDATA_API_KEY"):
             client.submit(_make_return(), pdf)
 
-        files = mock_post.call_args[1]["files"]
-        assert "document" in files
-        filename, file_content, mimetype = files["document"]
-        assert filename == "FIN060_202603.pdf"
-        assert mimetype == "application/pdf"
+    def test_submit_raises_regardless_of_pdf_content(self, tmp_path):
+        client = LiveRegDataClient()
+        pdf = tmp_path / "other.pdf"
+        pdf.write_bytes(b"")
+        with pytest.raises(RuntimeError, match="LiveRegDataClient"):
+            client.submit(_make_return(frn="654321"), pdf)
+
+    def test_submit_error_message_contains_frn_guidance(self, tmp_path):
+        client = LiveRegDataClient()
+        pdf = tmp_path / "FIN060_202603.pdf"
+        pdf.write_bytes(b"%PDF-1.4 stub")
+        with pytest.raises(RuntimeError) as exc_info:
+            client.submit(_make_return(), pdf)
+        assert "FCA_FRN" in str(exc_info.value)
+
+    def test_submit_raises_for_any_frn(self, tmp_path):
+        client = LiveRegDataClient()
+        pdf = tmp_path / "FIN060_202501.pdf"
+        pdf.write_bytes(b"%PDF-1.4 stub")
+        with pytest.raises(RuntimeError, match="FCA_REGDATA_API_KEY"):
+            client.submit(_make_return(frn="999999"), pdf)
+
+    def test_submit_raises_not_returns_none(self, tmp_path):
+        client = LiveRegDataClient()
+        pdf = tmp_path / "FIN060_202603.pdf"
+        pdf.write_bytes(b"%PDF-1.4 stub")
+        raised = False
+        try:
+            client.submit(_make_return(), pdf)
+        except RuntimeError:
+            raised = True
+        assert raised, "LiveRegDataClient.submit must raise, never silently succeed"
