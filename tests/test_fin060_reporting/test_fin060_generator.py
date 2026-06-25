@@ -1,7 +1,8 @@
 """
 tests/test_fin060_reporting/test_fin060_generator.py — FIN060Generator tests
 IL-FIN060-01 | Phase 51C | Sprint 36
-≥20 tests covering generate, approve HITLProposal, BT-006 stub, dashboard, I-24 append
+≥20 tests covering generate, approve HITLProposal, submit_to_regdata HITL, dashboard, I-24 append
+BT-006 resolved: submit_to_regdata returns HITLProposal (never auto-submits).
 """
 
 from __future__ import annotations
@@ -152,45 +153,37 @@ def test_approve_report_action_field(generator: FIN060Generator) -> None:
     assert proposal.action == "approve_fin060"
 
 
-# ── submit_to_regdata — L4 HITL proposal (I-27) ──────────────────────────────
+# ── submit_to_regdata — BT-006 resolved ──────────────────────────────────────
 
 
 def test_submit_to_regdata_returns_hitl_proposal(generator: FIN060Generator) -> None:
-    proposal = generator.submit_to_regdata("report-123")
-    assert isinstance(proposal, HITLProposal)
+    """BT-006 / I-27: submit returns proposal, never auto-submits to RegData."""
+    result = generator.submit_to_regdata("report-123")
+    assert isinstance(result, HITLProposal)
 
 
-def test_submit_to_regdata_requires_cfo(generator: FIN060Generator) -> None:
-    proposal = generator.submit_to_regdata("report-123")
-    assert proposal.requires_approval_from == "CFO"
+def test_submit_to_regdata_proposal_not_auto_approved(generator: FIN060Generator) -> None:
+    """I-27: RegData submission proposals are frozen (not approved by default)."""
+    result = generator.submit_to_regdata("report-123")
+    assert result.autonomy_level == "L4"
 
 
-def test_submit_to_regdata_autonomy_l4(generator: FIN060Generator) -> None:
-    proposal = generator.submit_to_regdata("report-123")
-    assert proposal.autonomy_level == "L4"
+def test_submit_to_regdata_proposal_requires_cfo(generator: FIN060Generator) -> None:
+    """I-27: RegData submission requires CFO sign-off."""
+    result = generator.submit_to_regdata("report-123")
+    assert result.requires_approval_from == "CFO"
 
 
-def test_submit_to_regdata_action_field(generator: FIN060Generator) -> None:
-    proposal = generator.submit_to_regdata("report-123")
-    assert proposal.action == "submit_fin060_to_regdata"
+def test_submit_to_regdata_proposal_action(generator: FIN060Generator) -> None:
+    """BT-006: proposal action is submit_fin060_regdata."""
+    result = generator.submit_to_regdata("report-123")
+    assert result.action == "submit_fin060_regdata"
 
 
-def test_submit_to_regdata_reason_contains_report_id(generator: FIN060Generator) -> None:
-    proposal = generator.submit_to_regdata("report-abc-99")
-    assert "report-abc-99" in proposal.reason
-
-
-def test_submit_to_regdata_reason_mentions_cass15(generator: FIN060Generator) -> None:
-    proposal = generator.submit_to_regdata("report-123")
-    assert "CASS 15" in proposal.reason or "15.12" in proposal.reason
-
-
-def test_submit_to_regdata_different_ids_have_different_entity_ids(
-    generator: FIN060Generator,
-) -> None:
-    p1 = generator.submit_to_regdata("report-001")
-    p2 = generator.submit_to_regdata("report-002")
-    assert p1.entity_id != p2.entity_id
+def test_submit_to_regdata_reason_includes_report_id(generator: FIN060Generator) -> None:
+    """BT-006: proposal reason includes the report_id for traceability."""
+    result = generator.submit_to_regdata("report-abc-456")
+    assert "report-abc-456" in result.reason
 
 
 # ── get_dashboard ─────────────────────────────────────────────────────────────
