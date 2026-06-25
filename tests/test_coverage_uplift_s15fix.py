@@ -514,9 +514,9 @@ class TestTokenManagerUncoveredBranches:
             "iat": int(now.timestamp()),
             "exp": int((now + timedelta(hours=1)).timestamp()),
         }
-        bad_token = pyjwt.encode(
+        bad_token = pyjwt.encode(  # nosemgrep
             payload, "test-secret-32bytes-long-enough-!", algorithm="HS256"
-        )  # nosemgrep
+        )
         with pytest.raises(TokenValidationError) as exc_info:
             tm.validate_access_token(bad_token)
         assert exc_info.value.code == "missing_sub"
@@ -534,9 +534,9 @@ class TestTokenManagerUncoveredBranches:
             "iat": int(now.timestamp()),
             "exp": int((now + timedelta(days=7)).timestamp()),
         }
-        bad_token = pyjwt.encode(
+        bad_token = pyjwt.encode(  # nosemgrep
             payload, "test-secret-32bytes-long-enough-!", algorithm="HS256"
-        )  # nosemgrep
+        )
         with pytest.raises(TokenValidationError) as exc_info:
             tm.validate_refresh_token(bad_token)
         assert exc_info.value.code == "missing_sub"
@@ -555,9 +555,9 @@ class TestTokenManagerUncoveredBranches:
             "iat": int(now.timestamp()),
             "exp": int((now + timedelta(days=7)).timestamp()),
         }
-        bad_token = pyjwt.encode(
+        bad_token = pyjwt.encode(  # nosemgrep
             payload, "test-secret-32bytes-long-enough-!", algorithm="HS256"
-        )  # nosemgrep
+        )
         with pytest.raises(TokenValidationError) as exc_info:
             tm.validate_refresh_token(bad_token)
         assert exc_info.value.code == "missing_jti"
