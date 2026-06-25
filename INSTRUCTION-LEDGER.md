@@ -507,3 +507,35 @@
 - Landing: sandbox-autonomous mode — green PR auto-merged when CLEAN.
 - Anchors: D-RECON-BUILD-SPEC (IL-474) §3 (3-leg); ADR-SAF-01; recon_core S6.2
   boundary (#164); I-01, I-24.
+
+### IL-CBS-LEDGER-ERRATA-DRECON3LEG-2026-06-26
+- Date: 2026-06-26
+- Status: DONE (append-only errata; no code change)
+- Scope: Forward-fix for IL key collision — `IL-CBS-DRECON-3LEG-2026-06-26` was
+  assigned to two distinct PRs in the same factory cycle.
+- Collision:
+  - Commit `0c5c78d` / PR #218: `feat(safeguarding): CASS 15 three-leg tie-out
+    (A==B==C) + Leg C rail port` — engine implementation
+    (`src/safeguarding/three_leg.py`, 11 tests).
+  - Commit `9ba9c8a` / PR #219 (branch `agent/factory/safeguarding/wire-3leg-agent`):
+    `feat(safeguarding): wire three_leg_reconcile into SafeguardingAgent` — agent
+    wiring (`src/safeguarding/agent.py`). This PR reused the parent IL key instead
+    of minting a unique derivative.
+- Canonical assignment (forward, history unchanged):
+  - PR #218 keeps: `IL-CBS-DRECON-3LEG-2026-06-26` (engine — the original owner).
+  - PR #219 is re-designated: `IL-CBS-DRECON-3LEG-WIRE-2026-06-26` (errata; commit
+    cannot be edited — append-only correction per ADR-059-A).
+- Root cause: factory reused the parent build-spec IL key on the dependent wiring
+  PR without incrementing. Single factory cycle produced two PRs against the same
+  spec anchor without a sub-key differentiation step.
+- Prevention (added to per-cycle checklist): each PR MUST carry a UNIQUE IL key.
+  Before submitting a dependent PR that derives from a parent spec, append a
+  distinguishing suffix (e.g., `-WIRE`, `-API`, `-TESTS`, `-AGENT`) so the key
+  is globally unique across the git log. Verify with:
+  `git log --oneline | grep -oP 'IL-[A-Z0-9-]+' | sort | uniq -d` — must be empty.
+- Invariants: ADR-059-A (append-only; no history rewrite); no force-push; no
+  renumbering of existing commits.
+- Verification: `git log --oneline | grep -oP 'IL-[A-Z0-9-]+' | sort | uniq -d`
+  returns empty after this errata lands (the collision exists only in the pre-errata
+  history; this entry documents and closes it).
+- This errata PR own key: `IL-CBS-LEDGER-ERRATA-DRECON3LEG-2026-06-26` (unique).
