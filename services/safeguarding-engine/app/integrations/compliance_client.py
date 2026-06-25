@@ -48,7 +48,9 @@ class ComplianceClient:
                 "provisioned": False,
             }
         )
-        logger.critical("ComplianceClient.notify_breach: not provisioned (P1). breach=%s", breach_data.get("breach_type"))
+        logger.critical(
+            "ComplianceClient.notify_breach: not provisioned (P1). breach=%s", breach_data.get("breach_type")
+        )
         return {}
 
     async def close(self) -> None:

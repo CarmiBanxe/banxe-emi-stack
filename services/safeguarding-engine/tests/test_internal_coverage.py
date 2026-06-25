@@ -242,6 +242,7 @@ async def test_mcp_breach_report_report_action():
 
 # ───────────────────────── BT-015: integration soft stubs ─────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_bt015_bank_api_get_balance_does_not_raise():
     from app.integrations.bank_api_client import BankApiClient
