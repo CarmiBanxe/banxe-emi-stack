@@ -23,6 +23,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, status
 
+from api.deps import get_gabriel_governor
 from api.models.gabriel import (
     ApproveRequest,
     CreateDraftRequest,
@@ -32,19 +33,19 @@ from api.models.gabriel import (
 )
 from services.gabriel.gabriel_models import (
     GabrielReturnType,
-    InMemoryGabrielAuditPort,
     InMemoryGabrielSubmissionPort,
     SubmissionRecord,
 )
-from services.gabriel.returns_governor import ReturnsGovernor
 
 logger = logging.getLogger("banxe.api.gabriel")
 
 router = APIRouter(tags=["Gabriel Returns (K-gabriel)"])
 
 # ── Singletons (sandbox InMemory; swap for real adapters in production) ───────
+# _governor shared with GabrielBreachHandler via get_gabriel_governor() so that
+# DRAFTs created by ReconciliationEngine.breach_notifier are visible to the API.
 
-_governor = ReturnsGovernor(audit=InMemoryGabrielAuditPort())
+_governor = get_gabriel_governor()
 _submission_port = InMemoryGabrielSubmissionPort()
 
 
