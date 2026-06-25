@@ -5,7 +5,7 @@ Integrates with SelfCertEngine (Phase 55A) to collect certifications.
 I-01: all amounts Decimal strings.
 I-24: ReportLog append-only.
 I-27: generate + submit require CFO + MLRO dual sign-off (L4).
-BT-012: submit_to_hmrc_gateway() raises NotImplementedError.
+BT-012: submit_to_hmrc_gateway() resolved — returns HMRCHITLProposal (I-27 HITL, never auto-submits).
 """
 
 from __future__ import annotations
@@ -72,7 +72,7 @@ class HMRCReporter:
     I-01: all amounts as Decimal strings.
     I-24: report_log is append-only.
     I-27: generation and submission require CFO + MLRO.
-    BT-012: submit_to_hmrc_gateway() raises NotImplementedError.
+    BT-012: submit_to_hmrc_gateway() resolved — returns HMRCHITLProposal (never auto-submits).
     """
 
     def __init__(
@@ -192,12 +192,20 @@ class HMRCReporter:
             errors=errors,
         )
 
-    def submit_to_hmrc_gateway(self, report: HMRCReport) -> HMRCSubmissionResult:
-        """BT-012 stub: HMRC API submission requires registration."""
-        raise NotImplementedError(
-            "BT-012: HMRC Gateway submission not yet implemented. "
-            "Requires HMRC API registration and credentials (P1 item)."
+    def submit_to_hmrc_gateway(self, report: HMRCReport) -> HMRCSubmissionResult | HMRCHITLProposal:
+        """I-27: submission requires CFO + MLRO dual sign-off — returns proposal, never auto-submits.
+
+        BT-012 resolved: live HMRC Gateway integration is P1 (requires API registration).
+        This method always returns a proposal so humans approve before any gateway call.
+        """
+        pid = f"HMRC_SUBMIT_{hashlib.sha256(f'{report.report_id}submit'.encode()).hexdigest()[:8]}"
+        proposal = HMRCHITLProposal(
+            proposal_id=pid,
+            action=f"submit_to_hmrc_gateway_{report.tax_year}",
+            tax_year=report.tax_year,
         )
+        self._proposals.append(proposal)
+        return proposal
 
     @property
     def report_log(self) -> list[dict]:

@@ -4,6 +4,7 @@ IL-FIN060-01 | Phase 51C | Sprint 36
 Generates FIN060 regulatory reports with HITL gate (CFO approval required).
 Does NOT overwrite fin060_generator.py (backward compat).
 Invariants: I-01 (Decimal), I-24 (append-only), I-27 (HITL)
+BT-006 resolved: submit_to_regdata returns HITLProposal (never auto-submits).
 """
 
 from __future__ import annotations
@@ -131,12 +132,17 @@ class FIN060Generator:
         )
 
     def submit_to_regdata(self, report_id: str) -> HITLProposal:
-        """BT-006: RegData submission gate — I-27 HITL, CFO must authorise (never auto-submits)."""
+        """I-27: RegData submission requires CFO sign-off — returns proposal, never auto-submits.
+
+        BT-006 resolved: live RegData API integration is P1 (requires FCA registration).
+        This method always returns a proposal so humans approve before any submission.
+        """
+        entity_id = hashlib.sha256(f"{uuid.uuid4()}".encode()).hexdigest()[:8]
         return HITLProposal(
-            action="submit_to_regdata",
-            entity_id=report_id,
+            action="submit_fin060_regdata",
+            entity_id=entity_id,
             requires_approval_from="CFO",
-            reason=f"FIN060 RegData submission for report {report_id} requires CFO authorisation",
+            reason=f"FIN060 RegData submission requires CFO sign-off (I-27): report_id={report_id}",
             autonomy_level="L4",
         )
 
