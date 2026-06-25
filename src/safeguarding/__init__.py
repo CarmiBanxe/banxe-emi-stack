@@ -15,6 +15,7 @@ FCA references:
 
 from .audit_trail import AuditEvent, AuditTrail
 from .breach_detector import BreachAlert, BreachDetector, BreachSeverity
+from .clickhouse_streak_counter import ClickHouseStreakCounter
 from .daily_reconciliation import DailyReconciliation, ReconciliationResult, ReconStatus
 from .fin060_generator import FIN060Generator, FIN060Return
 
@@ -29,4 +30,5 @@ __all__ = [
     "FIN060Return",
     "AuditTrail",
     "AuditEvent",
+    "ClickHouseStreakCounter",
 ]
