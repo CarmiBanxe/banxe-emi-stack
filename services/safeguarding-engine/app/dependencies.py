@@ -99,6 +99,7 @@ def get_clickhouse_client():
 # Wired from the existing infra dependencies above and the service constructors
 # (verified signatures). No new infra objects; no business-logic changes.
 
+
 def get_audit_logger() -> AuditLogger:
     """AuditLogger(clickhouse_client) — shared audit-trail helper."""
     return AuditLogger(clickhouse_client=get_clickhouse_client())

@@ -16,9 +16,7 @@ router = APIRouter(prefix="/reconcile")
 
 
 @router.post("/daily", response_model=ReconciliationResponse)
-async def trigger_daily_recon(
-    request: Optional[DailyReconRequest] = None, service=Depends(get_reconciliation_service)
-):
+async def trigger_daily_recon(request: Optional[DailyReconRequest] = None, service=Depends(get_reconciliation_service)):
     """Trigger daily internal reconciliation (defaults to today when no body)."""
     return await service.run_daily_reconciliation(request)
 

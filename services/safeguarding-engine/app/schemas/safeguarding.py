@@ -13,9 +13,7 @@ class SafeguardingRequest(BaseModel):
     """Record a new safeguarding obligation."""
 
     # External/API contract accepts either `amount` or `client_fund_amount`.
-    client_fund_amount: Decimal = Field(
-        validation_alias=AliasChoices("client_fund_amount", "amount")
-    )
+    client_fund_amount: Decimal = Field(validation_alias=AliasChoices("client_fund_amount", "amount"))
     currency: str = "GBP"
     source: str = "e-money-receipt"
     reference: Optional[str] = None

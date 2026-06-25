@@ -137,9 +137,7 @@ class SafeguardingService:
             updated_at=now,
         )
 
-    async def record_balance_snapshot(
-        self, account_id: object, data: BalanceSnapshotCreate
-    ) -> dict:
+    async def record_balance_snapshot(self, account_id: object, data: BalanceSnapshotCreate) -> dict:
         """Canonical: record a balance snapshot for an account."""
         return {
             "account_id": str(account_id),

@@ -75,9 +75,7 @@ class BreachService:
             created_by=created_by,
         )
 
-    async def detect_shortfall_breach(
-        self, shortfall: Decimal, position_date: object
-    ) -> Optional[BreachResponse]:
+    async def detect_shortfall_breach(self, shortfall: Decimal, position_date: object) -> Optional[BreachResponse]:
         """Canonical: raise a critical breach when shortfall > 0; None otherwise."""
         if Decimal(shortfall) <= ZERO:
             return None
@@ -88,9 +86,7 @@ class BreachService:
             shortfall_amount=Decimal(shortfall),
         )
 
-    async def list_breaches(
-        self, active_only: bool = False, severity: Optional[str] = None
-    ) -> BreachListResponse:
+    async def list_breaches(self, active_only: bool = False, severity: Optional[str] = None) -> BreachListResponse:
         """Canonical: list breaches (empty set until persistence is populated)."""
         return BreachListResponse(breaches=[], total=0, active_count=0, fca_notifications_pending=0)
 

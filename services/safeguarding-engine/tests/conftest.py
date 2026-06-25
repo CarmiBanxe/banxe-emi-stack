@@ -56,6 +56,7 @@ async def async_client(app) -> AsyncGenerator:
     Services are DI-built; their methods operate at the contract level, so a mocked
     session/redis is sufficient to exercise the API surface without live infra.
     """
+
     async def _override_get_db():
         yield AsyncMock()
 

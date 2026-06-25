@@ -67,9 +67,7 @@ class ReconciliationService:
             created_at=datetime.now(UTC),
         )
 
-    async def detect_breaks(
-        self, ledger_total: Decimal, bank_total: Decimal
-    ) -> ReconciliationResponse:
+    async def detect_breaks(self, ledger_total: Decimal, bank_total: Decimal) -> ReconciliationResponse:
         """Canonical helper: matched/break decision under the configured GBP tolerance."""
         return await self._reconcile("daily", date.today(), ledger_total, bank_total)
 
@@ -93,9 +91,7 @@ class ReconciliationService:
         recon_date = recon_date or date.today()
         return await self._reconcile("monthly", recon_date, ZERO, ZERO)
 
-    async def get_history(
-        self, recon_type: Optional[str] = None, limit: int = 50
-    ) -> List[ReconciliationResponse]:
+    async def get_history(self, recon_type: Optional[str] = None, limit: int = 50) -> List[ReconciliationResponse]:
         """Canonical: list reconciliation results (empty until persistence populated)."""
         return []
 

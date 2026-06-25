@@ -160,9 +160,7 @@ async def test_breach_report_via_schema(db_session):
     from app.services.breach_service import BreachService
 
     svc = BreachService(db_session)
-    breach = await svc.report_breach(
-        BreachCreate(breach_type="timing", severity="major", description="late safeguard")
-    )
+    breach = await svc.report_breach(BreachCreate(breach_type="timing", severity="major", description="late safeguard"))
     assert breach.breach_type == "timing" and breach.severity == "major"
     assert await svc.requires_fca_notification("minor") is False
 
