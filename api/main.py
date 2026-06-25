@@ -73,6 +73,7 @@ from api.routers import (
     fx_engine,
     fx_exchange,
     fx_rates,
+    gabriel,
     health,
     hitl,
     hmrc_reporting,
@@ -199,6 +200,9 @@ app.include_router(experiments.router, prefix="/v1")  # GET/POST /v1/experiments
 app.include_router(transaction_monitor.router, prefix="/v1")  # GET/POST /v1/monitor/* (IL-RTM-01)
 app.include_router(safeguarding.router, prefix="/v1")  # CASS 15 safeguarding (6 endpoints)
 app.include_router(recon.router, prefix="/v1")  # Reconciliation (3 endpoints)
+app.include_router(
+    gabriel.router, prefix="/v1"
+)  # K-gabriel FCA returns (IL-CBS-GABRIEL-API-2026-06-26)
 app.include_router(support.router, prefix="/v1")  # Customer Support Block (IL-CSB-01)
 app.include_router(regulatory.router, prefix="/v1")  # Regulatory Reporting (IL-RRA-01)
 app.include_router(open_banking.router, prefix="/v1")  # Open Banking PSD2 Gateway (IL-OBK-01)
