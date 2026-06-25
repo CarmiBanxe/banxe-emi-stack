@@ -138,10 +138,7 @@ class SafeguardingRunResult:
             lines.append(f"  Recon: {self.recon_result.summary()}")
         if self.three_leg_result:
             tlr = self.three_leg_result
-            lines.append(
-                f"  3-leg: {tlr.status.value}"
-                f"{' SHORTFALL' if tlr.shortfall else ''}"
-            )
+            lines.append(f"  3-leg: {tlr.status.value}{' SHORTFALL' if tlr.shortfall else ''}")
         if self.breach_alert:
             lines.append(
                 f"  Breach: {self.breach_alert.reference} "

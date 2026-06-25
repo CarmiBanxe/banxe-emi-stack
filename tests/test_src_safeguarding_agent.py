@@ -321,7 +321,9 @@ class TestThreeLegWiring:
     def test_three_leg_break_escalates_to_breach(self):
         """2-leg MATCHED but Leg C diverges → 3-leg BREAK → exit BREACH."""
         ports = _make_ports_with_rail(
-            Decimal("100000"), Decimal("100000"), Decimal("80000")  # C differs by £20k
+            Decimal("100000"),
+            Decimal("100000"),
+            Decimal("80000"),  # C differs by £20k
         )
         agent = _make_agent(ports)
         result = agent.run(RUN_DATE)
@@ -331,9 +333,7 @@ class TestThreeLegWiring:
 
     def test_three_leg_shortfall_flagged(self):
         """A (ledger) > B (safeguarding) → shortfall=True in three_leg_result."""
-        ports = _make_ports_with_rail(
-            Decimal("120000"), Decimal("100000"), Decimal("120000")
-        )
+        ports = _make_ports_with_rail(Decimal("120000"), Decimal("100000"), Decimal("120000"))
         agent = _make_agent(ports)
         result = agent.run(RUN_DATE)
         assert result.three_leg_result is not None
