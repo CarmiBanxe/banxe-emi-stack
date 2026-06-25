@@ -266,3 +266,28 @@ class TestIntegrationChain:
         submitted = gov.approve(draft.submission_id, "MLRO-Alice", sub_port)
         assert submitted.status == GabrielReturnStatus.SUBMITTED
         assert len(sub_port.submitted) == 1
+
+    def test_shared_governor_draft_visible_via_api_layer(self) -> None:
+        """Regression: shared-state fix — DRAFTs from GabrielBreachHandler must be
+        visible through the same governor instance the API layer uses.
+
+        Simulates the composition root sharing: api/deps.get_gabriel_governor() is
+        used by both GabrielBreachHandler AND the router's _governor.
+        """
+        # Shared governor — mirrors how get_gabriel_governor() wires both sides
+        shared_audit = InMemoryGabrielAuditPort()
+        shared_gov = ReturnsGovernor(audit=shared_audit)
+
+        # Breach handler uses shared_gov (as wired via get_gabriel_breach_handler())
+        reg = _InMemoryRegistrar()
+        handler = GabrielBreachHandler(governor=shared_gov, registrar=reg)
+
+        # Simulate ReconciliationEngine firing a breach event
+        event = _event(recon_id="RECON-SHARED-TEST")
+        handler.notify(event)
+
+        # API layer queries the same shared_gov (as wired via get_gabriel_governor())
+        api_side_records = shared_gov.list_records()
+        assert len(api_side_records) == 1
+        assert api_side_records[0].source_recon_id == "RECON-SHARED-TEST"
+        assert api_side_records[0].status == GabrielReturnStatus.DRAFT

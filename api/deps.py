@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from src.safeguarding.buffered_audit_port import BufferedAuditPort
 
     from services.gabriel.breach_handler import GabrielBreachHandler
+    from services.gabriel.returns_governor import ReturnsGovernor
     from services.recon.recon_engine import ReconciliationEngine
 
 from services.customer.customer_service import InMemoryCustomerService
@@ -232,6 +233,20 @@ def get_crypto_application_service():  # type: ignore[return]
 
 
 @lru_cache(maxsize=1)
+def get_gabriel_governor() -> ReturnsGovernor:
+    """Shared ReturnsGovernor singleton — used by both the API layer and GabrielBreachHandler.
+
+    Single instance ensures breach DRAFTs created by ReconciliationEngine via
+    GabrielBreachHandler.notify() are immediately visible to GET /v1/gabriel/returns
+    and POST /v1/gabriel/returns/{id}/approve (HITL gate).
+    """
+    from services.gabriel.gabriel_models import InMemoryGabrielAuditPort
+    from services.gabriel.returns_governor import ReturnsGovernor
+
+    return ReturnsGovernor(audit=InMemoryGabrielAuditPort())
+
+
+@lru_cache(maxsize=1)
 def get_gabriel_breach_handler() -> GabrielBreachHandler:
     """GabrielBreachHandler singleton — bridges D-recon breaches to K-gabriel DRAFTs.
 
@@ -243,10 +258,8 @@ def get_gabriel_breach_handler() -> GabrielBreachHandler:
     GABRIEL_ADAPTER=regdata → RegDataGabrielAdapter (production, requires FCA env vars)
     """
     from services.gabriel.breach_handler import GabrielBreachHandler, InMemoryBreachRegistrar
-    from services.gabriel.gabriel_models import InMemoryGabrielAuditPort
-    from services.gabriel.returns_governor import ReturnsGovernor
 
-    governor = ReturnsGovernor(audit=InMemoryGabrielAuditPort())
+    governor = get_gabriel_governor()
     adapter_name = os.environ.get("GABRIEL_ADAPTER", "stub")
     if adapter_name == "regdata":
         from services.gabriel.regdata_gabriel_adapter import RegDataGabrielAdapter
