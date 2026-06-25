@@ -10,7 +10,18 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Protocol
 
-from services.ledger.ledger_models import Account, JournalEntry
+from services.ledger.ledger_models import Account, GLAuditEntry, JournalEntry
+
+
+class LedgerInfrastructureError(RuntimeError):
+    """Ledger backend is unreachable / returned a server error.
+
+    Raised so an infrastructure failure SURFACES (fail-closed) instead of being
+    silently masked as a zero balance / empty result. Distinct from a genuine
+    "not found" or "no balance" answer from a reachable backend (which stays
+    ``None`` / ``Decimal("0")`` / ``[]``). Consumers (e.g. reconciliation) must
+    treat this as fail-closed — never as a real ``0`` tie-out.
+    """
 
 
 class LedgerPort(Protocol):
@@ -34,4 +45,27 @@ class LedgerPort(Protocol):
 
     def get_account_balance(self, account_id: str) -> Decimal:
         """Return current balance for account (Decimal, I-01)."""
+        ...
+
+    # ── transaction lifecycle (mirrors Midaz; additive over post_journal_entry) ──
+
+    def create_journal_entry(self, entry: JournalEntry) -> JournalEntry:
+        """Stage a balanced entry as PENDING (not yet counted toward balance)."""
+        ...
+
+    def commit_journal_entry(self, entry_id: str) -> JournalEntry:
+        """PENDING -> COMMITTED (now counts toward balance). Raises if not PENDING."""
+        ...
+
+    def cancel_journal_entry(self, entry_id: str) -> JournalEntry:
+        """PENDING -> CANCELLED (voided, no balance impact). Raises if not PENDING."""
+        ...
+
+    def revert_journal_entry(self, entry_id: str) -> JournalEntry:
+        """Revert a POSTED/COMMITTED entry: original -> REVERSED (dropped from
+        balance); returns the lineage reversing entry. Raises if not revertible."""
+        ...
+
+    def annotate_journal_entry(self, entry_id: str, note: str) -> GLAuditEntry:
+        """Attach a records-only NOTED annotation. Never a balance impact."""
         ...

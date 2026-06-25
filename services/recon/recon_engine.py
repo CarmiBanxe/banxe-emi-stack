@@ -15,10 +15,12 @@ I-27: HITL escalation for shortfalls.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Protocol
 from uuid import uuid4
 
+from services.recon.breach_notify_port import BreachEvent, BreachNotifyPort
 from services.recon.recon_models import (
     BLOCKED_JURISDICTIONS,
     LARGE_VALUE_THRESHOLD,
@@ -30,6 +32,7 @@ from services.recon.recon_models import (
     ReconAuditEntry,
     ReconResult,
     ReconStatus,
+    check_cutoff,
 )
 from services.recon.recon_port import LedgerPort
 
@@ -92,10 +95,12 @@ class ReconciliationEngine:
         ledger: LedgerPort,
         audit: ReconAuditPort | None = None,
         tolerance: Decimal | None = None,
+        breach_notifier: BreachNotifyPort | None = None,
     ) -> None:
         self._ledger = ledger
         self._audit: ReconAuditPort = audit or InMemoryReconAuditPort()
         self._tolerance = tolerance if tolerance is not None else RECON_TOLERANCE
+        self._breach_notifier = breach_notifier
         self._escalations: list[HITLEscalation] = []
 
     @property
@@ -177,8 +182,28 @@ class ReconciliationEngine:
                         requires_approval_from="MLRO",
                     )
                 )
+                # D-recon spec §4: emit safeguarding.breach.detected to K-gabriel.
+                if self._breach_notifier is not None:
+                    self._breach_notifier.notify(
+                        BreachEvent(
+                            event_type="safeguarding.breach.detected",
+                            recon_id=recon_id,
+                            recon_date=recon_date,
+                            currency="GBP",
+                            client_funds_total=client_total,
+                            safeguarding_total=safeguarding_total,
+                            shortfall=abs(difference),
+                            detected_at=datetime.now(UTC).isoformat(),
+                            requires_approval_from="MLRO",
+                            account_id="AGGREGATE",
+                            severity="CRITICAL",
+                            hitl_decision_ref="",
+                            idempotency_key=f"{recon_id}:{recon_date}",
+                        )
+                    )
 
         status = ReconStatus.BALANCED if not discrepancies else ReconStatus.DISCREPANCY
+        now_utc = datetime.now(UTC)
 
         result = ReconResult(
             recon_id=recon_id,
@@ -190,6 +215,7 @@ class ReconciliationEngine:
             discrepancies=tuple(discrepancies),
             large_values_flagged=large_values_flagged,
             excluded_jurisdictions=tuple(sorted(set(excluded))),
+            completed_before_cutoff=check_cutoff(now_utc),
         )
 
         # I-24: audit trail.

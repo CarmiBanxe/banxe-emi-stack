@@ -161,11 +161,22 @@ class TestTracerEngineBasic:
         engine.trace(req)
         assert "traced_at" in engine.trace_log[0]
 
-    def test_bt009_ml_model_raises_not_implemented(self):
-        """BT-009: ML model scoring is a stub."""
+    def test_bt009_ml_model_returns_decimal(self):
+        """BT-009 resolved: ml_model_score returns Decimal (no longer raises)."""
         engine = TracerEngine()
-        with pytest.raises(NotImplementedError, match="BT-009"):
-            engine.ml_model_score({})
+        result = engine.ml_model_score({})
+        assert isinstance(result, Decimal)
+
+    def test_bt009_ml_model_returns_zero(self):
+        """BT-009: neutral ML signal (0.0) until P1 ML pipeline provisioned."""
+        engine = TracerEngine()
+        assert engine.ml_model_score({}) == Decimal("0.0")
+
+    def test_bt009_ml_model_not_float(self):
+        """I-01: ml_model_score result is Decimal, not float."""
+        engine = TracerEngine()
+        result = engine.ml_model_score({"amount": "5000.00"})
+        assert not isinstance(result, float)
 
     def test_blocked_jurisdictions_set(self):
         assert "RU" in BLOCKED_JURISDICTIONS

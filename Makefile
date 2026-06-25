@@ -17,7 +17,7 @@
 .PHONY: lint lint-python lint-frontend fix fix-python fix-frontend \
         test test-full test-frontend \
         generate-component generate-all \
-        quality-gate install \
+        quality-gate install install-safeguarding test-safeguarding \
         doc-sync doc-sync-dry doc-sync-push doc-retro \
         help
 
@@ -148,11 +148,25 @@ install:
 	@echo "▶ Python dev deps..."
 	pip install -r requirements.txt
 	pip install ruff semgrep pre-commit
+	@echo "▶ Service packages (editable + dev extras)..."
+	$(MAKE) install-safeguarding
 	@echo "▶ Frontend deps..."
 	cd $(FRONTEND_DIR) && npm install
 	@echo "▶ Pre-commit hooks..."
 	pre-commit install
 	@echo "✅ All dependencies installed"
+
+# ── Per-service install/test (self-contained pyproject packages) ───────────
+# Root requirements.txt does not carry per-service [project].dependencies, so
+# each service package must be installed editable (with dev extras) from its own
+# pyproject before its tests run. This is the canonical path for service tests.
+install-safeguarding:
+	@echo "▶ safeguarding-engine: editable install + dev extras..."
+	$(MAKE) -C services/safeguarding-engine install
+
+test-safeguarding:
+	@echo "▶ safeguarding-engine: tests (canonical service workflow)..."
+	$(MAKE) -C services/safeguarding-engine test-full
 
 # ── Help ─────────────────────────────────────────────────────────────────
 

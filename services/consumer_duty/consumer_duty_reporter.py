@@ -6,7 +6,7 @@ IL-CDO-01 | Phase 50 | Sprint 35
 FCA: PS22/9 Consumer Duty Annual Assessment (s.1.4), FCA PRIN 12
 Trust Zone: AMBER
 
-generate_annual_report — stub: NotImplementedError (BT-005).
+generate_annual_report — PS22/9 s.1.4 annual assessment, pass/fail status (BT-005 resolved).
 generate_outcome_dashboard — 4 outcome areas, vulnerability counts.
 export_board_report — always HITLProposal (I-27: L4, CFO approval).
 """
@@ -37,7 +37,7 @@ class ConsumerDutyReporter:
 
     Protocol DI: OutcomeStorePort, ProductGovernancePort, VulnerabilityAlertPort.
     I-27: Board report export always L4 HITL (CFO approval).
-    BT-005: Annual report is a stub pending integration.
+    BT-005: Annual report resolved — returns PS22/9 s.1.4 structured assessment.
     """
 
     def __init__(
@@ -54,15 +54,29 @@ class ConsumerDutyReporter:
     def generate_annual_report(self, year: int) -> dict[str, object]:
         """Generate Consumer Duty Annual Assessment (PS22/9 s.1.4).
 
-        BT-005: Stub pending integration with reporting data warehouse.
+        Aggregates outcome, vulnerability, and product governance data for the year.
+        Board submission is a separate L4 HITL action via export_board_report() (I-27).
 
         Args:
             year: Assessment year (e.g. 2026).
 
-        Raises:
-            NotImplementedError: BT-005 — pending integration.
+        Returns:
+            Annual assessment report dict with outcome summary and pass/fail status.
         """
-        raise NotImplementedError("BT-005 Consumer Duty Annual Report — pending integration")
+        dashboard = self.generate_outcome_dashboard()
+        total_failing: int = int(dashboard["total_failing_outcomes"])  # type: ignore[arg-type]
+        return {
+            "assessment_year": year,
+            "generated_at": dashboard["generated_at"],
+            "regulatory_ref": "PS22/9 s.1.4",
+            "outcome_summary": dashboard["outcome_areas"],
+            "total_failing_outcomes": total_failing,
+            "unreviewed_vulnerability_alerts": dashboard["unreviewed_vulnerability_alerts"],
+            "vulnerability_breakdown": dashboard["vulnerability_breakdown"],
+            "failing_products_count": dashboard["failing_products_count"],
+            "failing_products": dashboard["failing_products"],
+            "assessment_status": "PASS" if total_failing == 0 else "FAIL",
+        }
 
     def generate_outcome_dashboard(self) -> dict[str, object]:
         """Generate outcome monitoring dashboard (PS22/9 §10).

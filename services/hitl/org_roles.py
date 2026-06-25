@@ -426,3 +426,46 @@ class OrgRoleChecker:
     def critical_gates(self) -> list[HITLGate]:
         """Return all CRITICAL severity gates."""
         return [g for g in self.all_gates() if g.severity == "critical"]
+
+
+# ── Sprint-3 / GAP-078: department-head agent → approver role binding ──────────
+# Each canonical dept-head agent (banxe-architecture governance/CANONICAL-ORG-CHART-v2.md §9,
+# STAFF-MATRIX-v2 §2) acts as a HITL approver under exactly ONE OrgRole, or None for a
+# non-approver head (board reporting / independent assurance / legal). This binds the
+# now-activated agents to EXISTING roles + gates. HITL-MATRIX.yaml / GATE_REGISTRY are NOT
+# modified — wiring only.
+
+DEPT_HEAD_AGENTS: dict[str, OrgRole | None] = {
+    "ceo_orchestration_agent": OrgRole.CEO,
+    "board_reporting_agent": None,  # board/committee reporting — no approval gate
+    "internal_audit_agent": OrgRole.INTERNAL_AUDITOR,  # independent 3rd-line assurance
+    "risk_oversight_agent": OrgRole.CRO,
+    "compliance_monitoring_agent": OrgRole.COMPLIANCE_OFFICER,
+    "cfo_orchestration_agent": OrgRole.CFO,
+    "coo_operations_agent": OrgRole.COO,
+    "cto_platform_agent": OrgRole.CTO,
+    "front_office_agent": None,  # product input → CEO approves HITL-017
+    "legal_corporate_agent": None,  # agreements — no approval gate
+}
+
+
+def role_for_agent(agent_id: str) -> OrgRole | None:
+    """Return the approver OrgRole bound to a dept-head agent (None if non-approver).
+
+    Raises KeyError for an unknown agent.
+    """
+    if agent_id not in DEPT_HEAD_AGENTS:
+        raise KeyError(f"unknown dept-head agent: {agent_id}")
+    return DEPT_HEAD_AGENTS[agent_id]
+
+
+def gates_for_agent(agent_id: str) -> list[HITLGate]:
+    """Return the HITL gates a dept-head agent can act on via its bound role.
+
+    Reuses OrgRoleChecker.gates_for_role; returns [] for a non-approver head. The HITL
+    matrix is unchanged — this only resolves an activated agent to the existing gates.
+    """
+    role = role_for_agent(agent_id)
+    if role is None:
+        return []
+    return OrgRoleChecker().gates_for_role(role)

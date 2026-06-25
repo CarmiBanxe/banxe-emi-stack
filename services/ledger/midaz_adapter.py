@@ -34,6 +34,8 @@ from typing import Any
 
 import httpx
 
+from services.ledger.ledger_port import LedgerInfrastructureError
+
 logger = logging.getLogger(__name__)
 
 MIDAZ_BASE_URL = os.environ.get("MIDAZ_BASE_URL", "http://localhost:8095")
@@ -86,8 +88,13 @@ class MidazLedgerAdapter:
     Thread safety: one asyncio.run() per call — safe for cron / CLI use.
     Not intended for high-frequency async contexts (use midaz_client.py directly).
 
-    Fallback: if MIDAZ_TOKEN is not set, all calls return safe defaults (0 / [])
-    and log a warning. Swap in StubLedgerAdapter for tests.
+    Fail-closed (DoD #8): an unreachable backend, a transport/timeout error or a
+    5xx server response raises ``LedgerInfrastructureError`` — the failure
+    SURFACES rather than being masked as a silent zero balance (a false ``0``
+    can drive wrong reconciliation / safeguarding figures). A reachable backend
+    that gives a definite answer — a 4xx response, or a 200 with no GBP item —
+    is NOT an infra failure and keeps returning the safe default
+    (``Decimal("0")`` / ``None`` / ``[]``). Swap in StubLedgerAdapter for tests.
     """
 
     def __init__(
@@ -108,24 +115,49 @@ class MidazLedgerAdapter:
         """
         Return GBP available balance for account_id as Decimal (never float).
 
-        Returns Decimal("0") if:
-          - Account not found in Midaz
-          - Asset code is not GBP
-          - Midaz is unreachable (logs error, returns 0 → PENDING in engine)
+        Returns Decimal("0") only for a reachable, definite answer:
+          - Asset code is not GBP / no GBP item (HTTP 200)
+          - 4xx response (e.g. account not found) — backend responded
+
+        Raises ``LedgerInfrastructureError`` (fail-closed, DoD #8) when Midaz is
+        unreachable or returns a 5xx — never a silent ``0`` that could become a
+        false reconciliation tie-out.
 
         FCA invariant: amounts MUST be Decimal, never float (I-05).
         """
         try:
             return asyncio.run(self._fetch_balance(org_id, ledger_id, account_id))
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code < 500:
+                logger.warning(
+                    "MidazLedgerAdapter.get_balance %s for org=%s ledger=%s account=%s",
+                    exc.response.status_code,
+                    org_id,
+                    ledger_id,
+                    account_id,
+                )
+                return Decimal("0")
+            logger.error(
+                "MidazLedgerAdapter.get_balance infra failure (%s): org=%s ledger=%s account=%s",
+                exc.response.status_code,
+                org_id,
+                ledger_id,
+                account_id,
+            )
+            raise LedgerInfrastructureError(
+                f"Midaz unavailable fetching balance for account={account_id}"
+            ) from exc
         except Exception as exc:
             logger.error(
-                "MidazLedgerAdapter.get_balance failed: org=%s ledger=%s account=%s error=%s",
+                "MidazLedgerAdapter.get_balance infra failure: org=%s ledger=%s account=%s error=%s",
                 org_id,
                 ledger_id,
                 account_id,
                 exc,
             )
-            return Decimal("0")
+            raise LedgerInfrastructureError(
+                f"Midaz unavailable fetching balance for account={account_id}"
+            ) from exc
 
     def create_transaction(
         self,
@@ -137,22 +169,48 @@ class MidazLedgerAdapter:
         POST /v1/organizations/{org_id}/ledgers/{ledger_id}/transactions
 
         Create a double-entry transaction in Midaz GL.
-        Returns TransactionRecord on success, None on failure (logs error).
+        Returns TransactionRecord on success; None on a definite 4xx rejection
+        (reachable backend rejected the request). Raises
+        ``LedgerInfrastructureError`` (fail-closed, DoD #8) when Midaz is
+        unreachable or returns a 5xx — never a silent None that masks an
+        unposted transaction as a backend rejection.
 
         I-05: amount_gbp MUST be Decimal — never float.
         I-24: all transaction events append-only in Midaz (no UPDATE/DELETE).
         """
         try:
             return asyncio.run(self._post_transaction(org_id, ledger_id, request))
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code < 500:
+                logger.warning(
+                    "MidazLedgerAdapter.create_transaction rejected (%s): org=%s ledger=%s ext_id=%s",
+                    exc.response.status_code,
+                    org_id,
+                    ledger_id,
+                    request.external_id,
+                )
+                return None
+            logger.error(
+                "MidazLedgerAdapter.create_transaction infra failure (%s): org=%s ledger=%s ext_id=%s",
+                exc.response.status_code,
+                org_id,
+                ledger_id,
+                request.external_id,
+            )
+            raise LedgerInfrastructureError(
+                f"Midaz unavailable creating transaction ext_id={request.external_id}"
+            ) from exc
         except Exception as exc:
             logger.error(
-                "MidazLedgerAdapter.create_transaction failed: org=%s ledger=%s ext_id=%s error=%s",
+                "MidazLedgerAdapter.create_transaction infra failure: org=%s ledger=%s ext_id=%s error=%s",
                 org_id,
                 ledger_id,
                 request.external_id,
                 exc,
             )
-            return None
+            raise LedgerInfrastructureError(
+                f"Midaz unavailable creating transaction ext_id={request.external_id}"
+            ) from exc
 
     def list_transactions(
         self,
@@ -164,20 +222,44 @@ class MidazLedgerAdapter:
         """
         GET /v1/organizations/{org_id}/ledgers/{ledger_id}/transactions?account_id={account_id}
 
-        Returns transactions for account_id, newest first.
-        Returns [] on failure.
+        Returns transactions for account_id, newest first. Returns [] on a
+        reachable, definite answer (4xx, or 200 with no items). Raises
+        ``LedgerInfrastructureError`` (fail-closed, DoD #8) when Midaz is
+        unreachable or returns a 5xx — never a silent [] that masks an outage.
         """
         try:
             return asyncio.run(self._fetch_transactions(org_id, ledger_id, account_id, limit))
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code < 500:
+                logger.warning(
+                    "MidazLedgerAdapter.list_transactions %s for org=%s ledger=%s account=%s",
+                    exc.response.status_code,
+                    org_id,
+                    ledger_id,
+                    account_id,
+                )
+                return []
+            logger.error(
+                "MidazLedgerAdapter.list_transactions infra failure (%s): org=%s ledger=%s account=%s",
+                exc.response.status_code,
+                org_id,
+                ledger_id,
+                account_id,
+            )
+            raise LedgerInfrastructureError(
+                f"Midaz unavailable listing transactions for account={account_id}"
+            ) from exc
         except Exception as exc:
             logger.error(
-                "MidazLedgerAdapter.list_transactions failed: org=%s ledger=%s account=%s error=%s",
+                "MidazLedgerAdapter.list_transactions infra failure: org=%s ledger=%s account=%s error=%s",
                 org_id,
                 ledger_id,
                 account_id,
                 exc,
             )
-            return []
+            raise LedgerInfrastructureError(
+                f"Midaz unavailable listing transactions for account={account_id}"
+            ) from exc
 
     # ── internal async implementations ───────────────────────────────────────
 

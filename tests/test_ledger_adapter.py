@@ -12,6 +12,9 @@ from datetime import datetime
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
+from services.ledger.ledger_port import LedgerInfrastructureError
 from services.ledger.midaz_adapter import (
     MidazLedgerAdapter,
     StubLedgerAdapter,
@@ -236,8 +239,8 @@ class TestMidazAdapterHTTP:
         assert result == Decimal("125000.00")
         assert isinstance(result, Decimal)
 
-    def test_get_balance_http_error_returns_zero(self):
-        """On HTTP error, get_balance returns Decimal("0") — safe fallback."""
+    def test_get_balance_http_5xx_raises_infra_error(self):
+        """On a 5xx, get_balance fails closed (DoD #8) — never a silent zero."""
         adapter = _make_adapter()
         mock_resp = _mock_response({}, status_code=500)
 
@@ -245,20 +248,18 @@ class TestMidazAdapterHTTP:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__.return_value = mock_client
             mock_client.get = AsyncMock(return_value=mock_resp)
-            result = adapter.get_balance(ORG, LEDGER, ACCOUNT)
+            with pytest.raises(LedgerInfrastructureError):
+                adapter.get_balance(ORG, LEDGER, ACCOUNT)
 
-        assert result == Decimal("0")
-
-    def test_get_balance_network_error_returns_zero(self):
-        """On network failure, get_balance returns Decimal("0")."""
+    def test_get_balance_network_error_raises_infra_error(self):
+        """On network failure, get_balance fails closed (DoD #8) — never a silent zero."""
         adapter = _make_adapter()
         with patch("httpx.AsyncClient") as mock_cls:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__.return_value = mock_client
             mock_client.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
-            result = adapter.get_balance(ORG, LEDGER, ACCOUNT)
-
-        assert result == Decimal("0")
+            with pytest.raises(LedgerInfrastructureError):
+                adapter.get_balance(ORG, LEDGER, ACCOUNT)
 
     def test_create_transaction_happy_path(self):
         """create_transaction POSTs to Midaz and returns TransactionRecord."""
@@ -292,8 +293,8 @@ class TestMidazAdapterHTTP:
         assert record.amount_gbp == Decimal("100.00")
         assert isinstance(record.amount_gbp, Decimal)
 
-    def test_create_transaction_error_returns_none(self):
-        """On HTTP error, create_transaction returns None (log + safe fallback)."""
+    def test_create_transaction_4xx_returns_none(self):
+        """A 4xx is a reachable, definite rejection → None (not an infra failure)."""
 
         adapter = _make_adapter()
         mock_resp = _mock_response({}, status_code=400)
@@ -343,8 +344,8 @@ class TestMidazAdapterHTTP:
         assert txns[0].transaction_id == "tx-a"
         assert txns[0].amount_gbp == Decimal("50.00")
 
-    def test_list_transactions_error_returns_empty(self):
-        """On HTTP error, list_transactions returns []."""
+    def test_list_transactions_5xx_raises_infra_error(self):
+        """On a 5xx, list_transactions fails closed (DoD #8) — never a silent []."""
 
         adapter = _make_adapter()
         mock_resp = _mock_response({}, status_code=503)
@@ -353,9 +354,8 @@ class TestMidazAdapterHTTP:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__.return_value = mock_client
             mock_client.get = AsyncMock(return_value=mock_resp)
-            txns = adapter.list_transactions(ORG, LEDGER, ACCOUNT)
-
-        assert txns == []
+            with pytest.raises(LedgerInfrastructureError):
+                adapter.list_transactions(ORG, LEDGER, ACCOUNT)
 
     def test_adapter_sets_auth_header_when_token_set(self):
         """Authorization header is set when token provided."""

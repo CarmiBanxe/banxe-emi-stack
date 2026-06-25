@@ -4,7 +4,7 @@ PDF/CSV/JSON client statement generation (IL-CST-01).
 Data sources: Midaz ledger transactions, FX conversions, fees.
 I-01: all amounts Decimal strings.
 I-24: StatementLog append-only.
-BT-013: email_statement() raises NotImplementedError (email service -> P1).
+BT-013: email_statement() logs intent to statement_log; no-op until P1 email service.
 """
 
 from __future__ import annotations
@@ -56,7 +56,7 @@ class StatementGenerator:
 
     I-01: all amounts as Decimal strings.
     I-24: statement_log is append-only.
-    BT-013: email_statement() raises NotImplementedError.
+    BT-013: email_statement() logs delivery intent (no-op until P1 email service).
     """
 
     def __init__(self, data_port: StatementDataPort | None = None) -> None:
@@ -147,10 +147,20 @@ class StatementGenerator:
         return statement
 
     def email_statement(self, statement: Statement, email: str) -> None:
-        """BT-013 stub: email delivery requires P1 infrastructure."""
-        raise NotImplementedError(
-            "BT-013: Email statement delivery not yet implemented. "
-            "Requires email service provisioning (P1 item)."
+        """BT-013: Log email delivery intent — no-op until P1 email service is provisioned.
+
+        I-24: appends delivery request to statement_log for traceability.
+        Real delivery wired at P1 via email service adapter.
+        """
+        self._statement_log.append(
+            {
+                "event": "email_statement.queued",
+                "statement_id": statement.statement_id,
+                "customer_id": statement.customer_id,
+                "email": email,
+                "queued_at": datetime.now(UTC).isoformat(),
+                "delivered": False,
+            }
         )
 
     @property

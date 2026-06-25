@@ -17,12 +17,31 @@ from enum import Enum
 
 
 class PostingStatus(str, Enum):
-    """Status of a journal entry posting."""
+    """Status of a journal entry posting.
+
+    Lifecycle (mirrors Midaz, additive over the legacy PENDING/POSTED/REVERSED/
+    FAILED): a staged entry is PENDING, then COMMITTED (counts toward balance)
+    or CANCELLED (voided, no balance impact). A POSTED/COMMITTED entry may be
+    REVERSED (dropped from balance, with a lineage reversing entry). NOTED marks
+    an annotation record — records-only, never a balance impact. The legacy
+    immediate ``post_journal_entry`` path still uses POSTED (also counts).
+    """
 
     PENDING = "PENDING"
     POSTED = "POSTED"
+    COMMITTED = "COMMITTED"
+    CANCELLED = "CANCELLED"
     REVERSED = "REVERSED"
+    NOTED = "NOTED"
     FAILED = "FAILED"
+
+
+# Statuses that contribute to an account balance (POSTED = legacy immediate
+# post; COMMITTED = committed lifecycle entry). PENDING/CANCELLED/REVERSED/
+# NOTED/FAILED are excluded.
+BALANCE_AFFECTING_STATUSES: frozenset[PostingStatus] = frozenset(
+    {PostingStatus.POSTED, PostingStatus.COMMITTED}
+)
 
 
 class AccountType(str, Enum):

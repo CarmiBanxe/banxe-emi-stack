@@ -341,3 +341,201 @@
 - Production deploy + first LIVE run remain gated by Central + operator +
   MLRO sign-off; no evo1 deploy, no live Modulr API calls, no live DB
   writes, no `ssh evo1`, no `systemctl daemon-reload` performed.
+
+### IL-CBS-DGL-FAILCLOSED-2026-06-26
+- Date: 2026-06-26
+- Status: DONE (offline; no live infra)
+- Scope: D-gl GL-core fail-closed fix — first cross-repo runtime increment
+  promoting the `banxe-architecture` D-GL-BUILD-SPEC (IL-484) DoD #8
+  (`test_midaz_unavailable_surfaces_infra_failure`). The Midaz ledger adapter
+  previously swallowed transport/HTTP failures and returned a SILENT
+  `Decimal("0")` / `None` / `[]` — a false zero balance that can drive a wrong
+  reconciliation tie-out or safeguarding figure. Now an unreachable backend /
+  transport-timeout / 5xx raises `LedgerInfrastructureError` (the failure
+  SURFACES); a reachable, definite answer (4xx, or HTTP-200 with no GBP item)
+  keeps the safe default. The reconciliation engine (confirmed direct consumer)
+  maps the surfaced error per-account to a fail-closed `ERROR` result — never a
+  false `MATCHED`/`DISCREPANCY`.
+- Files modified:
+  - `services/ledger/ledger_port.py` (new `LedgerInfrastructureError`)
+  - `services/ledger/midaz_adapter.py` (3 methods fail-closed: get_balance /
+    create_transaction / list_transactions)
+  - `services/recon/reconciliation_engine.py` (per-account fail-closed `ERROR`)
+  - `tests/test_ledger_adapter.py` (3 silent-fallback assertions → `raises`)
+- Files created:
+  - `tests/test_midaz_fail_closed.py`
+  - `tests/test_recon_failclosed.py`
+- Out of scope (deferred): transaction lifecycle (commit/cancel/revert),
+  Fineract fallback adapter + ledger factory, high-value approval persistence,
+  and the `api/routers/ledger.py` 503 mapping (separate `midaz_client` path,
+  `# pragma: no cover` — follow-up). Protocol method set unchanged; only the
+  exception is added → no adapter-wide ripple.
+- Verification: 238 tests pass offline (44 fail-closed/updated + 194
+  back-compat: gl_service / payment_posting / reconciliation / api_ledger /
+  api_recon); ruff + ruff-format clean; semgrep banxe-rules clean; Decimal-only
+  (I-01); no secrets; no live Midaz/ClickHouse calls.
+- Landing discipline: cross-repo runtime authorized by operator; D-gl chosen as
+  first block; narrow first increment per operator directive. No live infra
+  activation. No self-merge — PR opened for operator review/merge.
+- Anchors: `banxe-architecture` D-GL-BUILD-SPEC (IL-484) §5 DoD #8; ADR-013
+  (Midaz CBS primary); FCA CASS 7.15 daily reconciliation; I-01 (Decimal),
+  I-24 (audit append-only), I-28 (LedgerPort-only).
+
+### IL-CBS-DGL-LIFECYCLE-2026-06-26
+- Date: 2026-06-26
+- Status: DONE (offline; no live infra)
+- Scope: D-gl GL-core transaction lifecycle (second cross-repo runtime
+  increment promoting D-GL-BUILD-SPEC IL-484 DoD #4 `test_transaction_lifecycle`).
+  Mirrors the Midaz transaction lifecycle, additive over the legacy immediate
+  `post_journal_entry`: stage `create_journal_entry` (PENDING) → `commit`
+  (COMMITTED, counts) | `cancel` (CANCELLED, no balance); `revert` a
+  POSTED/COMMITTED entry (original → REVERSED, dropped from balance, plus a
+  lineage reversing entry — single mechanism, no double-count); `annotate`
+  (records-only NOTED, never a balance impact). Balance now derives from
+  POSTED + COMMITTED (`BALANCE_AFFECTING_STATUSES`); legacy POSTED still counts.
+- Files modified:
+  - `services/ledger/ledger_models.py` (PostingStatus += COMMITTED/CANCELLED/
+    NOTED; `BALANCE_AFFECTING_STATUSES`)
+  - `services/ledger/ledger_port.py` (5 lifecycle methods on the Protocol)
+  - `services/ledger/inmemory_ledger.py` (lifecycle impl + balance derivation)
+  - `services/ledger/gl_service.py` (commit/cancel/revert/annotate wrappers,
+    each records a GLAuditEntry — I-24)
+- Files created:
+  - `tests/test_ledger_lifecycle.py` (14 tests: create→commit, cancel,
+    revert-nets-to-zero, annotate-no-balance, legacy back-compat, audit rows)
+- Out of scope (deferred): Fineract fallback + ledger factory; api-router 503
+  mapping; high-value approval audit persistence.
+- Verification: 226 ledger/recon tests pass offline (incl. back-compat
+  gl_service / payment_posting / ledger_adapter / reconciliation / api_ledger);
+  ruff + format clean; semgrep banxe-rules clean; Decimal-only (I-01); no live
+  Midaz/ClickHouse. LedgerPort Protocol additive; only InMemoryLedger implements
+  it (Midaz/Stub adapters are recon-shaped, unaffected).
+- Landing: sandbox-autonomous mode — green PR auto-merged when CLEAN.
+- Anchors: D-GL-BUILD-SPEC (IL-484) §3.3/§5 DoD #4; ADR-013; I-01, I-24, I-28.
+
+### IL-CBS-DGL-API503-2026-06-26
+- Date: 2026-06-26
+- Status: DONE (offline; no live infra)
+- Scope: D-gl API fail-closed mapping (third cross-repo runtime increment),
+  completing DoD #8 at the API edge. The ledger API production branch
+  previously surfaced raw httpx errors (and `midaz_client` swallowed nothing
+  explicitly); now `midaz_client.get_balance`/`list_accounts` fail closed
+  (transport/5xx → `LedgerInfrastructureError`; 4xx / no-GBP → safe default),
+  and `api/routers/ledger.py` maps `LedgerInfrastructureError` → **HTTP 503**
+  (Ledger temporarily unavailable), keeping reachable "not found" → **404**.
+  The previously `# pragma: no cover` production paths are now covered.
+- Files modified:
+  - `services/ledger/midaz_client.py` (fail-closed get_balance/list_accounts;
+    removed a dead un-awaited client.get line in the rewritten get_balance body)
+  - `api/routers/ledger.py` (LedgerInfrastructureError → 503; None → 404)
+- Files created:
+  - `tests/test_api_ledger_failclosed.py` (503 on infra error, 404 on None,
+    200 happy, for both balance + list endpoints; fake midaz_client injected,
+    `_is_sandbox` forced False — offline)
+- Out of scope (deferred): Fineract fallback (operator-gated, no API ref — see
+  C steer); high-value approval audit (next increment).
+- Verification: API + ledger suites pass offline (incl. existing sandbox API
+  tests); ruff + format clean; semgrep banxe-rules clean; Decimal-only (I-01).
+- Landing: sandbox-autonomous mode — green PR auto-merged when CLEAN.
+- Anchors: D-GL-BUILD-SPEC (IL-484) §5 DoD #8 (API edge); ADR-013; FCA CASS
+  7.15; I-01, I-28.
+
+### IL-CBS-DGL-APPROVAL-2026-06-26
+- Date: 2026-06-26
+- Status: DONE (offline; no live infra)
+- Scope: D-gl high-value approval audit (fourth cross-repo runtime increment,
+  D-GL-BUILD-SPEC IL-484 DoD #5 `test_high_value_posting_requires_approval`).
+  A posting ≥ HIGH_VALUE_THRESHOLD (£50k) is staged (never auto-posted, I-04)
+  and recorded PENDING in an append-only approval store (I-24). A NAMED human
+  must `approve_high_value` (posts the entry) or `reject_high_value` (does not);
+  both raise on a blank approver (I-27 — AI proposes, never auto-approves). The
+  bool `high_value_approved` fast-path is unchanged (back-compat).
+- Files created:
+  - `services/ledger/approval_models.py` (ApprovalDecision, HighValueApproval
+    Decimal model, ApprovalStorePort, append-only InMemoryApprovalStore)
+  - `tests/test_high_value_approval.py` (8 tests: PENDING recorded, approve
+    requires human + posts, reject requires human + no post, append-only store,
+    below-threshold direct post, unknown raises)
+- Files modified:
+  - `services/ledger/gl_service.py` (stage high-value entry + record PENDING;
+    `approve_high_value` / `reject_high_value` with named-approver guard + audit;
+    builds the JournalEntry before the high-value branch)
+- Out of scope (deferred / operator-gated): Fineract fallback (no API ref).
+  This completes the in-codebase D-gl runtime increments; next per critical
+  path = E-safeguard / D-recon runtime (recon_port + D-gl Leg A now landed).
+- Verification: 146 ledger/api tests pass offline (incl. back-compat
+  gl_service / payment_posting / lifecycle / adapter / api); ruff + format
+  clean; semgrep banxe-rules clean; Decimal-only (I-01).
+- Landing: sandbox-autonomous mode — green PR auto-merged when CLEAN.
+- Anchors: D-GL-BUILD-SPEC (IL-484) §5 DoD #5; ADR-013; I-01, I-04, I-24, I-27.
+
+### IL-CBS-DRECON-3LEG-2026-06-26
+- Date: 2026-06-26
+- Status: DONE (offline; no live infra)
+- Scope: D-recon / E-safeguard runtime — first increment: CASS 15 three-leg
+  tie-out (D-RECON-BUILD-SPEC IL-474 §3). A (Midaz ledger) == B (safeguarding
+  account) == C (payment rail) within the penny-exact tolerance (£0.01),
+  reusing the shared `src/recon_core` mechanics (`evaluate_balances` +
+  `BreachEvaluator("BREAK")`). Adds the missing **Leg C** source
+  (`RailBalancePort` + `InMemoryRailBalancePort`) and the `three_leg_reconcile`
+  tie-out with signed-difference SHORTFALL detection (client-fund ledger > 
+  safeguarding account ⇒ under-safeguarded → escalate MLRO/CFO, CASS 15).
+- ADR-102 CANONICAL DECISION (live-audit, origin/main ebfeac6): the safeguarding
+  recon stack is consolidated onto **`src/recon_core/`** (shared mechanics, #164)
+  with a regime split — **CASS 15 = `src/safeguarding/`** (£0.01 BREAK), CASS 7.15
+  = `services/recon/reconciliation_engine_v2` (£100 HITL). Legacy/dormant
+  `reconciliation_engine.py` (old cron) + `recon_engine.py` (tests-only) are NOT
+  extended. This increment targets the CASS 15 (`src/safeguarding/`) path only.
+- BEST-DECISION REORDER (stated): the operator's recommended first increment
+  "SafeguardingAccountPort (Leg B)" ALREADY EXISTS as `BankStatementPort` in
+  `src/safeguarding/agent.py` (Leg A = `LedgerBalancePort`, Leg B =
+  `BankStatementPort`, A-vs-B recon + breach + audit already implemented).
+  Building it would duplicate (ADR-102). The genuine foundational gap is the
+  THIRD leg + the A==B==C tie-out — delivered here.
+- Files created:
+  - `src/safeguarding/three_leg.py` (RailBalancePort/InMemoryRailBalancePort,
+    ThreeLegStatus, ThreeLegResult, three_leg_reconcile)
+  - `tests/test_safeguarding_three_leg.py` (11 tests: MATCHED/BREAK/PENDING,
+    penny tolerance, shortfall vs surplus, signed diff, rail port)
+- Out of scope (next increments): wire 3-leg into SafeguardingAgent.run();
+  BreachNotifyPort + MLRO/CFO HITL escalation port; unified `safeguarding_events`
+  audit-table consolidation.
+- Verification: 11 new + 95 back-compat (src_safeguarding, src_safeguarding_agent,
+  recon_core) pass offline; ruff + format clean; semgrep banxe-rules clean;
+  Decimal-only (I-01). Additive — 2-leg `daily_reconciliation.py` / orchestrator
+  untouched.
+- Landing: sandbox-autonomous mode — green PR auto-merged when CLEAN.
+- Anchors: D-RECON-BUILD-SPEC (IL-474) §3 (3-leg); ADR-SAF-01; recon_core S6.2
+  boundary (#164); I-01, I-24.
+
+### IL-CBS-LEDGER-ERRATA-DRECON3LEG-2026-06-26
+- Date: 2026-06-26
+- Status: DONE (append-only errata; no code change)
+- Scope: Forward-fix for IL key collision — `IL-CBS-DRECON-3LEG-2026-06-26` was
+  assigned to two distinct PRs in the same factory cycle.
+- Collision:
+  - Commit `0c5c78d` / PR #218: `feat(safeguarding): CASS 15 three-leg tie-out
+    (A==B==C) + Leg C rail port` — engine implementation
+    (`src/safeguarding/three_leg.py`, 11 tests).
+  - Commit `9ba9c8a` / PR #219 (branch `agent/factory/safeguarding/wire-3leg-agent`):
+    `feat(safeguarding): wire three_leg_reconcile into SafeguardingAgent` — agent
+    wiring (`src/safeguarding/agent.py`). This PR reused the parent IL key instead
+    of minting a unique derivative.
+- Canonical assignment (forward, history unchanged):
+  - PR #218 keeps: `IL-CBS-DRECON-3LEG-2026-06-26` (engine — the original owner).
+  - PR #219 is re-designated: `IL-CBS-DRECON-3LEG-WIRE-2026-06-26` (errata; commit
+    cannot be edited — append-only correction per ADR-059-A).
+- Root cause: factory reused the parent build-spec IL key on the dependent wiring
+  PR without incrementing. Single factory cycle produced two PRs against the same
+  spec anchor without a sub-key differentiation step.
+- Prevention (added to per-cycle checklist): each PR MUST carry a UNIQUE IL key.
+  Before submitting a dependent PR that derives from a parent spec, append a
+  distinguishing suffix (e.g., `-WIRE`, `-API`, `-TESTS`, `-AGENT`) so the key
+  is globally unique across the git log. Verify with:
+  `git log --oneline | grep -oP 'IL-[A-Z0-9-]+' | sort | uniq -d` — must be empty.
+- Invariants: ADR-059-A (append-only; no history rewrite); no force-push; no
+  renumbering of existing commits.
+- Verification: `git log --oneline | grep -oP 'IL-[A-Z0-9-]+' | sort | uniq -d`
+  returns empty after this errata lands (the collision exists only in the pre-errata
+  history; this entry documents and closes it).
+- This errata PR own key: `IL-CBS-LEDGER-ERRATA-DRECON3LEG-2026-06-26` (unique).

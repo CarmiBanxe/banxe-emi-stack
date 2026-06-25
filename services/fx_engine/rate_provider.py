@@ -7,7 +7,7 @@ FCA: FCA COBS 14.3 (best execution), PS22/9
 Trust Zone: AMBER
 
 Decimal bid/ask/mid (I-22). Staleness check 60s.
-UTC timestamps (I-23). BT-004 live rate stub.
+UTC timestamps (I-23). BT-004 resolved via Frankfurter ECB adapter.
 """
 
 from __future__ import annotations
@@ -15,12 +15,19 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 import logging
+from typing import Protocol
 
 from services.fx_engine.models import FXRate, InMemoryRateStore, RateStore
 
 logger = logging.getLogger(__name__)
 
 STALE_THRESHOLD_SECONDS = 60
+
+
+class LiveRateFeedPort(Protocol):
+    """Protocol for live FX rate feed (Frankfurter ECB / Bloomberg / Reuters)."""
+
+    def get_latest(self, base: str, symbols: list[str]) -> dict[str, Decimal]: ...
 
 
 class RateProvider:
@@ -172,67 +179,129 @@ class RateProvider:
         return rate.mid if rate else None
 
 
-class LiveRateProvider:
-    """Live FX rate provider — BT-004 stub.
+class _FrankfurterFeed:  # pragma: no cover
+    """Default live feed adapter backed by self-hosted Frankfurter ECB service.
 
-    Placeholder for Reuters/Bloomberg integration.
-    All methods raise NotImplementedError until BT-004 is implemented.
+    Deferred import prevents cross-service top-level coupling.
     """
 
-    def get_rate(self, currency_pair: str) -> FXRate | None:
-        """Get live FX rate (BT-004 not yet integrated).
+    def get_latest(self, base: str, symbols: list[str]) -> dict[str, Decimal]:
+        from services.fx_rates.frankfurter_client import FrankfurterClient
 
-        Raises:
-            NotImplementedError: BT-004 live feed not yet available.
-        """
-        raise NotImplementedError("BT-004: Live FX rate feed not yet integrated")
+        return FrankfurterClient().get_latest(base=base, symbols=symbols)
+
+
+class LiveRateProvider:
+    """Live FX rate provider — BT-004 resolved via Frankfurter ECB.
+
+    ECB publishes reference mid rates; bid == ask == mid (no dealing spread).
+    Cache TTL: STALE_THRESHOLD_SECONDS (60s). All amounts Decimal (I-22).
+    UTC timestamps (I-23). Feed injected via LiveRateFeedPort (Protocol DI).
+    """
+
+    def __init__(
+        self,
+        feed: LiveRateFeedPort | None = None,
+        store: RateStore | None = None,
+    ) -> None:
+        self._feed: LiveRateFeedPort = feed or _FrankfurterFeed()  # type: ignore[assignment]
+        self._store: RateStore = store or InMemoryRateStore()
+
+    def _is_stale(self, rate: FXRate) -> bool:
+        try:
+            ts = datetime.fromisoformat(rate.timestamp)
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=UTC)
+            return (datetime.now(UTC) - ts).total_seconds() > STALE_THRESHOLD_SECONDS
+        except (ValueError, TypeError):
+            return True
+
+    def _fetch(self, currency_pair: str) -> FXRate | None:
+        parts = currency_pair.split("/")
+        if len(parts) != 2:
+            return None
+        base, quote = parts[0], parts[1]
+        try:
+            rates = self._feed.get_latest(base=base, symbols=[quote])
+        except Exception:
+            logger.error("LiveRateFeed fetch failed for %s", currency_pair)
+            return None
+        if quote not in rates:
+            return None
+        mid: Decimal = rates[quote]
+        rate_id = f"live_{currency_pair.replace('/', '_').lower()}"
+        cached = self._store.get_latest(currency_pair)
+        if cached:
+            rate_id = cached.rate_id
+        rate = FXRate(
+            rate_id=rate_id,
+            currency_pair=currency_pair,
+            base_currency=base,
+            quote_currency=quote,
+            bid=mid,
+            ask=mid,
+            mid=mid,
+            timestamp=datetime.now(UTC).isoformat(),
+            provider="frankfurter_ecb",
+            is_stale=False,
+        )
+        self._store.save(rate)
+        return rate
+
+    def get_rate(self, currency_pair: str) -> FXRate | None:
+        """Return cached rate if fresh; else fetch from live feed."""
+        cached = self._store.get_latest(currency_pair)
+        if cached and not self._is_stale(cached):
+            return cached
+        return self._fetch(currency_pair)
 
     def get_all_rates(self) -> list[FXRate]:
-        """Get all live rates (BT-004 not yet integrated).
-
-        Raises:
-            NotImplementedError: BT-004 live feed not yet available.
-        """
-        raise NotImplementedError("BT-004: Live FX rate feed not yet integrated")
+        """Return all rates currently in the local store."""
+        return self._store.get_all()
 
     def update_rate(
         self, currency_pair: str, bid: Decimal, ask: Decimal, provider: str = "live"
     ) -> FXRate:
-        """Update live rate (BT-004 not yet integrated).
-
-        Raises:
-            NotImplementedError: BT-004 live feed not yet available.
-        """
-        raise NotImplementedError("BT-004: Live FX rate feed not yet integrated")
+        """Push a rate directly (e.g. from Reuters feed), bypassing ECB fetch."""
+        mid = (bid + ask) / Decimal("2")
+        parts = currency_pair.split("/")
+        base = parts[0] if len(parts) == 2 else currency_pair
+        quote = parts[1] if len(parts) == 2 else ""
+        existing = self._store.get_latest(currency_pair)
+        rate_id = (
+            existing.rate_id if existing else f"live_{currency_pair.replace('/', '_').lower()}"
+        )
+        rate = FXRate(
+            rate_id=rate_id,
+            currency_pair=currency_pair,
+            base_currency=base,
+            quote_currency=quote,
+            bid=bid,
+            ask=ask,
+            mid=mid,
+            timestamp=datetime.now(UTC).isoformat(),
+            provider=provider,
+            is_stale=False,
+        )
+        self._store.save(rate)
+        logger.info("LiveRateProvider: pushed rate %s bid=%s ask=%s", currency_pair, bid, ask)
+        return rate
 
     def check_staleness(self, currency_pair: str) -> bool:
-        """Check staleness of live rate (BT-004 not yet integrated).
-
-        Raises:
-            NotImplementedError: BT-004 live feed not yet available.
-        """
-        raise NotImplementedError("BT-004: Live FX rate feed not yet integrated")
+        """Return True if stored rate is stale or absent."""
+        rate = self._store.get_latest(currency_pair)
+        if rate is None:
+            return True
+        return self._is_stale(rate)
 
     def get_bid(self, currency_pair: str) -> Decimal | None:
-        """Get live bid (BT-004 not yet integrated).
-
-        Raises:
-            NotImplementedError: BT-004 live feed not yet available.
-        """
-        raise NotImplementedError("BT-004: Live FX rate feed not yet integrated")
+        rate = self.get_rate(currency_pair)
+        return rate.bid if rate else None
 
     def get_ask(self, currency_pair: str) -> Decimal | None:
-        """Get live ask (BT-004 not yet integrated).
-
-        Raises:
-            NotImplementedError: BT-004 live feed not yet available.
-        """
-        raise NotImplementedError("BT-004: Live FX rate feed not yet integrated")
+        rate = self.get_rate(currency_pair)
+        return rate.ask if rate else None
 
     def get_mid(self, currency_pair: str) -> Decimal | None:
-        """Get live mid (BT-004 not yet integrated).
-
-        Raises:
-            NotImplementedError: BT-004 live feed not yet available.
-        """
-        raise NotImplementedError("BT-004: Live FX rate feed not yet integrated")
+        rate = self.get_rate(currency_pair)
+        return rate.mid if rate else None

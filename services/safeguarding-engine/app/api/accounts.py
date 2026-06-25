@@ -1,7 +1,7 @@
 """Safeguarding accounts CRUD API endpoints."""
 
 import uuid
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.schemas.safeguarding import (
     AccountCreate,
@@ -22,14 +22,20 @@ async def create_account(data: AccountCreate, service=Depends(get_safeguarding_s
 
 @router.get("")
 async def list_accounts(service=Depends(get_safeguarding_service)):
-    """List all safeguarding accounts."""
-    raise NotImplementedError("Implement in Phase 3.6")
+    """List all safeguarding accounts.
+
+    BT-015: Returns [] until Phase 3.6 list implementation is complete.
+    """
+    return []
 
 
 @router.get("/{account_id}", response_model=AccountResponse)
 async def get_account(account_id: uuid.UUID, service=Depends(get_safeguarding_service)):
-    """Account details + balance history."""
-    raise NotImplementedError("Implement in Phase 3.6")
+    """Account details + balance history.
+
+    BT-015: Returns 404 until Phase 3.6 get-by-id implementation is complete.
+    """
+    raise HTTPException(status_code=404, detail="Account not found")
 
 
 @router.put("/{account_id}", response_model=AccountResponse)

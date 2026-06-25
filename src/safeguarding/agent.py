@@ -44,6 +44,14 @@ from typing import Protocol, runtime_checkable
 from .audit_trail import AuditEvent, AuditTrail
 from .breach_detector import BreachAlert, BreachDetector
 from .daily_reconciliation import DailyReconciliation, ReconciliationResult, ReconStatus
+from .fca_notifier import FcaNotificationPort, InMemoryFcaNotifier  # noqa: F401 (re-exported)
+from .three_leg import (  # noqa: F401 (InMemoryRailBalancePort re-exported)
+    InMemoryRailBalancePort,
+    RailBalancePort,
+    ThreeLegResult,
+    ThreeLegStatus,
+    three_leg_reconcile,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -87,12 +95,18 @@ class StreakCounterPort(Protocol):
 
 @dataclass
 class SafeguardingAgentPorts:
-    """Dependency container passed to SafeguardingAgent."""
+    """Dependency container passed to SafeguardingAgent.
+
+    ``rail`` is optional (backward-compatible): when provided the agent runs a
+    full A==B==C three-leg tie-out after the two-leg reconciliation.
+    """
 
     ledger: LedgerBalancePort
     bank: BankStatementPort
     audit: AuditTrail
     streak_counter: StreakCounterPort
+    rail: RailBalancePort | None = None  # None → skip three-leg tie-out (Leg C)
+    fca_notifier: FcaNotificationPort | None = None  # None → log-only (backwards-compatible)
 
 
 @dataclass
@@ -113,6 +127,7 @@ class SafeguardingRunResult:
     breach_alert: BreachAlert | None
     audit_event_id: str
     exit_code: int
+    three_leg_result: ThreeLegResult | None = None
     run_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     @property
@@ -129,6 +144,9 @@ class SafeguardingRunResult:
         lines = [f"[{self.run_date}] SafeguardingAgent → {self.status_label}"]
         if self.recon_result:
             lines.append(f"  Recon: {self.recon_result.summary()}")
+        if self.three_leg_result:
+            tlr = self.three_leg_result
+            lines.append(f"  3-leg: {tlr.status.value}{' SHORTFALL' if tlr.shortfall else ''}")
         if self.breach_alert:
             lines.append(
                 f"  Breach: {self.breach_alert.reference} "
@@ -203,6 +221,18 @@ class SafeguardingAgent:
         )
         result = recon.run()
 
+        # Step 2.5: Three-leg tie-out (if Leg C rail port wired)
+        three_leg: ThreeLegResult | None = None
+        if self._ports.rail is not None:
+            rail_balance = self._ports.rail.get_rail_balance_gbp(run_date)
+            three_leg = three_leg_reconcile(
+                leg_a_ledger=internal_balance,
+                leg_b_safeguarding=external_balance,
+                leg_c_rail=rail_balance,
+                recon_date=run_date,
+            )
+            logger.info("SafeguardingAgent: 3-leg %s", three_leg.status.value)
+
         # Step 3: Streak + breach detection
         streak = self._ports.streak_counter.get_streak(run_date)
         breach_alert = self._detector.assess(result, consecutive_break_days=streak)
@@ -232,6 +262,9 @@ class SafeguardingAgent:
                 "fca_notification_required": breach_alert.fca_notification_required
                 if breach_alert
                 else False,
+                "three_leg_status": three_leg.status.value if three_leg else None,
+                "three_leg_shortfall": three_leg.shortfall if three_leg else None,
+                "three_leg_notes": three_leg.notes if three_leg else None,
             },
             severity=severity,
         )
@@ -239,7 +272,11 @@ class SafeguardingAgent:
 
         # Step 5: FCA notification if needed
         if breach_alert and self._fca_notify:
-            self._detector.notify_fca(breach_alert, dry_run=False)
+            self._detector.notify_fca(
+                breach_alert,
+                dry_run=False,
+                notifier=self._ports.fca_notifier,
+            )
         elif breach_alert and breach_alert.fca_notification_required:
             logger.warning(
                 "SafeguardingAgent: FCA notification required but fca_notify=False "
@@ -261,12 +298,17 @@ class SafeguardingAgent:
         else:
             exit_code = EXIT_MATCHED
 
+        # Three-leg BREAK upgrades to BREACH regardless of two-leg result (CASS 15)
+        if three_leg and three_leg.status == ThreeLegStatus.BREAK and exit_code != EXIT_BREACH:
+            exit_code = EXIT_BREACH
+
         run_result = SafeguardingRunResult(
             run_date=run_date,
             recon_result=result,
             breach_alert=breach_alert,
             audit_event_id=event.event_id,
             exit_code=exit_code,
+            three_leg_result=three_leg,
         )
         log_fn = logger.critical if exit_code == EXIT_BREACH else logger.info
         log_fn("SafeguardingAgent: %s", run_result.summary())

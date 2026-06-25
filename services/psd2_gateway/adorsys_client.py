@@ -137,6 +137,7 @@ class AdorsysClient:
 
     def initiate_payment_via_psd2(self) -> None:
         """BT-007: PISP payment initiation — pending live bank integration."""
-        raise NotImplementedError(
-            "BT-007: PISP payment via adorsys XS2A requires live bank connection"
+        raise RuntimeError(
+            "BT-007: PISP payment via adorsys XS2A requires live bank connection. "
+            "Set up adorsys XS2A with a live bank before enabling PISP (P1)."
         )

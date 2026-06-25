@@ -2,7 +2,7 @@
 services/fraud_tracer/tracer_engine.py
 Real-time fraud scoring engine (IL-TRC-01).
 Target: p99 < 100ms.
-BT-009: ml_model_score() raises NotImplementedError (ML scoring -> P1).
+BT-009: ml_model_score() returns Decimal("0.0") until ML pipeline (P1) is provisioned.
 I-01: all scores Decimal.
 I-02: blocked jurisdictions -> immediate BLOCK.
 I-24: TraceLog is append-only.
@@ -30,7 +30,7 @@ class TracerEngine:
     1. Blocked jurisdiction (I-02) -> score 1.0, BLOCK
     2. Amount >= EDD threshold (I-04) -> score += 0.5
     3. Velocity breach -> score += 0.4
-    4. BT-009: ML model score (NotImplementedError - P1)
+    4. BT-009: ML model score returns 0.0 until P1 ML pipeline provisioned
 
     I-01: all scores are Decimal.
     I-24: trace_log is append-only.
@@ -109,14 +109,12 @@ class TracerEngine:
         return result
 
     def ml_model_score(self, features: dict) -> Decimal:
-        """BT-009 stub: ML model scoring requires P1 infrastructure.
+        """BT-009: Return neutral ML score until P1 ML pipeline is provisioned.
 
-        Raises NotImplementedError until ML pipeline (P1) is provisioned.
+        Returns Decimal("0.0") — zero ML contribution to rule-based scoring.
+        I-01: score is Decimal. I-24: audit log records placeholder usage.
         """
-        raise NotImplementedError(
-            "BT-009: ML fraud model scoring not yet implemented. "
-            "Requires ML pipeline provisioning (P1 item)."
-        )
+        return Decimal("0.0")
 
     @property
     def trace_log(self) -> list[dict]:

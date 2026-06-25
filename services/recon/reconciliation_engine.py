@@ -15,6 +15,8 @@ from decimal import Decimal
 import logging
 from typing import Protocol
 
+from services.ledger.ledger_port import LedgerInfrastructureError
+
 logger = logging.getLogger(__name__)
 
 # Discrepancy threshold: differences <= threshold are MATCHED.
@@ -121,7 +123,19 @@ class ReconciliationEngine:
         account_type: str,
         ext_map: dict,
     ) -> ReconResult:
-        internal = self._port.get_balance(self._org_id, self._ledger_id, account_id)
+        try:
+            internal = self._port.get_balance(self._org_id, self._ledger_id, account_id)
+        except LedgerInfrastructureError as exc:
+            # Fail-closed (DoD #8): the internal ledger is unavailable, so we
+            # CANNOT reconcile this account. Surface it as ERROR — never let a
+            # masked zero balance produce a false MATCHED/DISCREPANCY tie-out.
+            logger.error(
+                "CASS 7.15 recon fail-closed: ledger unavailable account=%s type=%s error=%s",
+                account_id,
+                account_type,
+                exc,
+            )
+            return self._error_result(recon_date, account_id, account_type)
 
         if account_id not in ext_map:
             return self._pending_result(recon_date, account_id, account_type, internal)
@@ -159,6 +173,30 @@ class ReconciliationEngine:
             external_balance=Decimal("0"),
             discrepancy=Decimal("0"),
             status="PENDING",
+            source_file="",
+        )
+
+    @staticmethod
+    def _error_result(
+        recon_date: date,
+        account_id: str,
+        account_type: str,
+    ) -> ReconResult:
+        """Internal ledger unavailable → ERROR (fail-closed, DoD #8).
+
+        The internal balance is unknown, so NO tie-out is computed: status is
+        ERROR (never MATCHED/DISCREPANCY) and discrepancy is left at zero. This
+        surfaces the outage instead of masking it as a false zero-balance match.
+        """
+        return ReconResult(
+            recon_date=recon_date,
+            account_id=account_id,
+            account_type=account_type,
+            currency="GBP",
+            internal_balance=Decimal("0"),
+            external_balance=Decimal("0"),
+            discrepancy=Decimal("0"),
+            status="ERROR",
             source_file="",
         )
 

@@ -194,6 +194,25 @@ class TestSafeguardingReconcile:
         )
         assert resp.status_code in (422, 500)
 
+    def test_three_leg_fields_present_in_response(self):
+        data = client.post("/v1/safeguarding/reconcile", json={"dry_run": True}).json()
+        assert "three_leg_status" in data
+        assert "three_leg_shortfall" in data
+
+    def test_three_leg_status_pending_in_sandbox(self):
+        # InMemoryRailBalancePort has no dates pre-set → Leg C returns None → PENDING
+        data = client.post("/v1/safeguarding/reconcile", json={"dry_run": True}).json()
+        assert data["three_leg_status"] == "PENDING"
+
+    def test_three_leg_shortfall_false_when_pending(self):
+        data = client.post("/v1/safeguarding/reconcile", json={"dry_run": True}).json()
+        assert data["three_leg_shortfall"] is False
+
+    def test_three_leg_exit_code_still_matched_when_pending(self):
+        # PENDING three-leg with matched two-leg must not upgrade exit code to BREACH
+        data = client.post("/v1/safeguarding/reconcile", json={"dry_run": True}).json()
+        assert data["exit_code"] == 0  # EXIT_MATCHED
+
 
 # ── GET /v1/safeguarding/resolution-pack ──────────────────────────────────────
 

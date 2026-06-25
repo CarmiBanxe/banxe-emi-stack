@@ -13,10 +13,17 @@ I-24: Immutable audit trail for every GL operation.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Protocol
 from uuid import uuid4
 
+from services.ledger.approval_models import (
+    ApprovalDecision,
+    ApprovalStorePort,
+    HighValueApproval,
+    InMemoryApprovalStore,
+)
 from services.ledger.ledger_models import (
     BLOCKED_JURISDICTIONS,
     HIGH_VALUE_THRESHOLD,
@@ -101,9 +108,17 @@ class GLService:
         self,
         ledger: LedgerPort,
         audit: GLAuditPort | None = None,
+        approval_store: ApprovalStorePort | None = None,
     ) -> None:
         self._ledger = ledger
         self._audit: GLAuditPort = audit or InMemoryGLAuditPort()
+        self._approval_store: ApprovalStorePort = approval_store or InMemoryApprovalStore()
+        # High-value entries staged awaiting a human approval decision (I-27).
+        self._pending_high_value: dict[str, JournalEntry] = {}
+
+    @property
+    def approval_store(self) -> ApprovalStorePort:
+        return self._approval_store
 
     # ── Account Operations ───────────────────────────────────────────────────
 
@@ -201,7 +216,25 @@ class GLService:
         currencies = {p.currency for p in posting_objs}
         primary_currency = next(iter(currencies))
 
+        entry = JournalEntry(
+            entry_id=entry_id,
+            description=description,
+            postings=tuple(posting_objs),
+        )
+
         if total_debit >= HIGH_VALUE_THRESHOLD and not high_value_approved:
+            # I-04/I-27: do NOT auto-post. Stage the entry and record a PENDING
+            # approval row (I-24) — a named human must approve/reject.
+            self._pending_high_value[entry_id] = entry
+            self._approval_store.record(
+                HighValueApproval(
+                    proposal_id=entry_id,
+                    entry_id=entry_id,
+                    total_amount=total_debit,
+                    currency=primary_currency,
+                    requested_by="SYSTEM",
+                )
+            )
             return HighValueHITLProposal(
                 entry_id=entry_id,
                 total_amount=str(total_debit),
@@ -212,12 +245,6 @@ class GLService:
                     "MLRO approval required (I-04, I-27)."
                 ),
             )
-
-        entry = JournalEntry(
-            entry_id=entry_id,
-            description=description,
-            postings=tuple(posting_objs),
-        )
 
         posted = self._ledger.post_journal_entry(entry)
 
@@ -232,6 +259,133 @@ class GLService:
         )
 
         return posted
+
+    # ── Transaction lifecycle (mirrors Midaz; each records an audit row, I-24) ──
+
+    def commit_entry(self, entry_id: str, actor: str = "SYSTEM") -> JournalEntry:
+        """PENDING -> COMMITTED (now counts toward balance)."""
+        committed = self._ledger.commit_journal_entry(entry_id)
+        self._record_lifecycle_audit("COMMIT_JOURNAL_ENTRY", committed, actor)
+        return committed
+
+    def cancel_entry(self, entry_id: str, actor: str = "SYSTEM") -> JournalEntry:
+        """PENDING -> CANCELLED (voided, no balance impact)."""
+        cancelled = self._ledger.cancel_journal_entry(entry_id)
+        self._record_lifecycle_audit("CANCEL_JOURNAL_ENTRY", cancelled, actor)
+        return cancelled
+
+    def revert_entry(self, entry_id: str, actor: str = "SYSTEM") -> JournalEntry:
+        """Revert a POSTED/COMMITTED entry; returns the lineage reversing entry."""
+        reversing = self._ledger.revert_journal_entry(entry_id)
+        self._record_lifecycle_audit("REVERT_JOURNAL_ENTRY", reversing, actor)
+        return reversing
+
+    def annotate_entry(self, entry_id: str, note: str) -> GLAuditEntry:
+        """Attach a records-only NOTED annotation (never a balance impact, I-24)."""
+        annotation = self._ledger.annotate_journal_entry(entry_id, note)
+        self._audit.record(annotation)
+        return annotation
+
+    def _record_lifecycle_audit(self, action: str, entry: JournalEntry, actor: str) -> None:
+        total_debit = sum(
+            (p.amount for p in entry.postings if p.direction == PostingDirection.DEBIT),
+            Decimal("0"),
+        )
+        self._record_audit(
+            entry_id=entry.entry_id,
+            action=action,
+            status=entry.status,
+            total_amount=total_debit,
+            currency=entry.postings[0].currency,
+            actor=actor,
+            details=f"status={entry.status.value}",
+        )
+
+    # ── High-value approval (I-04 / I-24 / I-27: named human approver only) ────
+
+    def approve_high_value(self, entry_id: str, approver: str, reason: str = "") -> JournalEntry:
+        """Approve a staged high-value entry and post it.
+
+        Requires a non-empty human approver (I-27 — AI proposes, never
+        auto-approves). Appends an APPROVED row to the approval store (I-24).
+        """
+        entry = self._require_approver_and_pending(entry_id, approver, "approve")
+        posted = self._ledger.post_journal_entry(entry)
+        total_debit = self._total_debit(entry)
+        self._approval_store.record(
+            HighValueApproval(
+                proposal_id=entry_id,
+                entry_id=entry_id,
+                total_amount=total_debit,
+                currency=entry.postings[0].currency,
+                requested_by="SYSTEM",
+                decision=ApprovalDecision.APPROVED,
+                approver=approver,
+                reason=reason,
+                decided_at=datetime.now(UTC).isoformat(),
+            )
+        )
+        self._record_audit(
+            entry_id=entry_id,
+            action="APPROVE_HIGH_VALUE",
+            status=posted.status,
+            total_amount=total_debit,
+            currency=entry.postings[0].currency,
+            actor=approver,
+            details=reason,
+        )
+        del self._pending_high_value[entry_id]
+        return posted
+
+    def reject_high_value(
+        self, entry_id: str, approver: str, reason: str = ""
+    ) -> HighValueApproval:
+        """Reject a staged high-value entry (it is NOT posted).
+
+        Requires a non-empty human approver (I-27). Appends a REJECTED row (I-24).
+        """
+        entry = self._require_approver_and_pending(entry_id, approver, "reject")
+        total_debit = self._total_debit(entry)
+        rejection = HighValueApproval(
+            proposal_id=entry_id,
+            entry_id=entry_id,
+            total_amount=total_debit,
+            currency=entry.postings[0].currency,
+            requested_by="SYSTEM",
+            decision=ApprovalDecision.REJECTED,
+            approver=approver,
+            reason=reason,
+            decided_at=datetime.now(UTC).isoformat(),
+        )
+        self._approval_store.record(rejection)
+        self._record_audit(
+            entry_id=entry_id,
+            action="REJECT_HIGH_VALUE",
+            status=PostingStatus.CANCELLED,
+            total_amount=total_debit,
+            currency=entry.postings[0].currency,
+            actor=approver,
+            details=reason,
+        )
+        del self._pending_high_value[entry_id]
+        return rejection
+
+    def _require_approver_and_pending(
+        self, entry_id: str, approver: str, action: str
+    ) -> JournalEntry:
+        if not approver or not approver.strip():
+            raise ValueError(f"High-value {action} requires a named human approver (I-27)")
+        entry = self._pending_high_value.get(entry_id)
+        if entry is None:
+            raise ValueError(f"No pending high-value entry {entry_id!r} to {action}")
+        return entry
+
+    @staticmethod
+    def _total_debit(entry: JournalEntry) -> Decimal:
+        return sum(
+            (p.amount for p in entry.postings if p.direction == PostingDirection.DEBIT),
+            Decimal("0"),
+        )
 
     # ── Private helpers ──────────────────────────────────────────────────────
 
