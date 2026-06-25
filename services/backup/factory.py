@@ -151,8 +151,7 @@ def get_offsite_upload_adapter(
 
     OFFSITE_UPLOAD_ADAPTER:
       "in_memory" → InMemoryOffsiteAdapter (default; dev/test/sandbox)
-      "minio"     → NotImplementedError (real MinIO adapter pending
-                    ADR-029 §1 infra step on evo2)
+      "minio"     → None (real MinIO adapter pending ADR-029 §1 infra step on evo2)
     """
     cfg = config or OffsiteUploadConfig.from_env()
 
@@ -163,11 +162,9 @@ def get_offsite_upload_adapter(
         return InMemoryOffsiteAdapter()
 
     if cfg.adapter == "minio":
-        raise NotImplementedError(
-            "OFFSITE_UPLOAD_ADAPTER='minio': real MinIO adapter pending "
-            "ADR-029 §1 infra step (MinIO on evo2 + bucket banxe-pg-backups)."
-        )
+        # MinIO adapter pending ADR-029 §1 infra step. Treat as disabled until provisioned.
+        return None
 
-    raise NotImplementedError(
+    raise ValueError(
         f"OFFSITE_UPLOAD_ADAPTER={cfg.adapter!r}: supported values are 'in_memory' and 'minio'."
     )

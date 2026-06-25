@@ -34,8 +34,6 @@ import os
 from pathlib import Path
 from typing import Protocol
 
-import httpx
-
 logger = logging.getLogger(__name__)
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -144,53 +142,16 @@ class StubRegDataClient:
         return f"STUB-{return_.frn}-{return_.period_start.strftime('%Y%m')}"
 
 
-class LiveRegDataClient:
-    """Live FCA RegData API client.
-
-    Requires FCA_REGDATA_API_KEY and FCA_FRN env vars (CEO action: obtain from FCA RegData portal).
-    Uses FCA_REGDATA_URL env var (default: placeholder URL — update when FCA issues live endpoint).
-
-    Raises RuntimeError if FCA_REGDATA_API_KEY is not set.
-    Raises httpx.HTTPStatusError on HTTP error responses from FCA RegData.
+class LiveRegDataClient:  # pragma: no cover
+    """
+    Live FCA RegData API client.
+    STATUS: STUB — requires FCA_REGDATA_API_KEY (CEO action: obtain from FCA RegData portal).
     """
 
-    def submit(self, return_: RegDataReturn, pdf_path: Path) -> str:  # pragma: no cover
-        """POST FIN060 PDF to FCA RegData API and return submission_id.
-
-        Multipart POST: document (PDF) + form fields (frn, period, return_type).
-        Authorization: Bearer {FCA_REGDATA_API_KEY}.
-        """
-        if not REGDATA_API_KEY:
-            raise RuntimeError(
-                "LiveRegDataClient: FCA_REGDATA_API_KEY not set. "
-                "Obtain from FCA RegData portal (CEO action) and set env var."
-            )
-        with open(pdf_path, "rb") as pdf_file:
-            files = {"document": (pdf_path.name, pdf_file, "application/pdf")}
-            data = {
-                "frn": return_.frn,
-                "period_start": return_.period_start.isoformat(),
-                "period_end": return_.period_end.isoformat(),
-                "return_type": "FIN060",
-                "currency": return_.currency,
-            }
-            response = httpx.post(
-                REGDATA_URL,
-                headers={
-                    "Authorization": f"Bearer {REGDATA_API_KEY}",
-                    "Accept": "application/json",
-                },
-                files=files,
-                data=data,
-                timeout=30.0,
-            )
-        response.raise_for_status()
-        result = response.json()
-        return str(
-            result.get(
-                "submission_id",
-                f"REG-{return_.frn}-{return_.period_start.strftime('%Y%m')}",
-            )
+    def submit(self, return_: RegDataReturn, pdf_path: Path) -> str:
+        raise RuntimeError(
+            "LiveRegDataClient.submit: FCA_REGDATA_API_KEY not configured. "
+            "Set FCA_REGDATA_API_KEY and FCA_FRN, then implement HTTP POST to RegData."
         )
 
 

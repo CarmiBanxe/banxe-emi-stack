@@ -156,15 +156,16 @@ def test_factory_returns_in_memory_adapter_when_enabled(
         get_offsite_upload_adapter.cache_clear()
 
 
-def test_factory_minio_branch_raises_not_implemented_until_real_step(
+def test_factory_minio_branch_returns_none_until_provisioned(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """MinIO not provisioned yet (ADR-029 §1) — factory returns None (disabled)."""
     monkeypatch.setenv("OFFSITE_UPLOAD_ENABLED", "true")
     monkeypatch.setenv("OFFSITE_UPLOAD_ADAPTER", "minio")
     get_offsite_upload_adapter.cache_clear()
     try:
-        with pytest.raises(NotImplementedError, match="MinIO"):
-            get_offsite_upload_adapter()
+        result = get_offsite_upload_adapter()
+        assert result is None
     finally:
         get_offsite_upload_adapter.cache_clear()
 

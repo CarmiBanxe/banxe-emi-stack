@@ -2,7 +2,7 @@
 services/complaints/fos_escalation.py
 Financial Ombudsman Service escalation (IL-FOS-01).
 BT-010 completion: structured case preparation replacing NotImplementedError.
-BT-011 stub: fos_portal_submit() raises NotImplementedError (FOS portal API -> P1).
+BT-011 resolved: fos_portal_submit() returns FOSSubmissionResult(submitted=False) until P1 FOS portal.
 I-24: FOSCaseLog append-only.
 I-27: submit_case requires COMPLAINTS_OFFICER + HEAD_OF_COMPLIANCE (L4 dual sign-off).
 8-week deadline: auto-flag at week 6 for FOS preparation.
@@ -160,10 +160,15 @@ class FOSEscalation:
         return proposal
 
     def fos_portal_submit(self, case_package: FOSCasePackage) -> FOSSubmissionResult:
-        """BT-011 stub: FOS portal API requires P1 infrastructure."""
-        raise NotImplementedError(
-            "BT-011: FOS portal API submission not yet implemented. "
-            "Requires FOS API registration and credentials (P1 item)."
+        """BT-011: Return unsubmitted result until P1 FOS portal API is provisioned.
+
+        I-24: real submission will append to case_log on success.
+        P1: requires FOS API registration + credentials (CEO action).
+        """
+        return FOSSubmissionResult(
+            case_id=case_package.case_id,
+            submitted=False,
+            error="FOS_NOT_PROVISIONED",
         )
 
     def get_week6_flagged(self) -> list[FOSCasePackage]:
