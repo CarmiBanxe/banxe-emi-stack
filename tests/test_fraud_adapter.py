@@ -202,3 +202,26 @@ class TestFactory:
         monkeypatch.delenv("SARDINE_SECRET_KEY", raising=False)
         with pytest.raises(EnvironmentError, match="SARDINE_CLIENT_ID"):
             get_fraud_adapter()
+
+    def test_bt014_sardine_score_raises_runtime_error_not_implemented(self, monkeypatch):
+        """BT-014: SardineFraudAdapter.score() raises RuntimeError (HTTP call pending, P1)."""
+        from services.fraud.fraud_port import FraudScoringRequest
+        from services.fraud.sardine_adapter import SardineFraudAdapter
+
+        monkeypatch.setenv("SARDINE_CLIENT_ID", "test-client")
+        monkeypatch.setenv("SARDINE_SECRET_KEY", "test-secret")
+        adapter = SardineFraudAdapter()
+        req = FraudScoringRequest(
+            transaction_id="txn-bt014",
+            customer_id="cust-bt014",
+            amount=Decimal("100"),
+            currency="GBP",
+            destination_account="GB29NWBK60161331926819",
+            destination_sort_code="60-16-13",
+            destination_country="GB",
+            payment_rail="FPS",
+            first_transaction_to_payee=False,
+            amount_unusual=False,
+        )
+        with pytest.raises(RuntimeError, match="live HTTP call not implemented"):
+            adapter.score(req)
