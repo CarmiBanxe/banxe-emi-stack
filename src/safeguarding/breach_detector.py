@@ -29,6 +29,7 @@ from enum import Enum
 import logging
 
 from .daily_reconciliation import ReconciliationResult, ReconStatus
+from .fca_notifier import FcaNotificationPayload, FcaNotificationPort
 
 logger = logging.getLogger(__name__)
 
@@ -168,36 +169,55 @@ class BreachDetector:
         log_fn("BreachDetector: %s | %s", alert.reference, description)
         return alert
 
-    def notify_fca(self, alert: BreachAlert, dry_run: bool = False) -> None:
+    def notify_fca(
+        self,
+        alert: BreachAlert,
+        dry_run: bool = False,
+        notifier: FcaNotificationPort | None = None,
+    ) -> None:
         """Dispatch FCA safeguarding breach notification.
 
         In production this triggers:
-          1. Email to FCA SUP via secure portal (manual — CFO must confirm)
-          2. Telegram alert to MLRO + CEO (n8n workflow)
-          3. Audit event written to ClickHouse (AuditTrail)
+          1. Telegram/email to MLRO + CEO via n8n (pass a real FcaNotificationPort)
+          2. FCA Connect portal submission is HITL-only — CFO must manually confirm (I-27)
 
-        Pass dry_run=True to log the notification without sending.
+        Pass dry_run=True to log the notification without dispatching.
+        Pass notifier=None to only log (backwards-compatible default).
         """
         if not alert.fca_notification_required:
             logger.debug("notify_fca called but FCA notification not required: %s", alert.reference)
             return
 
+        shortfall_str = f"£{alert.shortfall_gbp:,.2f}" if alert.shortfall_gbp else "none"
         msg = (
             f"[FCA BREACH NOTIFICATION] {alert.reference}\n"
             f"  Severity: {alert.severity.value}\n"
             f"  Consecutive break days: {alert.consecutive_days}\n"
-            f"  Shortfall: £{alert.shortfall_gbp:,.2f}"
-            if alert.shortfall_gbp
-            else "  Shortfall: none"
+            f"  Shortfall: {shortfall_str}"
         )
         if dry_run:
             logger.warning("DRY RUN — FCA notification suppressed:\n%s", msg)
             return
 
-        # Production: wire to n8n webhook / FCA Connect portal
         logger.critical("FCA BREACH NOTIFICATION DISPATCHED:\n%s", msg)
-        # TODO: POST to n8n /webhook/fca-breach-alert
-        # TODO: POST to FCA Connect portal (CFO must click confirm)
+
+        if notifier is None:
+            logger.error(
+                "No FcaNotificationPort wired — FCA alert logged only, NOT sent: %s",
+                alert.reference,
+            )
+            return
+
+        payload = FcaNotificationPayload(
+            reference=alert.reference,
+            severity=alert.severity.value,
+            consecutive_days=alert.consecutive_days,
+            shortfall_gbp=alert.shortfall_gbp,
+            description=alert.description,
+            breach_date=alert.breach_date,
+            raised_at=alert.raised_at,
+        )
+        notifier.notify(payload)
 
     def get_consecutive_days(self, history: list[ReconciliationResult]) -> int:
         """Count consecutive trailing BREAK/PENDING days from most recent result.

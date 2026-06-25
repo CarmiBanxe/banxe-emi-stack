@@ -28,6 +28,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from src.safeguarding.agent import (
+    InMemoryRailBalancePort,
     InMemoryStreakCounter,
     SafeguardingAgent,
     SafeguardingAgentPorts,
@@ -55,6 +56,7 @@ def get_safeguarding_agent() -> SafeguardingAgent:
         bank=StubBankStatementPort(balance_gbp=Decimal("100000.00")),
         audit=AuditTrail(clickhouse_url="", dry_run=True),
         streak_counter=InMemoryStreakCounter(),
+        rail=InMemoryRailBalancePort(),  # all dates → None (PENDING) in sandbox
     )
     return SafeguardingAgent(ports, fca_notify=False)
 
@@ -116,6 +118,12 @@ class ReconcileResponse(BaseModel):
     breach_alert: dict | None
     audit_event_id: str
     exit_code: int
+    three_leg_status: str | None = Field(
+        None, description="MATCHED|BREAK|PENDING|null (null=Leg C not wired)"
+    )
+    three_leg_shortfall: bool | None = Field(
+        None, description="True = client funds under-safeguarded (CASS 15)"
+    )
 
 
 class ResolutionPackResponse(BaseModel):
@@ -297,6 +305,7 @@ def trigger_reconciliation(
             else None
         )
 
+    tl = result.three_leg_result
     return ReconcileResponse(
         run_date=run_date.isoformat(),
         status=result.status_label,
@@ -308,6 +317,8 @@ def trigger_reconciliation(
         breach_alert=breach_summary,
         audit_event_id=result.audit_event_id,
         exit_code=result.exit_code,
+        three_leg_status=tl.status.value if tl else None,
+        three_leg_shortfall=tl.shortfall if tl else None,
     )
 
 

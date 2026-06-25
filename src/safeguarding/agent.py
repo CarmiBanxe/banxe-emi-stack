@@ -44,7 +44,14 @@ from typing import Protocol, runtime_checkable
 from .audit_trail import AuditEvent, AuditTrail
 from .breach_detector import BreachAlert, BreachDetector
 from .daily_reconciliation import DailyReconciliation, ReconciliationResult, ReconStatus
-from .three_leg import RailBalancePort, ThreeLegResult, three_leg_reconcile
+from .fca_notifier import FcaNotificationPort, InMemoryFcaNotifier  # noqa: F401 (re-exported)
+from .three_leg import (  # noqa: F401 (InMemoryRailBalancePort re-exported)
+    InMemoryRailBalancePort,
+    RailBalancePort,
+    ThreeLegResult,
+    ThreeLegStatus,
+    three_leg_reconcile,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +105,8 @@ class SafeguardingAgentPorts:
     bank: BankStatementPort
     audit: AuditTrail
     streak_counter: StreakCounterPort
-    rail: RailBalancePort | None = None
+    rail: RailBalancePort | None = None  # None → skip three-leg tie-out (Leg C)
+    fca_notifier: FcaNotificationPort | None = None  # None → log-only (backwards-compatible)
 
 
 @dataclass
@@ -256,6 +264,7 @@ class SafeguardingAgent:
                 else False,
                 "three_leg_status": three_leg.status.value if three_leg else None,
                 "three_leg_shortfall": three_leg.shortfall if three_leg else None,
+                "three_leg_notes": three_leg.notes if three_leg else None,
             },
             severity=severity,
         )
@@ -263,7 +272,11 @@ class SafeguardingAgent:
 
         # Step 5: FCA notification if needed
         if breach_alert and self._fca_notify:
-            self._detector.notify_fca(breach_alert, dry_run=False)
+            self._detector.notify_fca(
+                breach_alert,
+                dry_run=False,
+                notifier=self._ports.fca_notifier,
+            )
         elif breach_alert and breach_alert.fca_notification_required:
             logger.warning(
                 "SafeguardingAgent: FCA notification required but fca_notify=False "
@@ -285,8 +298,8 @@ class SafeguardingAgent:
         else:
             exit_code = EXIT_MATCHED
 
-        # Step 7.5: Escalate if 3-leg detects BREAK (2-leg alone may be MATCHED)
-        if three_leg and three_leg.status.value == "BREAK" and exit_code == EXIT_MATCHED:
+        # Three-leg BREAK upgrades to BREACH regardless of two-leg result (CASS 15)
+        if three_leg and three_leg.status == ThreeLegStatus.BREAK and exit_code != EXIT_BREACH:
             exit_code = EXIT_BREACH
 
         run_result = SafeguardingRunResult(
