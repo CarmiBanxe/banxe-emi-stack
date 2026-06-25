@@ -117,10 +117,7 @@ class TestComplaintsEngine:
         """BT-010: FOS escalation is append-only logged (I-24)."""
         engine = _make_engine()
         engine.escalate_to_fos("CMP001")
-        assert any(
-            e.get("event") == "complaint.fos_escalation_queued"
-            for e in engine.audit_log
-        )
+        assert any(e.get("event") == "complaint.fos_escalation_queued" for e in engine.audit_log)
 
     def test_get_sla_approaching_returns_open(self):
         engine = _make_engine()
