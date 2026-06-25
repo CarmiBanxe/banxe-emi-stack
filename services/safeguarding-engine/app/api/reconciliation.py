@@ -1,5 +1,7 @@
 """Reconciliation API endpoints."""
 
+from typing import Optional
+
 from fastapi import APIRouter, Depends
 
 from app.schemas.reconciliation import (
@@ -14,14 +16,16 @@ router = APIRouter(prefix="/reconcile")
 
 
 @router.post("/daily", response_model=ReconciliationResponse)
-async def trigger_daily_recon(request: DailyReconRequest, service=Depends(get_reconciliation_service)):
-    """Trigger daily internal reconciliation."""
+async def trigger_daily_recon(request: Optional[DailyReconRequest] = None, service=Depends(get_reconciliation_service)):
+    """Trigger daily internal reconciliation (defaults to today when no body)."""
     return await service.run_daily_reconciliation(request)
 
 
 @router.post("/monthly", response_model=ReconciliationResponse)
-async def trigger_monthly_recon(request: MonthlyReconRequest, service=Depends(get_reconciliation_service)):
-    """Trigger monthly external reconciliation."""
+async def trigger_monthly_recon(
+    request: Optional[MonthlyReconRequest] = None, service=Depends(get_reconciliation_service)
+):
+    """Trigger monthly external reconciliation (defaults to current month when no body)."""
     return await service.run_monthly_reconciliation(request)
 
 

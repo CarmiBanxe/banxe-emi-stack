@@ -2,6 +2,13 @@
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+# The importable package lives in `app/` (project name != package dir), so
+# hatchling's default file-selection cannot infer it. Declare it explicitly so
+# `pip install -e .[dev]` builds/installs the package (and pulls declared deps,
+# incl. structlog) reproducibly. Build config only — no runtime code change.
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
 [project]
 name = "safeguarding-engine"
 version = "0.1.0"

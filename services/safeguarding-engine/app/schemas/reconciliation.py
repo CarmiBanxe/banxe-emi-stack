@@ -16,10 +16,10 @@ class DailyReconRequest(BaseModel):
 
 
 class MonthlyReconRequest(BaseModel):
-    """Trigger monthly external reconciliation."""
+    """Trigger monthly external reconciliation. Month/year default to the current month."""
 
-    month: int = Field(..., ge=1, le=12)
-    year: int = Field(..., ge=2020)
+    month: Optional[int] = Field(default=None, ge=1, le=12)
+    year: Optional[int] = Field(default=None, ge=2020)
     bank_statement_ids: List[uuid.UUID] = []
 
 

@@ -171,7 +171,9 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             base='${{ github.event.pull_request.base.sha }}'
-            mapfile -t paths < <(git diff --name-only "$base...HEAD" | grep -vE '^(docs/|.*\.md$)' || true)
+            # --diff-filter=ACMR excludes Deleted files: semgrep errors (exit 2) on a
+            # non-existent scan root, so deleted paths must not be passed to it.
+            mapfile -t paths < <(git diff --name-only --diff-filter=ACMR "$base...HEAD" | grep -vE '^(docs/|.*\.md$)' || true)
             if [ "${#paths[@]}" -eq 0 ]; then
               echo "No non-docs files changed; nothing for Semgrep OSS to scan."
               exit 0
