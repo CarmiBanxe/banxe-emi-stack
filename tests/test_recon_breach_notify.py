@@ -358,8 +358,8 @@ class TestReconToGabrielChain:
         return ReconciliationEngine(ledger=ledger, breach_notifier=handler)
 
     def test_shortfall_creates_draft_in_governor(self) -> None:
-        from services.gabriel.gabriel_models import InMemoryGabrielAuditPort
         from services.gabriel.breach_handler import InMemoryBreachRegistrar
+        from services.gabriel.gabriel_models import InMemoryGabrielAuditPort
         from services.gabriel.returns_governor import ReturnsGovernor
 
         gov = ReturnsGovernor(audit=InMemoryGabrielAuditPort())
@@ -370,11 +370,11 @@ class TestReconToGabrielChain:
         assert len(records) == 1
 
     def test_draft_return_type_is_breach_report(self) -> None:
+        from services.gabriel.breach_handler import InMemoryBreachRegistrar
         from services.gabriel.gabriel_models import (
             GabrielReturnType,
             InMemoryGabrielAuditPort,
         )
-        from services.gabriel.breach_handler import InMemoryBreachRegistrar
         from services.gabriel.returns_governor import ReturnsGovernor
 
         gov = ReturnsGovernor(audit=InMemoryGabrielAuditPort())
@@ -384,11 +384,11 @@ class TestReconToGabrielChain:
         assert gov.list_records()[0].return_type == GabrielReturnType.BREACH_REPORT
 
     def test_draft_status_is_draft(self) -> None:
+        from services.gabriel.breach_handler import InMemoryBreachRegistrar
         from services.gabriel.gabriel_models import (
             GabrielReturnStatus,
             InMemoryGabrielAuditPort,
         )
-        from services.gabriel.breach_handler import InMemoryBreachRegistrar
         from services.gabriel.returns_governor import ReturnsGovernor
 
         gov = ReturnsGovernor(audit=InMemoryGabrielAuditPort())
@@ -398,8 +398,8 @@ class TestReconToGabrielChain:
         assert gov.list_records()[0].status == GabrielReturnStatus.DRAFT
 
     def test_draft_source_recon_id_set(self) -> None:
-        from services.gabriel.gabriel_models import InMemoryGabrielAuditPort
         from services.gabriel.breach_handler import InMemoryBreachRegistrar
+        from services.gabriel.gabriel_models import InMemoryGabrielAuditPort
         from services.gabriel.returns_governor import ReturnsGovernor
 
         gov = ReturnsGovernor(audit=InMemoryGabrielAuditPort())
@@ -411,11 +411,11 @@ class TestReconToGabrielChain:
         assert len(record.source_recon_id) > 0
 
     def test_no_shortfall_no_draft(self) -> None:
-        from services.gabriel.gabriel_models import InMemoryGabrielAuditPort
         from services.gabriel.breach_handler import (
             GabrielBreachHandler,
             InMemoryBreachRegistrar,
         )
+        from services.gabriel.gabriel_models import InMemoryGabrielAuditPort
         from services.gabriel.returns_governor import ReturnsGovernor
 
         gov = ReturnsGovernor(audit=InMemoryGabrielAuditPort())
@@ -430,12 +430,12 @@ class TestReconToGabrielChain:
 
     def test_mlro_can_approve_draft(self) -> None:
         """Full HITL path: shortfall → DRAFT → MLRO approves → SUBMITTED (I-27)."""
+        from services.gabriel.breach_handler import InMemoryBreachRegistrar
         from services.gabriel.gabriel_models import (
             GabrielReturnStatus,
             InMemoryGabrielAuditPort,
             InMemoryGabrielSubmissionPort,
         )
-        from services.gabriel.breach_handler import InMemoryBreachRegistrar
         from services.gabriel.returns_governor import ReturnsGovernor
 
         gov = ReturnsGovernor(audit=InMemoryGabrielAuditPort())
@@ -449,8 +449,8 @@ class TestReconToGabrielChain:
         assert len(sub_port.submitted) == 1
 
     def test_registrar_receives_breach_event(self) -> None:
-        from services.gabriel.gabriel_models import InMemoryGabrielAuditPort
         from services.gabriel.breach_handler import InMemoryBreachRegistrar
+        from services.gabriel.gabriel_models import InMemoryGabrielAuditPort
         from services.gabriel.returns_governor import ReturnsGovernor
 
         gov = ReturnsGovernor(audit=InMemoryGabrielAuditPort())
