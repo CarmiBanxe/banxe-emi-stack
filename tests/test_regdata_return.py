@@ -13,6 +13,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from services.reporting.regdata_return import (
+    LiveRegDataClient,
     MockFIN060Generator,
     RegDataReturn,
     RegDataReturnService,
@@ -201,3 +202,73 @@ class TestRegDataReturnService:
         today = date.today()
         prev_month = today.month - 1 if today.month > 1 else 12
         assert result.period_start.month == prev_month
+
+
+# ── LiveRegDataClient ─────────────────────────────────────────────────────────
+
+
+def _make_return(frn: str = "123456") -> RegDataReturn:
+    return RegDataReturn(
+        period_start=date(2026, 3, 1),
+        period_end=date(2026, 3, 31),
+        frn=frn,
+        avg_daily_client_funds=Decimal("100000"),
+        peak_client_funds=Decimal("150000"),
+        currency="GBP",
+        safeguarding_method="segregated",
+    )
+
+
+class TestLiveRegDataClient:
+    def test_raises_runtime_error_without_api_key(self, monkeypatch, tmp_path):
+        monkeypatch.delenv("FCA_REGDATA_API_KEY", raising=False)
+        import services.reporting.regdata_return as m
+
+        monkeypatch.setattr(m, "REGDATA_API_KEY", "")
+        client = LiveRegDataClient()
+        pdf = tmp_path / "fin060.pdf"
+        pdf.write_bytes(b"%PDF-1.4 stub")
+        with pytest.raises(RuntimeError, match="FCA_REGDATA_API_KEY"):
+            client.submit(_make_return(), pdf)
+
+    def test_submit_always_raises_runtime_error(self, tmp_path):
+        # BT-006v2: LiveRegDataClient.submit is a RuntimeError stub until FCA_REGDATA_API_KEY
+        # is provisioned and live HTTP POST is implemented (P1).
+        client = LiveRegDataClient()
+        pdf = tmp_path / "FIN060_202603.pdf"
+        pdf.write_bytes(b"%PDF-1.4 stub")
+        with pytest.raises(RuntimeError, match="FCA_REGDATA_API_KEY"):
+            client.submit(_make_return(), pdf)
+
+    def test_submit_raises_regardless_of_pdf_content(self, tmp_path):
+        client = LiveRegDataClient()
+        pdf = tmp_path / "other.pdf"
+        pdf.write_bytes(b"")
+        with pytest.raises(RuntimeError, match="LiveRegDataClient"):
+            client.submit(_make_return(frn="654321"), pdf)
+
+    def test_submit_error_message_contains_frn_guidance(self, tmp_path):
+        client = LiveRegDataClient()
+        pdf = tmp_path / "FIN060_202603.pdf"
+        pdf.write_bytes(b"%PDF-1.4 stub")
+        with pytest.raises(RuntimeError) as exc_info:
+            client.submit(_make_return(), pdf)
+        assert "FCA_FRN" in str(exc_info.value)
+
+    def test_submit_raises_for_any_frn(self, tmp_path):
+        client = LiveRegDataClient()
+        pdf = tmp_path / "FIN060_202501.pdf"
+        pdf.write_bytes(b"%PDF-1.4 stub")
+        with pytest.raises(RuntimeError, match="FCA_REGDATA_API_KEY"):
+            client.submit(_make_return(frn="999999"), pdf)
+
+    def test_submit_raises_not_returns_none(self, tmp_path):
+        client = LiveRegDataClient()
+        pdf = tmp_path / "FIN060_202603.pdf"
+        pdf.write_bytes(b"%PDF-1.4 stub")
+        raised = False
+        try:
+            client.submit(_make_return(), pdf)
+        except RuntimeError:
+            raised = True
+        assert raised, "LiveRegDataClient.submit must raise, never silently succeed"
