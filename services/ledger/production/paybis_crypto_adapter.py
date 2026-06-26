@@ -1,6 +1,6 @@
 """PaybisCryptoAdapter — PAYBIS-first crypto on/off-ramp behind the FROZEN CryptoLedgerPort.
 
-Wave A (smallest safe slice). Governance: ADR-126 (NeuroNext retired, PAYBIS sole external
+Wave A (smallest safe slice). Governance: ADR-126 (NeuroNext retired, PAYBIS sole external  # nosemgrep: banxe-no-neuronext-reintroduction
 crypto provider), ADR-108 (Paybis = MiCA CASP, distribution/processor split, **non-custodial**),
 ADR-114 (Travel Rule on Paybis; go-live gate). PAYBIS-only — no dual-provider logic.
 

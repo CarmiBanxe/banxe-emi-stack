@@ -3,9 +3,9 @@
 > **Scope:** этот документ покрывает **Wave A** (this section) **и Wave B** (note ниже). Имя файла
 > сохранено как `PAYBIS-WAVE-A.md`, чтобы ссылки из `LANDING-HANDOFF-MAIN.md` оставались валидными.
 
-**Status:** Wave A (smallest safe slice). **Governance:** ADR-126 (NeuroNext retired, PAYBIS sole
+**Status:** Wave A (smallest safe slice). **Governance:** ADR-126 (NeuroNext retired, PAYBIS sole <!-- nosemgrep: banxe-no-neuronext-reintroduction -->
 external crypto provider), ADR-108 (Paybis MiCA CASP, distribution/processor split, **non-custodial**),
-ADR-114 (Travel-Rule on Paybis; go-live gate). **Plan:** `docs/paybis-dossier/PLAN-ROADMAP-SPRINTS-NEURONEXT-TO-PAYBIS.md`.
+ADR-114 (Travel-Rule on Paybis; go-live gate). **Plan:** `docs/paybis-dossier/PLAN-ROADMAP-SPRINTS-NEURONEXT-TO-PAYBIS.md`. <!-- nosemgrep: banxe-no-neuronext-reintroduction -->
 
 ## Files (Wave A)
 - `services/ledger/production/paybis_crypto_adapter.py` — `PaybisCryptoAdapter` (FROZEN `CryptoLedgerPort`), injectable `PaybisTransportPort`, default `FencedLivePaybisTransport`, `PaybisConfig`, `PaybisEnv`, `map_order_status`.
@@ -25,7 +25,7 @@ ADR-114 (Travel-Rule on Paybis; go-live gate). **Plan:** `docs/paybis-dossier/PL
 - **No literal API guesses** — endpoints, auth, **signature algorithm**, request/response & webhook schemas, rate-limits/SLA, data-residency, fee % are **НЕИЗВЕСТНО** (SRC-06/07 pending). `verify_signature` raises rather than guessing.
 - **No Travel-Rule go-live** — `travel_rule_engine` integration + ADR-114 gate (TR contract + MLRO) are Wave C.
 - **No DI/container rewire, no consolidation** of existing crypto adapters (separate Wave-A sprints A-S3/A-S5).
-- **No NeuroNext** — and a CI forward-guard (E9) is a separate sprint.
+- **No NeuroNext** — and a CI forward-guard (E9) is a separate sprint. <!-- nosemgrep: banxe-no-neuronext-reintroduction -->
 
 ## Operator gates before Wave B/C
 SRC-06 (API spec: endpoints/auth/signature/schemas/webhook), SRC-07 (TR-status schema), SRC-08 (MLRO owner + CASP T&C), full agreement `.docx` (approved domains/ICT/security/incident/audit). Until then live remains fenced.
@@ -99,7 +99,7 @@ Until provided, the seam stays fenced and sandbox-only — no live calls, no fun
 
 **Thinnest insertion (ADR-102, reuses the seam):** `paybis_provider.py` adds a feature flag, a provider
 selector, a runnable façade, a deterministic sandbox mock, and a smoke command. Microservice architecture
-intact; NeuroNext-flow replacement compatible (PAYBIS sole provider, ADR-126).
+intact; NeuroNext-flow replacement compatible (PAYBIS sole provider, ADR-126). <!-- nosemgrep: banxe-no-neuronext-reintroduction -->
 
 ## Capability API (operator name ↔ façade)
 `healthCheck()→health_check()` · `getQuote(input)→get_quote(blockchain, amount)` ·
@@ -150,6 +150,6 @@ is the only substituted surface** in this step (smallest blast radius). **Defens
 PAYBIS import/config/runtime failure logs and falls back to legacy (no invariant requires PAYBIS).
 Production mode is refused (OPERATOR-GATE). FROZEN port + non-custodial boundary preserved through the shim.
 
-**Next steps for deeper NeuroNext-flow replacement (separate, gated):** substitute wallet/rpc once a real
+**Next steps for deeper NeuroNext-flow replacement (separate, gated):** substitute wallet/rpc once a real <!-- nosemgrep: banxe-no-neuronext-reintroduction -->
 sandbox transport exists (SRC-06); promote PAYBIS to default only after live enablement + ADR-114 go-live;
 consolidate/retire legacy crypto adapters per PLAN E10 (PARKED until cutover).
