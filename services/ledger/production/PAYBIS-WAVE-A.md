@@ -92,3 +92,45 @@ URLs/subdomains/ICT/environments/use-cases; sandbox base-URL + enablement are op
 - **SRC-06** — endpoints, auth scheme, **signature algorithm**, request/response & webhook schemas (un-fences `endpoint_for`/`auth_headers`/`verify_signature` + a real sandbox transport).
 - **SRC-07 + ADR-114** — Travel-Rule status + MLRO/HITL go-live gate (Wave C).
 Until provided, the seam stays fenced and sandbox-only — no live calls, no funds, no secrets.
+
+---
+
+# PAYBIS SANDBOX — minimal-maximum provider install (runnable today)
+
+**Thinnest insertion (ADR-102, reuses the seam):** `paybis_provider.py` adds a feature flag, a provider
+selector, a runnable façade, a deterministic sandbox mock, and a smoke command. Microservice architecture
+intact; NeuroNext-flow replacement compatible (PAYBIS sole provider, ADR-126).
+
+## Capability API (operator name ↔ façade)
+`healthCheck()→health_check()` · `getQuote(input)→get_quote(blockchain, amount)` ·
+`createOrder(input)→create_order(request)` · `getOrderStatus(id)→get_order_status(order_id)` ·
+`handleWebhook(h,b)→handle_webhook(headers, body)`. *(snake_case kept for Python/ruff idiom; 1:1 map.)*
+
+## WHAT IS REAL vs MOCKED vs FENCED
+| Part | State |
+|---|---|
+| feature flag (`PAYBIS_ENABLED`) + selector (`select_paybis_provider`) | **REAL** |
+| env contract / sandbox config (`PAYBIS_MODE`/`PAYBIS_ENV`, refuses PRODUCTION) | **REAL** |
+| idempotency (webhook sink dedupe) + normalized error mapping | **REAL** |
+| façade routing (health/quote/order/status/webhook) | **REAL** (delegates to adapter) |
+| transport responses (quote/order/status values) | **MOCKED** (`SandboxMockPaybisTransport`, deterministic) |
+| live HTTP transport / endpoints / auth headers | **FENCED** (SRC-06) |
+| webhook signature verification | **FENCED** (algorithm НЕИЗВЕСТНО; events `verified:false`) |
+| funds movement / Travel-Rule / wallet-balance | **OUT OF SCOPE** (non-custodial ADR-108; ADR-114 Wave C) |
+
+## REQUIRED REAL LITERALS FROM PAYBIS (un-fence path)
+1. **Sandbox base-URL + API credentials** (vault) — within approved domains/URLs/ICT/use-cases.
+2. **SRC-06:** endpoint routes, auth scheme/headers, **webhook signature algorithm + signed fields**,
+   request/response & webhook payload schemas, fee model.
+3. **SRC-07 + ADR-114:** Travel-Rule status contract + MLRO/HITL go-live (Wave C).
+> Until provided, transport/auth/signature stay fenced; the sandbox runs on the deterministic mock.
+
+## HOW TO RUN THE SANDBOX SMOKE TEST
+```bash
+# from the banxe-emi-stack repo root (PYTHONPATH=repo root). Forces sandbox flags internally.
+python -m services.ledger.production.paybis_provider
+# → JSON: config_loaded, provider_selected, health, quote, order, order_status, webhook, ok:true
+# or via pytest (the same flow asserted):
+pytest tests/test_paybis_crypto_adapter.py -k "smoke or selection or provider" -q
+```
+Verifies: config loaded → provider selected → transport callable → mock path returns structured results.

@@ -32,6 +32,15 @@ from services.ledger.production.paybis_crypto_adapter import (
     PaybisTransportPort,
     map_order_status,
 )
+from services.ledger.production.paybis_provider import (
+    PaybisFeatureFlags,
+    PaybisSandboxProvider,
+    SandboxMockPaybisTransport,
+    is_paybis_enabled,
+    normalize_error,
+    run_sandbox_smoke,
+    select_paybis_provider,
+)
 from services.ledger.production.paybis_sandbox import (
     PAYBIS_ENV_CONTRACT,
     PaybisSandboxError,
@@ -423,6 +432,86 @@ def test_sandbox_webhook_sink_idempotent():
 
 # ── env-var contract is names-only (no secret values) ───────────────────────────
 def test_env_contract_names_only():
-    assert set(PAYBIS_ENV_CONTRACT) == {"PAYBIS_ENV", "PAYBIS_BASE_URL", "PAYBIS_API_KEY"}
+    assert set(PAYBIS_ENV_CONTRACT) == {
+        "PAYBIS_ENABLED",
+        "PAYBIS_MODE",
+        "PAYBIS_ENV",
+        "PAYBIS_BASE_URL",
+        "PAYBIS_API_KEY",
+        "PAYBIS_WEBHOOK_SECRET",
+    }
     # values are human descriptions, not credentials (no "KEY=VALUE" literal)
     assert all(isinstance(v, str) and v and "=" not in v for v in PAYBIS_ENV_CONTRACT.values())
+
+
+# ══════════════════════════ SANDBOX provider (flag + selector + façade + smoke) ══════════════════════════
+
+
+def test_feature_flag_and_selection(monkeypatch):
+    monkeypatch.delenv("PAYBIS_ENABLED", raising=False)
+    monkeypatch.delenv("PAYBIS_MODE", raising=False)
+    assert is_paybis_enabled() is False
+    # disabled → selector refuses
+    with pytest.raises(PaybisSandboxError) as e:
+        select_paybis_provider()
+    assert e.value.code == "PAYBIS_DISABLED"
+    # enabled + sandbox → provider
+    monkeypatch.setenv("PAYBIS_ENABLED", "true")
+    monkeypatch.setenv("PAYBIS_MODE", "sandbox")
+    assert is_paybis_enabled() is True
+    assert isinstance(select_paybis_provider(), PaybisSandboxProvider)
+    # production mode refused (OPERATOR-GATE)
+    monkeypatch.setenv("PAYBIS_MODE", "production")
+    with pytest.raises(PaybisSandboxError) as e2:
+        select_paybis_provider()
+    assert e2.value.code == "PAYBIS_SANDBOX_ONLY"
+
+
+def test_flags_from_env(monkeypatch):
+    monkeypatch.setenv("PAYBIS_ENABLED", "yes")
+    flags = PaybisFeatureFlags.from_env()
+    assert flags.enabled is True and flags.mode == "sandbox"
+    assert flags.webhook_secret_env == "PAYBIS_WEBHOOK_SECRET"  # NAME only
+
+
+def test_provider_mock_quote_order_status():
+    provider = PaybisSandboxProvider(transport=SandboxMockPaybisTransport())
+    assert provider.health_check() == {"provider": "paybis", "mode": "sandbox", "healthy": True}
+    quote = provider.get_quote(BTC, Decimal("100.00"))
+    assert isinstance(quote, CryptoFeeEstimate) and quote.fee == Decimal("0.10")
+    order = provider.create_order(_req())
+    assert order.status is CryptoTransactionStatus.PENDING and order.tx_id == "ord-1"
+    assert (
+        provider.get_order_status("ord-1") is CryptoTransactionStatus.PENDING
+    )  # status-poll shape
+
+
+def test_provider_webhook_contract_idempotent_unverified():
+    provider = PaybisSandboxProvider(transport=SandboxMockPaybisTransport())
+    r1 = provider.handle_webhook({}, {"partnerOrderId": "po-1", "status": "completed"})
+    assert r1["accepted"] is True and r1["verified"] is False and r1["status"] == "CONFIRMED"
+    r2 = provider.handle_webhook({}, {"partnerOrderId": "po-1", "status": "completed"})  # dup
+    assert r2 == {"accepted": False, "duplicate": True, "verified": False}
+
+
+def test_error_mapping_and_smoke():
+    err = normalize_error(CryptoLedgerError("boom", code="X1"))
+    assert err == {"error": "X1", "message": "boom"}
+    # end-to-end sandbox smoke returns a structured ok report (mock path)
+    report = run_sandbox_smoke()
+    assert report["ok"] is True
+    assert report["provider_selected"] == "paybis-sandbox"
+    assert report["health"]["healthy"] is True
+    assert report["order"]["status"] == "PENDING"
+    assert report["webhook"]["accepted"] is True and report["webhook"]["verified"] is False
+
+
+def test_smoke_error_path_production_refused(monkeypatch):
+    monkeypatch.setenv("PAYBIS_ENABLED", "true")
+    monkeypatch.setenv("PAYBIS_MODE", "sandbox")
+    monkeypatch.setenv(
+        "PAYBIS_ENV", "PRODUCTION"
+    )  # build_sandbox_config refuses → smoke error path
+    report = run_sandbox_smoke()
+    assert report["ok"] is False
+    assert report["error"]["error"] == "PAYBIS_SANDBOX_ONLY"

@@ -35,9 +35,12 @@ from services.ledger.production.paybis_webhook import PaybisWebhookEvent, parse_
 # Documents what the operator must provide via vault / PAYBIS enablement. The VALUES are
 # never stored in the repo (I-SEC). Empty/unprovided literals stay OPERATOR-GATE / fenced.
 PAYBIS_ENV_CONTRACT: dict[str, str] = {
+    "PAYBIS_ENABLED": "feature flag — true enables the PAYBIS provider selector (default false)",
+    "PAYBIS_MODE": "sandbox (production refused in a sandbox install)",
     "PAYBIS_ENV": "SANDBOX | PRODUCTION — a sandbox install expects/forces SANDBOX",
     "PAYBIS_BASE_URL": "sandbox base URL — OPERATOR-GATE (PAYBIS enablement, approved-scope only); empty until provided",
     "PAYBIS_API_KEY": "NAME of the env var holding the API key; the VALUE lives in a vault, never in repo",
+    "PAYBIS_WEBHOOK_SECRET": "NAME of the webhook-secret env var; VALUE in vault. Signature verify still FENCED (algorithm НЕИЗВЕСТНО)",
 }
 
 
