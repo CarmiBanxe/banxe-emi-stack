@@ -26,3 +26,25 @@ ADR-114 (Travel-Rule on Paybis; go-live gate). **Plan:** `docs/paybis-dossier/PL
 
 ## Operator gates before Wave B/C
 SRC-06 (API spec: endpoints/auth/signature/schemas/webhook), SRC-07 (TR-status schema), SRC-08 (MLRO owner + CASP T&C), full agreement `.docx` (approved domains/ICT/security/incident/audit). Until then live remains fenced.
+
+---
+
+# PAYBIS Wave B — scaffolding note (on top of the Wave-A seam)
+
+**Status:** Wave B = **mock-first + fenced live-readiness scaffolding** (NO live HTTP, NO secrets, NO funds, NO guessed signature). Builds on the Wave-A `PaybisTransportPort` without frozen-port drift.
+
+## Wave B newly COVERS
+- **Transport contract (minimal, compatible):** `PaybisTransportPort.get_order_status(order_id) → CryptoTransactionStatus` (deterministic order/status lookup; FROZEN status enum, **no new type**). Exposed on the adapter as an **extra helper** (`PaybisCryptoAdapter.get_order_status`) — **NOT** a `CryptoLedgerPort` method (frozen port unchanged). Default transport keeps it fenced.
+- **Richer mock (`ConfigurableMockPaybisTransport`, tests):** healthy/unhealthy, fee responses, order-lifecycle, **retriable provider failure** (`PaybisTransportError(retriable=True)`), deterministic order→status table.
+- **Live-readiness scaffolding (`paybis_wave_b.py`, pure + fenced):**
+  - `build_order_request` — frozen request → provider-neutral structural dict (Decimal→str, I-01 guard; **no HTTP/secret/signature**).
+  - `normalize_order_response` — raw mapping → FROZEN status; **raises `PAYBIS_MALFORMED_RESPONSE`** on not-a-dict / missing status.
+  - `PaybisEndpoints.endpoint_for` — config-as-data routing; **fenced** while `base_url`/op-path unknown.
+  - `auth_headers` — auth/header injection POINT; **fenced** (no secret read, no scheme guess).
+- **Webhook edge cases:** snake_case keys + unknown status → safe `PENDING` (consistent fenced policy).
+- **Tests:** 14 total, **100% coverage** on adapter + webhook + wave_b.
+
+## Wave B still FENCED / blocked on literal PAYBIS spec
+- **No live transport** — `FencedLivePaybisTransport` (incl. `get_order_status`) still raises `PaybisLiveFencedError`; `endpoint_for`/`auth_headers` fenced.
+- **НЕИЗВЕСТНО (not invented):** endpoints, auth scheme, **signature algorithm**, exact request/response & webhook schemas, fee % — all blocked on **SRC-06** (+ SRC-07/08).
+- **No funds movement, no secrets, no live HTTP, no Travel-Rule go-live** (ADR-114 gate, Wave C). FROZEN `CryptoLedgerPort`/`CryptoRpcPort` unchanged.

@@ -78,31 +78,45 @@ class PaybisConfig:
 
 
 class PaybisLiveFencedError(CryptoLedgerError):
-    """Raised by the fenced live transport: live PAYBIS calls are disabled in Wave A."""
+    """Raised by the fenced live transport: live PAYBIS calls are disabled (Wave A/B)."""
 
     def __init__(self, op: str) -> None:
         super().__init__(
-            f"PAYBIS live transport is fenced in Wave A (op={op}); requires SRC-06 API spec "
-            "+ ADR-114 go-live gate (TR contract + MLRO). No secrets/funds in Wave A.",
+            f"PAYBIS live transport is fenced (op={op}); requires SRC-06 API spec "
+            "+ ADR-114 go-live gate (TR contract + MLRO). No secrets/funds until then.",
             code="PAYBIS_LIVE_FENCED",
         )
 
 
+class PaybisTransportError(CryptoLedgerError):
+    """Transport-level PAYBIS failure (Wave B). `retriable` lets a caller distinguish a transient
+    provider error (timeout / 5xx-class) from a terminal one — without any live execution here."""
+
+    def __init__(self, message: str, *, retriable: bool, code: str = "PAYBIS_TRANSPORT") -> None:
+        super().__init__(message, code=code)
+        self.retriable = retriable
+
+
 @runtime_checkable
 class PaybisTransportPort(Protocol):
-    """Injectable PAYBIS transport seam. Wave A: a mock implements it for tests; the default
-    live transport is fenced. Method shapes are structural (SRC-05/06); literal API НЕИЗВЕСТНО."""
+    """Injectable PAYBIS transport seam. A mock implements it for tests; the default live transport
+    is fenced. Method shapes are structural (SRC-05/06); literal API НЕИЗВЕСТНО.
+
+    Wave B adds `get_order_status` (deterministic order/status lookup). It returns the FROZEN
+    `CryptoTransactionStatus` — no new type, no frozen-port drift (the adapter exposes it as an
+    EXTRA helper, NOT as a `CryptoLedgerPort` method)."""
 
     def health(self) -> bool: ...
     def get_fee_estimate(
         self, blockchain: SupportedBlockchain, amount: Decimal
     ) -> CryptoFeeEstimate: ...
     def initiate_order(self, request: CryptoTransactionRequest) -> CryptoTransactionResult: ...
+    def get_order_status(self, order_id: str) -> CryptoTransactionStatus: ...
 
 
 class FencedLivePaybisTransport:
     """Default transport — every call is fenced (no live HTTP, no secrets, no funds). Wave B
-    replaces this with a real transport once SRC-06 (clean API spec) is available."""
+    keeps this fenced; a real transport replaces it once SRC-06 (clean API spec) is available."""
 
     def __init__(self, config: PaybisConfig | None = None) -> None:
         self._config = config or PaybisConfig()
@@ -117,6 +131,9 @@ class FencedLivePaybisTransport:
 
     def initiate_order(self, request: CryptoTransactionRequest) -> CryptoTransactionResult:
         raise PaybisLiveFencedError("initiate_order")
+
+    def get_order_status(self, order_id: str) -> CryptoTransactionStatus:
+        raise PaybisLiveFencedError("get_order_status")
 
 
 class PaybisCryptoAdapter:
@@ -156,6 +173,14 @@ class PaybisCryptoAdapter:
         if request.amount <= Decimal("0"):
             raise CryptoLedgerError("amount must be positive", code="AMOUNT_NONPOSITIVE")
         return self._transport.initiate_order(request)
+
+    # ── Wave B helper (NOT part of FROZEN CryptoLedgerPort) ─────────────────────
+    def get_order_status(self, order_id: str) -> CryptoTransactionStatus:
+        """Deterministic order/status lookup via transport (poll fallback to the webhook push).
+        Extra helper — does NOT alter the FROZEN port. Returns the FROZEN status enum."""
+        if not order_id:
+            raise CryptoLedgerError("order_id is required", code="ORDER_ID_REQUIRED")
+        return self._transport.get_order_status(order_id)
 
     def get_balance(self, wallet_id: str, blockchain: SupportedBlockchain):  # noqa: ANN201
         """Out of PAYBIS scope: BANXE is non-custodial (ADR-108) — wallet balance is an on-chain /

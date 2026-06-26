@@ -28,8 +28,15 @@ from services.ledger.production.paybis_crypto_adapter import (
     PaybisCryptoAdapter,
     PaybisEnv,
     PaybisLiveFencedError,
+    PaybisTransportError,
     PaybisTransportPort,
     map_order_status,
+)
+from services.ledger.production.paybis_wave_b import (
+    PaybisEndpoints,
+    auth_headers,
+    build_order_request,
+    normalize_order_response,
 )
 from services.ledger.production.paybis_webhook import (
     PaybisWebhookEvent,
@@ -76,6 +83,60 @@ class MockPaybisTransport:
             created_at=datetime.now(UTC),
             confirmed_at=None,
         )
+
+    def get_order_status(self, order_id: str) -> CryptoTransactionStatus:
+        return CryptoTransactionStatus.PENDING
+
+
+class ConfigurableMockPaybisTransport:
+    """Wave B richer mock — simulates healthy/unhealthy, retriable failure, and a deterministic
+    order→status table. Implements PaybisTransportPort. No live calls."""
+
+    def __init__(
+        self,
+        *,
+        healthy: bool = True,
+        fail_initiate: PaybisTransportError | None = None,
+        statuses: dict[str, CryptoTransactionStatus] | None = None,
+    ) -> None:
+        self._healthy = healthy
+        self._fail_initiate = fail_initiate
+        self._statuses = statuses or {}
+
+    def health(self) -> bool:
+        return self._healthy
+
+    def get_fee_estimate(
+        self, blockchain: SupportedBlockchain, amount: Decimal
+    ) -> CryptoFeeEstimate:
+        return CryptoFeeEstimate(
+            blockchain=blockchain,
+            fee=Decimal("0.25"),
+            currency="GBP",
+            priority=FeePriority.LOW,
+            estimated_confirmation_blocks=6,
+        )
+
+    def initiate_order(self, request: CryptoTransactionRequest) -> CryptoTransactionResult:
+        if self._fail_initiate is not None:
+            raise self._fail_initiate
+        return CryptoTransactionResult(
+            tx_id=request.tx_id,
+            tx_hash=None,
+            blockchain=request.blockchain,
+            amount=request.amount,
+            fee=Decimal("0.25"),
+            currency=request.currency,
+            status=CryptoTransactionStatus.PENDING,
+            from_wallet_id=request.from_wallet_id,
+            to_address=request.to_address,
+            created_at=datetime.now(UTC),
+            confirmed_at=None,
+        )
+
+    def get_order_status(self, order_id: str) -> CryptoTransactionStatus:
+        # deterministic: same order_id → same status across repeated calls
+        return self._statuses.get(order_id, CryptoTransactionStatus.PENDING)
 
 
 def _req(amount: Decimal = Decimal("100.00")) -> CryptoTransactionRequest:
@@ -218,3 +279,94 @@ def test_webhook_bad_payload_and_fenced_signature():
     assert e.value.code == "PAYBIS_WEBHOOK_BAD_PAYLOAD"
     with pytest.raises(PaybisWebhookSpecUnknownError):
         verify_signature(b"{}", "sig")
+
+
+# ══════════════════════════ Wave B ══════════════════════════
+
+
+# ── transport failure path (retriable provider error propagates) ────────────────
+def test_transport_failure_path_retriable():
+    err = PaybisTransportError("provider 503", retriable=True)
+    adapter = PaybisCryptoAdapter(transport=ConfigurableMockPaybisTransport(fail_initiate=err))
+    with pytest.raises(PaybisTransportError) as e:
+        adapter.create_tx(_req())
+    assert e.value.retriable is True and e.value.code == "PAYBIS_TRANSPORT"
+    # unhealthy provider surfaces via health()
+    assert (
+        PaybisCryptoAdapter(transport=ConfigurableMockPaybisTransport(healthy=False)).health()
+        is False
+    )
+
+
+# ── deterministic order/status lookup (stable across repeated calls) ────────────
+def test_get_order_status_deterministic():
+    mock = ConfigurableMockPaybisTransport(statuses={"ord-1": CryptoTransactionStatus.CONFIRMED})
+    adapter = PaybisCryptoAdapter(transport=mock)
+    first = adapter.get_order_status("ord-1")
+    second = adapter.get_order_status("ord-1")
+    assert first is second is CryptoTransactionStatus.CONFIRMED  # deterministic
+    assert adapter.get_order_status("unknown-id") is CryptoTransactionStatus.PENDING  # safe default
+    with pytest.raises(CryptoLedgerError) as e:
+        adapter.get_order_status("")
+    assert e.value.code == "ORDER_ID_REQUIRED"
+    # default transport keeps order-status fenced
+    with pytest.raises(PaybisLiveFencedError):
+        PaybisCryptoAdapter().get_order_status("ord-1")
+
+
+# ── live-readiness scaffolding: request build (pure) ────────────────────────────
+def test_build_order_request_structural():
+    payload = build_order_request(_req(Decimal("12.5000")))
+    assert payload["partnerOrderId"] == "ord-1"
+    assert payload["amount"] == "12.5000" and isinstance(
+        payload["amount"], str
+    )  # Decimal→str, no float
+    assert payload["blockchain"] == "BTC" and payload["customerId"] == "cust-1"
+    bad = CryptoTransactionRequest(
+        tx_id="x",
+        from_wallet_id="w",
+        to_address="a",
+        blockchain=BTC,
+        amount=1.0,
+        currency="BTC",
+        fee_level=FeePriority.LOW,
+        customer_id="c",  # type: ignore[arg-type]
+    )
+    with pytest.raises(CryptoLedgerError) as e:
+        build_order_request(bad)
+    assert e.value.code == "I01_DECIMAL"
+
+
+# ── response normalization (+ malformed failure) ────────────────────────────────
+def test_normalize_order_response_and_malformed():
+    assert normalize_order_response({"status": "completed"}) is CryptoTransactionStatus.CONFIRMED
+    assert normalize_order_response({"state": "cancelled"}) is CryptoTransactionStatus.FAILED
+    for bad in ("not-a-dict", {}, {"status": ""}, {"other": "x"}):
+        with pytest.raises(CryptoLedgerError) as e:
+            normalize_order_response(bad)  # type: ignore[arg-type]
+        assert e.value.code == "PAYBIS_MALFORMED_RESPONSE"
+
+
+# ── endpoint routing + auth injection both FENCED (no guess, no secret) ─────────
+def test_endpoints_and_auth_fenced():
+    cfg = PaybisConfig()  # base_url empty → unknown
+    eps = PaybisEndpoints(paths={"initiate": "v1/orders"})
+    with pytest.raises(PaybisLiveFencedError):
+        eps.endpoint_for(cfg, "initiate")  # base_url unknown → fenced
+    with pytest.raises(PaybisLiveFencedError):
+        PaybisEndpoints().endpoint_for(
+            PaybisConfig(base_url="https://x"), "initiate"
+        )  # path unknown
+    # when both known, it routes (pure string build, still no HTTP)
+    url = eps.endpoint_for(PaybisConfig(base_url="https://x/"), "initiate")
+    assert url == "https://x/v1/orders"
+    # auth headers remain fenced (no secret read, no scheme guess)
+    with pytest.raises(PaybisLiveFencedError):
+        auth_headers(PaybisConfig())
+
+
+# ── webhook edge: snake_case keys + unknown status maps to PENDING (fenced policy) ──
+def test_webhook_edge_cases():
+    ev = parse_event({"partner_order_id": "po-x", "state": "weird-state"})
+    assert ev.idempotency_key == "po-x"
+    assert ev.status is CryptoTransactionStatus.PENDING  # unknown → safe default, no guess
