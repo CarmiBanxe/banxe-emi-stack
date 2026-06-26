@@ -1,4 +1,7 @@
-# PAYBIS Wave A — what it does / does NOT do
+# PAYBIS Wave A + B — what it does / does NOT do
+
+> **Scope:** этот документ покрывает **Wave A** (this section) **и Wave B** (note ниже). Имя файла
+> сохранено как `PAYBIS-WAVE-A.md`, чтобы ссылки из `LANDING-HANDOFF-MAIN.md` оставались валидными.
 
 **Status:** Wave A (smallest safe slice). **Governance:** ADR-126 (NeuroNext retired, PAYBIS sole
 external crypto provider), ADR-108 (Paybis MiCA CASP, distribution/processor split, **non-custodial**),
