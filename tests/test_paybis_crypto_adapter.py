@@ -32,6 +32,14 @@ from services.ledger.production.paybis_crypto_adapter import (
     PaybisTransportPort,
     map_order_status,
 )
+from services.ledger.production.paybis_sandbox import (
+    PAYBIS_ENV_CONTRACT,
+    PaybisSandboxError,
+    PaybisSandboxWebhookSink,
+    build_sandbox_config,
+    build_sandbox_transport,
+    sandbox_guard,
+)
 from services.ledger.production.paybis_wave_b import (
     PaybisEndpoints,
     auth_headers,
@@ -370,3 +378,51 @@ def test_webhook_edge_cases():
     ev = parse_event({"partner_order_id": "po-x", "state": "weird-state"})
     assert ev.idempotency_key == "po-x"
     assert ev.status is CryptoTransactionStatus.PENDING  # unknown → safe default, no guess
+
+
+# ══════════════════════════ SANDBOX installation ══════════════════════════
+
+
+# ── sandbox config forces SANDBOX, refuses PRODUCTION (OPERATOR-GATE) ───────────
+def test_build_sandbox_config_forces_sandbox(monkeypatch):
+    monkeypatch.delenv("PAYBIS_ENV", raising=False)
+    cfg = build_sandbox_config()  # default → SANDBOX
+    assert cfg.env is PaybisEnv.SANDBOX
+    assert cfg.api_key_env_var == "PAYBIS_API_KEY"  # NAME only, never a secret value
+    monkeypatch.setenv("PAYBIS_ENV", "PRODUCTION")
+    with pytest.raises(PaybisSandboxError) as e:
+        build_sandbox_config()
+    assert e.value.code == "PAYBIS_SANDBOX_ONLY"
+
+
+# ── sandbox guard + transport stays fenced (no live calls) ──────────────────────
+def test_sandbox_guard_and_transport_fenced():
+    sandbox_guard(PaybisConfig(env=PaybisEnv.SANDBOX))  # ok
+    with pytest.raises(PaybisSandboxError):
+        sandbox_guard(PaybisConfig(env=PaybisEnv.PRODUCTION))
+    transport = build_sandbox_transport(PaybisConfig(env=PaybisEnv.SANDBOX))
+    with pytest.raises(PaybisLiveFencedError):
+        transport.health()  # sandbox HTTP needs endpoints (SRC-06) → fenced, no live call
+
+
+# ── sandbox webhook intake: idempotent, unverified, malformed raises ────────────
+def test_sandbox_webhook_sink_idempotent():
+    sink = PaybisSandboxWebhookSink()
+    first = sink.intake({"partnerOrderId": "po-1", "status": "completed"})
+    assert first is not None and first.status is CryptoTransactionStatus.CONFIRMED
+    dup = sink.intake({"partnerOrderId": "po-1", "status": "completed"})  # same key → deduped
+    assert dup is None and sink.duplicates == 1 and len(sink.events) == 1
+    # distinct key recorded
+    assert sink.intake({"transactionId": "tx-2", "status": "pending"}) is not None
+    assert len(sink.events) == 2
+    # malformed / no-idempotency-key still raise (no silent accept)
+    with pytest.raises(CryptoLedgerError) as e:
+        sink.intake({"status": "pending"})
+    assert e.value.code == "PAYBIS_WEBHOOK_NO_IDEMPOTENCY_KEY"
+
+
+# ── env-var contract is names-only (no secret values) ───────────────────────────
+def test_env_contract_names_only():
+    assert set(PAYBIS_ENV_CONTRACT) == {"PAYBIS_ENV", "PAYBIS_BASE_URL", "PAYBIS_API_KEY"}
+    # values are human descriptions, not credentials (no "KEY=VALUE" literal)
+    assert all(isinstance(v, str) and v and "=" not in v for v in PAYBIS_ENV_CONTRACT.values())

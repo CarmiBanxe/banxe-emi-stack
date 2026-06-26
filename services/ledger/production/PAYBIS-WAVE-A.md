@@ -51,3 +51,44 @@ SRC-06 (API spec: endpoints/auth/signature/schemas/webhook), SRC-07 (TR-status s
 - **No live transport** — `FencedLivePaybisTransport` (incl. `get_order_status`) still raises `PaybisLiveFencedError`; `endpoint_for`/`auth_headers` fenced.
 - **НЕИЗВЕСТНО (not invented):** endpoints, auth scheme, **signature algorithm**, exact request/response & webhook schemas, fee % — all blocked on **SRC-06** (+ SRC-07/08).
 - **No funds movement, no secrets, no live HTTP, no Travel-Rule go-live** (ADR-114 gate, Wave C). FROZEN `CryptoLedgerPort`/`CryptoRpcPort` unchanged.
+
+---
+
+# PAYBIS SANDBOX INSTALLATION STATUS
+
+**Mode:** SANDBOX-only installation through the existing seam. **NOT live rollout.** No real creds/
+secrets/endpoints/signature. **Approved-scope (legal):** PAYBIS usage limited to approved domains/
+URLs/subdomains/ICT/environments/use-cases; sandbox base-URL + enablement are operator/PAYBIS-provided
+(OPERATOR-GATE) — not invented.
+
+## Installed (sandbox-safe)
+- `services/ledger/production/paybis_sandbox.py` — `build_sandbox_config` (forces SANDBOX, **refuses
+  PRODUCTION** → OPERATOR-GATE), `sandbox_guard` (fail-closed), `build_sandbox_transport` (returns the
+  **fenced** transport — real sandbox HTTP needs SRC-06 endpoints), `PaybisSandboxWebhookSink`
+  (in-memory **idempotent** intake, events **unverified** — signature fenced), `PAYBIS_ENV_CONTRACT`.
+- `services/ledger/production/paybis_sandbox.env.example` — env-var contract (names only; **no values/
+  secrets**): `PAYBIS_ENV=SANDBOX`, `PAYBIS_BASE_URL=` (OPERATOR-GATE), `PAYBIS_API_KEY=` (vault).
+- Tests: +4 sandbox cases (config forces/refuses, guard+fenced transport, idempotent sink, env contract).
+  **18 tests total, 100% coverage** across adapter + webhook + wave_b + sandbox.
+
+## Completeness matrix (capability × status)
+| Capability | Status | Evidence / note |
+|---|---|---|
+| provider health | **STRUCTURALLY INSTALLED BUT FENCED** | `adapter.health()` via transport; sandbox transport fenced (no live) |
+| fee / quote estimate | **STRUCTURALLY INSTALLED BUT FENCED** | `get_fee_estimate` mock-routed; live fenced |
+| order initiation | **STRUCTURALLY INSTALLED BUT FENCED** | `create_tx` → PENDING; live fenced; I-01 enforced |
+| order status retrieval | **STRUCTURALLY INSTALLED BUT FENCED** | `get_order_status` deterministic (mock); live fenced |
+| webhook intake | **STRUCTURALLY INSTALLED BUT FENCED** | `PaybisSandboxWebhookSink` parses structural payload; **unverified** |
+| idempotency handling | **INSTALLED** | sink dedupe on `partnerOrderId`⊳`transactionId`; tested |
+| sandbox env / config | **INSTALLED** | `build_sandbox_config` + env contract + `.env.example`; SANDBOX forced |
+| error mapping / retriable transport | **INSTALLED** | `PaybisTransportError(retriable)` + `normalize_order_response` (malformed raises); tested |
+| auth / signature handling | **BLOCKED BY MISSING LITERALS** | `auth_headers` + `verify_signature` fenced — scheme/**signature algorithm** НЕИЗВЕСТНО (SRC-06/08) |
+| endpoint routing (sandbox routes) | **BLOCKED BY MISSING LITERALS** | `endpoint_for` fenced; sandbox base-URL OPERATOR-GATE (no guessed route) |
+| live funds movement / Travel-Rule go-live | **OUT OF SCOPE** | non-custodial (ADR-108); ADR-114 gate = Wave C |
+| wallet / balance via PAYBIS | **OUT OF SCOPE** | `OUT_OF_PAYBIS_SCOPE` (non-custodial, ADR-108) |
+
+## OPERATOR-GATE blockers (sandbox → live-sandbox)
+- **Sandbox base-URL + enablement** (`PAYBIS_BASE_URL`, API key in vault) — operator/PAYBIS provided, approved-scope only.
+- **SRC-06** — endpoints, auth scheme, **signature algorithm**, request/response & webhook schemas (un-fences `endpoint_for`/`auth_headers`/`verify_signature` + a real sandbox transport).
+- **SRC-07 + ADR-114** — Travel-Rule status + MLRO/HITL go-live gate (Wave C).
+Until provided, the seam stays fenced and sandbox-only — no live calls, no funds, no secrets.
