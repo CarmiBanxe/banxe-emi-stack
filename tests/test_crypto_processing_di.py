@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+import pytest
+
 from api.deps import _select_crypto_processing_adapter
 from services.ledger.crypto_ledger_port import CryptoTransactionStatus, SupportedBlockchain
 from services.ledger.legacy.legacy_crypto_processing_adapter import LegacyCryptoProcessingAdapter
@@ -89,7 +91,9 @@ def test_paybis_shim_create_tx_returns_pending(monkeypatch):
         )
     )
     assert result.status is CryptoTransactionStatus.PENDING and result.tx_id == "di-1"
-    # status poll + non-custodial boundary preserved through the shim
+    # status poll + non-custodial boundary preserved through the shim.
+    # NB: assert via pytest.raises (matches test_non_custodial_scope_raises) — the manual
+    # try/except form was fragile under full-suite collection ordering.
     assert processing.get_order_status("di-1") is CryptoTransactionStatus.PENDING
     from services.ledger.crypto_ledger_port import CryptoLedgerError
 
@@ -97,8 +101,6 @@ def test_paybis_shim_create_tx_returns_pending(monkeypatch):
         lambda: processing.get_balance("w1", BTC),
         lambda: processing.create_wallet_address("c1", BTC),
     ):
-        try:
+        with pytest.raises(CryptoLedgerError) as exc:
             call()
-            raise AssertionError("expected OUT_OF_PAYBIS_SCOPE")
-        except CryptoLedgerError as e:
-            assert e.code == "OUT_OF_PAYBIS_SCOPE"
+        assert exc.value.code == "OUT_OF_PAYBIS_SCOPE"
