@@ -205,3 +205,46 @@ jobs:
       - name: Run Vitest
         run: npm run test
         continue-on-error: true
+
+  # -- O-11: Advisory quality gates (KPI-1, KPI-2, KPI-4)
+  # O-11: advisory — promote-to-required is operator-gate (not autonomous)
+  # Measures coverage ≥85%, security hotspot, tech-debt proxy.
+  # All steps continue-on-error: true (green main preserved; non-blocking).
+  quality-gate-advisory:
+    name: "Quality Gate (advisory) [O-11]"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    needs: [test, semgrep]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - name: Install deps
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-asyncio semgrep
+      - name: "KPI-1: Coverage ≥ 85% (advisory)"
+        # O-11: advisory — non-blocking until promoted by operator
+        # Current gate is 80% (test job); advisory targets 85% for future.
+        run: |
+          python -m pytest tests/ \
+            --cov=services --cov=api --cov=src \
+            --cov-fail-under=85 \
+            --cov-report=term-missing \
+            -q --tb=no 2>&1 | tail -30
+        continue-on-error: true
+      - name: "KPI-4: Semgrep security hotspot ≥ 95% (advisory)"
+        # O-11: proxy for security-hotspot ≥ 95% — 0 semgrep findings = pass
+        run: |
+          semgrep --config .semgrep/banxe-rules.yml --error --quiet 2>&1 | tail -15
+        continue-on-error: true
+      - name: "KPI-2: Tech-debt proxy (advisory, ⚪ DELEGATED)"
+        # O-11: ruff statistics as tech-debt proxy; replace with SonarQube when configured
+        # Per banxe-architecture/scripts/quality-gate.sh, tech-debt <5% is DELEGATED to project SonarQube
+        run: |
+          echo "⚪ DELEGATED: tech-debt <5% requires SonarQube or equivalent — not yet configured in banxe-emi-stack"
+          echo "  Proxy signal (ruff lint count):"
+          ruff check . --statistics 2>&1 | tail -10 || true
+        continue-on-error: true

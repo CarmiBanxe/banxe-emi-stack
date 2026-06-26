@@ -539,3 +539,23 @@
   returns empty after this errata lands (the collision exists only in the pre-errata
   history; this entry documents and closes it).
 - This errata PR own key: `IL-CBS-LEDGER-ERRATA-DRECON3LEG-2026-06-26` (unique).
+
+### IL-CBS-CI-QUALITYGATE-2026-06-26
+
+**Task:** O-11 — wire quality-gate advisory step into banxe-emi-stack CI
+**Status:** OPEN (pending operator review / promote-to-required)
+**Scope:** `.github/workflows/quality-gate.yml` (advisory job `quality-gate-advisory`, continue-on-error: true)
+**KPIs:**
+  - KPI-1: coverage ≥85% (pytest --cov-fail-under=85, advisory, non-blocking)
+  - KPI-2: tech-debt ⚪ DELEGATED (SonarQube not yet configured; ruff statistics as proxy only)
+  - KPI-4: security hotspot ≥95% (semgrep 0 findings, advisory, non-blocking)
+**Design:** All sub-steps `continue-on-error: true` — green main preserved; non-blocking. Advisory job depends on [test, semgrep] baseline gates (required). Comment in YAML: "promote-to-required is operator-gate".
+**Invariants:** I-27 (HITL), ADR-102 (no duplication — extends existing quality-gate.yml rather than creating new), I-28 (audit trail via IL), I-24 (append-only).
+**Operator gates pending:**
+  - [ ] Promote advisory → required (separate operator decision, not autonomous)
+  - [ ] KPI-2 tech-debt: configure SonarQube or equivalent when ready
+  - [ ] Coverage baseline: confirm 85% threshold is achievable against current test suite
+**Proof:**
+  - YAML parses: ✅
+  - ADR-102: extends existing quality-gate.yml (lines 209–253), no new workflow file ✅
+  - IL key unique: `grep 'IL-CBS-CI-QUALITYGATE-2026-06-26' INSTRUCTION-LEDGER.md | wc -l` = 1 ✅
