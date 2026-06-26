@@ -170,6 +170,47 @@ def select_paybis_provider(transport: PaybisTransportPort | None = None) -> Payb
     return PaybisSandboxProvider(transport=transport)
 
 
+class PaybisProcessingShim:
+    """Thinnest shim adapting the `PaybisSandboxProvider` façade → the `processing` port that
+    `CryptoApplicationService` expects (a `CryptoLedgerPort` subset: `create_tx` / `get_fee_estimate`
+    / `health`). Provider façade names differ (create_order/get_quote/health_check) so this maps 1:1.
+    Non-custodial methods stay `OUT_OF_PAYBIS_SCOPE` (ADR-108), consistent with `PaybisCryptoAdapter`."""
+
+    def __init__(self, provider: PaybisSandboxProvider) -> None:
+        self._provider = provider
+
+    def create_tx(self, request: CryptoTransactionRequest) -> CryptoTransactionResult:
+        return self._provider.create_order(request)
+
+    def get_fee_estimate(
+        self, blockchain: SupportedBlockchain, amount: Decimal
+    ) -> CryptoFeeEstimate:
+        return self._provider.get_quote(blockchain, amount)
+
+    def health(self) -> bool:
+        return bool(self._provider.health_check().get("healthy", False))
+
+    def get_order_status(self, order_id: str) -> CryptoTransactionStatus:
+        return self._provider.get_order_status(order_id)
+
+    def get_balance(self, wallet_id: str, blockchain: SupportedBlockchain):  # noqa: ANN201
+        raise CryptoLedgerError(
+            "get_balance out of PAYBIS scope (non-custodial, ADR-108)", code="OUT_OF_PAYBIS_SCOPE"
+        )
+
+    def create_wallet_address(self, customer_id: str, blockchain: SupportedBlockchain):  # noqa: ANN201
+        raise CryptoLedgerError(
+            "create_wallet_address out of PAYBIS scope (non-custodial, ADR-108)",
+            code="OUT_OF_PAYBIS_SCOPE",
+        )
+
+
+def build_sandbox_processing_adapter() -> PaybisProcessingShim:
+    """DI entrypoint: flag-gated PAYBIS sandbox `processing` adapter (shim over the provider seam).
+    Raises `PaybisSandboxError` if disabled / non-sandbox (caller falls back to legacy)."""
+    return PaybisProcessingShim(select_paybis_provider())
+
+
 def normalize_error(exc: CryptoLedgerError) -> dict[str, str]:
     """Normalized error mapping at the adapter boundary (typed code + message)."""
     return {"error": exc.code or "PAYBIS_ERROR", "message": str(exc)}

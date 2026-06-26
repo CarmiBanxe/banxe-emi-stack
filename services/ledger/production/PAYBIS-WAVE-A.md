@@ -134,3 +134,22 @@ python -m services.ledger.production.paybis_provider
 pytest tests/test_paybis_crypto_adapter.py -k "smoke or selection or provider" -q
 ```
 Verifies: config loaded → provider selected → transport callable → mock path returns structured results.
+
+---
+
+# PAYBIS DI integration (api/deps.py — processing surface only)
+
+**PAYBIS sandbox is DI-gated at `api/deps.py` only.** `get_crypto_application_service()` selects the
+`processing` adapter via `_select_crypto_processing_adapter()`:
+- `PAYBIS_ENABLED=true` **and** `PAYBIS_MODE=sandbox` → PAYBIS provider seam (`PaybisProcessingShim`
+  over `select_paybis_provider()`), matching the `processing` port (`create_tx`/`get_fee_estimate`/`health`).
+- else → `LegacyCryptoProcessingAdapter` (unchanged default).
+
+**wallet and rpc stay legacy** (`LegacyCryptoWalletAdapter` / `LegacyCryptoRpcAdapter`) — **processing
+is the only substituted surface** in this step (smallest blast radius). **Defensive fallback:** any
+PAYBIS import/config/runtime failure logs and falls back to legacy (no invariant requires PAYBIS).
+Production mode is refused (OPERATOR-GATE). FROZEN port + non-custodial boundary preserved through the shim.
+
+**Next steps for deeper NeuroNext-flow replacement (separate, gated):** substitute wallet/rpc once a real
+sandbox transport exists (SRC-06); promote PAYBIS to default only after live enablement + ADR-114 go-live;
+consolidate/retire legacy crypto adapters per PLAN E10 (PARKED until cutover).
