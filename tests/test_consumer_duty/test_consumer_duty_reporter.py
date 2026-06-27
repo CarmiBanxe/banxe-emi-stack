@@ -15,7 +15,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from services.consumer_duty.consumer_duty_reporter import ConsumerDutyReporter
-from services.consumer_duty.models_v2 import (
+from services.consumer_duty.models import (
     HITLProposal,
     InMemoryOutcomeStore,
     InMemoryProductGovernance,

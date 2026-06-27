@@ -1,5 +1,5 @@
 """
-tests/test_consumer_duty/test_models_v2.py
+tests/test_consumer_duty/test_models.py
 Tests for consumer duty Phase 50 models, frozen dataclasses, Decimal I-01.
 IL-CDO-01 | Phase 50 | Sprint 35
 
@@ -18,7 +18,7 @@ from decimal import Decimal
 
 import pytest
 
-from services.consumer_duty.models_v2 import (
+from services.consumer_duty.models import (
     AssessmentStatus,
     ConsumerProfile,
     HITLProposal,

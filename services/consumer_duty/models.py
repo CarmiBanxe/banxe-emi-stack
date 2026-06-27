@@ -1,5 +1,5 @@
 """
-services/consumer_duty/models_v2.py
+services/consumer_duty/models.py
 Consumer Duty Outcome Monitoring — Domain Models (Phase 50)
 IL-CDO-01 | Phase 50 | Sprint 35
 

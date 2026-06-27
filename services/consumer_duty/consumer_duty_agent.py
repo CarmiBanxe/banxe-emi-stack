@@ -18,7 +18,7 @@ import logging
 
 from services.consumer_duty.consumer_duty_reporter import ConsumerDutyReporter
 from services.consumer_duty.consumer_support_tracker import ConsumerSupportTracker
-from services.consumer_duty.models_v2 import (
+from services.consumer_duty.models import (
     HITLProposal,
     InMemoryOutcomeStore,
     InMemoryProductGovernance,
