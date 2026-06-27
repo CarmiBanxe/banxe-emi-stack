@@ -206,3 +206,24 @@ rules:
         - "**/tests/**"
         - "**/docs/**"
         - "**/.semgrep/**"
+
+  # NOTE: distinct from banxe-no-bitrix-reintroduction above — that guards Bitrix (CMS, "битрикс");
+  # this guards Bittrex (the retired crypto exchange). The bitrix regex does NOT match "bittrex".
+  - id: banxe-no-bittrex-reintroduction
+    pattern-regex: '(?i)bittrex'
+    message: |
+      Bittrex must not be reintroduced. PAYBIS is the sole external crypto provider.
+      Bittrex is fully removed from EMI; rollback must never re-route to Bittrex.
+    languages: [generic]
+    severity: ERROR
+    paths:
+      include:
+        - "**/services/**"
+        - "**/app/**"
+        - "**/src/**"
+        - "**/api/**"
+        - "**/config/**"
+      exclude:
+        - "**/tests/**"
+        - "**/docs/**"
+        - "**/.semgrep/**"
