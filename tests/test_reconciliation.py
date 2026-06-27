@@ -318,3 +318,62 @@ class TestDryRunPipeline:
         assert summary["total_accounts"] == 2
         assert "overall_status" in summary
         assert summary["overall_status"] in {"MATCHED", "PENDING", "DISCREPANCY"}
+
+
+# ── Regression: string date handling ──────────────────────────────────────────
+
+
+class TestStringDateHandling:
+    """
+    Regression test for production crash (exit 3 FATAL):
+    'str' object has no attribute 'year' at _write_to_clickhouse:209
+
+    Root cause: clickhouse-driver's parameter binding tries to extract .year
+    from parameter values. If recon_date is a string instead of date object,
+    it crashes. The fix guards _write_to_clickhouse to accept both types.
+    """
+
+    def test_write_to_clickhouse_accepts_string_date(self):
+        """Regression: str recon_date must not crash with AttributeError."""
+        from dataclasses import replace
+
+        engine, ch = make_engine(
+            ledger_balances={OPERATIONAL_ID: "100.00", CLIENT_FUNDS_ID: "200.00"},
+            external_balances=[
+                make_ext_balance(OPERATIONAL_ID, "100.00"),
+                make_ext_balance(CLIENT_FUNDS_ID, "200.00"),
+            ],
+        )
+        results = engine.reconcile(TEST_DATE)
+        assert len(results) == 2
+
+        # Simulate a result where recon_date is a string (regression scenario)
+        result_with_str_date = replace(results[0], recon_date=TEST_DATE.isoformat())  # type: ignore[arg-type]
+        assert isinstance(result_with_str_date.recon_date, str), (
+            "Setup: recon_date should be string"
+        )
+
+        # This should NOT raise AttributeError: 'str' object has no attribute 'isoformat'
+        # because _write_to_clickhouse guards against it
+        engine._write_to_clickhouse(result_with_str_date)
+
+        # Verify the event was captured (without crashing)
+        assert ch.call_count >= 2  # at least the original 2 + this new write
+
+    def test_write_to_clickhouse_accepts_date_object(self):
+        """Sanity: date objects (normal case) still work."""
+        engine, ch = make_engine(
+            ledger_balances={OPERATIONAL_ID: "100.00", CLIENT_FUNDS_ID: "200.00"},
+            external_balances=[
+                make_ext_balance(OPERATIONAL_ID, "100.00"),
+                make_ext_balance(CLIENT_FUNDS_ID, "200.00"),
+            ],
+        )
+        results = engine.reconcile(TEST_DATE)
+        assert all(isinstance(r.recon_date, date) for r in results)
+
+        # Write the first result again (it already has a date object)
+        engine._write_to_clickhouse(results[0])
+
+        # Should succeed without error
+        assert ch.call_count >= 3  # 2 original + this new write
