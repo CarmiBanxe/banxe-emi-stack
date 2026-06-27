@@ -50,3 +50,11 @@ secrets/
 .openclaw/skills/SKILL.md
 records/
 tools/
+
+# Accidental editor/tool backups (added 2026-06-27)
+*.bak
+*.bak.*
+.claude/settings.json.bak*
+
+# Stray nested checkout artifacts (added 2026-06-27)
+/banxe-emi-stack

@@ -207,12 +207,13 @@ class ReconciliationEngine:
         amounts passed as str → ClickHouse driver casts to Decimal(18,2) correctly.
         """
         # Guard: recon_date may be str (from external sources) or date object (from reconcile())
-        # Normalize to str ISO format for ClickHouse insertion
-        recon_date_str: str
+        # Normalize to datetime.date object for ClickHouse insertion
+        # clickhouse-driver calls .year/.month/.day on Date column values internally
+        recon_date_obj: date
         if isinstance(r.recon_date, str):
-            recon_date_str = r.recon_date
+            recon_date_obj = date.fromisoformat(r.recon_date)
         else:
-            recon_date_str = r.recon_date.isoformat()
+            recon_date_obj = r.recon_date
 
         self._ch.execute(
             """
@@ -223,7 +224,7 @@ class ReconciliationEngine:
             VALUES
             """,
             {
-                "recon_date": recon_date_str,
+                "recon_date": recon_date_obj,
                 "account_id": r.account_id,
                 "account_type": r.account_type,
                 "currency": r.currency,
