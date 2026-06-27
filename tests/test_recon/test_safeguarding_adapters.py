@@ -147,7 +147,7 @@ class TestRunSafeguardingAgent:
     _SA_RAIL = "src.safeguarding.three_leg.InMemoryRailBalancePort"
     _MIDAZ_PORT = "services.recon.safeguarding_adapters.MidazClientFundsPort"
     _STMT_PORT = "services.recon.safeguarding_adapters.StatementBankPort"
-    _STREAK = "services.recon.safeguarding_adapters.ZeroStreakCounter"
+    _STREAK = "src.safeguarding.clickhouse_streak_counter.ClickHouseStreakCounter"
 
     def test_matched_returns_exit_matched(self):
         from services.recon.cron_daily_recon import EXIT_MATCHED, _run_safeguarding_agent
@@ -199,3 +199,68 @@ class TestRunSafeguardingAgent:
         with patch(self._MIDAZ_PORT, side_effect=RuntimeError("Midaz timeout")):
             exit_code = _run_safeguarding_agent(D, dry_run=True)
         assert exit_code == EXIT_FATAL
+
+    def test_clickhouse_streak_counter_wired_not_zero(self):
+        """_run_safeguarding_agent must wire ClickHouseStreakCounter (real, not stub)."""
+        from services.recon.cron_daily_recon import _run_safeguarding_agent
+        from src.safeguarding.clickhouse_streak_counter import ClickHouseStreakCounter
+
+        captured_ports = {}
+
+        def capture_ports(**kwargs):
+            captured_ports.update(kwargs)
+            m = MagicMock()
+            m.ledger = kwargs.get("ledger")
+            m.bank = kwargs.get("bank")
+            m.audit = kwargs.get("audit")
+            m.streak_counter = kwargs.get("streak_counter")
+            m.rail = kwargs.get("rail")
+            return m
+
+        with (
+            patch(self._MIDAZ_PORT),
+            patch(self._STMT_PORT),
+            patch(self._SA_AUDIT),
+            patch(self._SA_RAIL),
+            patch(self._SA_PORTS, side_effect=capture_ports),
+            patch(self._SA_AGENT) as mock_agent_cls,
+        ):
+            mock_result = MagicMock()
+            mock_result.exit_code = 0
+            mock_result.status_label = "MATCHED"
+            mock_result.three_leg_result = None
+            mock_agent_cls.return_value.run.return_value = mock_result
+            _run_safeguarding_agent(D, dry_run=True)
+
+        assert isinstance(captured_ports.get("streak_counter"), ClickHouseStreakCounter)
+
+    def test_midaz_leg_a_wired_not_stub(self):
+        """ledger port must be MidazClientFundsPort (real Midaz adapter)."""
+        from services.recon.cron_daily_recon import _run_safeguarding_agent
+        from services.recon.safeguarding_adapters import MidazClientFundsPort as RealPort
+
+        captured_ports = {}
+
+        def capture_ports(**kwargs):
+            captured_ports.update(kwargs)
+            m = MagicMock()
+            for k, v in kwargs.items():
+                setattr(m, k, v)
+            return m
+
+        with (
+            patch(self._STMT_PORT),
+            patch(self._SA_AUDIT),
+            patch(self._SA_RAIL),
+            patch(self._SA_PORTS, side_effect=capture_ports),
+            patch(self._SA_AGENT) as mock_agent_cls,
+            patch("services.ledger.midaz_adapter.MidazLedgerAdapter"),
+        ):
+            mock_result = MagicMock()
+            mock_result.exit_code = 0
+            mock_result.status_label = "MATCHED"
+            mock_result.three_leg_result = None
+            mock_agent_cls.return_value.run.return_value = mock_result
+            _run_safeguarding_agent(D, dry_run=True)
+
+        assert isinstance(captured_ports.get("ledger"), RealPort)
