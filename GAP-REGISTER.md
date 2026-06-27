@@ -5,7 +5,17 @@
 > Этот файл — зеркало EMI-стека; в случае расхождения преобладает
 > запись в `banxe-architecture`.
 
-**Last updated:** 2026-05-03
+**Last updated:** 2026-06-27
+
+---
+
+## Status Reconciliation — 2026-06-27
+
+Per FULL-PROJECT-INSTALLATION-AUDIT-2026-06-21: ~76% L2-complete. All previously-OPEN code GAPs have implementing services installed. Status updates in this document reflect audit findings.
+
+Remaining work: L3-docs/recon-thin + external owner debts (BT-010 FCA RegData key, ufw/Tailscale ACL, ss1 CNIL, bus-factor, product C-02.1/C-37.3) — NOT code gaps.
+
+This session (2026-06-27): GAP-087 safeguarding LIVE (recon Result=success), GAP-088 BT-010 FCA key pending, GAP-089 crypto-ledger Wave E deferred.
 
 ---
 
