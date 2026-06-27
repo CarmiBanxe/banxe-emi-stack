@@ -1,0 +1,27 @@
+[Unit]
+Description=Banxe CASS 15 Daily Safeguarding Reconciliation
+Documentation=https://github.com/CarmiBanxe/banxe-emi-stack/blob/main/docs/runbooks/banxe-recon-service-activation.md
+After=network.target postgresql.service clickhouse-server.service
+Wants=network.target
+
+[Service]
+Type=oneshot
+# Run as the banxe service account (not root, not the current user)
+User=mmber
+Group=mmber
+WorkingDirectory=/home/mmber/banxe-emi-stack
+# Load secrets and config without hardcoding (CASS 15 compliance, BANXE security rule)
+EnvironmentFile=/home/mmber/banxe-emi-stack/.env
+# Activate venv and run via Python module path (keeps relative imports working)
+ExecStart=/opt/banxe/compliance/venv/bin/python -m services.recon.cron_daily_recon
+# systemd-native output: journal captures both stdout and stderr
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=banxe-recon
+# Restart policy: oneshot timers should NOT auto-restart (timer re-triggers daily)
+Restart=no
+# 10 minute timeout: reconciliation should complete well within this window
+TimeoutStartSec=600
+
+[Install]
+WantedBy=multi-user.target

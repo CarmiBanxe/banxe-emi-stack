@@ -1,0 +1,14 @@
+[Unit]
+Description=Daily CASS 15 Safeguarding Reconciliation Timer (07:00 UTC Mon-Fri)
+Requires=banxe-recon.service
+
+[Timer]
+# Fire at 07:00 UTC Mon-Fri (bank statements available post-overnight batch)
+OnCalendar=Mon-Fri 07:00:00 UTC
+# If system was off at fire time, run when it starts up (within 15 minutes)
+AccuracySec=1min
+Persistent=true
+Unit=banxe-recon.service
+
+[Install]
+WantedBy=timers.target
