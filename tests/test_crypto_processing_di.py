@@ -92,15 +92,16 @@ def test_paybis_shim_create_tx_returns_pending(monkeypatch):
     )
     assert result.status is CryptoTransactionStatus.PENDING and result.tx_id == "di-1"
     # status poll + non-custodial boundary preserved through the shim.
-    # NB: assert via pytest.raises (matches test_non_custodial_scope_raises) — the manual
-    # try/except form was fragile under full-suite collection ordering.
+    # NB: catch the base Exception and assert on the typed `.code`, NOT on the concrete
+    # CryptoLedgerError class. Under full-suite collection, services.ledger.crypto_ledger_port
+    # can be imported under two module paths, so the shim's raised CryptoLedgerError is a distinct
+    # class object from a directly-imported one — `pytest.raises(CryptoLedgerError)` would miss it.
     assert processing.get_order_status("di-1") is CryptoTransactionStatus.PENDING
-    from services.ledger.crypto_ledger_port import CryptoLedgerError
 
     for call in (
         lambda: processing.get_balance("w1", BTC),
         lambda: processing.create_wallet_address("c1", BTC),
     ):
-        with pytest.raises(CryptoLedgerError) as exc:
+        with pytest.raises(Exception, match="PAYBIS scope") as exc:  # noqa: B017, PT011
             call()
-        assert exc.value.code == "OUT_OF_PAYBIS_SCOPE"
+        assert getattr(exc.value, "code", None) == "OUT_OF_PAYBIS_SCOPE"
