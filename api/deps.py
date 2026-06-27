@@ -11,8 +11,11 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator
 from functools import lru_cache
+import logging
 import os
 from typing import TYPE_CHECKING
+
+logger = logging.getLogger(__name__)
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -211,23 +214,51 @@ def get_buffered_audit_port() -> BufferedAuditPort:
 # ── Wave E: Crypto legacy adapter DI (ADR-031, Phase 5 Step 1) ───────────────
 
 
+def _select_crypto_processing_adapter():  # type: ignore[return]
+    """Select the crypto `processing` adapter (a CryptoLedgerPort: create_tx/get_fee_estimate/health).
+
+    PAYBIS sandbox is **DI-gated here only** — if `PAYBIS_ENABLED=true` and `PAYBIS_MODE=sandbox`, use
+    the flag-gated PAYBIS provider seam (shimmed to the processing port); otherwise keep the legacy
+    adapter. **wallet and rpc stay legacy** — processing is the only substituted surface in this step.
+
+    Defensive fallback: any PAYBIS import/config/runtime failure logs and falls back to
+    `LegacyCryptoProcessingAdapter` (no invariant requires PAYBIS; legacy is the safe default).
+    """
+    from services.ledger.legacy.legacy_crypto_processing_adapter import (
+        LegacyCryptoProcessingAdapter,
+    )
+
+    try:
+        from services.ledger.production.paybis_provider import (
+            PaybisFeatureFlags,
+            build_sandbox_processing_adapter,
+        )
+
+        flags = PaybisFeatureFlags.from_env()
+        if flags.enabled and flags.mode == "sandbox":
+            return build_sandbox_processing_adapter()
+    except Exception as exc:  # noqa: BLE001 — defensive DI fallback; never break crypto on PAYBIS wiring
+        logger.warning(
+            "PAYBIS sandbox processing wiring failed (%s); falling back to legacy processing", exc
+        )
+    return LegacyCryptoProcessingAdapter()
+
+
 @lru_cache(maxsize=1)
 def get_crypto_application_service():  # type: ignore[return]
     """Crypto application service — REWRITE-7/8/9 legacy adapter composition.
 
-    CRYPTO_WALLET_ADAPTER / CRYPTO_PROCESSING_ADAPTER / CRYPTO_RPC_ADAPTER env vars
-    reserved for future real-adapter selection; scaffold only for now.
+    wallet/rpc stay on legacy adapters. **processing** is DI-gated: PAYBIS sandbox seam when
+    `PAYBIS_ENABLED=true` + `PAYBIS_MODE=sandbox`, else legacy (see `_select_crypto_processing_adapter`).
+    CRYPTO_WALLET_ADAPTER / CRYPTO_RPC_ADAPTER env vars reserved for future real-adapter selection.
     """
     from services.ledger.crypto_application_service import CryptoApplicationService
-    from services.ledger.legacy.legacy_crypto_processing_adapter import (
-        LegacyCryptoProcessingAdapter,
-    )
     from services.ledger.legacy.legacy_crypto_rpc_adapter import LegacyCryptoRpcAdapter
     from services.ledger.legacy.legacy_crypto_wallet_adapter import LegacyCryptoWalletAdapter
 
     return CryptoApplicationService(
         wallet=LegacyCryptoWalletAdapter(),
-        processing=LegacyCryptoProcessingAdapter(),
+        processing=_select_crypto_processing_adapter(),
         rpc=LegacyCryptoRpcAdapter(),
     )
 

@@ -53,3 +53,9 @@ tests/
 # --- Frontend node_modules (third-party dependencies) ---
 # Not banxe code, vendor libraries only
 frontend/node_modules/
+
+# --- PAYBIS governance doc: legitimate ADR-126/138 'NeuroNext retired' refs ---
+# E9 banxe-no-neuronext-reintroduction is a forward-guard against re-INTRODUCING
+# NeuroNext integration; this is a governance status doc documenting the RETIREMENT,
+# not runtime code. The rule itself is unchanged (still catches real code reintroduction).
+services/ledger/production/PAYBIS-WAVE-A.md
