@@ -17,24 +17,16 @@ float); I-01: amounts as Decimal upstream.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 from typing import Protocol, runtime_checkable
 
 from api.models.account_sot import SandboxAccountSoT
 
+# to_minor_units now lives in services.shared.money (ADR-102 de-dup); re-exported here so existing
+# `from services.open_banking.m24_int_bridge import to_minor_units` callers keep working.
+from services.shared.money import to_minor_units
+
 SANDBOX_SOURCE = "sandbox-mock"
-
-# ISO 4217 minor-unit exponents (config-as-data; default 2dp).
-_MINOR_UNITS: dict[str, int] = {"EUR": 2, "GBP": 2, "USD": 2, "CHF": 2}
-
-
-def to_minor_units(amount: Decimal, currency: str) -> int:
-    """Convert a Decimal amount to integer minor units (I-05; never float)."""
-    if not isinstance(amount, Decimal):  # I-01: Decimal upstream only
-        raise TypeError("amount must be Decimal")
-    dp = _MINOR_UNITS.get(currency.upper(), 2)
-    scaled = (amount * (Decimal(10) ** dp)).to_integral_value(rounding=ROUND_HALF_UP)
-    return int(scaled)
 
 
 @dataclass(frozen=True)
