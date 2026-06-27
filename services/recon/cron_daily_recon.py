@@ -105,6 +105,7 @@ def _run_safeguarding_agent(recon_date: date, dry_run: bool) -> int:
         from src.safeguarding.clickhouse_streak_counter import (  # noqa: PLC0415
             ClickHouseStreakCounter,
         )
+        from src.safeguarding.fca_notifier import N8nFcaBreachNotifier  # noqa: PLC0415
         from src.safeguarding.three_leg import InMemoryRailBalancePort  # noqa: PLC0415
 
         from services.recon.safeguarding_adapters import (  # noqa: PLC0415
@@ -126,6 +127,7 @@ def _run_safeguarding_agent(recon_date: date, dry_run: bool) -> int:
             # Leg C rail: starts as InMemoryRailBalancePort (PENDING path).
             # Wire a real RailBalancePort when the payment-rail adapter is ready.
             rail=InMemoryRailBalancePort(),
+            fca_notifier=N8nFcaBreachNotifier() if not dry_run else None,
         )
         agent = SafeguardingAgent(ports, fca_notify=not dry_run)
         result = agent.run(recon_date)
