@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 import secrets
 
 from services.payment.legacy.legacy_abs_payment_adapter import AbsPaymentStatus
@@ -22,12 +22,10 @@ from services.payment.payment_port import (
     PaymentResult,
     PaymentStatus,
 )
+from services.shared.money import to_minor_units
 
 #: Sandbox guard — Wave-D live GCP transport is NOT wired in this scaffold.
 BIFROST_SANDBOX = True
-
-#: ISO 4217 minor-unit exponents (config-as-data; GBP/EUR = 2dp).
-_MINOR_UNITS: dict[str, int] = {"GBP": 2, "EUR": 2}
 
 #: Bifrost XML status code -> ABS state-machine (consume AbsPaymentStatus; descriptive).
 _BIFROST_TO_ABS: dict[str, AbsPaymentStatus] = {
@@ -47,13 +45,7 @@ _ABS_TO_PAYMENT: dict[AbsPaymentStatus, PaymentStatus] = {
     AbsPaymentStatus.CANCELLED: PaymentStatus.CANCELLED,
 }
 
-
-def to_minor_units(amount: Decimal, currency: str) -> int:
-    """Decimal major units -> int minor units for the XML descriptor (never float)."""
-    if not isinstance(amount, Decimal):  # I-24: Decimal only
-        raise TypeError("amount must be Decimal")
-    dp = _MINOR_UNITS.get(currency.upper(), 2)
-    return int((amount * (Decimal(10) ** dp)).to_integral_value(rounding=ROUND_HALF_UP))
+# to_minor_units now lives in services.shared.money (ADR-102 de-dup) — imported above.
 
 
 @dataclass(frozen=True)
