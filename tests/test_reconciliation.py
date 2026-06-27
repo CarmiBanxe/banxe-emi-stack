@@ -334,7 +334,7 @@ class TestStringDateHandling:
     """
 
     def test_write_to_clickhouse_accepts_string_date(self):
-        """Regression: str recon_date must not crash with AttributeError."""
+        """Regression: str recon_date must be parsed to datetime.date for clickhouse-driver."""
         from dataclasses import replace
 
         engine, ch = make_engine(
@@ -353,12 +353,17 @@ class TestStringDateHandling:
             "Setup: recon_date should be string"
         )
 
-        # This should NOT raise AttributeError: 'str' object has no attribute 'isoformat'
-        # because _write_to_clickhouse guards against it
+        # _write_to_clickhouse must parse str → datetime.date before passing to execute
         engine._write_to_clickhouse(result_with_str_date)
 
-        # Verify the event was captured (without crashing)
+        # Verify the event was captured and recon_date was converted to datetime.date
         assert ch.call_count >= 2  # at least the original 2 + this new write
+        # The params dict passed to execute should have recon_date as a datetime.date object
+        latest_event = ch.events[-1]
+        assert isinstance(latest_event["recon_date"], date), (
+            f"recon_date in params must be datetime.date, got {type(latest_event['recon_date'])}"
+        )
+        assert latest_event["recon_date"] == TEST_DATE
 
     def test_write_to_clickhouse_accepts_date_object(self):
         """Sanity: date objects (normal case) still work."""
