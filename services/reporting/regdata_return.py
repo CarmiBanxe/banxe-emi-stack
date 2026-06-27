@@ -46,6 +46,20 @@ REGDATA_URL = os.environ.get(
 )
 
 
+class RegDataNotConfiguredError(RuntimeError):
+    """Raised when FCA RegData credentials are absent — fail-closed by design.
+
+    GAP-088: BT-010 pending (FCA_REGDATA_API_KEY + FCA_FRN + FCA RegData API spec).
+    This is NOT a bug — live submission is intentionally blocked until BT-010 is obtained.
+
+    To unblock:
+      1. Obtain FCA_REGDATA_API_KEY from FCA RegData portal (CEO action, BT-010)
+      2. Obtain real FCA_FRN (replace '000000' placeholder)
+      3. Obtain FCA RegData API spec (multipart POST format, auth header, field names)
+      4. Implement LiveRegDataClient._post_to_regdata() using httpx + API spec
+    """
+
+
 class ReturnStatus(str, Enum):
     PENDING = "PENDING"
     GENERATED = "GENERATED"
@@ -145,13 +159,31 @@ class StubRegDataClient:
 class LiveRegDataClient:  # pragma: no cover
     """
     Live FCA RegData API client.
-    STATUS: STUB — requires FCA_REGDATA_API_KEY (CEO action: obtain from FCA RegData portal).
+
+    STATUS: Fail-closed pending BT-010 (GAP-088).
+    Fail-closed guard: raises RegDataNotConfiguredError if FCA_REGDATA_API_KEY
+    is empty or FCA_FRN is the placeholder '000000'. Live POST is NOT attempted.
+
+    Draft mode (generate FIN060, compute avg/peak): works WITHOUT this key.
+    Only the final HTTP POST is blocked.
+
+    To implement the real POST (after BT-010):
+      - Replace this guard with: httpx.post(REGDATA_URL, headers={"X-Api-Key": REGDATA_API_KEY}, ...)
+      - Consult FCA RegData API spec for multipart/form-data fields
     """
 
     def submit(self, return_: RegDataReturn, pdf_path: Path) -> str:
-        raise RuntimeError(
-            "LiveRegDataClient.submit: FCA_REGDATA_API_KEY not configured. "
-            "Set FCA_REGDATA_API_KEY and FCA_FRN, then implement HTTP POST to RegData."
+        if not REGDATA_API_KEY or not FRN or FRN == "000000":
+            raise RegDataNotConfiguredError(
+                "FCA RegData live submission blocked — BT-010 pending. "
+                "Set FCA_REGDATA_API_KEY (non-empty) and FCA_FRN (non-placeholder '000000') "
+                "then implement the HTTP POST per FCA RegData API spec. "
+                "Draft mode (PDF generation) works without this key."
+            )
+        # TODO GAP-088: implement real HTTP POST once BT-010 obtained
+        # httpx.post(REGDATA_URL, headers={"X-Api-Key": REGDATA_API_KEY}, data={...}, files={"return": pdf_path.open("rb")})
+        raise RegDataNotConfiguredError(
+            "LiveRegDataClient.submit: HTTP POST not yet implemented — awaiting BT-010 (FCA RegData API spec)."
         )
 
 

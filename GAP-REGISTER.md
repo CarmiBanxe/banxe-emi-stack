@@ -54,6 +54,12 @@
 | G-IAM-08 | Keycloak realm cutover — DONE via STRATEGY-B (Legion) | P0 | DONE 2026-05-04 |
 | G-IAM-99 | EXTERNAL blockers — RESOLVED via STRATEGY-B host migration | P0 | RESOLVED 2026-05-04 |
 
+### Open / 2026-06-27 — S-PROD-2 FCA RegData Reporting (mirror of canonical G-FINRPT-*)
+
+| Gap ID | Title | Severity | Owner | Target | Notes |
+|--------|-------|----------|-------|--------|-------|
+| GAP-088 | BT-010 — FCA RegData API key + FCA_FRN + API spec | P0 | CEO/CFO | TBD | FCA CASS 15.12.4R — monthly FIN060 submission by 15th. LiveRegDataClient.submit() fail-closed pending BT-010. Draft mode (FIN060 PDF generation, CFO offline review) works. Code-complete via `feat/gap088-regdata-fail-closed` with typed `RegDataNotConfiguredError` exception. |
+
 ---
 
 ## Process
