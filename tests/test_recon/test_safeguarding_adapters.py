@@ -215,6 +215,7 @@ class TestRunSafeguardingAgent:
             m.audit = kwargs.get("audit")
             m.streak_counter = kwargs.get("streak_counter")
             m.rail = kwargs.get("rail")
+            m.fca_notifier = kwargs.get("fca_notifier")
             return m
 
         with (
@@ -234,10 +235,10 @@ class TestRunSafeguardingAgent:
 
         assert isinstance(captured_ports.get("streak_counter"), ClickHouseStreakCounter)
 
-    def test_midaz_leg_a_wired_not_stub(self):
-        """ledger port must be MidazClientFundsPort (real Midaz adapter)."""
+    def test_fca_notifier_is_n8n_in_production(self):
+        """_run_safeguarding_agent must wire N8nFcaBreachNotifier when not dry_run."""
         from services.recon.cron_daily_recon import _run_safeguarding_agent
-        from services.recon.safeguarding_adapters import MidazClientFundsPort as RealPort
+        from src.safeguarding.fca_notifier import N8nFcaBreachNotifier
 
         captured_ports = {}
 
@@ -249,12 +250,44 @@ class TestRunSafeguardingAgent:
             return m
 
         with (
+            patch(self._MIDAZ_PORT),
             patch(self._STMT_PORT),
+            patch(self._STREAK),
             patch(self._SA_AUDIT),
             patch(self._SA_RAIL),
             patch(self._SA_PORTS, side_effect=capture_ports),
             patch(self._SA_AGENT) as mock_agent_cls,
-            patch("services.ledger.midaz_adapter.MidazLedgerAdapter"),
+        ):
+            mock_result = MagicMock()
+            mock_result.exit_code = 0
+            mock_result.status_label = "MATCHED"
+            mock_result.three_leg_result = None
+            mock_agent_cls.return_value.run.return_value = mock_result
+            _run_safeguarding_agent(D, dry_run=False)
+
+        assert isinstance(captured_ports.get("fca_notifier"), N8nFcaBreachNotifier)
+
+    def test_fca_notifier_none_in_dry_run(self):
+        """_run_safeguarding_agent must NOT wire notifier in dry_run (sandbox safety)."""
+        from services.recon.cron_daily_recon import _run_safeguarding_agent
+
+        captured_ports = {}
+
+        def capture_ports(**kwargs):
+            captured_ports.update(kwargs)
+            m = MagicMock()
+            for k, v in kwargs.items():
+                setattr(m, k, v)
+            return m
+
+        with (
+            patch(self._MIDAZ_PORT),
+            patch(self._STMT_PORT),
+            patch(self._STREAK),
+            patch(self._SA_AUDIT),
+            patch(self._SA_RAIL),
+            patch(self._SA_PORTS, side_effect=capture_ports),
+            patch(self._SA_AGENT) as mock_agent_cls,
         ):
             mock_result = MagicMock()
             mock_result.exit_code = 0
@@ -263,4 +296,4 @@ class TestRunSafeguardingAgent:
             mock_agent_cls.return_value.run.return_value = mock_result
             _run_safeguarding_agent(D, dry_run=True)
 
-        assert isinstance(captured_ports.get("ledger"), RealPort)
+        assert captured_ports.get("fca_notifier") is None
