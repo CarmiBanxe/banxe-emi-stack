@@ -59,6 +59,7 @@
 | Gap ID | Title | Severity | Owner | Target | Notes |
 |--------|-------|----------|-------|--------|-------|
 | GAP-088 | BT-010 — FCA RegData API key + FCA_FRN + API spec | P0 | CEO/CFO | TBD | FCA CASS 15.12.4R — monthly FIN060 submission by 15th. LiveRegDataClient.submit() fail-closed pending BT-010. Draft mode (FIN060 PDF generation, CFO offline review) works. Code-complete via `feat/gap088-regdata-fail-closed` with typed `RegDataNotConfiguredError` exception. |
+| GAP-089 | Crypto-ledger Midaz production adapter wiring (Wave E) | P3 | CTIO/future team | TBD | S-PROD-3 scope: D-gl (fiat double-entry GL) = DONE (2026-06-20, banxe-emi-stack/services/ledger/); D-crypto deferred to Wave E. Crypto ledger port frozen (PORT-CONTRACTS-FREEZE-2026-05-08, ADR-031 + ADR-025 §15-16). `services/ledger/production/midaz_crypto_stub.py` raises `NotImplementedError` on all network methods (get_balance, create_wallet_address, create_tx, get_fee_estimate, health) with explicit Wave E deferral note in module docstring. Not a P0/P1 blocker for fiat core banking. Implement in dedicated production PR tagged [IL-CRYPTO-PROD-01]. |
 
 ---
 
