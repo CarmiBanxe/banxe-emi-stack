@@ -202,8 +202,9 @@ class TestRunSafeguardingAgent:
 
     def test_clickhouse_streak_counter_wired_not_zero(self):
         """_run_safeguarding_agent must wire ClickHouseStreakCounter (real, not stub)."""
-        from services.recon.cron_daily_recon import _run_safeguarding_agent
         from src.safeguarding.clickhouse_streak_counter import ClickHouseStreakCounter
+
+        from services.recon.cron_daily_recon import _run_safeguarding_agent
 
         captured_ports = {}
 
@@ -237,8 +238,9 @@ class TestRunSafeguardingAgent:
 
     def test_fca_notifier_is_n8n_in_production(self):
         """_run_safeguarding_agent must wire N8nFcaBreachNotifier when not dry_run."""
-        from services.recon.cron_daily_recon import _run_safeguarding_agent
         from src.safeguarding.fca_notifier import N8nFcaBreachNotifier
+
+        from services.recon.cron_daily_recon import _run_safeguarding_agent
 
         captured_ports = {}
 
