@@ -15,6 +15,7 @@ import pytest
 from services.reporting.regdata_return import (
     LiveRegDataClient,
     MockFIN060Generator,
+    RegDataNotConfiguredError,
     RegDataReturn,
     RegDataReturnService,
     ReturnStatus,
@@ -244,14 +245,14 @@ class TestLiveRegDataClient:
         client = LiveRegDataClient()
         pdf = tmp_path / "other.pdf"
         pdf.write_bytes(b"")
-        with pytest.raises(RuntimeError, match="LiveRegDataClient"):
+        with pytest.raises(RegDataNotConfiguredError):
             client.submit(_make_return(frn="654321"), pdf)
 
     def test_submit_error_message_contains_frn_guidance(self, tmp_path):
         client = LiveRegDataClient()
         pdf = tmp_path / "FIN060_202603.pdf"
         pdf.write_bytes(b"%PDF-1.4 stub")
-        with pytest.raises(RuntimeError) as exc_info:
+        with pytest.raises(RegDataNotConfiguredError) as exc_info:
             client.submit(_make_return(), pdf)
         assert "FCA_FRN" in str(exc_info.value)
 
@@ -259,7 +260,7 @@ class TestLiveRegDataClient:
         client = LiveRegDataClient()
         pdf = tmp_path / "FIN060_202501.pdf"
         pdf.write_bytes(b"%PDF-1.4 stub")
-        with pytest.raises(RuntimeError, match="FCA_REGDATA_API_KEY"):
+        with pytest.raises(RegDataNotConfiguredError, match="FCA_REGDATA_API_KEY"):
             client.submit(_make_return(frn="999999"), pdf)
 
     def test_submit_raises_not_returns_none(self, tmp_path):
@@ -269,6 +270,47 @@ class TestLiveRegDataClient:
         raised = False
         try:
             client.submit(_make_return(), pdf)
-        except RuntimeError:
+        except RegDataNotConfiguredError:
             raised = True
         assert raised, "LiveRegDataClient.submit must raise, never silently succeed"
+
+    def test_live_regdata_client_raises_regdatanotconfigurederror_when_key_absent(
+        self, monkeypatch, tmp_path
+    ):
+        """LiveRegDataClient must raise RegDataNotConfiguredError fail-closed when key absent."""
+        import services.reporting.regdata_return as rdr
+
+        monkeypatch.setattr(rdr, "REGDATA_API_KEY", "")
+        monkeypatch.setattr(rdr, "FRN", "000000")
+
+        client = LiveRegDataClient()
+        return_ = RegDataReturn(
+            period_start=date(2026, 5, 1),
+            period_end=date(2026, 5, 31),
+            frn="000000",
+            avg_daily_client_funds=Decimal("100000"),
+            peak_client_funds=Decimal("150000"),
+            currency="GBP",
+            safeguarding_method="segregated",
+        )
+        pdf = tmp_path / "FIN060_202605.pdf"
+        pdf.write_bytes(b"%PDF-1.4 stub")
+
+        with pytest.raises(RegDataNotConfiguredError, match="BT-010"):
+            client.submit(return_, pdf)
+
+    def test_regdata_return_service_draft_mode_works_without_key(self, monkeypatch):
+        """Draft mode (PDF generation) works even when RegData key is absent — Variant B."""
+        import services.reporting.regdata_return as rdr
+
+        monkeypatch.setattr(rdr, "REGDATA_API_KEY", "")
+        monkeypatch.setattr(rdr, "FRN", "000000")
+
+        # Use MockFIN060Generator (default) + LiveRegDataClient
+        service = RegDataReturnService(client=LiveRegDataClient())
+        result = service.run_monthly_return(date(2026, 5, 1), date(2026, 5, 31))
+
+        # Draft: PDF generated, submission failed (not crashed) — correct Variant B
+        assert result.pdf_path is not None
+        assert result.status == ReturnStatus.SUBMISSION_FAILED
+        assert any("BT-010" in e or "blocked" in e.lower() for e in result.errors)
