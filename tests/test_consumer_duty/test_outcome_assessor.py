@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from services.consumer_duty.models_v2 import (
+from services.consumer_duty.models import (
     AssessmentStatus,
     InMemoryOutcomeStore,
     OutcomeType,

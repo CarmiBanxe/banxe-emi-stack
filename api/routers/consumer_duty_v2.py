@@ -27,7 +27,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, field_validator
 
 from services.consumer_duty.consumer_duty_reporter import ConsumerDutyReporter
-from services.consumer_duty.models_v2 import (
+from services.consumer_duty.models import (
     HITLProposal,
     InMemoryOutcomeStore,
     InMemoryProductGovernance,

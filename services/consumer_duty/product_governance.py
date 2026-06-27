@@ -19,7 +19,7 @@ from decimal import Decimal
 import hashlib
 import logging
 
-from services.consumer_duty.models_v2 import (
+from services.consumer_duty.models import (
     HITLProposal,
     InMemoryProductGovernance,
     InterventionType,
