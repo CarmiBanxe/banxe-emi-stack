@@ -14,7 +14,7 @@
 repos:
   # ── Python: Ruff (upstream) ─────────────────────────────────────────────
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.11.6
+    rev: v0.15.20
     hooks:
       - id: ruff
         name: Ruff lint (Python)

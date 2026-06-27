@@ -65,11 +65,13 @@ jobs:
         if: needs.changes.outputs.docs_only != 'true'
         uses: astral-sh/ruff-action@v3
         with:
+          version: "0.15.20"
           args: "check --output-format=github"
       - name: Ruff format (check only)
         if: needs.changes.outputs.docs_only != 'true'
         uses: astral-sh/ruff-action@v3
         with:
+          version: "0.15.20"
           args: "format --check"
       - name: Docs-only PR — Ruff not required
         if: needs.changes.outputs.docs_only == 'true'
