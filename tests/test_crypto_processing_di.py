@@ -11,7 +11,11 @@ from decimal import Decimal
 import pytest
 
 from api.deps import _select_crypto_processing_adapter
-from services.ledger.crypto_ledger_port import CryptoTransactionStatus, SupportedBlockchain
+from services.ledger.crypto_ledger_port import (
+    CryptoLedgerError,
+    CryptoTransactionStatus,
+    SupportedBlockchain,
+)
 from services.ledger.legacy.legacy_crypto_processing_adapter import LegacyCryptoProcessingAdapter
 from services.ledger.production.paybis_provider import PaybisProcessingShim
 
@@ -91,17 +95,16 @@ def test_paybis_shim_create_tx_returns_pending(monkeypatch):
         )
     )
     assert result.status is CryptoTransactionStatus.PENDING and result.tx_id == "di-1"
-    # status poll + non-custodial boundary preserved through the shim.
-    # NB: catch the base Exception and assert on the typed `.code`, NOT on the concrete
-    # CryptoLedgerError class. Under full-suite collection, services.ledger.crypto_ledger_port
-    # can be imported under two module paths, so the shim's raised CryptoLedgerError is a distinct
-    # class object from a directly-imported one — `pytest.raises(CryptoLedgerError)` would miss it.
+    # status poll + non-custodial boundary preserved through the shim (strict type + code).
+    # CryptoLedgerError is imported at MODULE TOP (collection time) so it is the SAME class object
+    # the shim binds — a sibling test (test_crypto_ledger_port) does importlib.reload() on
+    # crypto_ledger_port, which would otherwise rebind a run-time import to a different class.
     assert processing.get_order_status("di-1") is CryptoTransactionStatus.PENDING
 
     for call in (
         lambda: processing.get_balance("w1", BTC),
         lambda: processing.create_wallet_address("c1", BTC),
     ):
-        with pytest.raises(Exception, match="PAYBIS scope") as exc:  # noqa: B017, PT011
+        with pytest.raises(CryptoLedgerError) as exc:
             call()
-        assert getattr(exc.value, "code", None) == "OUT_OF_PAYBIS_SCOPE"
+        assert exc.value.code == "OUT_OF_PAYBIS_SCOPE"
