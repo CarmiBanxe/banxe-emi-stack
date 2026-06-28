@@ -162,6 +162,10 @@ class MockPaymentAdapter:
         """Mock is always healthy."""
         return True
 
+    def health(self) -> bool:
+        """FROZEN PaymentRailPort.health() — thin delegate to health_check() (ADR-102)."""
+        return self.health_check()
+
     # ── Test helpers ──────────────────────────────────────────────────────────
 
     def get_all_payments(self) -> list[PaymentResult]:
