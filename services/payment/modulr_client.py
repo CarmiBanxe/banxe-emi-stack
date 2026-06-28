@@ -46,6 +46,12 @@ from services.payment.payment_port import (
     PaymentStatus,
     PaymentStatusUpdate,
 )
+from services.payment.sepa_validation import (
+    SCT_INSTANT_MAX_EUR,
+    exceeds_sct_instant_cap,
+    validate_bic,
+    validate_iban,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +109,10 @@ class ModulrPaymentAdapter:
         Returns PaymentResult immediately (status = PROCESSING).
         Final status arrives via webhook.
         """
+        if intent.rail in (PaymentRail.SEPA_CT, PaymentRail.SEPA_INSTANT):
+            rejected = self._validate_sepa(intent)
+            if rejected is not None:
+                return rejected
         source_account_id = self._resolve_source_account(intent)
         payload = self._build_payment_payload(intent)
 
@@ -143,6 +153,41 @@ class ModulrPaymentAdapter:
             amount=intent.amount,
             currency=intent.currency,
             submitted_at=datetime.now(UTC),
+        )
+
+    def _validate_sepa(self, intent: PaymentIntent) -> PaymentResult | None:
+        """SEPA scheme input-validation (ADR-102 shared validators) — pure, no network.
+
+        Returns a FAILED PaymentResult (rejected before any API call) on a bad IBAN/BIC or an
+        over-cap SCT Instant; None when the SEPA input is valid. FPS/Bacs are not routed here.
+        """
+        dest = intent.creditor_account
+        iban = dest.iban or ""
+        bic = dest.bic or ""
+        error_code: str | None = None
+        error_message = ""
+        if not validate_iban(iban):
+            error_code, error_message = "invalid_iban", f"Invalid IBAN: {iban!r}"
+        elif bic and not validate_bic(bic):
+            error_code, error_message = "invalid_bic", f"Invalid BIC: {bic!r}"
+        elif exceeds_sct_instant_cap(
+            intent.amount, is_instant=intent.rail == PaymentRail.SEPA_INSTANT
+        ):
+            error_code = "amount_exceeds_sct_inst_max"
+            error_message = f"SEPA Instant max €{SCT_INSTANT_MAX_EUR}, got €{intent.amount}"
+        if error_code is None:
+            return None
+        logger.warning("ModulrAdapter SEPA validation rejected payment: %s", error_message)
+        return PaymentResult(
+            idempotency_key=intent.idempotency_key,
+            provider_payment_id="",
+            status=PaymentStatus.FAILED,
+            rail=intent.rail,
+            amount=intent.amount,
+            currency=intent.currency,
+            submitted_at=datetime.now(UTC),
+            error_code=error_code,
+            error_message=error_message,
         )
 
     def get_payment_status(self, provider_payment_id: str) -> PaymentResult:
