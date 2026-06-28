@@ -27,19 +27,23 @@ from typing import Any
 
 import httpx
 
-from services.payment.legacy.legacy_sepa_adapter import (
-    _validate_bic,
-    _validate_iban,
-)
 from services.payment.payment_port import (
     PaymentIntent,
     PaymentRail,
     PaymentResult,
     PaymentStatus,
 )
+from services.payment.sepa_validation import (
+    SCT_INSTANT_MAX_EUR as _SCT_INST_MAX_EUR,
+)
+from services.payment.sepa_validation import (
+    validate_bic as _validate_bic,
+)
+from services.payment.sepa_validation import (
+    validate_iban as _validate_iban,
+)
 
 _SEPA_RAILS: frozenset[PaymentRail] = frozenset({PaymentRail.SEPA_CT, PaymentRail.SEPA_INSTANT})
-_SCT_INST_MAX_EUR: Decimal = Decimal("100000.00")
 _SANDBOX_BASE_URL: str = "https://api-sandbox.modulrfinance.com"
 _PROD_BASE_URL: str = "https://api.modulrfinance.com"
 

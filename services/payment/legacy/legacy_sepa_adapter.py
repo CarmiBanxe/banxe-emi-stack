@@ -30,7 +30,6 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 from enum import Enum
-import re
 import secrets
 from typing import Literal
 
@@ -44,35 +43,27 @@ from services.payment.payment_port import (
     PaymentResult,
     PaymentStatus,
 )
+from services.payment.sepa_validation import (
+    SCT_INSTANT_MAX_EUR,
+    validate_bic,
+    validate_iban,
+)
 from services.shared.errors import BanxeLegacyAdapterError
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
 _SEPA_RAILS: frozenset[PaymentRail] = frozenset({PaymentRail.SEPA_CT, PaymentRail.SEPA_INSTANT})
-_SCT_INST_MAX_EUR: Decimal = Decimal("100000.00")
 _SEPA_REFERENCE_MAX_LEN: int = 140
 _CREDITOR_NAME_MAX_LEN: int = 70
 
 _SepaEventType = Literal["CREATED", "SUBMITTED", "SETTLED", "REJECTED", "CANCELLED"]
 
-
 # ── Validation helpers ────────────────────────────────────────────────────────
-
-
-def _validate_iban(iban: str) -> bool:
-    """Return True if IBAN passes ISO 13616 mod-97 check."""
-    clean = iban.replace(" ", "").upper()
-    if not re.fullmatch(r"[A-Z]{2}\d{2}[A-Z0-9]{10,30}", clean):
-        return False
-    rearranged = clean[4:] + clean[:4]
-    numeric = "".join(str(ord(c) - 55) if c.isalpha() else c for c in rearranged)
-    return int(numeric) % 97 == 1
-
-
-def _validate_bic(bic: str) -> bool:
-    """Return True if BIC matches SWIFT/RFC-9362 (8 or 11 chars)."""
-    clean = bic.strip().upper()
-    return bool(re.fullmatch(r"[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?", clean))
+# Canonical source is services.payment.sepa_validation (ADR-102 single source of truth).
+# Back-compat aliases below preserve existing `_validate_*` / `_SCT_INST_MAX_EUR` references.
+_validate_iban = validate_iban
+_validate_bic = validate_bic
+_SCT_INST_MAX_EUR = SCT_INSTANT_MAX_EUR
 
 
 # ── State machine ─────────────────────────────────────────────────────────────
