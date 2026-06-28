@@ -205,6 +205,10 @@ class ModulrPaymentAdapter:
             logger.warning("Modulr health check failed: %s", exc)
             return False
 
+    def health(self) -> bool:
+        """FROZEN PaymentRailPort.health() — thin delegate to health_check() (ADR-102)."""
+        return self.health_check()
+
     # ── Webhook signature verification ────────────────────────────────────────
 
     def verify_webhook_signature(self, payload_bytes: bytes, signature_header: str) -> bool:

@@ -97,7 +97,13 @@ class PaymentService:
         self._event_bus = event_bus
 
     def health_check(self) -> bool:
-        """Delegate health check to underlying rail adapter."""
+        """Delegate health check to underlying rail adapter.
+
+        Prefers the FROZEN PaymentRailPort.health(); falls back to the legacy health_check()
+        bridge for any rail not yet exposing health() (back-compat).
+        """
+        if hasattr(self._rail, "health"):
+            return bool(self._rail.health())
         if hasattr(self._rail, "health_check"):
             return bool(self._rail.health_check())
         return True
