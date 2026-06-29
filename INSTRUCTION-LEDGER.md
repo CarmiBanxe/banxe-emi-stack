@@ -559,3 +559,46 @@
   - YAML parses: ✅
   - ADR-102: extends existing quality-gate.yml (lines 209–253), no new workflow file ✅
   - IL key unique: `grep 'IL-CBS-CI-QUALITYGATE-2026-06-26' INSTRUCTION-LEDGER.md | wc -l` = 1 ✅
+
+---
+
+## IL-SP-L3DOC-2026-06-27
+
+**Task:** SP-L3DOC — L3 Boundary Register creation  
+**Status:** PREPARED (operator HITL merge gate required)  
+**Date:** 2026-06-27
+
+**Scope:**
+- Create `docs/L3-BOUNDARY-REGISTER.md` (new file)
+- Update `docs/GAP-REGISTER.md` cross-references (append-only)
+- Append IL entry to `INSTRUCTION-LEDGER.md` (this entry)
+
+**Coverage:**
+- 22 NotImplementedError entries classified (0 missed)
+- Classification breakdown:
+  - L3-intentional: 20 (correct production seam stubs)
+  - BT-blocked: 1 (6 entries noted as comments in code; tracked separately)
+  - L2-pending: 1 (api/deps.py:397, driver code defensible as-is)
+
+**BT Status:**
+- Resolved (documented for audit closure): BT-002, BT-004, BT-005, BT-006, BT-012
+- Pending (external action required): BT-001/003/004/009/010/014/015
+
+**GAP Cross-References:**
+- GAP-088 (FCA RegData key): linked to BT-010 + services/reporting/regdata_return.py:175–188
+- GAP-089 (Crypto Wave E): linked to services/ledger/production/midaz_crypto_stub.py (entries 1–9)
+- GAP-024/057/058/059: do NOT exist in this repo (verified via grep)
+
+**Artifacts:**
+- docs/L3-BOUNDARY-REGISTER.md: 221 lines, 22 boundary entries, 6 resolved BTs, 7 pending BTs
+- docs/GAP-REGISTER.md: 2 rows updated (GAP-088, GAP-089) with cross-reference links
+
+**Quality Gate:**
+- Ruff clean (docs-only, no code changes): ✅
+- No tests required (documentation artifact)
+
+**Proof:**
+- grep result: 22 NotImplementedError lines (0 in test files): ✅
+- L3-BOUNDARY-REGISTER.md created: ✅
+- GAP-REGISTER.md cross-references appended: ✅
+- IL entry added: ✅
