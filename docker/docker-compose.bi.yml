@@ -1,0 +1,48 @@
+version: "3.9"
+# P0 BI Dashboard Stack — Superset Docker Integration
+# GAP-043 L-bi | IL-CBS-GAP043-BI-2026-06-30
+# Apache Superset 4.1.1 self-hosted analytics + dashboards
+# Connects to PostgreSQL (reporting_analytics) and ClickHouse (audit trail)
+
+services:
+  superset:
+    image: apache/superset:4.1.1
+    container_name: banxe-superset
+    ports:
+      - "127.0.0.1:8088:8088"  # bind localhost only (security: not 0.0.0.0)
+    environment:
+      SUPERSET_SECRET_KEY: "${SUPERSET_SECRET_KEY}"
+      # Database for Superset metadata (separate from reporting_analytics)
+      DATABASE_URL: "postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/superset"
+      # Flask config
+      FLASK_ENV: "production"
+      FLASK_APP: "superset.app:create_app()"
+      # Superset admin credentials (first-time setup only)
+      SUPERSET_ADMIN_USERNAME: "${SUPERSET_ADMIN_USERNAME:-admin}"
+      SUPERSET_ADMIN_PASSWORD: "${SUPERSET_ADMIN_PASSWORD:-admin}"
+      # Logging
+      SUPERSET_LOG_LEVEL: "INFO"
+      # Security: allow self-signed certs for development only (remove in production)
+      SUPERSET_SQLALCHEMY_DISABLE_VALIDATION: "false"
+    volumes:
+      - superset_data:/app/superset_home
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - banxe-bi
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8088/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  superset_data:
+    driver: local
+
+networks:
+  banxe-bi:
+    driver: bridge
