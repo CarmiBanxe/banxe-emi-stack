@@ -26,6 +26,11 @@ services:
       SUPERSET_SQLALCHEMY_DISABLE_VALIDATION: "false"
     volumes:
       - superset_data:/app/superset_home
+    security_opt:
+      - "no-new-privileges:true"
+    read_only: true
+    tmpfs:
+      - /tmp
     restart: unless-stopped
     depends_on:
       postgres:
