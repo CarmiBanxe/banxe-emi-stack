@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import date
-from decimal import Decimal
-
 
 class TestAuditTrailCoverage:
     def _trail(self, dry_run=True):
@@ -26,8 +23,9 @@ class TestAuditTrailCoverage:
     def test_log_with_fail_closed_raises_on_exception(self):
         """Test that AUDIT_FAIL_CLOSED=true raises exception (line 136)."""
         import os
-        import pytest
         from unittest.mock import patch
+
+        import pytest
         from src.safeguarding.audit_trail import AuditTrail
 
         trail = AuditTrail(dry_run=False, clickhouse_url="http://bad.local:1")
@@ -39,6 +37,7 @@ class TestAuditTrailCoverage:
     def test_write_no_httpx_import_logs_critical(self, caplog):
         """Test httpx ImportError fallback in _write() (lines 153-162)."""
         from unittest.mock import patch
+
         from src.safeguarding.audit_trail import AuditTrail
 
         trail = AuditTrail(dry_run=False, clickhouse_url="http://localhost:8123")
@@ -50,6 +49,7 @@ class TestAuditTrailCoverage:
     def test_write_success_clickhouse_post(self):
         """Test successful ClickHouse POST (lines 173-180)."""
         from unittest.mock import MagicMock, patch
+
         from src.safeguarding.audit_trail import AuditTrail
 
         trail = AuditTrail(dry_run=False, clickhouse_url="http://localhost:8123")
@@ -65,6 +65,7 @@ class TestAuditTrailCoverage:
     def test_ensure_table_creates_ddl(self):
         """Test ensure_table sends CREATE TABLE DDL (lines 198-224)."""
         from unittest.mock import MagicMock, patch
+
         from src.safeguarding.audit_trail import AuditTrail
 
         trail = AuditTrail(dry_run=False, clickhouse_url="http://localhost:8123")
@@ -82,6 +83,7 @@ class TestAuditTrailCoverage:
     def test_ensure_table_handles_exception(self, caplog):
         """Test ensure_table exception handling (lines 230-231)."""
         from unittest.mock import patch
+
         from src.safeguarding.audit_trail import AuditTrail
 
         trail = AuditTrail(dry_run=False, clickhouse_url="http://localhost:8123")
@@ -93,6 +95,7 @@ class TestAuditTrailCoverage:
         """Test that AUDIT_FAIL_CLOSED=false returns False (line 137)."""
         import os
         from unittest.mock import patch
+
         from src.safeguarding.audit_trail import AuditTrail
 
         trail = AuditTrail(dry_run=False, clickhouse_url="http://bad.local:1")
