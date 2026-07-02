@@ -228,6 +228,7 @@ class TestThresholdsApplied:
         result = monitor.evaluate(_req("1000", "COMPANY"))
         assert result.thresholds_applied == "COMPANY"
 
+
 # ── Crypto flag ────────────────────────────────────────────────────────────────
 
 
@@ -261,4 +262,3 @@ class TestCryptoFlag:
         assert result.crypto_flag is True
         assert result.edd_required is True  # PEP lowers EDD threshold
         assert result.requires_hitl is True
-
