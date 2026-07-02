@@ -79,6 +79,7 @@ class TxMonitorRequest:
     currency: str
     is_pep: bool = False
     is_sanctions_hit: bool = False
+    is_crypto: bool = False  # Crypto transaction — routed to crypto_aml for chain analysis
     is_fx: bool = False  # True for currency exchange transactions
 
 
@@ -104,6 +105,7 @@ class MonitorResult:
     velocity_monthly_breach: bool = False
     structuring_signal: bool = False  # Potential structuring (POCA 2002 s.330)
     sar_required: bool = False  # SAR consideration required (MLRO to review)
+    crypto_flag: bool = False  # Crypto transaction — elevated monitoring (L3 STP)
 
     reasons: list[str] = field(default_factory=list)
     evaluated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
@@ -302,6 +304,14 @@ class TxMonitorService:
                 f"daily SAR threshold £{thresholds.sar_auto_daily:,.2f} [{req.entity_type}]"
             )
 
+        # ── 6. Crypto flag (elevated monitoring) ──────────────────────────────
+        if req.is_crypto:
+            result.crypto_flag = True
+            result.reasons.append(
+                "Crypto transaction — elevated monitoring (STP L3). "
+                "Routed to crypto_aml for on-chain analysis."
+            )
+
         if result.requires_hitl:
             logger.info(
                 "AML MONITOR: tx=%s customer=%s entity=%s amount=£%s flags=%s",
@@ -316,6 +326,7 @@ class TxMonitorService:
                         ("VELOCITY_D", result.velocity_daily_breach),
                         ("VELOCITY_M", result.velocity_monthly_breach),
                         ("STRUCTURING", result.structuring_signal),
+                        ("CRYPTO", result.crypto_flag),
                         ("SAR", result.sar_required),
                     ]
                     if v

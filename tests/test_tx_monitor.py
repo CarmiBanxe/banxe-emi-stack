@@ -22,6 +22,7 @@ def _req(
     customer_id: str = "cust-001",
     is_pep: bool = False,
     is_sanctions_hit: bool = False,
+    is_crypto: bool = False,
     is_fx: bool = False,
 ) -> TxMonitorRequest:
     return TxMonitorRequest(
@@ -32,6 +33,7 @@ def _req(
         currency="GBP",
         is_pep=is_pep,
         is_sanctions_hit=is_sanctions_hit,
+        is_crypto=is_crypto,
         is_fx=is_fx,
     )
 
@@ -225,3 +227,38 @@ class TestThresholdsApplied:
     def test_company_thresholds_applied(self, monitor):
         result = monitor.evaluate(_req("1000", "COMPANY"))
         assert result.thresholds_applied == "COMPANY"
+
+# ── Crypto flag ────────────────────────────────────────────────────────────────
+
+
+class TestCryptoFlag:
+    def test_crypto_tx_flags_crypto(self, monitor):
+        result = monitor.evaluate(_req("1000", is_crypto=True))
+        assert result.crypto_flag is True
+        assert "Crypto transaction" in result.reasons[0]
+
+    def test_non_crypto_no_flag(self, monitor):
+        result = monitor.evaluate(_req("1000", is_crypto=False))
+        assert result.crypto_flag is False
+
+    def test_crypto_flag_alone_no_hitl(self, monitor):
+        """Crypto flag alone does not require HITL - just routing."""
+        result = monitor.evaluate(_req("1000", is_crypto=True))
+        assert result.crypto_flag is True
+        assert result.requires_hitl is False  # Crypto alone is not HITL-required
+
+    def test_crypto_large_amount_combined_flags(self, monitor):
+        """Crypto + high amount should trigger multiple flags."""
+        result = monitor.evaluate(_req("15000", is_crypto=True))
+        assert result.crypto_flag is True
+        assert result.edd_required is True  # Amount >= 10k
+        assert result.requires_hitl is True  # HITL due to EDD, not crypto
+        assert len(result.reasons) >= 2
+
+    def test_crypto_pep_combined(self, monitor):
+        """Crypto PEP transaction combines both flags."""
+        result = monitor.evaluate(_req("5000", is_pep=True, is_crypto=True))
+        assert result.crypto_flag is True
+        assert result.edd_required is True  # PEP lowers EDD threshold
+        assert result.requires_hitl is True
+
