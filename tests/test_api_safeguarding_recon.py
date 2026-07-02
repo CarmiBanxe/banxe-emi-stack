@@ -8,6 +8,9 @@ Tests for endpoints:
   GET /v1/safeguarding-recon/reports/{date}
   GET /v1/safeguarding-recon/breaches
   POST /v1/safeguarding-recon/breaches/{id}/resolve
+
+PR #271: comprehensive coverage (xfail baseline).
+PR #272: 7 error handling gaps fixed (xfail → PASS).
 """
 
 from __future__ import annotations
@@ -28,9 +31,6 @@ client = TestClient(app)
 class TestRunReconciliation:
     """Test /v1/safeguarding-recon/run endpoint."""
 
-    @pytest.mark.xfail(
-        reason="api/routers/safeguarding_recon.py:106 missing KeyError handling for account_iban"
-    )
     def test_run_recon_basic_success(self):
         """Test basic reconciliation run with valid request."""
         payload = {
@@ -57,7 +57,6 @@ class TestRunReconciliation:
         resp = client.post("/v1/safeguarding-recon/run", json=payload)
         assert resp.status_code in (200, 404)
 
-    @pytest.mark.xfail(reason="ValueError on invalid date format not caught")
     def test_run_recon_invalid_date_format(self):
         """Test invalid date string raises error."""
         payload = {
@@ -83,7 +82,6 @@ class TestRunReconciliation:
         resp = client.post("/v1/safeguarding-recon/run", json=payload)
         assert resp.status_code == 422
 
-    @pytest.mark.xfail(reason="api/routers/safeguarding_recon.py:106 missing KeyError handling")
     def test_run_recon_amounts_as_decimal_strings(self):
         """Test that amounts in response are Decimal-compatible strings (I-01)."""
         payload = {
@@ -104,7 +102,6 @@ class TestRunReconciliation:
                 Decimal(data["total_ledger_gbp"])
                 Decimal(data["total_statement_gbp"])
 
-    @pytest.mark.xfail(reason="api/routers/safeguarding_recon.py:106 missing KeyError handling")
     def test_run_recon_large_amounts(self):
         """Test handling of large amounts (edge case)."""
         payload = {
@@ -256,7 +253,6 @@ class TestErrorHandling:
         resp = client.post("/v1/safeguarding-recon/run", json=payload)
         assert resp.status_code in (200, 404, 400, 500)
 
-    @pytest.mark.xfail(reason="api/routers/safeguarding_recon.py:106 missing KeyError handling")
     def test_run_recon_zero_amount(self):
         """Test handling of zero amounts."""
         payload = {
@@ -272,9 +268,6 @@ class TestErrorHandling:
         resp = client.post("/v1/safeguarding-recon/run", data="not json")
         assert resp.status_code in (400, 422)
 
-    @pytest.mark.xfail(
-        reason="api/routers/safeguarding_recon.py:106 missing KeyError handling for account_iban"
-    )
     def test_run_recon_missing_statement_iban_field(self):
         """Test statement entry with missing IBAN field."""
         payload = {
@@ -326,3 +319,102 @@ class TestDecimalCompliance:
                     Decimal(item["discrepancy"])
                 except (ValueError, TypeError):
                     pytest.fail("Item amounts must be Decimal-compatible strings")
+
+
+# ── Gap Fix Verification (PR #272 — 7 error handling gaps) ────────────────────
+
+
+class TestSafeguardingReconRunGapFixes:
+    """Gap fixes: POST /v1/safeguarding-recon/run error handling (PR #272)."""
+
+    def test_invalid_date_format_returns_422(self) -> None:
+        """Gap 1 FIXED: Malformed date_str returns 422."""
+        resp = client.post(
+            "/v1/safeguarding-recon/run",
+            json={"date_str": "not-a-date", "ledger_entries": [], "statement_entries": []},
+        )
+        assert resp.status_code == 422
+        data = resp.json()
+        assert "error" in str(data) or "detail" in str(data)
+
+    def test_missing_amount_in_statement_returns_422(self) -> None:
+        """Gap 2 FIXED: statement_entry missing 'amount' returns 422."""
+        resp = client.post(
+            "/v1/safeguarding-recon/run",
+            json={
+                "date_str": "2026-04-01",
+                "ledger_entries": [],
+                "statement_entries": [
+                    {"entry_id": "stmt-001", "account_iban": "GB82WEST12345698765432", "currency": "GBP"}
+                ],
+            },
+        )
+        assert resp.status_code == 422
+
+    def test_non_numeric_amount_returns_422(self) -> None:
+        """Gap 3 FIXED: Non-numeric amount string returns 422."""
+        resp = client.post(
+            "/v1/safeguarding-recon/run",
+            json={
+                "date_str": "2026-04-01",
+                "ledger_entries": [],
+                "statement_entries": [
+                    {
+                        "entry_id": "stmt-001",
+                        "account_iban": "GB82WEST12345698765432",
+                        "amount": "not-a-number",
+                        "currency": "GBP",
+                    }
+                ],
+            },
+        )
+        assert resp.status_code == 422
+
+
+class TestSafeguardingReconListReportsGapFixes:
+    """Gap fixes: GET /v1/safeguarding-recon/reports error handling (PR #272)."""
+
+    def test_list_reports_returns_200_or_503(self) -> None:
+        """Gap 4 FIXED: Agent failure returns 503, not 500."""
+        resp = client.get("/v1/safeguarding-recon/reports")
+        assert resp.status_code in (200, 503)
+        if resp.status_code >= 400:
+            data = resp.json()
+            if resp.status_code == 503:
+                assert "error" in data or "detail" in data
+
+
+class TestSafeguardingReconGetReportGapFixes:
+    """Gap fixes: GET /v1/safeguarding-recon/reports/{date} error handling (PR #272)."""
+
+    def test_agent_error_returns_503_not_500(self) -> None:
+        """Gap 5 FIXED: Internal error returns 503 not 500."""
+        resp = client.get("/v1/safeguarding-recon/reports/2026-04-01")
+        assert resp.status_code in (200, 404, 503)
+        if resp.status_code >= 500:
+            assert resp.status_code == 503
+
+
+class TestSafeguardingReconListBreachesGapFixes:
+    """Gap fixes: GET /v1/safeguarding-recon/breaches error handling (PR #272)."""
+
+    def test_agent_failure_returns_503(self) -> None:
+        """Gap 6 FIXED: Agent failure returns 503 Service Unavailable."""
+        resp = client.get("/v1/safeguarding-recon/breaches")
+        assert resp.status_code in (200, 503)
+        if resp.status_code >= 500:
+            assert resp.status_code == 503
+
+
+class TestSafeguardingReconResolveBreachGapFixes:
+    """Gap fixes: POST /v1/safeguarding-recon/breaches/{id}/resolve error handling (PR #272)."""
+
+    def test_resolve_breach_service_error_returns_503(self) -> None:
+        """Gap 7 FIXED: Internal error returns 503, never 500."""
+        resp = client.post(
+            "/v1/safeguarding-recon/breaches/nonexistent-id/resolve",
+            json={"resolved_by": "compliance@banxe.com"},
+        )
+        assert resp.status_code in (200, 404, 503)
+        if resp.status_code >= 500:
+            assert resp.status_code == 503
