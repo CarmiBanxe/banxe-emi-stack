@@ -9,7 +9,7 @@ Prefix is /v1/safeguarding-recon/* to avoid conflict with existing /v1/recon/*
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 import uuid
 
@@ -108,11 +108,9 @@ def _validate_date_format(date_str: str) -> None:
         ValueError: If date_str is not in valid format.
     """
     try:
-        datetime.strptime(date_str, "%Y-%m-%d").date()
+        datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=UTC).date()
     except ValueError as exc:
-        raise ValueError(
-            f"Invalid date format: {date_str}. Expected YYYY-MM-DD."
-        ) from exc
+        raise ValueError(f"Invalid date format: {date_str}. Expected YYYY-MM-DD.") from exc
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -149,9 +147,7 @@ async def run_reconciliation(
         for idx, s in enumerate(request.statement_entries):
             # Gap 2: Check for required 'amount' key
             if "amount" not in s:
-                raise ValueError(
-                    f"statement_entries[{idx}]: missing required field 'amount'"
-                )
+                raise ValueError(f"statement_entries[{idx}]: missing required field 'amount'")
 
             # Gap 3: Safely convert amount to Decimal
             try:
@@ -192,9 +188,7 @@ async def run_reconciliation(
         ) from exc
 
     try:
-        result = _agent.run_daily_recon(
-            request.date_str, request.ledger_entries, stmt_entries
-        )
+        result = _agent.run_daily_recon(request.date_str, request.ledger_entries, stmt_entries)
         if hasattr(result, "action"):  # HITLProposal
             return HITLProposalResponse(**result.__dict__)
         return _format_report(result)
@@ -232,9 +226,7 @@ async def list_reports() -> list[ReconReportResponse]:
         ) from exc
 
 
-@router.get(
-    "/safeguarding-recon/reports/{recon_date}", response_model=ReconReportResponse
-)
+@router.get("/safeguarding-recon/reports/{recon_date}", response_model=ReconReportResponse)
 async def get_report(recon_date: str) -> ReconReportResponse:
     """L1 auto — get reconciliation report by date.
 
@@ -248,9 +240,7 @@ async def get_report(recon_date: str) -> ReconReportResponse:
         # Gap 5: Wrap agent call in try/except, distinguish 404 from service errors
         report = _agent.get_report(recon_date)
         if report is None:
-            raise HTTPException(
-                status_code=404, detail=f"Report not found for {recon_date}"
-            )
+            raise HTTPException(status_code=404, detail=f"Report not found for {recon_date}")
         return _format_report(report)
     except HTTPException:
         raise
@@ -292,9 +282,7 @@ async def list_breaches() -> list[ReconReportResponse]:
     "/safeguarding-recon/breaches/{report_id}/resolve",
     response_model=HITLProposalResponse,
 )
-async def resolve_breach(
-    report_id: str, request: ResolveBreachRequest
-) -> HITLProposalResponse:
+async def resolve_breach(report_id: str, request: ResolveBreachRequest) -> HITLProposalResponse:
     """L4 HITL — propose breach resolution. Returns HITLProposal (COMPLIANCE_OFFICER).
 
     Error handling:
