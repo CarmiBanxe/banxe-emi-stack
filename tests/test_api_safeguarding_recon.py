@@ -345,7 +345,11 @@ class TestSafeguardingReconRunGapFixes:
                 "date_str": "2026-04-01",
                 "ledger_entries": [],
                 "statement_entries": [
-                    {"entry_id": "stmt-001", "account_iban": "GB82WEST12345698765432", "currency": "GBP"}
+                    {
+                        "entry_id": "stmt-001",
+                        "account_iban": "GB82WEST12345698765432",
+                        "currency": "GBP",
+                    }
                 ],
             },
         )
