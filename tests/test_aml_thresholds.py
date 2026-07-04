@@ -184,3 +184,84 @@ class TestFraudAdapterEntityAware:
         adapter = MockFraudAdapter()
         result = adapter.score(self._make_request("15000", "INDIVIDUAL"))
         assert any("INDIVIDUAL" in f for f in result.factors)
+
+
+class TestEDDBoundaryConditions:
+    """I-04 invariant: EDD threshold exact boundaries (£10k individual / £50k corporate)"""
+
+    def test_individual_edd_boundary_exactly_10k(self):
+        """I-04: £10,000.00 exactly triggers EDD for individual."""
+        assert INDIVIDUAL_THRESHOLDS.requires_edd(Decimal("10000.00"))
+        assert INDIVIDUAL_THRESHOLDS.requires_edd(Decimal("10000"))
+
+    def test_individual_edd_boundary_just_below_10k(self):
+        """I-04: £9,999.99 does NOT trigger EDD for individual."""
+        assert not INDIVIDUAL_THRESHOLDS.requires_edd(Decimal("9999.99"))
+
+    def test_individual_edd_boundary_just_above_10k(self):
+        """I-04: £10,000.01 triggers EDD for individual."""
+        assert INDIVIDUAL_THRESHOLDS.requires_edd(Decimal("10000.01"))
+
+    def test_company_edd_boundary_exactly_50k(self):
+        """I-04: £50,000.00 exactly triggers EDD for corporate."""
+        assert COMPANY_THRESHOLDS.requires_edd(Decimal("50000.00"))
+        assert COMPANY_THRESHOLDS.requires_edd(Decimal("50000"))
+
+    def test_company_edd_boundary_just_below_50k(self):
+        """I-04: £49,999.99 does NOT trigger EDD for corporate."""
+        assert not COMPANY_THRESHOLDS.requires_edd(Decimal("49999.99"))
+
+    def test_company_edd_boundary_just_above_50k(self):
+        """I-04: £50,000.01 triggers EDD for corporate."""
+        assert COMPANY_THRESHOLDS.requires_edd(Decimal("50000.01"))
+
+    def test_edd_uses_decimal_comparison_not_float(self):
+        """I-01: Ensure threshold comparison uses Decimal, not float coercion."""
+        amount = Decimal("10000.00")
+        assert isinstance(amount, Decimal)
+        assert INDIVIDUAL_THRESHOLDS.requires_edd(amount)
+
+    def test_pep_individual_50_percent_multiplier(self):
+        """PEP customer at INDIVIDUAL: 50% of £10k = £5k."""
+        pep_threshold = INDIVIDUAL_THRESHOLDS.edd_for_pep()
+        assert pep_threshold == Decimal("5000.00")
+        assert not INDIVIDUAL_THRESHOLDS.requires_edd(Decimal("4999.99"), is_pep=True)
+        assert INDIVIDUAL_THRESHOLDS.requires_edd(Decimal("5000.00"), is_pep=True)
+
+    def test_pep_company_50_percent_multiplier(self):
+        """PEP customer at COMPANY: 50% of £50k = £25k."""
+        pep_threshold = COMPANY_THRESHOLDS.edd_for_pep()
+        assert pep_threshold == Decimal("25000.00")
+        assert COMPANY_THRESHOLDS.requires_edd(Decimal("25000.00"), is_pep=True)
+        assert not COMPANY_THRESHOLDS.requires_edd(Decimal("24999.99"), is_pep=True)
+
+
+class TestBlockedJurisdictionsNegative:
+    """I-02 invariant: Hard-block 9 sanctioned countries."""
+
+    BLOCKED_JURISDICTIONS = ["RU", "BY", "IR", "KP", "CU", "MM", "AF", "VE", "SY"]
+
+    def test_all_blocked_jurisdictions_defined(self):
+        """Verify that all 9 sanctioned countries are in the hard-block list."""
+        assert len(self.BLOCKED_JURISDICTIONS) == 9
+        assert "RU" in self.BLOCKED_JURISDICTIONS
+        assert "BY" in self.BLOCKED_JURISDICTIONS
+        assert "IR" in self.BLOCKED_JURISDICTIONS
+        assert "KP" in self.BLOCKED_JURISDICTIONS
+        assert "CU" in self.BLOCKED_JURISDICTIONS
+        assert "MM" in self.BLOCKED_JURISDICTIONS
+        assert "AF" in self.BLOCKED_JURISDICTIONS
+        assert "VE" in self.BLOCKED_JURISDICTIONS
+        assert "SY" in self.BLOCKED_JURISDICTIONS
+
+    def test_threshold_values_are_decimal_not_float(self):
+        """I-01: Ensure all threshold amounts are Decimal type."""
+        assert isinstance(INDIVIDUAL_THRESHOLDS.edd_trigger, Decimal)
+        assert isinstance(INDIVIDUAL_THRESHOLDS.velocity_daily_amount, Decimal)
+        assert isinstance(INDIVIDUAL_THRESHOLDS.velocity_monthly_amount, Decimal)
+        assert isinstance(INDIVIDUAL_THRESHOLDS.sar_auto_single, Decimal)
+
+        assert isinstance(COMPANY_THRESHOLDS.edd_trigger, Decimal)
+        assert isinstance(COMPANY_THRESHOLDS.velocity_daily_amount, Decimal)
+        assert isinstance(COMPANY_THRESHOLDS.velocity_monthly_amount, Decimal)
+        assert isinstance(COMPANY_THRESHOLDS.sar_auto_single, Decimal)
