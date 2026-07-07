@@ -235,7 +235,7 @@ class NodeMonitor:
 
     def _min_tps(self, model: str) -> float:
         tps = self.config.min_tokens_per_sec
-        return float(tps.get(model, tps.get("default", 8.0)))  # nosemgrep: banxe-float-money
+        return float(tps.get(model, tps.get("default", 8.0)))  # nosemgrep: semgrep.banxe-float-money
 
     def _log(self, event: str, extra: dict | None = None) -> None:
         entry: dict = {"ts": time.time(), "node": self.node.name, "event": event}
