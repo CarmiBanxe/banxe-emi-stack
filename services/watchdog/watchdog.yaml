@@ -1,0 +1,45 @@
+# Sprint 2 Watchdog MVP — node health + efficiency config
+# I-27: auto actions = warm + log + alert ONLY. Never restart/reroute/evict.
+# Topology measured 2026-07-07 (evo1/evo2/legion only; .71/.73 do not exist).
+
+probe:
+  p1_health_interval_s: 60
+  p2_efficiency_interval_s: 900
+  p1_timeout_s: 8
+  gen_timeout_s: 120
+
+thresholds:
+  cold_strikes: 2
+  escalate_after_warmup_fails: 3
+  backoff_s: [10, 30, 120]
+  escalation_cooldown_s: 1800
+  min_tokens_per_sec:
+    "llama3.3:70b": 5
+    "qwen3.5:35b": 10
+    default: 8
+  max_hot_latency_s: 8
+  max_cold_start_s: 90
+  min_success_rate: 0.95
+  correctness_probe:
+    prompt: "What is 2+2? Reply only the number."
+    expect_contains: "4"
+
+nodes:
+  - name: evo1
+    url: http://192.168.0.72:11434
+    warm_models:
+      - "llama3.3:70b"
+  - name: evo2
+    url: http://192.168.0.15:11434
+    warm_models:
+      - "qwen3.5:35b"
+
+autonomy:
+  may_warm: true
+  may_restart_ollama: false
+  may_reroute: false
+  may_evict: false
+
+escalation:
+  ledger_path: /var/log/banxe/watchdog-ledger.jsonl
+  webhook: null
