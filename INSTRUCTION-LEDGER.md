@@ -610,3 +610,11 @@
   priority HITL>TZ>B5>DM>Autonomy; dedup canonical_id (PASSPORT>SOUL>*.soul.md); SMF ratification; runtime-gate for RED.
 - Refs: architecture ADR-131/ADR-162; POCA 2002, MLR 2017, SAMLA 2018, FCA SMCR
 - Ratification required: Operator(SMF1) + CTO(SMF26) before any training wave.
+
+## IL-WAVE1-RED-01 — DM (Profile-EMI) → audit_trail [RED, PROPOSED; NOT activated]
+- Status: PROPOSED
+- Scope: agents/compliance/soul/audit_trail.soul.md (decider MLRO; Trust Zone RED)
+- Zone: RED; advisory PROHIBITED (ADR-030 §5); fail-closed; DM after ## Autonomy Level; Priority Note (HITL>TZ>B5>DM>Autonomy); NOT activated.
+- Activation DEFERRED: requires Operator(SMF1) + MLRO(SMF17) + CEO(SMF1) AND ADR-030 §9 runtime-gate
+  (kill switch, DecisionRecord emission, metrics/alerts) BEFORE any ACTIVE state. SOUL declaration suffices only at PROPOSED.
+- Note: this file was labelled GREEN in the closed #280 batch but declares Trust Zone RED — reanimated as a RED-clean PR. Refs: ADR-030 §5/§8/§9; architecture ADR-131/162.
