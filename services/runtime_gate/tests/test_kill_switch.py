@@ -19,8 +19,10 @@ def test_backend_unavailable_is_fail_closed_halted():
     class BrokenKS:
         def is_halted(self, agent_id):
             raise ConnectionError("temporal unreachable")
+
         def terminate(self, a, r): ...
-        def status(self): raise ConnectionError("down")
+        def status(self):
+            raise ConnectionError("down")
 
     with pytest.raises(AgentHalted):
         assert_can_act(BrokenKS(), "audit_trail")  # deny-by-default

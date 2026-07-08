@@ -73,7 +73,8 @@ class BudgetManager:
                 self._metrics.inc("budget_exceeded", agent_id)
             raise OverBudget(
                 f"{agent_id} over budget (tokens {new_t}/{pol.max_tokens_window}, "
-                f"cost {new_c}/{pol.max_cost_window}) — refused")
+                f"cost {new_c}/{pol.max_cost_window}) — refused"
+            )
         self._used[agent_id] = (new_t, new_c)
 
     def used(self, agent_id: str) -> tuple[int, Decimal]:

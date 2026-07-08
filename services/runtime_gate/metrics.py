@@ -45,4 +45,5 @@ class PagerDutyAlerter:
 
     def notify(self, rule: str, agent_id: str) -> None:
         raise NotImplementedError(
-            "Outcome-C: POST to the PagerDuty Events API for the RED-agent alert.")
+            "Outcome-C: POST to the PagerDuty Events API for the RED-agent alert."
+        )

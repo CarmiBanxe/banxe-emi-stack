@@ -18,7 +18,8 @@ _UNSAFE = re.compile(r"@|[A-Za-z0-9+/=_\-]{41,}|(?i:secret|password|pan=|iban)")
 def assert_ref_safe(decision_ref: str) -> None:
     if not decision_ref or len(decision_ref) > 128 or _UNSAFE.search(decision_ref):
         raise AuditPolicyError(
-            "decision_ref must be an opaque id (no PII/secret/payload) — R-SEC/ADR-021")
+            "decision_ref must be an opaque id (no PII/secret/payload) — R-SEC/ADR-021"
+        )
 
 
 class AuditSamplerPort(Protocol):
@@ -53,4 +54,5 @@ class LangfuseSampler:
     def trace(self, decision_ref: str) -> bool:
         assert_ref_safe(decision_ref)
         raise NotImplementedError(
-            "Outcome-C: create a Langfuse trace/span keyed by decision_ref (ref only).")
+            "Outcome-C: create a Langfuse trace/span keyed by decision_ref (ref only)."
+        )

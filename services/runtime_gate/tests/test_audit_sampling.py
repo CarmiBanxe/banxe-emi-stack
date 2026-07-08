@@ -20,8 +20,11 @@ def test_zero_rate_does_not_trace():
 
 def test_rsec_rejects_pii_or_secret_refs():
     s = InMemorySampler(rate=1.0)
-    for bad in ("alice@example.com", "secret=hunter2",
-                "AKIAIOSFODNN7EXAMPLEABCDEFGHIJKLMNOPQRSTUVWX"):
+    for bad in (
+        "alice@example.com",
+        "secret=hunter2",
+        "AKIAIOSFODNN7EXAMPLEABCDEFGHIJKLMNOPQRSTUVWX",
+    ):
         with pytest.raises(AuditPolicyError):
             s.trace(bad)
 

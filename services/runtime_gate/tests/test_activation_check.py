@@ -32,9 +32,13 @@ def test_fail_when_recorder_not_wired(budget_file):
 def test_fail_when_no_budget_policy(budget_file):
     # check a different agent that has no policy entry
     r = red_activation_check(
-        "no_such_agent", kill_switch=InMemoryKillSwitch(),
-        budget_policies=load_budget(budget_file), recorder_ready=True,
-        metrics=InMemoryMetrics(), audit_sampler=InMemorySampler(1.0))
+        "no_such_agent",
+        kill_switch=InMemoryKillSwitch(),
+        budget_policies=load_budget(budget_file),
+        recorder_ready=True,
+        metrics=InMemoryMetrics(),
+        audit_sampler=InMemorySampler(1.0),
+    )
     assert not all_pass(r)
     assert any(c.name == "budget_policy" and not c.ok for c in r)
 
@@ -49,8 +53,12 @@ def test_fail_when_sampler_off(budget_file):
 
 def test_fail_when_kill_switch_unreachable(budget_file):
     class BrokenKS:
-        def status(self): raise ConnectionError("down")
-        def is_halted(self, a): raise ConnectionError("down")
+        def status(self):
+            raise ConnectionError("down")
+
+        def is_halted(self, a):
+            raise ConnectionError("down")
+
         def terminate(self, a, r): ...
 
     r = _wire(budget_file, kill_switch=BrokenKS())

@@ -43,7 +43,8 @@ class TemporalKillSwitch:
 
     def terminate(self, agent_id: str, reason: str) -> None:
         raise NotImplementedError(
-            "Outcome-C: wire Temporal `WorkflowHandle.terminate(reason)` here.")
+            "Outcome-C: wire Temporal `WorkflowHandle.terminate(reason)` here."
+        )
 
     def is_halted(self, agent_id: str) -> bool:
         raise NotImplementedError("Outcome-C: query Temporal workflow status.")
@@ -62,6 +63,7 @@ def assert_can_act(kill_switch: KillSwitchPort, agent_id: str) -> None:
     except Exception as exc:  # backend unavailable ⇒ fail-closed HALTED
         raise AgentHalted(
             f"kill-switch backend unavailable ⇒ {agent_id} treated HALTED "
-            f"(deny-by-default): {exc!r}") from exc
+            f"(deny-by-default): {exc!r}"
+        ) from exc
     if halted:
         raise AgentHalted(f"{agent_id} is HALTED — decision path refuses to act")

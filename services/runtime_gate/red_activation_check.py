@@ -38,21 +38,35 @@ def red_activation_check(
     except Exception as exc:  # unreachable ⇒ fail (fail-closed posture)
         results.append(ComponentResult("kill_switch", False, f"unreachable: {exc!r}"))
 
-    results.append(ComponentResult(
-        "decision_record", bool(recorder_ready),
-        "REUSED banxe.decision_records" if recorder_ready else "recorder not wired"))
+    results.append(
+        ComponentResult(
+            "decision_record",
+            bool(recorder_ready),
+            "REUSED banxe.decision_records" if recorder_ready else "recorder not wired",
+        )
+    )
 
     has_budget = bool(budget_policies) and agent_id in budget_policies
-    results.append(ComponentResult(
-        "budget_policy", has_budget,
-        f"policy present for {agent_id}" if has_budget else "no budget policy (fail-closed)"))
+    results.append(
+        ComponentResult(
+            "budget_policy",
+            has_budget,
+            f"policy present for {agent_id}" if has_budget else "no budget policy (fail-closed)",
+        )
+    )
 
-    results.append(ComponentResult(
-        "metrics", metrics is not None, "wired" if metrics is not None else "missing"))
+    results.append(
+        ComponentResult(
+            "metrics", metrics is not None, "wired" if metrics is not None else "missing"
+        )
+    )
 
     rate = getattr(audit_sampler, "rate", 0.0) if audit_sampler is not None else 0.0
-    results.append(ComponentResult(
-        "audit_sampling", rate > 0.0, f"on (rate={rate})" if rate > 0.0 else "off/missing"))
+    results.append(
+        ComponentResult(
+            "audit_sampling", rate > 0.0, f"on (rate={rate})" if rate > 0.0 else "off/missing"
+        )
+    )
 
     return results
 
