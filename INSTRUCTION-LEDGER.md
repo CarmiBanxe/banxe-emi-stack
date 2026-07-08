@@ -616,3 +616,12 @@
 - Scope: agents/passports/audit/PASSPORT.md (decider COMPLIANCE_OFFICER), agents/passports/reporting/PASSPORT.md (decider CFO)
 - Zone: GREEN; execution-class gated; DM inserted after ## Autonomy Levels; Priority Note (HITL>TZ>B5>DM>Autonomy); NOT activated.
 - Activation: Operator(SMF1) + CTO(SMF26) per ADR-030 §8. Zone-clean split of closed PR #280. Refs: ADR-030; architecture ADR-131/162.
+
+## IL-WAVE1-OBS-01 — observability normalized + DM (Profile-EMI) [GREEN, PROPOSED; activation Operator+CTO]
+- Status: PROPOSED
+- Scope: agents/passports/observability/PASSPORT.md
+- Normalize: promoted inline "Autonomy Level" (L4) + "HITL Gate" (COMPLIANCE_OFFICER) bullets from Identity into proper
+  ## Autonomy Level + ## HITL Gates sections (values verbatim); Capabilities/Constraints/Ports/Audit/BT unchanged.
+- DM: Profile-EMI per ADR-030 after ## Autonomy Level; Cluster Platform/Infra-Observability; Trust Zone GREEN; decider
+  COMPLIANCE_OFFICER; execution-class gated; fail-closed (MUST NOT auto-remediate, I-27; append-only logs, I-24); NOT activated.
+- Activation: Operator(SMF1) + CTO(SMF26) per ADR-030 §8. Refs: ADR-030; architecture ADR-131/162.
