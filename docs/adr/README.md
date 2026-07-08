@@ -46,6 +46,7 @@ What other options were evaluated and why were they rejected?
 | [ADR-021](ADR-021-ai-plane-pii-aml-routing.md) | AI Plane and PII/AML Routing | Accepted | 2026-05-03 |
 | [ADR-022](ADR-022-keycloak-iam-cutover.md) | Keycloak IAM Cutover (mirror of ADR-017) | Accepted | 2026-05-03 |
 | [ADR-023](ADR-023-phase3-cluster-mirror.md) | Phase 3 Cluster ADRs — EMI Applicability Mirror (ADR-031..034) | Accepted | 2026-05-03 |
+| [ADR-030](ADR-030-decision-method-banking-fleet.md) | Decision Method — Best-Decision Profile-EMI (banking fleet) | Proposed | 2026-07-08 |
 
 ## When to Create an ADR
 
