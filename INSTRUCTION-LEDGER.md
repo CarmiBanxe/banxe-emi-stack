@@ -610,3 +610,13 @@
   priority HITL>TZ>B5>DM>Autonomy; dedup canonical_id (PASSPORT>SOUL>*.soul.md); SMF ratification; runtime-gate for RED.
 - Refs: architecture ADR-131/ADR-162; POCA 2002, MLR 2017, SAMLA 2018, FCA SMCR
 - Ratification required: Operator(SMF1) + CTO(SMF26) before any training wave.
+
+## IL-WAVE1-GREEN-01 — Decision Method (Profile-EMI) → 4 GREEN agents [PROPOSED]
+- Status: PROPOSED
+- Scope: audit, audit_trail, reporting, reporting_analytics (observability deferred — no ## Autonomy anchor)
+- Profile-EMI per ADR-030; pos after ## Autonomy Level; decider verbatim from HITL Gates
+  (audit→COMPLIANCE_OFFICER, audit_trail→MLRO, reporting→CFO, reporting_analytics→Analytics Manager); advisory/gated;
+  NOT activated.
+- Note: audit_trail.soul declares Trust Zone RED (not GREEN) → grounded with RED discipline (advisory-prohibited,
+  fail-closed) per ADR-030 §5; the other three gated. Flagged for operator review.
+- Refs: ADR-030; architecture ADR-131/162; STOP-before-activate (SMF ratification per ADR-030 §8).
