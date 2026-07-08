@@ -23,6 +23,11 @@ from typing import Protocol
 import httpx
 import yaml
 
+from services.watchdog.audit_log import AuditLogPort, make_audit_record
+from services.watchdog.decision_policy import RepairAction
+from services.watchdog.prometheus_exporter import WatchdogMetrics
+from services.watchdog.root_cause_classifier import Classification, RootCauseClassifier
+
 log = logging.getLogger(__name__)
 
 CONFIG_PATH = Path(__file__).parent / "watchdog.yaml"
@@ -74,6 +79,9 @@ class WatchdogConfig:
     may_warm: bool
     ledger_path: Path
     webhook: str | None
+    audit_path: Path | None = None
+    metrics_enabled: bool = False
+    metrics_port: int = 9091
 
     @classmethod
     def from_yaml(cls, path: Path = CONFIG_PATH) -> WatchdogConfig:
@@ -82,6 +90,8 @@ class WatchdogConfig:
         thr = raw["thresholds"]
         aut = raw["autonomy"]
         esc = raw["escalation"]
+        aud = raw.get("audit", {})
+        met = raw.get("metrics", {})
         nodes = [NodeConfig(**n) for n in raw["nodes"]]
         return cls(
             p1_health_interval_s=probe["p1_health_interval_s"],
@@ -102,6 +112,9 @@ class WatchdogConfig:
             may_warm=aut["may_warm"],
             ledger_path=Path(esc["ledger_path"]),
             webhook=esc.get("webhook"),
+            audit_path=Path(aud["path"]) if aud.get("enabled") and aud.get("path") else None,
+            metrics_enabled=met.get("enabled", False),
+            metrics_port=met.get("port", 9091),
         )
 
 
@@ -373,6 +386,9 @@ class Watchdog:
         ledger: LedgerPort,
         repair_engine=None,  # type: ignore
         docker_port=None,  # type: ignore
+        root_cause_classifier: RootCauseClassifier | None = None,
+        audit_log: AuditLogPort | None = None,
+        metrics: WatchdogMetrics | None = None,
     ) -> None:
         self._config = config
         self._monitors = [
@@ -381,6 +397,9 @@ class Watchdog:
         self._repair_engine = repair_engine
         self._docker = docker_port
         self._docker_config = config.__dict__.get("docker", {})
+        self._classifier = root_cause_classifier
+        self._audit = audit_log
+        self._metrics = metrics
 
     async def run_once_p1(self) -> list[NodeState]:
         results = await asyncio.gather(*[m.p1_health() for m in self._monitors])
@@ -404,33 +423,79 @@ class Watchdog:
         try:
             containers = await self._docker.list_containers()
             crash_loop_threshold = self._docker_config.get("crash_loop_threshold", 10)
+            unhealthy = 0
 
             for container in containers:
-                # Check for unhealthy containers
-                if container.state == "exited":
-                    if container.exit_code == 0:
-                        reason = "Exited(0)"
-                    else:
-                        reason = f"Exited({container.exit_code})"
+                reason: str | None = None
+                context: dict = {}
 
+                if container.state == "exited":
+                    reason = "Exited(0)" if container.exit_code == 0 else f"Exited({container.exit_code})"
                     context = {
                         "container_name": container.name,
                         "exit_code": container.exit_code,
                         "restart_count": container.restart_count,
                         "crash_loop_threshold": crash_loop_threshold,
                     }
-
-                    await self._repair_engine.evaluate_and_act(reason, context)
-
+                    unhealthy += 1
                 elif container.restart_count > crash_loop_threshold:
+                    reason = "crash-loop"
                     context = {
                         "container_name": container.name,
                         "restart_count": container.restart_count,
                         "crash_loop_threshold": crash_loop_threshold,
                     }
-                    await self._repair_engine.evaluate_and_act("crash-loop", context)
+                    unhealthy += 1
+
+                if reason is None:
+                    continue
+
+                clsf = (
+                    self._classifier.classify(
+                        state=container.state,
+                        exit_code=container.exit_code,
+                        restart_count=container.restart_count,
+                        crash_loop_threshold=crash_loop_threshold,
+                    )
+                    if self._classifier
+                    else None
+                )
+                action: RepairAction = await self._repair_engine.evaluate_and_act(reason, context)  # type: ignore[union-attr]
+                self._emit_audit_and_metrics(container.name, reason, clsf, action)
+
+            if self._metrics:
+                self._metrics.set_unhealthy_targets(unhealthy)
         except Exception as exc:
             log.error("docker monitoring failed: %s", exc)
+
+    def _emit_audit_and_metrics(
+        self,
+        target: str,
+        observed_state: str,
+        clsf: Classification | None,
+        action: RepairAction,
+    ) -> None:
+        """Record decision to metrics and audit log."""
+        if self._metrics:
+            self._metrics.record_decision(action.name)
+            if action == RepairAction.ESCALATE:
+                self._metrics.record_escalation()
+
+        if self._audit:
+            autonomy_mode = "AUTO" if action != RepairAction.ESCALATE else "HITL"
+            self._audit.record(
+                make_audit_record(
+                    target=target,
+                    observed_state=observed_state,
+                    root_cause=clsf.reason.value if clsf else "UNKNOWN",
+                    root_cause_confidence=clsf.confidence if clsf else 0.0,
+                    selected_action=action.name,
+                    action_score=clsf.confidence if clsf else 0.0,
+                    autonomy_mode=autonomy_mode,
+                    executed=action in (RepairAction.WARM_MODEL, RepairAction.START_CONTAINER),
+                    verification_result=None,
+                )
+            )
 
     async def run_forever(self) -> None:
         last_p2: float = 0.0

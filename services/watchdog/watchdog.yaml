@@ -51,3 +51,11 @@ docker:
   monitor_containers:
     - litellm-postgres
     - intent-dispatcher
+
+audit:
+  enabled: false
+  path: /var/log/banxe/watchdog-audit.jsonl
+
+metrics:
+  enabled: false
+  port: 9091
