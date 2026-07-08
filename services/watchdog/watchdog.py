@@ -18,12 +18,16 @@ import json
 import logging
 from pathlib import Path
 import time
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    from services.ci_governance.drift_detector import DriftResult
 
 import httpx
 import yaml
 
 from services.watchdog.audit_log import AuditLogPort, AuditRecord, make_audit_record
+from services.watchdog.config_drift import EVENT_CONFIG_DRIFT, ConfigDriftDetector
 from services.watchdog.decision_policy import RepairAction
 from services.watchdog.dependency_graph import DependencyGraph, DependencyGraphPort
 from services.watchdog.prometheus_exporter import WatchdogMetrics
@@ -87,6 +91,8 @@ class WatchdogConfig:
     dep_graph_raw: dict = field(default_factory=dict)
     snapshots_dir: Path | None = None
     slo_model_downtime_threshold_s: float = 3600.0
+    config_drift_interval_s: int = 3600
+    config_drift_baseline: Path | None = None
 
     @classmethod
     def from_yaml(cls, path: Path = CONFIG_PATH) -> WatchdogConfig:
@@ -100,6 +106,7 @@ class WatchdogConfig:
         dep = raw.get("dependency_graph", {})
         snap = raw.get("snapshots", {})
         slo = raw.get("slo", {})
+        cd = raw.get("config_drift", {})
         nodes = [NodeConfig(**n) for n in raw["nodes"]]
         snap_dir: Path | None = None
         if snap.get("enabled") and snap.get("dir"):
@@ -129,6 +136,10 @@ class WatchdogConfig:
             dep_graph_raw=dep,
             snapshots_dir=snap_dir,
             slo_model_downtime_threshold_s=float(slo.get("model_downtime_threshold_s", 3600)),
+            config_drift_interval_s=int(cd.get("interval_s", 3600)),
+            config_drift_baseline=(
+                Path(cd["baseline"]) if cd.get("enabled") and cd.get("baseline") else None
+            ),
         )
 
 
@@ -404,8 +415,10 @@ class Watchdog:
         audit_log: AuditLogPort | None = None,
         metrics: WatchdogMetrics | None = None,
         dep_graph: DependencyGraphPort | None = None,
+        config_drift_detector: ConfigDriftDetector | None = None,
     ) -> None:
         self._config = config
+        self._config_drift_detector = config_drift_detector
         self._monitors = [
             NodeMonitor(config=config, node=n, ollama=ollama, ledger=ledger) for n in config.nodes
         ]
@@ -680,14 +693,55 @@ class Watchdog:
         log.info("self-test result: %s details=%s", "PASS" if ok else "FAIL", results)
         return {"ok": ok, "checks": results}
 
+    async def run_once_config_drift(self) -> DriftResult | None:
+        """Check live config against git-tracked baseline (I-27: ESCALATE only).
+
+        Returns DriftResult if detector is configured, None otherwise.
+        Writes an HITL audit record when drift is detected — never auto-fixes.
+        """
+        if not self._config_drift_detector:
+            return None
+        try:
+            result = self._config_drift_detector.detect()
+        except Exception as exc:
+            log.error("config drift check failed: %s", exc)
+            return None
+
+        if result.drift_detected:
+            log.warning("%s: %s", EVENT_CONFIG_DRIFT, result.summary)
+            if self._audit:
+                self._audit.record(
+                    make_audit_record(
+                        target="config-baseline",
+                        observed_state=EVENT_CONFIG_DRIFT,
+                        root_cause="CONFIG_DRIFT",
+                        root_cause_confidence=1.0,
+                        selected_action="ESCALATE",
+                        action_score=1.0,
+                        autonomy_mode="HITL",
+                        executed=False,
+                        verification_result=None,
+                        quick_fix=result.summary,
+                        manual_only=True,
+                    )
+                )
+            if self._metrics:
+                self._metrics.record_escalation()
+
+        return result
+
     async def run_forever(self) -> None:
         last_p2: float = 0.0
+        last_config_drift: float = 0.0
         while True:
             await self.run_once_p1()
             await self.run_once_docker()
             if time.time() - last_p2 >= self._config.p2_efficiency_interval_s:
                 await self.run_once_p2()
                 last_p2 = time.time()
+            if time.time() - last_config_drift >= self._config.config_drift_interval_s:
+                await self.run_once_config_drift()
+                last_config_drift = time.time()
             await asyncio.sleep(self._config.p1_health_interval_s)
 
 
