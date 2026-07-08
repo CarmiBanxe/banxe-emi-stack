@@ -71,3 +71,8 @@ snapshots:
 
 slo:
   model_downtime_threshold_s: 3600
+
+config_drift:
+  enabled: false
+  interval_s: 3600
+  baseline: services/watchdog/config-baseline.yaml
