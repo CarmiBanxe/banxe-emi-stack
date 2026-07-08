@@ -43,3 +43,31 @@ autonomy:
 escalation:
   ledger_path: /var/log/banxe/watchdog-ledger.jsonl
   webhook: null
+
+docker:
+  socket: /var/run/docker.sock
+  auto_start_exited_clean: true
+  crash_loop_threshold: 10
+  monitor_containers:
+    - litellm-postgres
+    - intent-dispatcher
+
+audit:
+  enabled: false
+  path: /var/log/banxe/watchdog-audit.jsonl
+
+metrics:
+  enabled: false
+  port: 9091
+
+dependency_graph:
+  intent-dispatcher:
+    depends_on:
+      - litellm-postgres
+
+snapshots:
+  enabled: false
+  dir: /var/lib/banxe-watchdog/snapshots
+
+slo:
+  model_downtime_threshold_s: 3600

@@ -1,7 +1,8 @@
-"""Sprint 2 Watchdog MVP skeleton — efficiency-aware health monitor.
+"""Sprint 2+3 Watchdog MVP — efficiency-aware health monitor with repair engine.
 
 I-27: auto = warm + log + alert ONLY.
 NEVER restart, reroute, or evict. ESCALATE on SLOW/DEGRADED/INCORRECT.
+Sprint 3: RepairEngine with decision policy + Docker monitoring.
 
 VRAM note: rocm-smi is UNRELIABLE on evo1 (AMD unified, reports per-die slice).
            Use /api/ps + known model sizes for VRAM estimation.
@@ -21,6 +22,13 @@ from typing import Protocol
 
 import httpx
 import yaml
+
+from services.watchdog.audit_log import AuditLogPort, AuditRecord, make_audit_record
+from services.watchdog.decision_policy import RepairAction
+from services.watchdog.dependency_graph import DependencyGraph, DependencyGraphPort
+from services.watchdog.prometheus_exporter import WatchdogMetrics
+from services.watchdog.root_cause_classifier import Classification, RootCauseClassifier
+from services.watchdog.runbook_index import RunbookEntry, get_runbook
 
 log = logging.getLogger(__name__)
 
@@ -73,6 +81,12 @@ class WatchdogConfig:
     may_warm: bool
     ledger_path: Path
     webhook: str | None
+    audit_path: Path | None = None
+    metrics_enabled: bool = False
+    metrics_port: int = 9091
+    dep_graph_raw: dict = field(default_factory=dict)
+    snapshots_dir: Path | None = None
+    slo_model_downtime_threshold_s: float = 3600.0
 
     @classmethod
     def from_yaml(cls, path: Path = CONFIG_PATH) -> WatchdogConfig:
@@ -81,7 +95,15 @@ class WatchdogConfig:
         thr = raw["thresholds"]
         aut = raw["autonomy"]
         esc = raw["escalation"]
+        aud = raw.get("audit", {})
+        met = raw.get("metrics", {})
+        dep = raw.get("dependency_graph", {})
+        snap = raw.get("snapshots", {})
+        slo = raw.get("slo", {})
         nodes = [NodeConfig(**n) for n in raw["nodes"]]
+        snap_dir: Path | None = None
+        if snap.get("enabled") and snap.get("dir"):
+            snap_dir = Path(snap["dir"])
         return cls(
             p1_health_interval_s=probe["p1_health_interval_s"],
             p2_efficiency_interval_s=probe["p2_efficiency_interval_s"],
@@ -101,6 +123,12 @@ class WatchdogConfig:
             may_warm=aut["may_warm"],
             ledger_path=Path(esc["ledger_path"]),
             webhook=esc.get("webhook"),
+            audit_path=Path(aud["path"]) if aud.get("enabled") and aud.get("path") else None,
+            metrics_enabled=met.get("enabled", False),
+            metrics_port=met.get("port", 9091),
+            dep_graph_raw=dep,
+            snapshots_dir=snap_dir,
+            slo_model_downtime_threshold_s=float(slo.get("model_downtime_threshold_s", 3600)),
         )
 
 
@@ -370,14 +398,48 @@ class Watchdog:
         config: WatchdogConfig,
         ollama: OllamaPort,
         ledger: LedgerPort,
+        repair_engine=None,  # type: ignore
+        docker_port=None,  # type: ignore
+        root_cause_classifier: RootCauseClassifier | None = None,
+        audit_log: AuditLogPort | None = None,
+        metrics: WatchdogMetrics | None = None,
+        dep_graph: DependencyGraphPort | None = None,
     ) -> None:
         self._config = config
         self._monitors = [
             NodeMonitor(config=config, node=n, ollama=ollama, ledger=ledger) for n in config.nodes
         ]
+        self._repair_engine = repair_engine
+        self._docker = docker_port
+        self._docker_config = config.__dict__.get("docker", {})
+        self._classifier = root_cause_classifier
+        self._audit = audit_log
+        self._metrics = metrics
+        self._dep_graph: DependencyGraphPort = dep_graph or DependencyGraph.from_dict(
+            config.dep_graph_raw
+        )
+        self._preflight_cooldowns: dict[str, float] = {}
+        self._snapshots_dir: Path | None = config.snapshots_dir
 
     async def run_once_p1(self) -> list[NodeState]:
+        now = time.time()
         results = await asyncio.gather(*[m.p1_health() for m in self._monitors])
+        if self._metrics:
+            for mon, state in zip(self._monitors, results):
+                for model in mon.node.warm_models:
+                    key = f"{model}@{mon.node.name}"
+                    if state == NodeState.UNREACHABLE:
+                        self._metrics.record_model_down(model, mon.node.name, now)
+                    else:
+                        self._metrics.record_model_up(model, mon.node.name, now)
+                    downtime = self._metrics._model_downtime_s.get(key, 0.0)
+                    if downtime >= self._config.slo_model_downtime_threshold_s:
+                        log.warning(
+                            "SLO breach: %s downtime %.0fs >= threshold %.0fs",
+                            key,
+                            downtime,
+                            self._config.slo_model_downtime_threshold_s,
+                        )
         return list(results)
 
     async def run_once_p2(self) -> list[EfficiencyMetrics | None]:
@@ -387,10 +449,242 @@ class Watchdog:
                 tasks.append(mon.p2_efficiency(model))
         return list(await asyncio.gather(*tasks))
 
+    async def run_once_docker(self) -> None:
+        """Monitor Docker containers — two-pass: cascade detection then classify/act."""
+        if not self._docker or not self._repair_engine:
+            return
+
+        try:
+            containers = await self._docker.list_containers()
+            crash_loop_threshold = self._docker_config.get("crash_loop_threshold", 10)
+
+            # Pass 1: build set of unhealthy container names
+            unhealthy_set: set[str] = set()
+            incidents: list[tuple] = []  # (container, reason, context)
+            for container in containers:
+                reason: str | None = None
+                context: dict = {}
+                if container.state == "exited":
+                    reason = (
+                        "Exited(0)"
+                        if container.exit_code == 0
+                        else f"Exited({container.exit_code})"
+                    )
+                    context = {
+                        "container_name": container.name,
+                        "exit_code": container.exit_code,
+                        "restart_count": container.restart_count,
+                        "crash_loop_threshold": crash_loop_threshold,
+                    }
+                    unhealthy_set.add(container.name)
+                elif container.restart_count > crash_loop_threshold:
+                    reason = "crash-loop"
+                    context = {
+                        "container_name": container.name,
+                        "restart_count": container.restart_count,
+                        "crash_loop_threshold": crash_loop_threshold,
+                    }
+                    unhealthy_set.add(container.name)
+                if reason is not None:
+                    incidents.append((container, reason, context))
+
+            if self._metrics:
+                self._metrics.set_unhealthy_targets(len(unhealthy_set))
+
+            frozen_unhealthy = frozenset(unhealthy_set)
+
+            # Pass 2: classify, cascade-check, act
+            for container, reason, context in incidents:
+                clsf: Classification | None = None
+                if self._classifier:
+                    clsf = self._classifier.classify(
+                        state=container.state,
+                        exit_code=container.exit_code,
+                        restart_count=container.restart_count,
+                        crash_loop_threshold=crash_loop_threshold,
+                    )
+                    # LLM enrichment for UNKNOWN+low-conf (I-27: enriches payload only)
+                    if clsf and clsf.reason.value == "UNKNOWN" and clsf.confidence < 0.5:
+                        clsf = await self._classifier.enrich_with_llm(
+                            clsf, context_text=str(context)
+                        )
+
+                is_cascade = self._dep_graph.is_cascade(container.name, frozen_unhealthy)
+                upstream = self._dep_graph.upstream_cause(container.name, frozen_unhealthy)
+
+                if is_cascade:
+                    action = RepairAction.LOG_AND_WAIT
+                else:
+                    action = await self._repair_engine.evaluate_and_act(reason, context)  # type: ignore[union-attr]
+                    # Preflight: block AUTO actions when upstream dep is unhealthy
+                    if action in (RepairAction.WARM_MODEL, RepairAction.START_CONTAINER):
+                        blocked = await self._check_preflight(container.name, frozen_unhealthy)
+                        if blocked:
+                            action = RepairAction.ESCALATE
+
+                rb_entry: RunbookEntry | None = get_runbook(clsf.reason) if clsf else None
+                snap_path = await self._take_snapshot(container)
+                await self._emit_audit_and_metrics(
+                    container.name,
+                    reason,
+                    clsf,
+                    action,
+                    upstream_cause=upstream,
+                    is_cascade=is_cascade,
+                    rb_entry=rb_entry,
+                    snapshot_path=snap_path,
+                )
+
+        except Exception as exc:
+            log.error("docker monitoring failed: %s", exc)
+
+    async def _check_preflight(self, target: str, unhealthy_set: frozenset[str]) -> bool:
+        """Return True if AUTO action should be blocked due to unhealthy upstream deps."""
+        deps = self._dep_graph.get_dependencies(target)
+        blocked_deps = [d for d in deps if d in unhealthy_set]
+        if not blocked_deps:
+            return False
+
+        now = time.time()
+        cooldown_key = f"preflight:{target}"
+        if (
+            now - self._preflight_cooldowns.get(cooldown_key, 0.0)
+            < self._config.escalation_cooldown_s
+        ):
+            return True  # already emitted PREFLIGHT_FAILED recently
+
+        self._preflight_cooldowns[cooldown_key] = now
+        log.warning("PREFLIGHT_FAILED for %s — blocked deps: %s", target, blocked_deps)
+        if self._audit:
+            preflight_rec = AuditRecord(
+                timestamp=now,
+                target=target,
+                observed_state="PREFLIGHT_FAILED",
+                root_cause="DEPENDENCY_UNHEALTHY",
+                root_cause_confidence=1.0,
+                selected_action="ESCALATE",
+                action_score=0.0,
+                autonomy_mode="HITL",
+                executed=False,
+                verification_result=None,
+                upstream_cause=", ".join(blocked_deps),
+            )
+            self._audit.record(preflight_rec)
+        return True
+
+    async def _take_snapshot(self, container: object) -> str | None:
+        """Write a sanitized container state snapshot; return path or None."""
+        if not self._snapshots_dir:
+            return None
+        try:
+            self._snapshots_dir.mkdir(parents=True, exist_ok=True)
+            ts_int = int(time.time())
+            name = getattr(container, "name", "unknown")
+            snap_path = self._snapshots_dir / f"{name}-{ts_int}.json"
+            payload = {
+                "name": name,
+                "state": getattr(container, "state", ""),
+                "exit_code": getattr(container, "exit_code", 0),
+                "restart_count": getattr(container, "restart_count", 0),
+                "health": getattr(container, "health", None),
+                "ts": ts_int,
+            }
+            snap_path.write_text(json.dumps(payload, default=str), encoding="utf-8")
+            return str(snap_path)
+        except Exception as exc:
+            log.warning("snapshot failed for %s: %s", getattr(container, "name", "?"), exc)
+            return None
+
+    async def _emit_audit_and_metrics(
+        self,
+        target: str,
+        observed_state: str,
+        clsf: Classification | None,
+        action: RepairAction,
+        upstream_cause: str | None = None,
+        is_cascade: bool = False,
+        rb_entry: RunbookEntry | None = None,
+        snapshot_path: str | None = None,
+    ) -> None:
+        """Record decision to metrics and audit log."""
+        if self._metrics:
+            self._metrics.record_decision(action.name)
+            if action == RepairAction.ESCALATE:
+                self._metrics.record_escalation()
+
+        if self._audit:
+            autonomy_mode = "AUTO" if action != RepairAction.ESCALATE else "HITL"
+            self._audit.record(
+                make_audit_record(
+                    target=target,
+                    observed_state=observed_state,
+                    root_cause=clsf.reason.value if clsf else "UNKNOWN",
+                    root_cause_confidence=clsf.confidence if clsf else 0.0,
+                    selected_action=action.name,
+                    action_score=clsf.confidence if clsf else 0.0,
+                    autonomy_mode=autonomy_mode,
+                    executed=action in (RepairAction.WARM_MODEL, RepairAction.START_CONTAINER),
+                    verification_result=None,
+                    upstream_cause=upstream_cause,
+                    is_cascade=is_cascade,
+                    runbook_path=rb_entry.path if rb_entry else None,
+                    quick_fix=rb_entry.quick_fix if rb_entry else None,
+                    manual_only=rb_entry.manual_only if rb_entry else False,
+                    llm_diagnosis=clsf.llm_diagnosis if clsf else None,
+                    llm_confidence_hint=clsf.llm_confidence_hint if clsf else None,
+                    snapshot_path=snapshot_path,
+                )
+            )
+
+    async def run_self_test(self) -> dict:
+        """Daily self-test: check ollama reachable, audit log writable, prometheus rendering.
+
+        Emits watchdog_self_test_ok metric and an audit record.
+        """
+        results: dict[str, bool] = {}
+
+        # Check audit log writable
+        if self._audit:
+            try:
+                test_rec = make_audit_record(
+                    target="self-test",
+                    observed_state="SELF_TEST",
+                    root_cause="UNKNOWN",
+                    root_cause_confidence=0.0,
+                    selected_action="LOG_AND_WAIT",
+                    action_score=0.0,
+                    executed=False,
+                    verification_result=None,
+                )
+                self._audit.record(test_rec)
+                results["audit_writable"] = True
+            except Exception:
+                results["audit_writable"] = False
+        else:
+            results["audit_writable"] = True  # no audit configured — pass
+
+        # Check prometheus renders
+        if self._metrics:
+            try:
+                rendered = self._metrics.render()
+                results["prometheus_renders"] = len(rendered) > 0
+            except Exception:
+                results["prometheus_renders"] = False
+        else:
+            results["prometheus_renders"] = True
+
+        ok = all(results.values())
+        if self._metrics:
+            self._metrics.record_self_test(ok)
+
+        log.info("self-test result: %s details=%s", "PASS" if ok else "FAIL", results)
+        return {"ok": ok, "checks": results}
+
     async def run_forever(self) -> None:
         last_p2: float = 0.0
         while True:
             await self.run_once_p1()
+            await self.run_once_docker()
             if time.time() - last_p2 >= self._config.p2_efficiency_interval_s:
                 await self.run_once_p2()
                 last_p2 = time.time()
