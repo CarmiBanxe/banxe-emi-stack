@@ -602,3 +602,11 @@
 - L3-BOUNDARY-REGISTER.md created: ✅
 - GAP-REGISTER.md cross-references appended: ✅
 - IL entry added: ✅
+
+## IL-DM-EMI-01 — Decision Method Profile-EMI canon (ADR-030, PROPOSED)
+- Status: PROPOSED
+- Scope: docs/adr/ADR-030 + README row (canon only; NO soul trained — STOP-before-train)
+- Profile-EMI: pos after ## Autonomy Level; clusters B1-B4; B5-IRREVOCABLE; L0-TZ Trust Zone; advisory-prohibited for RED;
+  priority HITL>TZ>B5>DM>Autonomy; dedup canonical_id (PASSPORT>SOUL>*.soul.md); SMF ratification; runtime-gate for RED.
+- Refs: architecture ADR-131/ADR-162; POCA 2002, MLR 2017, SAMLA 2018, FCA SMCR
+- Ratification required: Operator(SMF1) + CTO(SMF26) before any training wave.
