@@ -610,3 +610,9 @@
   priority HITL>TZ>B5>DM>Autonomy; dedup canonical_id (PASSPORT>SOUL>*.soul.md); SMF ratification; runtime-gate for RED.
 - Refs: architecture ADR-131/ADR-162; POCA 2002, MLR 2017, SAMLA 2018, FCA SMCR
 - Ratification required: Operator(SMF1) + CTO(SMF26) before any training wave.
+
+## IL-WAVE1-AMBER-01 — DM (Profile-EMI) → reporting_analytics [AMBER, PROPOSED; activation Operator+COO SMF24]
+- Status: PROPOSED
+- Scope: agents/compliance/soul/reporting_analytics.soul.md (decider Analytics Manager)
+- Zone: AMBER; execution-class gated; DM after ## Autonomy Level; Priority Note (HITL>TZ>B5>DM>Autonomy); NOT activated.
+- Activation: Operator(SMF1) + COO(SMF24) per ADR-030 §8. Zone-clean split of closed PR #280. Refs: ADR-030; architecture ADR-131/162.
