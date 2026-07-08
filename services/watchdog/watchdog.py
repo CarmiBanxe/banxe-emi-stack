@@ -1,7 +1,8 @@
-"""Sprint 2 Watchdog MVP skeleton — efficiency-aware health monitor.
+"""Sprint 2+3 Watchdog MVP — efficiency-aware health monitor with repair engine.
 
 I-27: auto = warm + log + alert ONLY.
 NEVER restart, reroute, or evict. ESCALATE on SLOW/DEGRADED/INCORRECT.
+Sprint 3: RepairEngine with decision policy + Docker monitoring.
 
 VRAM note: rocm-smi is UNRELIABLE on evo1 (AMD unified, reports per-die slice).
            Use /api/ps + known model sizes for VRAM estimation.
@@ -370,11 +371,16 @@ class Watchdog:
         config: WatchdogConfig,
         ollama: OllamaPort,
         ledger: LedgerPort,
+        repair_engine=None,  # type: ignore
+        docker_port=None,  # type: ignore
     ) -> None:
         self._config = config
         self._monitors = [
             NodeMonitor(config=config, node=n, ollama=ollama, ledger=ledger) for n in config.nodes
         ]
+        self._repair_engine = repair_engine
+        self._docker = docker_port
+        self._docker_config = config.__dict__.get("docker", {})
 
     async def run_once_p1(self) -> list[NodeState]:
         results = await asyncio.gather(*[m.p1_health() for m in self._monitors])
@@ -387,10 +393,50 @@ class Watchdog:
                 tasks.append(mon.p2_efficiency(model))
         return list(await asyncio.gather(*tasks))
 
+    async def run_once_docker(self) -> None:
+        """Monitor Docker containers and evaluate repair actions.
+
+        Sprint 3: scan containers, detect unhealthy/exited-cleanly, escalate to repair_engine.
+        """
+        if not self._docker or not self._repair_engine:
+            return
+
+        try:
+            containers = await self._docker.list_containers()
+            crash_loop_threshold = self._docker_config.get("crash_loop_threshold", 10)
+
+            for container in containers:
+                # Check for unhealthy containers
+                if container.state == "exited":
+                    if container.exit_code == 0:
+                        reason = "Exited(0)"
+                    else:
+                        reason = f"Exited({container.exit_code})"
+
+                    context = {
+                        "container_name": container.name,
+                        "exit_code": container.exit_code,
+                        "restart_count": container.restart_count,
+                        "crash_loop_threshold": crash_loop_threshold,
+                    }
+
+                    await self._repair_engine.evaluate_and_act(reason, context)
+
+                elif container.restart_count > crash_loop_threshold:
+                    context = {
+                        "container_name": container.name,
+                        "restart_count": container.restart_count,
+                        "crash_loop_threshold": crash_loop_threshold,
+                    }
+                    await self._repair_engine.evaluate_and_act("crash-loop", context)
+        except Exception as exc:
+            log.error("docker monitoring failed: %s", exc)
+
     async def run_forever(self) -> None:
         last_p2: float = 0.0
         while True:
             await self.run_once_p1()
+            await self.run_once_docker()
             if time.time() - last_p2 >= self._config.p2_efficiency_interval_s:
                 await self.run_once_p2()
                 last_p2 = time.time()
