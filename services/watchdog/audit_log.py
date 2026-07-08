@@ -27,6 +27,14 @@ class AuditRecord:
     autonomy_mode: str  # "AUTO" | "HITL"
     executed: bool
     verification_result: bool | None  # None = not attempted
+    upstream_cause: str | None = None
+    is_cascade: bool = False
+    runbook_path: str | None = None
+    quick_fix: str | None = None
+    manual_only: bool = False
+    llm_diagnosis: str | None = None
+    llm_confidence_hint: float | None = None
+    snapshot_path: str | None = None
 
 
 class AuditLogPort(Protocol):
@@ -70,6 +78,14 @@ def make_audit_record(
     executed: bool,
     verification_result: bool | None,
     autonomy_mode: str = "AUTO",
+    upstream_cause: str | None = None,
+    is_cascade: bool = False,
+    runbook_path: str | None = None,
+    quick_fix: str | None = None,
+    manual_only: bool = False,
+    llm_diagnosis: str | None = None,
+    llm_confidence_hint: float | None = None,
+    snapshot_path: str | None = None,
 ) -> AuditRecord:
     """Build an AuditRecord stamped with the current UTC epoch timestamp."""
     return AuditRecord(
@@ -83,4 +99,12 @@ def make_audit_record(
         autonomy_mode=autonomy_mode,
         executed=executed,
         verification_result=verification_result,
+        upstream_cause=upstream_cause,
+        is_cascade=is_cascade,
+        runbook_path=runbook_path,
+        quick_fix=quick_fix,
+        manual_only=manual_only,
+        llm_diagnosis=llm_diagnosis,
+        llm_confidence_hint=llm_confidence_hint,
+        snapshot_path=snapshot_path,
     )

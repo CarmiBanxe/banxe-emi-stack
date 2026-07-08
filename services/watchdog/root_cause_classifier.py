@@ -6,8 +6,14 @@ No external ML dependencies — keyword pattern matching only.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 from dataclasses import dataclass, field
 from enum import Enum
+import logging
+from typing import Protocol
+
+log = logging.getLogger(__name__)
 
 
 class RootCause(str, Enum):
@@ -28,17 +34,31 @@ class Classification:
     reason: RootCause
     confidence: float  # 0.0–1.0
     evidence: list[str] = field(default_factory=list)  # matching snippets
+    llm_diagnosis: str | None = None
+    llm_confidence_hint: float | None = None
 
 
 # Ordered by specificity — most specific first
 _LOG_PATTERNS: list[tuple[RootCause, list[str]]] = [
     (
         RootCause.OOM_KILLED,
-        ["out of memory", "oom killer", "killed process", "memory limit exceeded", "cannot allocate memory"],
+        [
+            "out of memory",
+            "oom killer",
+            "killed process",
+            "memory limit exceeded",
+            "cannot allocate memory",
+        ],
     ),
     (
         RootCause.AUTH_FAILURE,
-        ["authentication failed", "access denied", "invalid credentials", "unauthorized", "permission denied"],
+        [
+            "authentication failed",
+            "access denied",
+            "invalid credentials",
+            "unauthorized",
+            "permission denied",
+        ],
     ),
     (
         RootCause.PORT_BIND_FAILURE,
@@ -58,6 +78,19 @@ _LOG_PATTERNS: list[tuple[RootCause, list[str]]] = [
 _OOM_EXIT_CODES: frozenset[int] = frozenset({137})
 
 
+class _LLMPort(Protocol):
+    """Minimal LLM port — duck-type compatible with HttpOllamaPort.generate()."""
+
+    async def generate(
+        self,
+        node_url: str,
+        model: str,
+        prompt: str,
+        timeout: float,
+        keep_alive: int = -1,
+    ) -> dict: ...
+
+
 class RootCauseClassifier:
     """Classify infra failures into normalised reason codes.
 
@@ -70,6 +103,16 @@ class RootCauseClassifier:
     6. state in {"dead","removing"} or context.node_offline → NODE_OFFLINE (0.65)
     7. fallback → UNKNOWN (0.30)
     """
+
+    def __init__(
+        self,
+        ollama_port: _LLMPort | None = None,
+        ollama_node_url: str | None = None,
+        llm_model: str = "llama3.3:70b",
+    ) -> None:
+        self._ollama = ollama_port
+        self._ollama_url = ollama_node_url or ""
+        self._llm_model = llm_model
 
     def classify(
         self,
@@ -149,3 +192,48 @@ class RootCauseClassifier:
             confidence=0.30,
             evidence=[f"exit_code={exit_code}, state={state}"],
         )
+
+    async def enrich_with_llm(self, clsf: Classification, context_text: str = "") -> Classification:
+        """Enrich UNKNOWN+low-confidence classifications with LLM diagnosis.
+
+        I-27: output enriches the escalation payload ONLY — autonomy level NEVER changes.
+        """
+        if not (
+            clsf.reason == RootCause.UNKNOWN and clsf.confidence < 0.5 and self._ollama is not None
+        ):
+            return clsf
+        prompt = (
+            f"Diagnose this infra failure. Context: {context_text}. "
+            f"Evidence: {clsf.evidence}. "
+            "Reply in exactly this format: DIAGNOSIS: <cause> | CONFIDENCE: <0.0-1.0>"
+        )
+        try:
+            resp = await asyncio.wait_for(
+                self._ollama.generate(
+                    node_url=self._ollama_url,
+                    model=self._llm_model,
+                    prompt=prompt,
+                    timeout=30.0,
+                ),
+                timeout=35.0,
+            )
+            text: str = resp.get("response", "")
+            diag: str | None = None
+            hint: float | None = None
+            for part in text.split("|"):
+                part = part.strip()
+                if part.startswith("DIAGNOSIS:"):
+                    diag = part[len("DIAGNOSIS:") :].strip()
+                elif part.startswith("CONFIDENCE:"):
+                    with contextlib.suppress(ValueError):
+                        hint = max(0.0, min(1.0, float(part[len("CONFIDENCE:") :].strip())))
+            return Classification(
+                reason=clsf.reason,
+                confidence=clsf.confidence,
+                evidence=clsf.evidence,
+                llm_diagnosis=diag,
+                llm_confidence_hint=hint,
+            )
+        except Exception as exc:
+            log.debug("LLM enrichment skipped: %s", exc)
+            return clsf

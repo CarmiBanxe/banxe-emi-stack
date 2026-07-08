@@ -59,3 +59,15 @@ audit:
 metrics:
   enabled: false
   port: 9091
+
+dependency_graph:
+  intent-dispatcher:
+    depends_on:
+      - litellm-postgres
+
+snapshots:
+  enabled: false
+  dir: /var/lib/banxe-watchdog/snapshots
+
+slo:
+  model_downtime_threshold_s: 3600

@@ -31,6 +31,9 @@ class WatchdogMetrics:
         self._escalations: int = 0
         self._targets_unhealthy: int = 0
         self._last_success_ts: float = 0.0
+        self._model_downtime_s: dict[str, float] = {}
+        self._model_down_since: dict[str, float] = {}
+        self._self_test_ok: int | None = None
 
     def record_decision(self, action: str) -> None:
         """Increment watchdog_decisions_total for the given action."""
@@ -52,6 +55,23 @@ class WatchdogMetrics:
     def set_unhealthy_targets(self, count: int) -> None:
         """Set watchdog_targets_unhealthy gauge."""
         self._targets_unhealthy = count
+
+    def record_model_down(self, model: str, host: str, ts: float) -> None:
+        """Mark model/host pair as down starting at ts."""
+        key = f"{model}@{host}"
+        if key not in self._model_down_since:
+            self._model_down_since[key] = ts
+
+    def record_model_up(self, model: str, host: str, ts: float) -> None:
+        """Mark model/host pair as recovered; accumulate downtime."""
+        key = f"{model}@{host}"
+        if key in self._model_down_since:
+            elapsed = ts - self._model_down_since.pop(key)
+            self._model_downtime_s[key] = self._model_downtime_s.get(key, 0.0) + elapsed
+
+    def record_self_test(self, ok: bool) -> None:
+        """Record result of scheduled self-test."""
+        self._self_test_ok = 1 if ok else 0
 
     def render(self) -> str:
         """Return all metrics in Prometheus text exposition format."""
@@ -81,6 +101,24 @@ class WatchdogMetrics:
             "# TYPE watchdog_last_success_timestamp gauge",
             f"watchdog_last_success_timestamp {self._last_success_ts}",
         ]
+
+        lines += [
+            "# HELP watchdog_model_downtime_24h_seconds Accumulated model downtime in seconds",
+            "# TYPE watchdog_model_downtime_24h_seconds gauge",
+        ]
+        for key, secs in sorted(self._model_downtime_s.items()):
+            model, host = (key.split("@", 1) + [""])[:2]
+            lines.append(
+                f'watchdog_model_downtime_24h_seconds{{model="{model}",host="{host}"}} {secs:.3f}'
+            )
+        if not self._model_downtime_s:
+            lines.append('watchdog_model_downtime_24h_seconds{model="none",host="none"} 0.000')
+        if self._self_test_ok is not None:
+            lines += [
+                "# HELP watchdog_self_test_ok 1 if last self-test passed, 0 if failed",
+                "# TYPE watchdog_self_test_ok gauge",
+                f"watchdog_self_test_ok {self._self_test_ok}",
+            ]
 
         return "\n".join(lines) + "\n"
 
