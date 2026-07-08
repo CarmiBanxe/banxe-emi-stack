@@ -27,6 +27,7 @@ from services.watchdog.watchdog import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _cfg(**kwargs) -> WatchdogConfig:  # type: ignore[return]
     base: dict = {
         "p1_health_interval_s": 60,
