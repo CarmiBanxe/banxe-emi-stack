@@ -616,3 +616,16 @@
 - Scope: agents/passports/audit/PASSPORT.md (decider COMPLIANCE_OFFICER), agents/passports/reporting/PASSPORT.md (decider CFO)
 - Zone: GREEN; execution-class gated; DM inserted after ## Autonomy Levels; Priority Note (HITL>TZ>B5>DM>Autonomy); NOT activated.
 - Activation: Operator(SMF1) + CTO(SMF26) per ADR-030 §8. Zone-clean split of closed PR #280. Refs: ADR-030; architecture ADR-131/162.
+
+## IL-REDGATE-01 — ADR-030 §9 RED runtime-gate scaffold [PROPOSED]
+- Status: PROPOSED
+- Scope: services/runtime_gate/** + config/runtime_gate/agent-budget-policy.yaml
+- Built the §9 MISSING components (minimal, tested, InMemory sandbox default): kill switch (fail-closed —
+  HALTED or unreachable backend ⇒ refuse), budget policy (config-as-data, Decimal, over/no-config ⇒ refuse),
+  metrics/alert hook (agent_halt_triggered/decision_refused/budget_exceeded; PagerDuty stub), audit sampling
+  (R-SEC: refs only, no PII/secret; Langfuse stub), red_activation_check (PASS/FAIL per component).
+- REUSED (not rebuilt): DecisionRecord emission — banxe.decision_records (infra/clickhouse/migrations/006 +
+  services/agents/_lineage.py / recorders.py). Production adapters (Temporal/Langfuse/PagerDuty) = Outcome-C stubs.
+- 21 tests green; ruff clean. Does NOT activate any agent capture (scaffold, PROPOSED).
+- Unblocks RED activation (audit_trail #284 + future AML) once red_activation_check all-pass + SMF ratification
+  (Operator+MLRO(SMF17)+CEO(SMF1)) per ADR-030 §8/§9. Refs: ADR-030 §9; ADR-021 (R-SEC).
