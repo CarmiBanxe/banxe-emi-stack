@@ -93,6 +93,14 @@ class WatchdogConfig:
     slo_model_downtime_threshold_s: float = 3600.0
     config_drift_interval_s: int = 3600
     config_drift_baseline: Path | None = None
+    # GAP-A: GUARDED autonomy flags (all default False — yaml must opt-in)
+    may_restart_ollama: bool = False
+    may_config_sync: bool = False
+    may_recreate_stateless: bool = False
+    # GAP-A: circuit-breaker thresholds (sourced from watchdog.yaml — no hardcode)
+    cb_max_attempts: int = 3
+    cb_backoff_base_s: float = 10.0
+    cb_max_quarantine_s: float = 1800.0
 
     @classmethod
     def from_yaml(cls, path: Path = CONFIG_PATH) -> WatchdogConfig:
@@ -128,6 +136,14 @@ class WatchdogConfig:
             correctness_expect=thr["correctness_probe"]["expect_contains"],
             nodes=nodes,
             may_warm=aut["may_warm"],
+            may_restart_ollama=aut.get("may_restart_ollama", False),
+            may_config_sync=aut.get("may_config_sync", False),
+            may_recreate_stateless=aut.get("may_recreate_stateless", False),
+            cb_max_attempts=int(raw.get("circuit_breaker", {}).get("max_attempts", 3)),
+            cb_backoff_base_s=float(raw.get("circuit_breaker", {}).get("backoff_base_s", 10.0)),
+            cb_max_quarantine_s=float(
+                raw.get("circuit_breaker", {}).get("max_quarantine_s", 1800.0)
+            ),
             ledger_path=Path(esc["ledger_path"]),
             webhook=esc.get("webhook"),
             audit_path=Path(aud["path"]) if aud.get("enabled") and aud.get("path") else None,

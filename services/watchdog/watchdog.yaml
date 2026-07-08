@@ -36,9 +36,16 @@ nodes:
 
 autonomy:
   may_warm: true
-  may_restart_ollama: false
+  may_restart_ollama: true       # GUARDED: circuit-breaker required
+  may_config_sync: true          # GUARDED: git pull --ff-only only
+  may_recreate_stateless: true   # GUARDED: stateless containers only
   may_reroute: false
   may_evict: false
+
+circuit_breaker:
+  max_attempts: 3
+  backoff_base_s: 10
+  max_quarantine_s: 1800
 
 escalation:
   ledger_path: /var/log/banxe/watchdog-ledger.jsonl
