@@ -642,3 +642,16 @@
 - SKIPPED (reported, not forced): audit/SOUL.md (no HITL Gates decider — advisory/board); multicurrency/SOUL.md (explicitly "No L4 HITL gates");
   reporting_analytics.soul.md (already in open PR #283 — no duplicate).
 - Activation: Operator(SMF1) + COO(SMF24) per ADR-030 §8. Refs: ADR-030; architecture ADR-131/162.
+
+## IL-WAVE2-RED-01 — DM (Profile-EMI, RED discipline) → 4 RED agents [PROPOSED; activation via red_activation_check + Operator+MLRO+CEO]
+- Status: PROPOSED — NOT activated.
+- Scope (4, RED; decider verbatim; execution-class blocked; advisory PROHIBITED):
+  compliance_calendar → COMPLIANCE_OFFICER (deadline) / BOARD (board_report) [B5: no];
+  crypto_custody → Compliance Officer (large_transfer ≥£1000, wallet_archive) / MLRO (blocked_jurisdiction) [B5: YES — on-chain finality];
+  risk_management → Risk Officer (set_threshold, risk_acceptance, risk_transfer) [B5: no];
+  consent_management → COMPLIANCE_OFFICER (revoke_consent, initiate_pisp_payment, suspend_tpp, deregister_tpp) [B5: YES — PSD2 Art.66].
+- RED discipline: L0-TZ (RED → gated/blocked, no scoring bypass); L0-REG (regulatory_admissibility<1.0 → BLOCKED); B-2 MAUT
+  (regulatory_admissibility/evidence_quality/false_positive_cost/escalation_urgency); fail-closed (uncertainty/adm<1.0 → BLOCK; RED-zone DROP not mask).
+- DM after ## Autonomy Level; Priority Note (HITL>TZ>B5>DM>Autonomy).
+- ACTIVATION (deferred): services/runtime_gate red_activation_check PASS AND Operator(SMF1)+MLRO(SMF17)+CEO(SMF1) per ADR-030 §8/§9.
+- Refs: ADR-030; ADR-131/162; POCA 2002 s.330, MLR 2017, SAMLA 2018; ADR-030 §9 runtime-gate (IL-REDGATE-01).
