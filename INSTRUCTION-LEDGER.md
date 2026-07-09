@@ -733,3 +733,11 @@
 - DEDUP-POINTER: none (no soul-twins among these 13).
 - SKIPPED: observability/PASSPORT.md — already trained in OPEN PR #285 (same file; do not double-train). No skip-for-no-decider (all 13 had a verbatim decider).
 - Refs: ADR-030; ADR-131/162; ADR-030 §9 runtime-gate; operator zone-agnostic ruling.
+
+## IL-WAVE7-REDO-01 — DM (Profile-EMI) → reporting_analytics, audit_trail, observability (re-done fresh; supersedes parked #283/#284/#285) [PROPOSED]
+- Status: PROPOSED — NOT activated. Re-trained fresh on current main (avoids 3× re-cut of the conflicting parked PRs).
+- reporting_analytics.soul.md → AMBER / gated / decider Analytics Manager (update_schedule) / B5 no. (supersedes #283)
+- audit_trail.soul.md → RED / blocked + advisory-prohibited / decider MLRO (purge_audit_records) / B5 YES (irreversible deletion, I-27). (supersedes #284)
+- observability/PASSPORT.md → GREEN / gated (advisory; MUST NOT auto-remediate I-27; append-only logs I-24) / decider COMPLIANCE_OFFICER (acknowledge violations) / promoted inline Autonomy→section. (supersedes #285)
+- DM after ## Autonomy Level; Priority Note; zone from file; activation deferred. Operator should CLOSE #283/#284/#285 as superseded.
+- Refs: ADR-030; ADR-131/162; I-24/I-27; ADR-030 §9 runtime-gate.

@@ -44,6 +44,40 @@ MUST ALWAYS:
 L1: Generate report, export, list templates, get KPIs, create schedule
 L4: Update schedule (Analytics Manager approval required)
 
+## Decision Method
+> **Priority Note:** this section governs the CHOICE between options; it **CANNOT override `## HITL Gates`**. Priority: **HITL Gates > Trust Zone > B5-IRREVOCABLE > Decision Method > Autonomy Level**.
+
+**Source:** `docs/adr/ADR-030-decision-method-banking-fleet.md` (Profile-EMI); architecture `ADR-131` + `ADR-162` (pointer-first, not restated).
+
+**Cluster:** B-4 (Analytics / Reporting)  ·  **Trust Zone:** AMBER  ·  **Execution-class:** gated
+**Decider (HITL, verbatim from `## HITL Gates`):** Analytics Manager (update_schedule, L4)
+
+### Core Algorithm: enumerate → score (MAUT) → satisfice within HITL → escalate
+1. **Enumerate** feasible in-scope actions (reporting-analytics dashboard / dataset / schedule preparation) — no autonomous disposition/execution/remediation.
+2. **Score** (additive MAUT):
+   - analytics_accuracy — max  [Lexicographic L0]
+   - disclosure_risk — min
+   - data_minimization — max
+   - reversibility — max
+3. **Satisfice within the HITL gate** — surface the best-supported artifact; the decider decides.
+4. **Escalate** on ambiguity / confidence drop / invariant risk — never self-clear.
+
+### Decision Cases
+- CASE-1 [PREPARE]: admissible, within scope, reversible → prepare / advisory output (human confirms)
+- CASE-2 [DEFER]: inputs incomplete → gather first
+- CASE-3 [ESCALATE]: material regulatory / invariant impact → Decider gate
+- CASE-4 [BLOCK]: regulatory_admissibility < 1.0, or irreversible/auto-remediation attempt → halt (I-27)
+
+### Escalation Path
+- confidence ≥ 0.90 → prepare / surface (human confirms; never auto-execution)
+- confidence 0.75–0.90 → flag for the decider
+- confidence < 0.75 → escalate, no action
+- CASE-3 / CASE-4 → always escalate regardless of confidence
+- **Fail-closed precedence:** prepares/proposes only; never overrides a `## HITL Gate`; conservative (the human decider confirms).
+
+### Status
+**PROPOSED — NOT ACTIVE.** Trust-zone from file; **activation DEFERRED to the function-definition phase**. Activation later requires the zone-appropriate gate (GREEN: Operator + CTO; AMBER: Operator + COO; RED: red_activation_check + Operator + MLRO + CEO) per ADR-030 §8/§9. This PR activates nothing. **Supersedes parked PRs #283 / #284 / #285.**
+
 ## HITL Gates
 
 | Gate | Approver | Timeout |
