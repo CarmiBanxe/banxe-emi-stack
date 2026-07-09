@@ -10,6 +10,7 @@ Supported GUARDED actions:
   - restart_ollama: systemctl restart ollama on node (via SSH shell)
   - config_sync: git pull --ff-only from authority (NEVER generates secrets)
   - recreate_container: docker rm + run for stateless containers only
+  - sync_ollama_ctx: fix OLLAMA_NUM_CTX drift in systemd override.conf via SSH
 
 Each action: circuit_breaker check → BEFORE audit → dispatch → verify → AFTER audit.
 I-27: any failure → ESCALATE + rollback attempt.
@@ -30,6 +31,22 @@ log = logging.getLogger(__name__)
 _STATEFUL_NEVER_RECREATE: frozenset[str] = frozenset(
     {"postgres", "postgresql", "clickhouse", "redis", "kafka", "zookeeper"}
 )
+
+# Remote config sync — systemd override path and CTX key (no secrets)
+_OVERRIDE_CONF = "/etc/systemd/system/ollama.service.d/override.conf"
+_CTX_KEY = "OLLAMA_NUM_CTX"
+
+
+def _parse_ctx_value(stdout: str) -> str | None:
+    """Extract OLLAMA_NUM_CTX value from grep output of override.conf."""
+    marker = f"{_CTX_KEY}="
+    for line in stdout.splitlines():
+        stripped = line.strip()
+        idx = stripped.find(marker)
+        if idx != -1:
+            raw = stripped[idx + len(marker) :]
+            return raw.strip().strip('"')
+    return None
 
 
 class GuardedActionExecutor:
@@ -195,6 +212,138 @@ class GuardedActionExecutor:
             verify_success_stdout="running",
             rollback_cmd=["docker", "stop", name],
         )
+
+    async def sync_ollama_ctx(self, node: str, baseline_ctx: int = 8192) -> RepairAction:
+        """Fix OLLAMA_NUM_CTX drift on *node* via SSH (GUARDED).
+
+        Multi-step: CB check → BEFORE audit → read → (if correct: done) →
+        backup → sed patch → daemon-reload → restart → verify → AFTER audit.
+        Rollback from .bak on verify failure. No secrets touched or logged.
+        """
+        action_key = f"sync_ollama_ctx:{node}"
+        cb = self._get_breaker(action_key)
+        now = self._now()
+
+        if cb.is_blocked(now):
+            self._audit.record(
+                make_audit_record(
+                    target=node,
+                    observed_state="OLLAMA_CTX_DRIFT",
+                    root_cause="OLLAMA_CTX_DRIFT",
+                    root_cause_confidence=0.0,
+                    selected_action=RepairAction.ESCALATE.name,
+                    action_score=0.0,
+                    executed=False,
+                    verification_result=False,
+                    autonomy_mode="GUARDED_CB_OPEN",
+                )
+            )
+            return RepairAction.ESCALATE
+
+        self._audit.record(
+            make_audit_record(
+                target=node,
+                observed_state="OLLAMA_CTX_DRIFT",
+                root_cause="OLLAMA_CTX_DRIFT",
+                root_cause_confidence=1.0,
+                selected_action=RepairAction.SYNC_OLLAMA_CTX.name,
+                action_score=0.0,
+                executed=False,
+                verification_result=None,
+                autonomy_mode="GUARDED",
+            )
+        )
+
+        current = await self._read_ollama_ctx(node)
+        if current is None:
+            cb.record_failure(now, self._cb_max, self._cb_backoff, self._cb_quarantine)
+            return RepairAction.ESCALATE
+        if current == str(baseline_ctx):
+            self._audit.record(
+                make_audit_record(
+                    target=node,
+                    observed_state="OLLAMA_CTX_DRIFT",
+                    root_cause="OLLAMA_CTX_DRIFT",
+                    root_cause_confidence=1.0,
+                    selected_action=RepairAction.SYNC_OLLAMA_CTX.name,
+                    action_score=0.0,
+                    executed=True,
+                    verification_result=True,
+                    autonomy_mode="GUARDED",
+                )
+            )
+            cb.record_success()
+            return RepairAction.SYNC_OLLAMA_CTX
+
+        ok = await self._patch_ollama_ctx(node, baseline_ctx)
+        if not ok:
+            cb.record_failure(now, self._cb_max, self._cb_backoff, self._cb_quarantine)
+            return RepairAction.ESCALATE
+
+        verified_val = await self._read_ollama_ctx(node)
+        verified = verified_val == str(baseline_ctx)
+        self._audit.record(
+            make_audit_record(
+                target=node,
+                observed_state="OLLAMA_CTX_DRIFT",
+                root_cause="OLLAMA_CTX_DRIFT",
+                root_cause_confidence=1.0,
+                selected_action=RepairAction.SYNC_OLLAMA_CTX.name,
+                action_score=0.0,
+                executed=True,
+                verification_result=verified,
+                autonomy_mode="GUARDED",
+            )
+        )
+        if not verified:
+            cb.record_failure(now, self._cb_max, self._cb_backoff, self._cb_quarantine)
+            await self._try_rollback_ctx(node)
+            return RepairAction.ESCALATE
+        cb.record_success()
+        return RepairAction.SYNC_OLLAMA_CTX
+
+    async def _read_ollama_ctx(self, node: str) -> str | None:
+        """Read OLLAMA_NUM_CTX from override.conf on *node* via SSH."""
+        cmd = ["ssh", node, "grep", _CTX_KEY, _OVERRIDE_CONF]
+        try:
+            rc, stdout = await self._shell.run(cmd)
+            if rc != 0:
+                log.warning("_read_ollama_ctx: grep rc=%d node=%s", rc, node)
+                return None
+            return _parse_ctx_value(stdout)
+        except Exception as exc:
+            log.error("_read_ollama_ctx: ssh failed node=%s: %s", node, exc)
+            return None
+
+    async def _patch_ollama_ctx(self, node: str, baseline_ctx: int) -> bool:
+        """Backup, sed-patch OLLAMA_NUM_CTX, daemon-reload, restart ollama."""
+        backup_cmd = ["ssh", node, "cp", _OVERRIDE_CONF, f"{_OVERRIDE_CONF}.bak"]
+        rc, _ = await self._shell.run(backup_cmd)
+        if rc != 0:
+            log.error("_patch_ollama_ctx: backup failed node=%s rc=%d", node, rc)
+            return False
+        sed_expr = f"s|{_CTX_KEY}=[0-9]*|{_CTX_KEY}={baseline_ctx}|g"
+        rc, _ = await self._shell.run(["ssh", node, "sed", "-i", sed_expr, _OVERRIDE_CONF])
+        if rc != 0:
+            log.error("_patch_ollama_ctx: sed failed node=%s rc=%d", node, rc)
+            return False
+        rc, _ = await self._shell.run(["ssh", node, "sudo", "systemctl", "daemon-reload"])
+        if rc != 0:
+            log.error("_patch_ollama_ctx: daemon-reload failed node=%s rc=%d", node, rc)
+            return False
+        rc, _ = await self._shell.run(["ssh", node, "sudo", "systemctl", "restart", "ollama"])
+        if rc != 0:
+            log.error("_patch_ollama_ctx: restart failed node=%s rc=%d", node, rc)
+            return False
+        return True
+
+    async def _try_rollback_ctx(self, node: str) -> None:
+        """Best-effort: restore .bak and daemon-reload. Never raises."""
+        try:
+            await self._shell.run(["ssh", node, "cp", f"{_OVERRIDE_CONF}.bak", _OVERRIDE_CONF])
+            await self._shell.run(["ssh", node, "sudo", "systemctl", "daemon-reload"])
+        except Exception as exc:
+            log.error("_try_rollback_ctx failed node=%s: %s", node, exc)
 
     # ── private helpers ────────────────────────────────────────────────────────
 
