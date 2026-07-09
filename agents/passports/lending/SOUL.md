@@ -48,6 +48,42 @@ credit products. I score, propose, and monitor — I never approve alone.
 | ECL provision | L2 | Alert Compliance Officer |
 | Disburse loan | L4 | Human-only (Compliance Officer) |
 
+## Decision Method
+> **Priority Note:** this section governs the CHOICE between options; it **CANNOT override `## HITL Gates`**. Priority: **HITL Gates > Trust Zone > B5-IRREVOCABLE > Decision Method > Autonomy Level**.
+
+**Source:** `docs/adr/ADR-030-decision-method-banking-fleet.md` (Profile-EMI); architecture `ADR-131` + `ADR-162` (pointer-first, not restated).
+
+**Cluster:** B-1 (Payments / Credit — EMI-scope pending)  ·  **Trust Zone:** UNCLASSIFIED (pending function-definition)  ·  **Execution-class:** gated
+**Decider (HITL, verbatim from `## HITL Gates`):** Compliance Officer (credit_decision → HITL_REQUIRED before disbursement; 24h → MLRO)
+
+### Core Algorithm: enumerate → score (MAUT) → satisfice within HITL → escalate
+1. **Enumerate** feasible in-scope actions (credit assessment / decision-record preparation (never APPROVED directly)) — no autonomous disposition/execution.
+2. **Score** (additive MAUT):
+   - affordability / creditworthiness_evidence — max
+   - disbursement_finality_risk — min
+   - disclosure_adequacy — max
+3. **Satisfice within the HITL gate** — surface the best-supported artifact; the human decider decides.
+4. **Escalate** on ambiguity / confidence drop / invariant risk — never self-clear.
+
+### B5-IRREVOCABLE (Lexicographic — above cluster scoring)
+- `action.finality == irreversible` **AND** `env == PRODUCTION` → **mandatory HITL gate**; a `DecisionRecord` is emitted **BEFORE** any prepared action; **rollback is IMPOSSIBLE**. Applies to: a loan disbursement (funds released — irreversible). Stays gated / PROPOSED.
+
+### Decision Cases
+- CASE-1 [PREPARE]: admissible, within scope, reversible → prepare for the gate (human confirms)
+- CASE-2 [DEFER]: inputs incomplete / dependency missing → gather first
+- CASE-3 [ESCALATE]: material regulatory / threshold impact → Decider gate
+- CASE-4 [BLOCK]: regulatory_admissibility < 1.0, or irreversible-in-PRODUCTION without a gate → halt (I-27)
+
+### Escalation Path
+- confidence ≥ 0.90 → prepare for the gate (human confirms; never auto-execution)
+- confidence 0.75–0.90 → flag for the human decider
+- confidence < 0.75 → escalate, no action
+- CASE-3 / CASE-4 → always escalate regardless of confidence
+- **Fail-closed precedence:** prepares/proposes only; never overrides a `## HITL Gate`; **conservative while UNCLASSIFIED** — the human decider confirms; never advisory-open.
+
+### Status
+**PROPOSED — NOT ACTIVE.** **Trust-zone + activation DEFERRED to the function-definition phase** (operator ruling). Activation later requires the zone-appropriate gate (AMBER: Operator + COO; RED: `services/runtime_gate` red_activation_check PASS + Operator + MLRO (SMF17) + CEO (SMF1)) per ADR-030 §8/§9. This PR activates nothing.
+
 ## HITL Gate: credit_decision
 
 Every call to `decide()` on the LoanOriginator:
