@@ -695,3 +695,41 @@
 - DEDUP flags (resolve in function-definition): preferences/passport.md (IL-UPS-01) likely same agent as user_preferences.soul.md (trained #289);
   risk/passport.md likely same agent as risk_management.soul.md (trained #288). Canonical is PASSPORT per ADR-030 (PASSPORT>SOUL) — de-duplicate later.
 - Refs: ADR-030; ADR-131/162; ADR-030 §9 runtime-gate; operator zone-agnostic ruling.
+
+## IL-WAVE5-AML-01 — DM (Profile-EMI, RED) → 7 AML-core agents [PROPOSED; activation-gated]
+- Status: PROPOSED — NOT activated. RED discipline; advisory PROHIBITED; execution-class blocked; fail-closed.
+- Trained (7; decider verbatim from ## HITL Rules / B5):
+  aml_check_agent → HUMAN_COMPLIANCE_OFFICER / HUMAN_MLRO(+CEO) [B5: SAR candidate/de-risking];
+  cdd_review_agent → HUMAN_COMPLIANCE_OFFICER / HUMAN_MLRO [B5: no];
+  fraud_detection_agent → HUMAN_FRAUD_ANALYST / HUMAN_MLRO / HUMAN_COMPLIANCE_OFFICER [B5: no];
+  jube_adapter_agent → HUMAN_MLRO(+CTIO) / HUMAN_COMPLIANCE_OFFICER [B5: no];
+  mlro_agent → HUMAN_MLRO(SMF17)(+CEO) [B5: SAR filing/sanctions reversal];
+  sanctions_check_agent → HUMAN_COMPLIANCE_OFFICER / HUMAN_MLRO(+CEO) [B5: sanctions block/unblock];
+  tm_agent → HUMAN_COMPLIANCE_OFFICER / HUMAN_MLRO [B5: no].
+- Format-normalized: promoted inline "Autonomy: L2/L3" (SOUL metadata line) to ## Autonomy Level section (verbatim);
+  DM inserted before ## HITL Rules (these use ## HITL Rules, not ## HITL Gates). All Trust Zone RED (content-evident, declared inline).
+- B-2 MAUT: regulatory_admissibility(L0)/evidence_quality/false_positive_cost/tipping_off_risk(POCA s.333A)/escalation_urgency(SAR 4h).
+- ACTIVATION (deferred): services/runtime_gate red_activation_check PASS AND Operator(SMF1)+MLRO(SMF17)+CEO(SMF1) per ADR-030 §8/§9.
+- Refs: ADR-030; ADR-131/162; POCA 2002 s.330/s.333A, MLR 2017, SAMLA 2018; ADR-030 §9 runtime-gate (IL-REDGATE-01).
+
+## IL-WAVE6-PASS-01 — DM (Profile-EMI) → 13 unique passport agents + 0 dedup-pointers [PROPOSED; zone deferred]
+- Status: PROPOSED — NOT activated. Trust-zone + activation DEFERRED to function-definition phase.
+- TRAINED (13; decider verbatim / zone / execution-class / B5):
+  kyb_onboarding→MLRO/KYB_OFFICER / RED / blocked+advisory-prohibited / B5(onboarding decision);
+  sanctions_screening→COMPLIANCE_OFFICER/MLRO / RED / blocked+advisory-prohibited / B5(match/SAR);
+  swift_correspondent→TREASURY_OPS / RED / blocked+advisory-prohibited / B5(SWIFT send);
+  fx_engine→TREASURY_OPS / AMBER / gated / B5(FX ≥£10k);
+  complaints→COMPLAINTS_OFFICER / UNCLASSIFIED / gated / no;
+  ato_prevention→SECURITY_OFFICER / UNCLASSIFIED / gated / no;
+  client_statements→OPERATIONS_OFFICER / UNCLASSIFIED / gated / no;
+  compliance_sync→COMPLIANCE_OFFICER / UNCLASSIFIED / gated / no;
+  customer_lifecycle→COMPLIANCE_OFFICER/HEAD_OF_COMPLIANCE / UNCLASSIFIED / gated / no;
+  device_fingerprint→FRAUD_ANALYST / UNCLASSIFIED / gated / no;
+  fatca_crs→COMPLIANCE_OFFICER/MLRO / UNCLASSIFIED / gated / no;
+  fraud_tracer→FRAUD_ANALYST / UNCLASSIFIED / gated / no;
+  midaz_mcp→COMPLIANCE_OFFICER / UNCLASSIFIED / gated / no.
+- Normalized: promoted inline "- Autonomy Level: L4"/"L1/L4" bullets to ## Autonomy Level section (verbatim); DM after it.
+  Zone from file where declared (kyb/sanctions/swift RED; fx AMBER); else UNCLASSIFIED — not invented.
+- DEDUP-POINTER: none (no soul-twins among these 13).
+- SKIPPED: observability/PASSPORT.md — already trained in OPEN PR #285 (same file; do not double-train). No skip-for-no-decider (all 13 had a verbatim decider).
+- Refs: ADR-030; ADR-131/162; ADR-030 §9 runtime-gate; operator zone-agnostic ruling.
