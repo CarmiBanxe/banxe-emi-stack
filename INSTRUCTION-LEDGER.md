@@ -629,3 +629,16 @@
 - 21 tests green; ruff clean. Does NOT activate any agent capture (scaffold, PROPOSED).
 - Unblocks RED activation (audit_trail #284 + future AML) once red_activation_check all-pass + SMF ratification
   (Operator+MLRO(SMF17)+CEO(SMF1)) per ADR-030 §8/§9. Refs: ADR-030 §9; ADR-021 (R-SEC).
+
+## IL-WAVE2-AMBER-01 — DM (Profile-EMI) → 16 AMBER agents [PROPOSED; activation Operator+COO SMF24]
+- Status: PROPOSED
+- Scope (16, decider verbatim from HITL Gates): batch_payments→Compliance Officer/MLRO(B-1,B5); fee_management→COMPLIANCE_OFFICER/CFO;
+  cards→Compliance Officer/Head of Cards; compliance_auto→Compliance Officer; consumer_duty→CONSUMER_DUTY_OFFICER;
+  documents→Compliance Officer/Admin; fx→Compliance Officer(B5); gateway→Compliance Officer/Admin; insurance→Compliance Officer;
+  loyalty→Compliance Officer; merchant→Head of Acquiring/Compliance Officer+MLRO; open_banking→Compliance Officer;
+  referral→Compliance Officer; reporting(SOUL)→Compliance Officer/MLRO; treasury→CFO/Compliance Officer(B5); webhooks→Compliance Officer.
+- All AMBER; execution-class gated; DM after ## Autonomy Level; Priority Note (HITL>TZ>B5>DM>Autonomy); NOT activated.
+- B5-IRREVOCABLE note added to batch_payments/fx/treasury (irreversible-in-PRODUCTION → mandatory HITL + DecisionRecord-before-exec).
+- SKIPPED (reported, not forced): audit/SOUL.md (no HITL Gates decider — advisory/board); multicurrency/SOUL.md (explicitly "No L4 HITL gates");
+  reporting_analytics.soul.md (already in open PR #283 — no duplicate).
+- Activation: Operator(SMF1) + COO(SMF24) per ADR-030 §8. Refs: ADR-030; architecture ADR-131/162.
