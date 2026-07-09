@@ -602,3 +602,142 @@
 - L3-BOUNDARY-REGISTER.md created: ✅
 - GAP-REGISTER.md cross-references appended: ✅
 - IL entry added: ✅
+
+## IL-DM-EMI-01 — Decision Method Profile-EMI canon (ADR-030, PROPOSED)
+- Status: PROPOSED
+- Scope: docs/adr/ADR-030 + README row (canon only; NO soul trained — STOP-before-train)
+- Profile-EMI: pos after ## Autonomy Level; clusters B1-B4; B5-IRREVOCABLE; L0-TZ Trust Zone; advisory-prohibited for RED;
+  priority HITL>TZ>B5>DM>Autonomy; dedup canonical_id (PASSPORT>SOUL>*.soul.md); SMF ratification; runtime-gate for RED.
+- Refs: architecture ADR-131/ADR-162; POCA 2002, MLR 2017, SAMLA 2018, FCA SMCR
+- Ratification required: Operator(SMF1) + CTO(SMF26) before any training wave.
+
+## IL-WAVE1-GREEN-01 — DM (Profile-EMI) → audit, reporting [GREEN, PROPOSED; activation Operator+CTO SMF26]
+- Status: PROPOSED
+- Scope: agents/passports/audit/PASSPORT.md (decider COMPLIANCE_OFFICER), agents/passports/reporting/PASSPORT.md (decider CFO)
+- Zone: GREEN; execution-class gated; DM inserted after ## Autonomy Levels; Priority Note (HITL>TZ>B5>DM>Autonomy); NOT activated.
+- Activation: Operator(SMF1) + CTO(SMF26) per ADR-030 §8. Zone-clean split of closed PR #280. Refs: ADR-030; architecture ADR-131/162.
+
+## IL-REDGATE-01 — ADR-030 §9 RED runtime-gate scaffold [PROPOSED]
+- Status: PROPOSED
+- Scope: services/runtime_gate/** + config/runtime_gate/agent-budget-policy.yaml
+- Built the §9 MISSING components (minimal, tested, InMemory sandbox default): kill switch (fail-closed —
+  HALTED or unreachable backend ⇒ refuse), budget policy (config-as-data, Decimal, over/no-config ⇒ refuse),
+  metrics/alert hook (agent_halt_triggered/decision_refused/budget_exceeded; PagerDuty stub), audit sampling
+  (R-SEC: refs only, no PII/secret; Langfuse stub), red_activation_check (PASS/FAIL per component).
+- REUSED (not rebuilt): DecisionRecord emission — banxe.decision_records (infra/clickhouse/migrations/006 +
+  services/agents/_lineage.py / recorders.py). Production adapters (Temporal/Langfuse/PagerDuty) = Outcome-C stubs.
+- 21 tests green; ruff clean. Does NOT activate any agent capture (scaffold, PROPOSED).
+- Unblocks RED activation (audit_trail #284 + future AML) once red_activation_check all-pass + SMF ratification
+  (Operator+MLRO(SMF17)+CEO(SMF1)) per ADR-030 §8/§9. Refs: ADR-030 §9; ADR-021 (R-SEC).
+
+## IL-WAVE2-AMBER-01 — DM (Profile-EMI) → 16 AMBER agents [PROPOSED; activation Operator+COO SMF24]
+- Status: PROPOSED
+- Scope (16, decider verbatim from HITL Gates): batch_payments→Compliance Officer/MLRO(B-1,B5); fee_management→COMPLIANCE_OFFICER/CFO;
+  cards→Compliance Officer/Head of Cards; compliance_auto→Compliance Officer; consumer_duty→CONSUMER_DUTY_OFFICER;
+  documents→Compliance Officer/Admin; fx→Compliance Officer(B5); gateway→Compliance Officer/Admin; insurance→Compliance Officer;
+  loyalty→Compliance Officer; merchant→Head of Acquiring/Compliance Officer+MLRO; open_banking→Compliance Officer;
+  referral→Compliance Officer; reporting(SOUL)→Compliance Officer/MLRO; treasury→CFO/Compliance Officer(B5); webhooks→Compliance Officer.
+- All AMBER; execution-class gated; DM after ## Autonomy Level; Priority Note (HITL>TZ>B5>DM>Autonomy); NOT activated.
+- B5-IRREVOCABLE note added to batch_payments/fx/treasury (irreversible-in-PRODUCTION → mandatory HITL + DecisionRecord-before-exec).
+- SKIPPED (reported, not forced): audit/SOUL.md (no HITL Gates decider — advisory/board); multicurrency/SOUL.md (explicitly "No L4 HITL gates");
+  reporting_analytics.soul.md (already in open PR #283 — no duplicate).
+- Activation: Operator(SMF1) + COO(SMF24) per ADR-030 §8. Refs: ADR-030; architecture ADR-131/162.
+
+## IL-WAVE2-RED-01 — DM (Profile-EMI, RED discipline) → 4 RED agents [PROPOSED; activation via red_activation_check + Operator+MLRO+CEO]
+- Status: PROPOSED — NOT activated.
+- Scope (4, RED; decider verbatim; execution-class blocked; advisory PROHIBITED):
+  compliance_calendar → COMPLIANCE_OFFICER (deadline) / BOARD (board_report) [B5: no];
+  crypto_custody → Compliance Officer (large_transfer ≥£1000, wallet_archive) / MLRO (blocked_jurisdiction) [B5: YES — on-chain finality];
+  risk_management → Risk Officer (set_threshold, risk_acceptance, risk_transfer) [B5: no];
+  consent_management → COMPLIANCE_OFFICER (revoke_consent, initiate_pisp_payment, suspend_tpp, deregister_tpp) [B5: YES — PSD2 Art.66].
+- RED discipline: L0-TZ (RED → gated/blocked, no scoring bypass); L0-REG (regulatory_admissibility<1.0 → BLOCKED); B-2 MAUT
+  (regulatory_admissibility/evidence_quality/false_positive_cost/escalation_urgency); fail-closed (uncertainty/adm<1.0 → BLOCK; RED-zone DROP not mask).
+- DM after ## Autonomy Level; Priority Note (HITL>TZ>B5>DM>Autonomy).
+- ACTIVATION (deferred): services/runtime_gate red_activation_check PASS AND Operator(SMF1)+MLRO(SMF17)+CEO(SMF1) per ADR-030 §8/§9.
+- Refs: ADR-030; ADR-131/162; POCA 2002 s.330, MLR 2017, SAMLA 2018; ADR-030 §9 runtime-gate (IL-REDGATE-01).
+
+## IL-WAVE3-ALL-01 — DM (Profile-EMI, zone-agnostic) → 8 agents [PROPOSED; zone+activation deferred]
+- Status: PROPOSED — NOT activated. Trust-zone + activation DEFERRED to the function-definition phase (operator ruling).
+- Trained (8; decider verbatim / zone / B5):
+  beneficiary→Operations/Compliance,Customer Operations / UNCLASSIFIED / no;
+  crypto(passport)→Compliance Officer,MLRO / RED(content-evident: on-chain/AML/sanctions; advisory-prohibited,blocked) / YES;
+  disputes→Qualified complaints handler,MLRO/Complaints Manager / UNCLASSIFIED / no;
+  lending→Compliance Officer(→MLRO 24h) / UNCLASSIFIED / YES(disbursement);
+  savings→Customer Services+Compliance / UNCLASSIFIED / no;
+  scheduled_payments→Customer Services+Compliance / UNCLASSIFIED / YES(execution);
+  user_preferences→DPO / UNCLASSIFIED / YES(GDPR erasure/consent);
+  reconciliation→COMPLIANCE_OFFICER / UNCLASSIFIED / no.
+- UNCLASSIFIED default = gated (conservative; human confirms; never advisory-open). Zone NOT invented (only crypto RED = content-evident).
+- SKIPPED (reported, needs governance): notifications/SOUL.md (no HITL gate — needs normalization);
+  audit_trail.soul.md (dup — open PR #284); reporting_analytics.soul.md (dup — open PR #283);
+  batch_payments/passport.md (dedup — agent trained via soul in open #287; passport canonical per ADR-030 — resolve in function-definition);
+  no-anchor/no-HITL files (breach_prediction_agent, mcp_server_agent, recon_analysis_agent, api_versioning, audit_trail/passport,
+  fx_rates, multi_tenancy, preferences, psd2_gateway, reporting_analytics/passport, risk/passport, audit/SOUL.md, multicurrency/SOUL.md) — need format-normalization.
+- Refs: ADR-030; ADR-131/162; ADR-030 §9 runtime-gate (IL-REDGATE-01); operator zone-agnostic ruling.
+
+## IL-WAVE4-NORM-01 — DM (Profile-EMI) → 12 agents (normalized where needed) [PROPOSED; zone deferred]
+- Status: PROPOSED — NOT activated. Trust-zone + activation DEFERRED to function-definition phase.
+- Trained (12; decider verbatim / zone / execution-class / B5 / promoted):
+  notifications→NO-GATE advisory / GREEN / advisory / no / no-promote (L2 fully-automated, no HITL per file);
+  audit(SOUL)→board+MLRO+compliance / AMBER / advisory / no / no-promote (L2 advisory, humans decide);
+  multicurrency(SOUL)→NO-GATE advisory / AMBER / advisory / no / no-promote ("No L4 HITL gates");
+  breach_prediction→compliance officer / RED / gated / no / PROMOTED;
+  mcp_server→CTIO+MLRO / RED / gated / no / PROMOTED;
+  recon_analysis→compliance officer / RED / gated / no / PROMOTED;
+  api_versioning→API_GOVERNANCE / AMBER / gated / no / PROMOTED;
+  fx_rates→TREASURY_OFFICER / AMBER / gated / no / PROMOTED;
+  multi_tenancy→MLRO / RED / BLOCKED+advisory-prohibited / YES(provision_tenant) / PROMOTED;
+  preferences→DPO / AMBER / gated / YES(GDPR erasure) / PROMOTED;
+  psd2_gateway→COMPLIANCE_OFFICER / RED / BLOCKED+advisory-prohibited / YES(PISP/consent) / PROMOTED;
+  risk→Risk Officer / RED / gated / no / PROMOTED.
+- Zone declared where present (api_versioning/fx_rates AMBER; multi_tenancy/psd2_gateway/risk/breach_prediction/mcp_server/recon_analysis RED
+  per in-body declaration); no zone invented. RED-blocked only multi_tenancy+psd2_gateway (per operator ruling); other RED-declared = gated (operator scope).
+- DEDUP flags (resolve in function-definition): preferences/passport.md (IL-UPS-01) likely same agent as user_preferences.soul.md (trained #289);
+  risk/passport.md likely same agent as risk_management.soul.md (trained #288). Canonical is PASSPORT per ADR-030 (PASSPORT>SOUL) — de-duplicate later.
+- Refs: ADR-030; ADR-131/162; ADR-030 §9 runtime-gate; operator zone-agnostic ruling.
+
+## IL-WAVE5-AML-01 — DM (Profile-EMI, RED) → 7 AML-core agents [PROPOSED; activation-gated]
+- Status: PROPOSED — NOT activated. RED discipline; advisory PROHIBITED; execution-class blocked; fail-closed.
+- Trained (7; decider verbatim from ## HITL Rules / B5):
+  aml_check_agent → HUMAN_COMPLIANCE_OFFICER / HUMAN_MLRO(+CEO) [B5: SAR candidate/de-risking];
+  cdd_review_agent → HUMAN_COMPLIANCE_OFFICER / HUMAN_MLRO [B5: no];
+  fraud_detection_agent → HUMAN_FRAUD_ANALYST / HUMAN_MLRO / HUMAN_COMPLIANCE_OFFICER [B5: no];
+  jube_adapter_agent → HUMAN_MLRO(+CTIO) / HUMAN_COMPLIANCE_OFFICER [B5: no];
+  mlro_agent → HUMAN_MLRO(SMF17)(+CEO) [B5: SAR filing/sanctions reversal];
+  sanctions_check_agent → HUMAN_COMPLIANCE_OFFICER / HUMAN_MLRO(+CEO) [B5: sanctions block/unblock];
+  tm_agent → HUMAN_COMPLIANCE_OFFICER / HUMAN_MLRO [B5: no].
+- Format-normalized: promoted inline "Autonomy: L2/L3" (SOUL metadata line) to ## Autonomy Level section (verbatim);
+  DM inserted before ## HITL Rules (these use ## HITL Rules, not ## HITL Gates). All Trust Zone RED (content-evident, declared inline).
+- B-2 MAUT: regulatory_admissibility(L0)/evidence_quality/false_positive_cost/tipping_off_risk(POCA s.333A)/escalation_urgency(SAR 4h).
+- ACTIVATION (deferred): services/runtime_gate red_activation_check PASS AND Operator(SMF1)+MLRO(SMF17)+CEO(SMF1) per ADR-030 §8/§9.
+- Refs: ADR-030; ADR-131/162; POCA 2002 s.330/s.333A, MLR 2017, SAMLA 2018; ADR-030 §9 runtime-gate (IL-REDGATE-01).
+
+## IL-WAVE6-PASS-01 — DM (Profile-EMI) → 13 unique passport agents + 0 dedup-pointers [PROPOSED; zone deferred]
+- Status: PROPOSED — NOT activated. Trust-zone + activation DEFERRED to function-definition phase.
+- TRAINED (13; decider verbatim / zone / execution-class / B5):
+  kyb_onboarding→MLRO/KYB_OFFICER / RED / blocked+advisory-prohibited / B5(onboarding decision);
+  sanctions_screening→COMPLIANCE_OFFICER/MLRO / RED / blocked+advisory-prohibited / B5(match/SAR);
+  swift_correspondent→TREASURY_OPS / RED / blocked+advisory-prohibited / B5(SWIFT send);
+  fx_engine→TREASURY_OPS / AMBER / gated / B5(FX ≥£10k);
+  complaints→COMPLAINTS_OFFICER / UNCLASSIFIED / gated / no;
+  ato_prevention→SECURITY_OFFICER / UNCLASSIFIED / gated / no;
+  client_statements→OPERATIONS_OFFICER / UNCLASSIFIED / gated / no;
+  compliance_sync→COMPLIANCE_OFFICER / UNCLASSIFIED / gated / no;
+  customer_lifecycle→COMPLIANCE_OFFICER/HEAD_OF_COMPLIANCE / UNCLASSIFIED / gated / no;
+  device_fingerprint→FRAUD_ANALYST / UNCLASSIFIED / gated / no;
+  fatca_crs→COMPLIANCE_OFFICER/MLRO / UNCLASSIFIED / gated / no;
+  fraud_tracer→FRAUD_ANALYST / UNCLASSIFIED / gated / no;
+  midaz_mcp→COMPLIANCE_OFFICER / UNCLASSIFIED / gated / no.
+- Normalized: promoted inline "- Autonomy Level: L4"/"L1/L4" bullets to ## Autonomy Level section (verbatim); DM after it.
+  Zone from file where declared (kyb/sanctions/swift RED; fx AMBER); else UNCLASSIFIED — not invented.
+- DEDUP-POINTER: none (no soul-twins among these 13).
+- SKIPPED: observability/PASSPORT.md — already trained in OPEN PR #285 (same file; do not double-train). No skip-for-no-decider (all 13 had a verbatim decider).
+- Refs: ADR-030; ADR-131/162; ADR-030 §9 runtime-gate; operator zone-agnostic ruling.
+
+## IL-WAVE7-REDO-01 — DM (Profile-EMI) → reporting_analytics, audit_trail, observability (re-done fresh; supersedes parked #283/#284/#285) [PROPOSED]
+- Status: PROPOSED — NOT activated. Re-trained fresh on current main (avoids 3× re-cut of the conflicting parked PRs).
+- reporting_analytics.soul.md → AMBER / gated / decider Analytics Manager (update_schedule) / B5 no. (supersedes #283)
+- audit_trail.soul.md → RED / blocked + advisory-prohibited / decider MLRO (purge_audit_records) / B5 YES (irreversible deletion, I-27). (supersedes #284)
+- observability/PASSPORT.md → GREEN / gated (advisory; MUST NOT auto-remediate I-27; append-only logs I-24) / decider COMPLIANCE_OFFICER (acknowledge violations) / promoted inline Autonomy→section. (supersedes #285)
+- DM after ## Autonomy Level; Priority Note; zone from file; activation deferred. Operator should CLOSE #283/#284/#285 as superseded.
+- Refs: ADR-030; ADR-131/162; I-24/I-27; ADR-030 §9 runtime-gate.

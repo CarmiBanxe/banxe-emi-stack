@@ -1,0 +1,14 @@
+# RED-agent budget policy — config-as-data (ADR-030 §9), operator-owned.
+# Money is Decimal (quoted strings, never float). Over-budget ⇒ the agent refuses.
+# Fail-closed: no config, or no entry for an agent ⇒ that agent is refused.
+schema: agent-budget-policy/v1
+window: 24h                      # default rolling window
+agents:
+  audit_trail:                   # RED (PR #284)
+    max_tokens_window: 200000
+    max_cost_window: "5.00"      # GBP, Decimal
+    window: 24h
+  banxe_aml_orchestrator:        # RED (future AML activation)
+    max_tokens_window: 500000
+    max_cost_window: "20.00"
+    window: 24h

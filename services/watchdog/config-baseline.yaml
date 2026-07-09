@@ -1,0 +1,24 @@
+# GAP-C config baseline — git-tracked expected runtime values
+# I-27: drift detection ONLY; auto-fix deferred to GAP-A
+# Sensitive values: store expected SHA-256[:16] prefixes here, NEVER raw secrets.
+#
+# To compute a password hash for this file:
+#   echo -n 'yourpassword' | sha256sum | cut -c1-16
+#   → prefix that with "sha256:" e.g. "sha256:d8e8fca2dc0f8fa"
+#
+# Key format: "{container_or_node_name}.{KEY_NAME}"
+
+config:
+  # Ollama nodes — expected context window
+  # Incident: evo2 override.conf had OLLAMA_NUM_CTX=131072 (context explosion)
+  "evo1.OLLAMA_NUM_CTX": "8192"
+  "evo2.OLLAMA_NUM_CTX": "8192"
+
+  # Docker containers — non-secret env checks
+  # Incident: hyperswitch volume used a different DB name than compose declared
+  "litellm-postgres.POSTGRES_DB": "litellm"
+  "litellm-postgres.POSTGRES_USER": "litellm"
+
+  # Secret example — store ONLY the expected SHA-256[:16] prefix here:
+  # "litellm-postgres.POSTGRES_PASSWORD": "sha256:<16-hex-chars>"
+  # "hyperswitch-postgres.POSTGRES_PASSWORD": "sha256:<16-hex-chars>"
