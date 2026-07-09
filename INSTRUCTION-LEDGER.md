@@ -695,3 +695,19 @@
 - DEDUP flags (resolve in function-definition): preferences/passport.md (IL-UPS-01) likely same agent as user_preferences.soul.md (trained #289);
   risk/passport.md likely same agent as risk_management.soul.md (trained #288). Canonical is PASSPORT per ADR-030 (PASSPORT>SOUL) — de-duplicate later.
 - Refs: ADR-030; ADR-131/162; ADR-030 §9 runtime-gate; operator zone-agnostic ruling.
+
+## IL-WAVE5-AML-01 — DM (Profile-EMI, RED) → 7 AML-core agents [PROPOSED; activation-gated]
+- Status: PROPOSED — NOT activated. RED discipline; advisory PROHIBITED; execution-class blocked; fail-closed.
+- Trained (7; decider verbatim from ## HITL Rules / B5):
+  aml_check_agent → HUMAN_COMPLIANCE_OFFICER / HUMAN_MLRO(+CEO) [B5: SAR candidate/de-risking];
+  cdd_review_agent → HUMAN_COMPLIANCE_OFFICER / HUMAN_MLRO [B5: no];
+  fraud_detection_agent → HUMAN_FRAUD_ANALYST / HUMAN_MLRO / HUMAN_COMPLIANCE_OFFICER [B5: no];
+  jube_adapter_agent → HUMAN_MLRO(+CTIO) / HUMAN_COMPLIANCE_OFFICER [B5: no];
+  mlro_agent → HUMAN_MLRO(SMF17)(+CEO) [B5: SAR filing/sanctions reversal];
+  sanctions_check_agent → HUMAN_COMPLIANCE_OFFICER / HUMAN_MLRO(+CEO) [B5: sanctions block/unblock];
+  tm_agent → HUMAN_COMPLIANCE_OFFICER / HUMAN_MLRO [B5: no].
+- Format-normalized: promoted inline "Autonomy: L2/L3" (SOUL metadata line) to ## Autonomy Level section (verbatim);
+  DM inserted before ## HITL Rules (these use ## HITL Rules, not ## HITL Gates). All Trust Zone RED (content-evident, declared inline).
+- B-2 MAUT: regulatory_admissibility(L0)/evidence_quality/false_positive_cost/tipping_off_risk(POCA s.333A)/escalation_urgency(SAR 4h).
+- ACTIVATION (deferred): services/runtime_gate red_activation_check PASS AND Operator(SMF1)+MLRO(SMF17)+CEO(SMF1) per ADR-030 §8/§9.
+- Refs: ADR-030; ADR-131/162; POCA 2002 s.330/s.333A, MLR 2017, SAMLA 2018; ADR-030 §9 runtime-gate (IL-REDGATE-01).
