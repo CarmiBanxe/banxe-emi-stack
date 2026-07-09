@@ -58,3 +58,7 @@ tools/
 
 # Stray nested checkout artifacts (added 2026-06-27)
 /banxe-emi-stack
+
+# Auto-generated UI prototypes (mobile + web) — reproduced via scripts/proto-sync.py from FastAPI OpenAPI spec
+apps/mobile/components/generated/
+apps/web/components/generated/

@@ -2,3 +2,6 @@
 - 2026-05-06 [93252ad] feat(audit): wire BufferedAuditPort into production + AUDIT_FAIL_CLOSED flag (ADR-027 step 2)
 - 2026-05-08 [9a26400] feat(ledger): Wave E DI wiring — CryptoApplicationService + /v1/crypto-legacy router (ADR-031, Phase 5 Step 1)
 - 2026-05-09 [79219b8] feat(wave-b): TwilioOtpAdapter (Verify v2) + SendGridOtpAdapter (Mail Send API) — Sprint 6, ADR-029
+- 2026-07-03 [6ead745] fix(api): DTZ007 — timezone-aware datetime in date validation
+- 2026-07-04 [8ca0ce4] fix(api): safeguarding_recon — close 7 error handling gaps found by PR #271 (#272)
+- 2026-07-09 [Sprint-0.2] chore(gitignore): auto-generated UI components excluded from git — 488 components (mobile+web) reproduced via scripts/proto-sync.py from FastAPI OpenAPI spec
