@@ -37,6 +37,42 @@ Ensures all MCP tools are documented, typed, and tested before AI agents can use
 | 4 | Server not importable | Status: CRITICAL — PagerDuty + Telegram |
 | 5 | error_rate > 20% (5min window) | Status: CRITICAL — immediate escalation |
 
+## Autonomy Level
+- L2 (Alert → Human) *(promoted verbatim to a section for ADR-030 positioning)*
+
+## Decision Method
+> **Priority Note:** this section governs the CHOICE between options; it **CANNOT override `## HITL Gates`**. Priority: **HITL Gates > Trust Zone > B5-IRREVOCABLE > Decision Method > Autonomy Level**.
+
+**Source:** `docs/adr/ADR-030-decision-method-banking-fleet.md` (Profile-EMI); architecture `ADR-131` + `ADR-162` (pointer-first, not restated).
+
+**Cluster:** B-6 (Platform / Tooling)  ·  **Trust Zone:** RED  ·  **Execution-class:** gated
+**Decider (HITL, verbatim from `## HITL Gates`):** CTIO + MLRO (tool removal from registry — MCP tools may handle FCA-regulated data)
+
+### Core Algorithm: enumerate → score (MAUT) → satisfice → escalate
+1. **Enumerate** feasible in-scope actions (MCP tool registry classification / change preparation) — no autonomous disposition/execution.
+2. **Score** (additive MAUT):
+   - tool_registry_integrity — max
+   - regulatory_admissibility — L0
+   - change_blast_radius — min
+3. **Satisfice within the HITL gate** — surface the best-supported artifact; the decider decides.
+4. **Escalate** on ambiguity / confidence drop / invariant risk — never self-clear.
+
+### Decision Cases
+- CASE-1 [PREPARE]: admissible, within scope, reversible → prepare / surface (human confirms)
+- CASE-2 [DEFER]: inputs incomplete → gather first
+- CASE-3 [ESCALATE]: material regulatory / threshold impact → Decider / human review
+- CASE-4 [BLOCK]: regulatory_admissibility < 1.0, or irreversible-in-PRODUCTION without a gate → halt (I-27)
+
+### Escalation Path
+- confidence ≥ 0.90 → prepare / surface (never auto-execution)
+- confidence 0.75–0.90 → flag for the decider
+- confidence < 0.75 → escalate, no action
+- CASE-3 / CASE-4 → always escalate regardless of confidence
+- **Fail-closed precedence:** prepares/proposes only; never overrides a `## HITL Gate`; conservative (the human decider confirms; never advisory-open).
+
+### Status
+**PROPOSED — NOT ACTIVE.** **Trust-zone + activation DEFERRED to the function-definition phase** (operator ruling). Activation later requires the zone-appropriate gate (AMBER: Operator + COO; RED: red_activation_check + Operator + MLRO + CEO) per ADR-030 §8/§9. This PR activates nothing.
+
 ## HITL Gates
 - CRITICAL status → requires CTIO acknowledgment within 30 minutes
 - Tool removal from registry → requires CTIO + MLRO approval (MCP tools may handle FCA-regulated data)
