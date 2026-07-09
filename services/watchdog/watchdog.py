@@ -97,6 +97,7 @@ class WatchdogConfig:
     may_restart_ollama: bool = False
     may_config_sync: bool = False
     may_recreate_stateless: bool = False
+    may_sync_ollama_ctx: bool = False
     # GAP-A: circuit-breaker thresholds (sourced from watchdog.yaml — no hardcode)
     cb_max_attempts: int = 3
     cb_backoff_base_s: float = 10.0
@@ -139,6 +140,7 @@ class WatchdogConfig:
             may_restart_ollama=aut.get("may_restart_ollama", False),
             may_config_sync=aut.get("may_config_sync", False),
             may_recreate_stateless=aut.get("may_recreate_stateless", False),
+            may_sync_ollama_ctx=aut.get("may_sync_ollama_ctx", False),
             cb_max_attempts=int(raw.get("circuit_breaker", {}).get("max_attempts", 3)),
             cb_backoff_base_s=float(raw.get("circuit_breaker", {}).get("backoff_base_s", 10.0)),
             cb_max_quarantine_s=float(
@@ -743,6 +745,16 @@ class Watchdog:
                 )
             if self._metrics:
                 self._metrics.record_escalation()
+            if self._config.may_sync_ollama_ctx and self._repair_engine:
+                ctx_nodes = {
+                    k.rsplit(".", 1)[0]
+                    for k in (result.missing_contexts or [])
+                    if k.endswith(".OLLAMA_NUM_CTX")
+                }
+                for node_name in sorted(ctx_nodes):
+                    await self._repair_engine.evaluate_and_act(  # type: ignore[union-attr]
+                        "OLLAMA_CTX_DRIFT", {"node": node_name}
+                    )
 
         return result
 

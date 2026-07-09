@@ -3,6 +3,7 @@
 I-27: only safe actions can auto-execute (reversible + high confidence).
 Escalate on uncertain or high-risk scenarios.
 GAP-A: ActionClass enum + GUARDED tier (RESTART_OLLAMA, CONFIG_SYNC, RECREATE_CONTAINER).
+Remote config sync: SYNC_OLLAMA_CTX for OLLAMA_NUM_CTX drift on evo1/evo2.
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ class RepairAction(Enum):
     RESTART_OLLAMA = auto()  # GUARDED: systemctl restart ollama on node
     CONFIG_SYNC = auto()  # GUARDED: git pull --ff-only only, no secret generation
     RECREATE_CONTAINER = auto()  # GUARDED: stateless containers only
+    SYNC_OLLAMA_CTX = auto()  # GUARDED: fix OLLAMA_NUM_CTX drift on remote node via SSH
     ESCALATE = auto()  # MANUAL_ONLY: HITL — operator must decide
 
 
@@ -39,6 +41,7 @@ ACTION_CLASS_MAP: dict[RepairAction, ActionClass] = {
     RepairAction.RESTART_OLLAMA: ActionClass.GUARDED,
     RepairAction.CONFIG_SYNC: ActionClass.GUARDED,
     RepairAction.RECREATE_CONTAINER: ActionClass.GUARDED,
+    RepairAction.SYNC_OLLAMA_CTX: ActionClass.GUARDED,
     RepairAction.ESCALATE: ActionClass.MANUAL_ONLY,
 }
 
@@ -292,6 +295,28 @@ class DefaultActionScorer:
                         time_to_recovery_s=300.0,
                     )
                 )
+
+        elif failure_reason == "OLLAMA_CTX_DRIFT":
+            # score = 0.90 * 0.85 * (1 - 0.10*0.5) = 0.7268 >> GUARDED_AUTO_THRESHOLD
+            scores.append(
+                ActionScore(
+                    action=RepairAction.SYNC_OLLAMA_CTX,
+                    reversibility=0.90,
+                    blast_radius=0.10,
+                    confidence=0.85,
+                    time_to_recovery_s=60.0,
+                )
+            )
+            # confidence=0.05: logging doesn't fix ctx drift — keeps ambiguity near 0
+            scores.append(
+                ActionScore(
+                    action=RepairAction.LOG_AND_WAIT,
+                    reversibility=1.0,
+                    blast_radius=0.0,
+                    confidence=0.05,
+                    time_to_recovery_s=300.0,
+                )
+            )
 
         else:
             scores.append(
