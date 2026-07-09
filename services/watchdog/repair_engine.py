@@ -127,6 +127,10 @@ class RepairEngine:
             name: str = context.get("container_name", "unknown")
             return await self._guarded.recreate_container(name)
 
+        if action == RepairAction.SYNC_OLLAMA_CTX:
+            node: str = context.get("node", context.get("node_url", "unknown"))
+            return await self._guarded.sync_ollama_ctx(node)
+
         self._log_event("ESCALATE", {"reason": "unhandled_guarded_action", "action": action.name})
         return RepairAction.ESCALATE
 
