@@ -674,3 +674,24 @@
   no-anchor/no-HITL files (breach_prediction_agent, mcp_server_agent, recon_analysis_agent, api_versioning, audit_trail/passport,
   fx_rates, multi_tenancy, preferences, psd2_gateway, reporting_analytics/passport, risk/passport, audit/SOUL.md, multicurrency/SOUL.md) — need format-normalization.
 - Refs: ADR-030; ADR-131/162; ADR-030 §9 runtime-gate (IL-REDGATE-01); operator zone-agnostic ruling.
+
+## IL-WAVE4-NORM-01 — DM (Profile-EMI) → 12 agents (normalized where needed) [PROPOSED; zone deferred]
+- Status: PROPOSED — NOT activated. Trust-zone + activation DEFERRED to function-definition phase.
+- Trained (12; decider verbatim / zone / execution-class / B5 / promoted):
+  notifications→NO-GATE advisory / GREEN / advisory / no / no-promote (L2 fully-automated, no HITL per file);
+  audit(SOUL)→board+MLRO+compliance / AMBER / advisory / no / no-promote (L2 advisory, humans decide);
+  multicurrency(SOUL)→NO-GATE advisory / AMBER / advisory / no / no-promote ("No L4 HITL gates");
+  breach_prediction→compliance officer / RED / gated / no / PROMOTED;
+  mcp_server→CTIO+MLRO / RED / gated / no / PROMOTED;
+  recon_analysis→compliance officer / RED / gated / no / PROMOTED;
+  api_versioning→API_GOVERNANCE / AMBER / gated / no / PROMOTED;
+  fx_rates→TREASURY_OFFICER / AMBER / gated / no / PROMOTED;
+  multi_tenancy→MLRO / RED / BLOCKED+advisory-prohibited / YES(provision_tenant) / PROMOTED;
+  preferences→DPO / AMBER / gated / YES(GDPR erasure) / PROMOTED;
+  psd2_gateway→COMPLIANCE_OFFICER / RED / BLOCKED+advisory-prohibited / YES(PISP/consent) / PROMOTED;
+  risk→Risk Officer / RED / gated / no / PROMOTED.
+- Zone declared where present (api_versioning/fx_rates AMBER; multi_tenancy/psd2_gateway/risk/breach_prediction/mcp_server/recon_analysis RED
+  per in-body declaration); no zone invented. RED-blocked only multi_tenancy+psd2_gateway (per operator ruling); other RED-declared = gated (operator scope).
+- DEDUP flags (resolve in function-definition): preferences/passport.md (IL-UPS-01) likely same agent as user_preferences.soul.md (trained #289);
+  risk/passport.md likely same agent as risk_management.soul.md (trained #288). Canonical is PASSPORT per ADR-030 (PASSPORT>SOUL) — de-duplicate later.
+- Refs: ADR-030; ADR-131/162; ADR-030 §9 runtime-gate; operator zone-agnostic ruling.
