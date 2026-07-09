@@ -655,3 +655,22 @@
 - DM after ## Autonomy Level; Priority Note (HITL>TZ>B5>DM>Autonomy).
 - ACTIVATION (deferred): services/runtime_gate red_activation_check PASS AND Operator(SMF1)+MLRO(SMF17)+CEO(SMF1) per ADR-030 §8/§9.
 - Refs: ADR-030; ADR-131/162; POCA 2002 s.330, MLR 2017, SAMLA 2018; ADR-030 §9 runtime-gate (IL-REDGATE-01).
+
+## IL-WAVE3-ALL-01 — DM (Profile-EMI, zone-agnostic) → 8 agents [PROPOSED; zone+activation deferred]
+- Status: PROPOSED — NOT activated. Trust-zone + activation DEFERRED to the function-definition phase (operator ruling).
+- Trained (8; decider verbatim / zone / B5):
+  beneficiary→Operations/Compliance,Customer Operations / UNCLASSIFIED / no;
+  crypto(passport)→Compliance Officer,MLRO / RED(content-evident: on-chain/AML/sanctions; advisory-prohibited,blocked) / YES;
+  disputes→Qualified complaints handler,MLRO/Complaints Manager / UNCLASSIFIED / no;
+  lending→Compliance Officer(→MLRO 24h) / UNCLASSIFIED / YES(disbursement);
+  savings→Customer Services+Compliance / UNCLASSIFIED / no;
+  scheduled_payments→Customer Services+Compliance / UNCLASSIFIED / YES(execution);
+  user_preferences→DPO / UNCLASSIFIED / YES(GDPR erasure/consent);
+  reconciliation→COMPLIANCE_OFFICER / UNCLASSIFIED / no.
+- UNCLASSIFIED default = gated (conservative; human confirms; never advisory-open). Zone NOT invented (only crypto RED = content-evident).
+- SKIPPED (reported, needs governance): notifications/SOUL.md (no HITL gate — needs normalization);
+  audit_trail.soul.md (dup — open PR #284); reporting_analytics.soul.md (dup — open PR #283);
+  batch_payments/passport.md (dedup — agent trained via soul in open #287; passport canonical per ADR-030 — resolve in function-definition);
+  no-anchor/no-HITL files (breach_prediction_agent, mcp_server_agent, recon_analysis_agent, api_versioning, audit_trail/passport,
+  fx_rates, multi_tenancy, preferences, psd2_gateway, reporting_analytics/passport, risk/passport, audit/SOUL.md, multicurrency/SOUL.md) — need format-normalization.
+- Refs: ADR-030; ADR-131/162; ADR-030 §9 runtime-gate (IL-REDGATE-01); operator zone-agnostic ruling.
