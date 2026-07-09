@@ -98,10 +98,16 @@ class WatchdogConfig:
     may_config_sync: bool = False
     may_recreate_stateless: bool = False
     may_sync_ollama_ctx: bool = False
+    may_kill_runaway: bool = False
     # GAP-A: circuit-breaker thresholds (sourced from watchdog.yaml — no hardcode)
     cb_max_attempts: int = 3
     cb_backoff_base_s: float = 10.0
     cb_max_quarantine_s: float = 1800.0
+    # LLM diagnostics (Tier-2 brain) — disabled by default
+    llm_enabled: bool = False
+    llm_node_url: str = ""
+    llm_model: str = "llama3.3:70b"
+    llm_timeout_s: int = 35
 
     @classmethod
     def from_yaml(cls, path: Path = CONFIG_PATH) -> WatchdogConfig:
@@ -116,6 +122,7 @@ class WatchdogConfig:
         snap = raw.get("snapshots", {})
         slo = raw.get("slo", {})
         cd = raw.get("config_drift", {})
+        llm = raw.get("llm", {})
         nodes = [NodeConfig(**n) for n in raw["nodes"]]
         snap_dir: Path | None = None
         if snap.get("enabled") and snap.get("dir"):
@@ -141,6 +148,7 @@ class WatchdogConfig:
             may_config_sync=aut.get("may_config_sync", False),
             may_recreate_stateless=aut.get("may_recreate_stateless", False),
             may_sync_ollama_ctx=aut.get("may_sync_ollama_ctx", False),
+            may_kill_runaway=aut.get("may_kill_runaway", False),
             cb_max_attempts=int(raw.get("circuit_breaker", {}).get("max_attempts", 3)),
             cb_backoff_base_s=float(raw.get("circuit_breaker", {}).get("backoff_base_s", 10.0)),
             cb_max_quarantine_s=float(
@@ -158,6 +166,10 @@ class WatchdogConfig:
             config_drift_baseline=(
                 Path(cd["baseline"]) if cd.get("enabled") and cd.get("baseline") else None
             ),
+            llm_enabled=bool(llm.get("enabled", False)),
+            llm_node_url=str(llm.get("node_url", "")),
+            llm_model=str(llm.get("model", "llama3.3:70b")),
+            llm_timeout_s=int(llm.get("timeout_s", 35)),
         )
 
 
@@ -778,5 +790,12 @@ if __name__ == "__main__":
     cfg = WatchdogConfig.from_yaml()
     ledger_instance: LedgerPort = FileLedger(cfg.ledger_path)
     ollama_instance: OllamaPort = HttpOllamaPort()
-    watchdog = Watchdog(cfg, ollama_instance, ledger_instance)
+    classifier: RootCauseClassifier | None = None
+    if cfg.llm_enabled:
+        classifier = RootCauseClassifier(
+            ollama_port=ollama_instance,
+            ollama_node_url=cfg.llm_node_url,
+            llm_model=cfg.llm_model,
+        )
+    watchdog = Watchdog(cfg, ollama_instance, ledger_instance, root_cause_classifier=classifier)
     asyncio.run(watchdog.run_forever())

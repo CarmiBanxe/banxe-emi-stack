@@ -131,6 +131,11 @@ class RepairEngine:
             node: str = context.get("node", context.get("node_url", "unknown"))
             return await self._guarded.sync_ollama_ctx(node)
 
+        if action == RepairAction.KILL_RUNAWAY:
+            node = context.get("node", context.get("node_url", "unknown"))
+            proc_target: str = context.get("target", "")
+            return await self._guarded.kill_runaway(node, proc_target)
+
         self._log_event("ESCALATE", {"reason": "unhandled_guarded_action", "action": action.name})
         return RepairAction.ESCALATE
 

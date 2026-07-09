@@ -40,6 +40,7 @@ autonomy:
   may_config_sync: true          # GUARDED: git pull --ff-only only
   may_recreate_stateless: true   # GUARDED: stateless containers only
   may_sync_ollama_ctx: false     # GUARDED: SSH-fix OLLAMA_NUM_CTX drift on remote nodes
+  may_kill_runaway: false        # GUARDED: SSH kill RAM/CPU runaway process
   may_reroute: false
   may_evict: false
 
@@ -84,3 +85,9 @@ config_drift:
   enabled: false
   interval_s: 3600
   baseline: services/watchdog/config-baseline.yaml
+
+llm:
+  enabled: true
+  node_url: "http://192.168.0.72:11434"
+  model: "llama3.3:70b"
+  timeout_s: 35

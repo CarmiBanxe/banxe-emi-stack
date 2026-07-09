@@ -32,6 +32,28 @@ _STATEFUL_NEVER_RECREATE: frozenset[str] = frozenset(
     {"postgres", "postgresql", "clickhouse", "redis", "kafka", "zookeeper"}
 )
 
+# Processes that must NEVER be killed by kill_runaway (MANUAL_ONLY boundary)
+_PROTECTED_PROCESSES: frozenset[str] = frozenset(
+    {
+        "ollama",
+        "llama-rpc-worker",
+        "sshd",
+        "systemd",
+        "postgres",
+        "clickhouse",
+        "redis",
+        "hyperswitch",
+    }
+)
+_PROTECTED_PREFIXES: tuple[str, ...] = ("payment-",)
+
+
+def _is_protected(process_name: str) -> bool:
+    """Return True if process_name matches the kill_runaway protected list (case-insensitive)."""
+    name = process_name.lower()
+    return name in _PROTECTED_PROCESSES or any(name.startswith(p) for p in _PROTECTED_PREFIXES)
+
+
 # Remote config sync — systemd override path and CTX key (no secrets)
 _OVERRIDE_CONF = "/etc/systemd/system/ollama.service.d/override.conf"
 _CTX_KEY = "OLLAMA_NUM_CTX"
@@ -344,6 +366,104 @@ class GuardedActionExecutor:
             await self._shell.run(["ssh", node, "sudo", "systemctl", "daemon-reload"])
         except Exception as exc:
             log.error("_try_rollback_ctx failed node=%s: %s", node, exc)
+
+    async def kill_runaway(self, node: str, target: str) -> RepairAction:
+        """Kill a runaway process (RAM/CPU hog) on *node* via SSH (GUARDED).
+
+        Protected (NEVER kill): ollama, llama-rpc-worker, sshd, systemd, postgres,
+        clickhouse, redis, hyperswitch, payment-* prefix → ESCALATE (MANUAL_ONLY).
+        No secrets logged — only hostname and process name.
+        """
+        if _is_protected(target):
+            log.warning("kill_runaway: protected process=%s → ESCALATE", target)
+            self._audit.record(
+                make_audit_record(
+                    target=node,
+                    observed_state="RUNAWAY_PROCESS",
+                    root_cause="RUNAWAY_PROCESS",
+                    root_cause_confidence=0.0,
+                    selected_action=RepairAction.ESCALATE.name,
+                    action_score=0.0,
+                    executed=False,
+                    verification_result=False,
+                    autonomy_mode="MANUAL_ONLY_PROTECTED_PROCESS",
+                    manual_only=True,
+                )
+            )
+            return RepairAction.ESCALATE
+
+        action_key = f"kill_runaway:{node}:{target}"
+        cb = self._get_breaker(action_key)
+        now = self._now()
+
+        if cb.is_blocked(now):
+            self._audit.record(
+                make_audit_record(
+                    target=node,
+                    observed_state="RUNAWAY_PROCESS",
+                    root_cause="RUNAWAY_PROCESS",
+                    root_cause_confidence=0.0,
+                    selected_action=RepairAction.ESCALATE.name,
+                    action_score=0.0,
+                    executed=False,
+                    verification_result=False,
+                    autonomy_mode="GUARDED_CB_OPEN",
+                )
+            )
+            return RepairAction.ESCALATE
+
+        self._audit.record(
+            make_audit_record(
+                target=node,
+                observed_state="RUNAWAY_PROCESS",
+                root_cause="RUNAWAY_PROCESS",
+                root_cause_confidence=1.0,
+                selected_action=RepairAction.KILL_RUNAWAY.name,
+                action_score=0.0,
+                executed=False,
+                verification_result=None,
+                autonomy_mode="GUARDED",
+            )
+        )
+
+        try:
+            rc, _ = await self._shell.run(["ssh", node, "pkill", "-9", "-x", target])
+            if rc not in (0, 1):  # 0=killed, 1=not found (already dead)
+                log.warning("kill_runaway: pkill rc=%d node=%s target=%s", rc, node, target)
+                cb.record_failure(now, self._cb_max, self._cb_backoff, self._cb_quarantine)
+                return RepairAction.ESCALATE
+        except Exception as exc:
+            log.error("kill_runaway: dispatch failed node=%s: %s", node, exc)
+            cb.record_failure(now, self._cb_max, self._cb_backoff, self._cb_quarantine)
+            return RepairAction.ESCALATE
+
+        try:
+            vrc, _ = await self._shell.run(["ssh", node, "pgrep", "-x", target])
+            verified = vrc != 0  # pgrep exits 1 when process not found = successfully killed
+        except Exception as exc:
+            log.error("kill_runaway: verify failed node=%s: %s", node, exc)
+            verified = False
+
+        self._audit.record(
+            make_audit_record(
+                target=node,
+                observed_state="RUNAWAY_PROCESS",
+                root_cause="RUNAWAY_PROCESS",
+                root_cause_confidence=1.0,
+                selected_action=RepairAction.KILL_RUNAWAY.name,
+                action_score=0.0,
+                executed=True,
+                verification_result=verified,
+                autonomy_mode="GUARDED",
+            )
+        )
+
+        if not verified:
+            cb.record_failure(now, self._cb_max, self._cb_backoff, self._cb_quarantine)
+            return RepairAction.ESCALATE
+
+        cb.record_success()
+        return RepairAction.KILL_RUNAWAY
 
     # ── private helpers ────────────────────────────────────────────────────────
 

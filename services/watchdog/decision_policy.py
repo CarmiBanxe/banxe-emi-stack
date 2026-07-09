@@ -31,6 +31,7 @@ class RepairAction(Enum):
     CONFIG_SYNC = auto()  # GUARDED: git pull --ff-only only, no secret generation
     RECREATE_CONTAINER = auto()  # GUARDED: stateless containers only
     SYNC_OLLAMA_CTX = auto()  # GUARDED: fix OLLAMA_NUM_CTX drift on remote node via SSH
+    KILL_RUNAWAY = auto()  # GUARDED: SSH kill runaway process (RAM/CPU hog)
     ESCALATE = auto()  # MANUAL_ONLY: HITL — operator must decide
 
 
@@ -42,6 +43,7 @@ ACTION_CLASS_MAP: dict[RepairAction, ActionClass] = {
     RepairAction.CONFIG_SYNC: ActionClass.GUARDED,
     RepairAction.RECREATE_CONTAINER: ActionClass.GUARDED,
     RepairAction.SYNC_OLLAMA_CTX: ActionClass.GUARDED,
+    RepairAction.KILL_RUNAWAY: ActionClass.GUARDED,
     RepairAction.ESCALATE: ActionClass.MANUAL_ONLY,
 }
 
@@ -308,6 +310,28 @@ class DefaultActionScorer:
                 )
             )
             # confidence=0.05: logging doesn't fix ctx drift — keeps ambiguity near 0
+            scores.append(
+                ActionScore(
+                    action=RepairAction.LOG_AND_WAIT,
+                    reversibility=1.0,
+                    blast_radius=0.0,
+                    confidence=0.05,
+                    time_to_recovery_s=300.0,
+                )
+            )
+
+        elif failure_reason == "RUNAWAY_PROCESS":
+            # score = 0.70 * 0.70 * (1 - 0.30*0.5) = 0.4165 > GUARDED_AUTO_THRESHOLD (0.40)
+            # Protected processes → kill_runaway escalates internally; scorer doesn't filter
+            scores.append(
+                ActionScore(
+                    action=RepairAction.KILL_RUNAWAY,
+                    reversibility=0.70,
+                    blast_radius=0.30,
+                    confidence=0.70,
+                    time_to_recovery_s=5.0,
+                )
+            )
             scores.append(
                 ActionScore(
                     action=RepairAction.LOG_AND_WAIT,
