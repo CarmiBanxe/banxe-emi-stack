@@ -7,6 +7,7 @@ DO NOT use in production. No live PSD2 / Adorsys / MCP / ledger connections.
 Execution host: evo1 (100.68.102.48).
 Legion = thin-client only — does NOT execute this file (ADR-103 DLP boundary).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -108,18 +109,18 @@ async def _smoke_test() -> None:
     graph = build_graph()
     initial_state: BankingState = {
         "messages": [
-            HumanMessage(
-                content="Hello from Banking Engine sandbox B-1. What model are you?"
-            )
+            HumanMessage(content="Hello from Banking Engine sandbox B-1. What model are you?")
         ]
     }
-    config: dict[str, dict[str, str]] = {
-        "configurable": {"thread_id": "sandbox-test-1"}
-    }
+    config: dict[str, dict[str, str]] = {"configurable": {"thread_id": "sandbox-test-1"}}
     result: BankingState = await graph.ainvoke(initial_state, config=config)
     last_msg = result["messages"][-1]
     print(f"Reply: {last_msg.content}")
-    mode = "in-memory (state lost on restart)" if CHECKPOINT_URI == ":memory:" else f"sqlite-backed ({CHECKPOINT_URI})"
+    mode = (
+        "in-memory (state lost on restart)"
+        if CHECKPOINT_URI == ":memory:"
+        else f"sqlite-backed ({CHECKPOINT_URI})"
+    )
     print(f"Checkpoint: {mode} (thread_id=sandbox-test-1)")
 
 
