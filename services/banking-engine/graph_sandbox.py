@@ -12,10 +12,12 @@ from __future__ import annotations
 import asyncio
 import operator
 import os
+import sqlite3
 from typing import Annotated, TypedDict
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_openai import ChatOpenAI
+from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
 
@@ -79,14 +81,22 @@ async def banking_node(state: BankingState) -> dict[str, list[BaseMessage]]:
 # ---------------------------------------------------------------------------
 
 
+def _build_checkpointer(uri: str) -> InMemorySaver | SqliteSaver:
+    # SqliteSaver.from_conn_string() is a context manager, not a saver instance.
+    # Construct saver directly to avoid passing a _GeneratorContextManager to compile().
+    if uri == ":memory:":
+        return InMemorySaver()
+    conn = sqlite3.connect(uri, check_same_thread=False)
+    return SqliteSaver(conn)
+
+
 def build_graph(checkpoint_uri: str = CHECKPOINT_URI) -> StateGraph:
-    """Build and compile the B-1 sandbox StateGraph with SqliteSaver checkpointer."""
+    """Build and compile the B-1 sandbox StateGraph with the appropriate checkpointer."""
     builder: StateGraph[BankingState] = StateGraph(BankingState)
     builder.add_node("banking_node", banking_node)
     builder.add_edge(START, "banking_node")
     builder.add_edge("banking_node", END)
-    checkpointer = SqliteSaver.from_conn_string(checkpoint_uri)
-    return builder.compile(checkpointer=checkpointer)
+    return builder.compile(checkpointer=_build_checkpointer(checkpoint_uri))
 
 
 # ---------------------------------------------------------------------------
@@ -109,7 +119,8 @@ async def _smoke_test() -> None:
     result: BankingState = await graph.ainvoke(initial_state, config=config)
     last_msg = result["messages"][-1]
     print(f"Reply: {last_msg.content}")
-    print("Checkpoint: persisted (thread_id=sandbox-test-1)")
+    mode = "in-memory (state lost on restart)" if CHECKPOINT_URI == ":memory:" else f"sqlite-backed ({CHECKPOINT_URI})"
+    print(f"Checkpoint: {mode} (thread_id=sandbox-test-1)")
 
 
 if __name__ == "__main__":
