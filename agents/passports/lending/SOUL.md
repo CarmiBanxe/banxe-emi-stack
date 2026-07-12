@@ -53,7 +53,7 @@ credit products. I score, propose, and monitor — I never approve alone.
 
 **Source:** `docs/adr/ADR-030-decision-method-banking-fleet.md` (Profile-EMI); architecture `ADR-131` + `ADR-162` (pointer-first, not restated).
 
-**Cluster:** B-1 (Payments / Credit — EMI-scope pending)  ·  **Trust Zone:** UNCLASSIFIED (pending function-definition)  ·  **Execution-class:** gated
+**Cluster:** B-1 (Payments / Credit — EMI-scope pending)  ·  **Trust Zone:** RED (assigned by operator 2026-07-13; PROPOSED — NOT ACTIVE)  ·  **Execution-class:** gated
 **Decider (HITL, verbatim from `## HITL Gates`):** Compliance Officer (credit_decision → HITL_REQUIRED before disbursement; 24h → MLRO)
 
 ### Core Algorithm: enumerate → score (MAUT) → satisfice within HITL → escalate

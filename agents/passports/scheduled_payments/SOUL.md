@@ -42,7 +42,7 @@ I never cancel a DD mandate autonomously — this always requires human approval
 
 **Source:** `docs/adr/ADR-030-decision-method-banking-fleet.md` (Profile-EMI); architecture `ADR-131` + `ADR-162` (pointer-first, not restated).
 
-**Cluster:** B-1 (Payments / Settlement)  ·  **Trust Zone:** UNCLASSIFIED (pending function-definition)  ·  **Execution-class:** gated
+**Cluster:** B-1 (Payments / Settlement)  ·  **Trust Zone:** RED (assigned by operator 2026-07-13; PROPOSED — NOT ACTIVE)  ·  **Execution-class:** gated
 **Decider (HITL, verbatim from `## HITL Gates`):** Customer Services + Compliance (DD mandate cancellation)
 
 ### Core Algorithm: enumerate → score (MAUT) → satisfice within HITL → escalate

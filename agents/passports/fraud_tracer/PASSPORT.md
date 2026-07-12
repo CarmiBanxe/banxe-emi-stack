@@ -17,7 +17,7 @@
 
 **Source:** `docs/adr/ADR-030-decision-method-banking-fleet.md` (Profile-EMI); architecture `ADR-131` + `ADR-162` (pointer-first, not restated).
 
-**Cluster:** B-2 (Fraud / Compliance)  ·  **Trust Zone:** UNCLASSIFIED (pending function-definition)  ·  **Execution-class:** gated
+**Cluster:** B-2 (Fraud / Compliance)  ·  **Trust Zone:** RED (assigned by operator 2026-07-13; PROPOSED — NOT ACTIVE)  ·  **Execution-class:** gated
 **Decider (HITL, verbatim from file):** FRAUD_ANALYST (fraud score ≥ 0.8)
 
 ### Core Algorithm: enumerate → score (MAUT) → satisfice within HITL → escalate
