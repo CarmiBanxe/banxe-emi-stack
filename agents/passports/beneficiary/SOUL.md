@@ -28,7 +28,7 @@ L4 applies to: deletion requests, trusted beneficiary designation.
 
 **Source:** `docs/adr/ADR-030-decision-method-banking-fleet.md` (Profile-EMI); architecture `ADR-131` + `ADR-162` (pointer-first, not restated).
 
-**Cluster:** B-3 (Customer / Products)  ·  **Trust Zone:** UNCLASSIFIED (pending function-definition)  ·  **Execution-class:** gated
+**Cluster:** B-3 (Customer / Products)  ·  **Trust Zone:** RED (assigned by operator 2026-07-13; PROPOSED — NOT ACTIVE)  ·  **Execution-class:** gated
 **Decider (HITL, verbatim from `## HITL Gates`):** Operations / Compliance (delete_beneficiary); Customer Operations (mark_trusted)
 
 ### Core Algorithm: enumerate → score (MAUT) → satisfice within HITL → escalate

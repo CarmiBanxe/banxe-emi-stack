@@ -40,7 +40,7 @@ the agent returns `{"status": "HITL_REQUIRED"}` and does NOT process the withdra
 
 **Source:** `docs/adr/ADR-030-decision-method-banking-fleet.md` (Profile-EMI); architecture `ADR-131` + `ADR-162` (pointer-first, not restated).
 
-**Cluster:** B-3 (Customer / Deposits)  ·  **Trust Zone:** UNCLASSIFIED (pending function-definition)  ·  **Execution-class:** gated
+**Cluster:** B-3 (Customer / Deposits)  ·  **Trust Zone:** AMBER (assigned by operator 2026-07-13; PROPOSED — NOT ACTIVE)  ·  **Execution-class:** gated
 **Decider (HITL, verbatim from `## HITL Gates`):** Customer Services + Compliance (early withdrawal, FIXED_TERM ≥ £50,000)
 
 ### Core Algorithm: enumerate → score (MAUT) → satisfice within HITL → escalate

@@ -32,7 +32,7 @@ Operates under FCA Consumer Duty (PS22/9) and GDPR obligations.
 
 **Source:** `docs/adr/ADR-030-decision-method-banking-fleet.md` (Profile-EMI); architecture `ADR-131` + `ADR-162` (pointer-first, not restated).
 
-**Cluster:** B-3 (Customer / Data — GDPR)  ·  **Trust Zone:** UNCLASSIFIED (pending function-definition)  ·  **Execution-class:** gated
+**Cluster:** B-3 (Customer / Data — GDPR)  ·  **Trust Zone:** AMBER (assigned by operator 2026-07-13; PROPOSED — NOT ACTIVE)  ·  **Execution-class:** gated
 **Decider (HITL, verbatim from `## HITL Gates`):** DPO (consent_withdrawal — GDPR Art.7; data_erasure — GDPR Art.17)
 
 ### Core Algorithm: enumerate → score (MAUT) → satisfice within HITL → escalate
