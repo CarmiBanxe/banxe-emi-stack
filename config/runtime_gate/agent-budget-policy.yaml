@@ -12,3 +12,39 @@ agents:
     max_tokens_window: 500000
     max_cost_window: "20.00"
     window: 24h
+  beneficiary:                   # RED (operator 2026-07-13, PROPOSED)
+    max_tokens_window: 500000
+    max_cost_window: "20.00"
+    window: 24h
+  fraud_tracer:                  # RED (operator 2026-07-13, PROPOSED)
+    max_tokens_window: 500000
+    max_cost_window: "20.00"
+    window: 24h
+  ato_prevention:                # RED (operator 2026-07-13, PROPOSED)
+    max_tokens_window: 500000
+    max_cost_window: "20.00"
+    window: 24h
+  midaz_mcp:                     # RED (operator 2026-07-13, PROPOSED)
+    max_tokens_window: 500000
+    max_cost_window: "20.00"
+    window: 24h
+  scheduled_payments:            # RED (operator 2026-07-13, PROPOSED)
+    max_tokens_window: 300000
+    max_cost_window: "10.00"
+    window: 24h
+  disputes:                      # RED (operator 2026-07-13, PROPOSED)
+    max_tokens_window: 200000
+    max_cost_window: "10.00"
+    window: 24h
+  reconciliation:                # RED (operator 2026-07-13, PROPOSED)
+    max_tokens_window: 200000
+    max_cost_window: "10.00"
+    window: 24h
+  fatca_crs:                     # RED (operator 2026-07-13, PROPOSED)
+    max_tokens_window: 200000
+    max_cost_window: "5.00"
+    window: 24h
+  lending:                       # RED (operator 2026-07-13, PROPOSED)
+    max_tokens_window: 200000
+    max_cost_window: "5.00"
+    window: 24h
