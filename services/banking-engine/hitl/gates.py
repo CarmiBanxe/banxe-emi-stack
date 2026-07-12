@@ -90,10 +90,10 @@ GATE_TIMEOUTS: dict[HITLGateType, timedelta] = {
 # Required human autonomy level to RESOLVE each gate.
 # L4 = Human Only (MLRO / CEO). Agents at any level may PROPOSE.
 GATE_REQUIRED_LEVEL: dict[HITLGateType, int] = {
-    HITLGateType.SAR_FILING: 4,              # MLRO sign-off
-    HITLGateType.AML_THRESHOLD_CHANGE: 4,    # MLRO + CEO
-    HITLGateType.SANCTIONS_REVERSAL: 4,      # MLRO + CEO
-    HITLGateType.PEP_ONBOARDING: 4,          # MLRO
+    HITLGateType.SAR_FILING: 4,  # MLRO sign-off
+    HITLGateType.AML_THRESHOLD_CHANGE: 4,  # MLRO + CEO
+    HITLGateType.SANCTIONS_REVERSAL: 4,  # MLRO + CEO
+    HITLGateType.PEP_ONBOARDING: 4,  # MLRO
 }
 
 

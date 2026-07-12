@@ -59,9 +59,7 @@ def audited_path(tmp_path: Path) -> Generator[Path, None, None]:
 
 def _read_records(path: Path) -> list[dict]:
     return [
-        json.loads(line)
-        for line in path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
+        json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()
     ]
 
 
