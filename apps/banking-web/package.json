@@ -1,0 +1,36 @@
+{
+  "name": "@banxe/banking-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3100",
+    "build": "next build",
+    "start": "next start -p 3100",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome ci .",
+    "format": "biome format --write ."
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^1.3.22",
+    "@assistant-ui/react": "^0.10.3",
+    "@assistant-ui/react-ai-sdk": "^0.10.3",
+    "ai": "^4.3.16",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.511.0",
+    "next": "^15.3.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwind-merge": "^3.3.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.0",
+    "@tailwindcss/typography": "^0.5.15",
+    "@types/react": "^19.1.6",
+    "@types/react-dom": "^19.1.5",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.5",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.6.3"
+  }
+}
