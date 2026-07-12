@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "Banxe Banking (Sandbox)",
+    "slug": "banxe-banking-mobile-sandbox",
+    "version": "0.1.0",
+    "scheme": "banxe-sandbox",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1e40af"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.banxe.banking.mobile.sandbox"
+    },
+    "android": {
+      "package": "com.banxe.banking.mobile.sandbox",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1e40af"
+      }
+    },
+    "plugins": ["expo-router", "expo-local-authentication", "expo-secure-store"],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "sandboxMode": true,
+      "eas": {
+        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
+      }
+    }
+  }
+}

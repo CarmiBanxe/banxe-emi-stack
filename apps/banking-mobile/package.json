@@ -1,0 +1,36 @@
+{
+  "name": "@banxe/banking-mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome ci .",
+    "format": "biome format --write ."
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^14.0.4",
+    "ai": "^4.3.16",
+    "expo": "~53.0.0",
+    "expo-local-authentication": "~15.0.2",
+    "expo-router": "~4.0.0",
+    "expo-secure-store": "~14.0.0",
+    "expo-status-bar": "~2.0.0",
+    "nativewind": "^4.1.23",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-native": "^0.76.0",
+    "react-native-safe-area-context": "^4.12.0",
+    "react-native-screens": "~4.4.0",
+    "tailwindcss": "^3.4.17"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.0",
+    "@types/react": "^19.1.6",
+    "@types/react-native": "^0.76.0",
+    "typescript": "^5.6.3"
+  }
+}

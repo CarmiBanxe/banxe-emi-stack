@@ -1,0 +1,53 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.3.0/schema.json",
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "suspicious": {
+        "noExplicitAny": "warn",
+        "noConsole": "warn"
+      },
+      "correctness": {
+        "useExhaustiveDependencies": "error",
+        "noUnusedVariables": "warn",
+        "noUnusedImports": "warn"
+      },
+      "style": {
+        "useConst": "error",
+        "noNonNullAssertion": "warn"
+      }
+    }
+  },
+  "formatter": {
+    "enabled": true,
+    "lineWidth": 120,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineEnding": "lf"
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "trailingCommas": "all",
+      "semicolons": "always"
+    }
+  },
+  "json": {
+    "formatter": {
+      "enabled": true,
+      "trailingCommas": "none"
+    }
+  },
+  "files": {
+    "includes": ["app/**", "components/**", "*.json"],
+    "ignores": ["node_modules", "dist", "ios", "android", ".expo", "coverage"]
+  }
+}
