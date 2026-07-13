@@ -28,7 +28,7 @@
 
 **Source:** `docs/adr/ADR-030-decision-method-banking-fleet.md` (Profile-EMI); architecture `ADR-131` + `ADR-162` (pointer-first, not restated).
 
-**Cluster:** B-4 (Reporting / Finance)  ·  **Trust Zone:** RED (assigned by operator 2026-07-13; PROPOSED — NOT ACTIVE)  ·  **Execution-class:** gated
+**Cluster:** B-4 (Reporting / Finance)  ·  **Trust Zone:** RED (assigned by operator 2026-07-13; ACTIVE 2026-07-13, operator+MLRO(SMF17)+CEO(SMF1) sign-off, sandbox)  ·  **Execution-class:** gated
 **Decider (HITL, verbatim from `## HITL Gates`):** COMPLIANCE_OFFICER (breach > £100 resolution)
 
 ### Core Algorithm: enumerate → score (MAUT) → satisfice within HITL → escalate
@@ -54,7 +54,7 @@
 - **Fail-closed precedence:** prepares/proposes only; never overrides a `## HITL Gate`; **conservative while UNCLASSIFIED** — the human decider confirms; never advisory-open.
 
 ### Status
-**PROPOSED — NOT ACTIVE.** **Trust-zone + activation DEFERRED to the function-definition phase** (operator ruling). Activation later requires the zone-appropriate gate (AMBER: Operator + COO; RED: `services/runtime_gate` red_activation_check PASS + Operator + MLRO (SMF17) + CEO (SMF1)) per ADR-030 §8/§9. This PR activates nothing.
+**ACTIVE (2026-07-13, sandbox).** Activation gate satisfied: services/runtime_gate red_activation_check PASS + Operator + MLRO (SMF17) + CEO (SMF1) sign-off recorded in INSTRUCTION-LEDGER.md. Operator-override of runbook CTIO+CFO gate (reason: agent PASSPORT §8/§9 designates MLRO+CEO for this RED agent). systemd timer enable is a separate operator step. Per ADR-030 §8/§9.
 
 ## HITL Gates
 - **Breach > £100 (BREACH_HITL_THRESHOLD)**: Returns HITLProposal. COMPLIANCE_OFFICER must approve resolution (I-27).
