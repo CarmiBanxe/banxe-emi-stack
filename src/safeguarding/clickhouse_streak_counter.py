@@ -27,6 +27,8 @@ from __future__ import annotations
 from datetime import date, timedelta
 import logging
 
+from services.config import CLICKHOUSE_DB, CLICKHOUSE_PASSWORD, CLICKHOUSE_USER
+
 logger = logging.getLogger(__name__)
 
 _LOOKBACK_DAYS_DEFAULT = 30
@@ -59,9 +61,9 @@ class ClickHouseStreakCounter:
     def __init__(
         self,
         clickhouse_url: str = "http://localhost:8123",
-        database: str = "banxe",
-        clickhouse_user: str = "default",
-        clickhouse_password: str = "",
+        database: str = CLICKHOUSE_DB,
+        clickhouse_user: str = CLICKHOUSE_USER,
+        clickhouse_password: str = CLICKHOUSE_PASSWORD,
         lookback_days: int = _LOOKBACK_DAYS_DEFAULT,
     ) -> None:
         self._url = clickhouse_url.rstrip("/")
@@ -120,7 +122,7 @@ class ClickHouseStreakCounter:
         resp = httpx.post(
             self._url,
             params={"query": sql},
-            auth=(self._user, self._password) if self._password else None,
+            auth=(self._user, self._password) if self._user else None,
             timeout=_CH_TIMEOUT,
         )
         resp.raise_for_status()
