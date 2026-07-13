@@ -1,0 +1,160 @@
+# BANXE HITL Thresholds — SANDBOX v1
+# BANXE AI Bank | Compliance Memory Seed
+# ⚠️ SANDBOX ONLY. ALL VALUES ARE PLACEHOLDER.
+# Requires MLRO + CEO sign-off before production use.
+# Invariant I-27: AI PROPOSES — Human DECIDES.
+
+---
+_meta:
+  document_type: hitl-thresholds
+  version: sandbox-v1
+  status: PLACEHOLDER
+  sandbox: true
+  requires_approval:
+    - MLRO
+    - CEO
+  graphiti_tags:
+    - hitl
+    - thresholds
+    - i-27
+    - sandbox
+
+# ──────────────────────────────────────────────
+# AML / KYC Thresholds
+# ──────────────────────────────────────────────
+aml_kyc:
+  # Standard CDD triggers
+  individual_edd_threshold_gbp: "10000"          # I-04 — do not change without MLRO sign-off
+  corporate_edd_threshold_gbp: "50000"           # I-04 — do not change without MLRO sign-off
+
+  # Sanctions screening
+  sanctions_auto_block_score: "0.80"             # PLACEHOLDER — score ≥ this → auto block (L3)
+  sanctions_manual_review_score: "0.60"          # PLACEHOLDER — score ≥ this → L2 alert
+
+  # PEP
+  pep_onboarding_autonomy_level: "L4"            # Human Only — no AI auto-approval
+  pep_monitoring_interval_days: "PLACEHOLDER"
+
+  # Transaction monitoring alert thresholds (PLACEHOLDER)
+  single_transaction_alert_gbp: "PLACEHOLDER"
+  cumulative_daily_alert_gbp: "PLACEHOLDER"
+  cross_border_alert_eur: "PLACEHOLDER"
+  cash_structuring_window_hours: "PLACEHOLDER"
+
+  # SAR
+  sar_filing_autonomy_level: "L4"                # Human Only — MLRO must approve
+  sar_consideration_timeout_hours: 24            # PLACEHOLDER
+  sar_filing_timeout_escalate_to: "CEO"
+
+# ──────────────────────────────────────────────
+# Safeguarding (CASS 15)
+# ──────────────────────────────────────────────
+safeguarding:
+  reconciliation_run_time_utc: "00:30"           # PLACEHOLDER — daily recon time
+  discrepancy_alert_threshold_gbp: "PLACEHOLDER"
+  discrepancy_mlro_escalation_gbp: "PLACEHOLDER"
+  discrepancy_fca_notification_gbp: "PLACEHOLDER"
+  fca_notification_timeout_minutes: "PLACEHOLDER"
+
+  # Breach handling
+  breach_escalation_path:
+    - role: "Compliance Officer"
+      autonomy: "L2"
+    - role: "MLRO"
+      autonomy: "L4"
+    - role: "CEO"
+      condition: "MLRO unavailable within 1h"
+
+# ──────────────────────────────────────────────
+# HITL Gate Timeouts
+# ──────────────────────────────────────────────
+hitl_gates:
+  sar_filing:
+    required_roles: ["MLRO"]
+    timeout_hours: 24                            # PLACEHOLDER
+    escalate_to: "CEO"
+    autonomy_level: "L4"
+
+  aml_threshold_change:
+    required_roles: ["MLRO", "CEO"]
+    timeout_hours: 4                             # PLACEHOLDER
+    escalate_to: null
+    autonomy_level: "L4"
+
+  sanctions_reversal:
+    required_roles: ["MLRO", "CEO"]
+    timeout_hours: 1                             # PLACEHOLDER
+    escalate_to: null
+    autonomy_level: "L4"
+
+  pep_onboarding:
+    required_roles: ["MLRO"]
+    timeout_hours: 48                            # PLACEHOLDER
+    escalate_to: "CEO"
+    autonomy_level: "L4"
+
+  board_report_sign_off:
+    required_roles: ["MLRO", "BOARD"]
+    timeout_days: 3                              # PLACEHOLDER
+    escalate_to: null
+    autonomy_level: "L4"
+
+  edd_initiation:
+    required_roles: ["Compliance Officer"]
+    timeout_hours: 48                            # PLACEHOLDER
+    escalate_to: "MLRO"
+    autonomy_level: "L3"
+
+  fin060_sign_off:
+    required_roles: ["CFO"]
+    timeout_hours: 24                            # PLACEHOLDER
+    escalate_to: "CEO"
+    autonomy_level: "L4"
+
+# ──────────────────────────────────────────────
+# AI Agent Autonomy Levels
+# ──────────────────────────────────────────────
+agent_autonomy:
+  mlro_agent:
+    default_level: "L2"
+    can_propose: true
+    can_auto_apply: false
+    hitl_gates:
+      - sar_filing
+      - aml_threshold_change
+      - sanctions_reversal
+      - pep_onboarding
+      - board_report_sign_off
+
+  sanctions_check_agent:
+    default_level: "L3"
+    auto_block_threshold: "0.80"                 # PLACEHOLDER
+    manual_review_threshold: "0.60"              # PLACEHOLDER
+
+  aml_check_agent:
+    default_level: "L3"
+    edd_auto_trigger_threshold_gbp: "10000"      # I-04
+    hitl_gates:
+      - edd_initiation
+
+  reconciliation_agent:
+    default_level: "L1"
+    alert_on_discrepancy: true
+    auto_resolve: false
+    escalation_threshold_gbp: "PLACEHOLDER"
+
+  reporting_agent:
+    default_level: "L1"
+    auto_generate: true
+    auto_upload: false
+    hitl_gates:
+      - fin060_sign_off
+
+# ──────────────────────────────────────────────
+# Consumer Duty Thresholds (PLACEHOLDER)
+# ──────────────────────────────────────────────
+consumer_duty:
+  vulnerable_customer_flag_threshold: "PLACEHOLDER"
+  outcome_monitoring_interval_months: "PLACEHOLDER"
+  fair_value_review_interval_months: "PLACEHOLDER"
+  complaints_escalation_days: "PLACEHOLDER"
