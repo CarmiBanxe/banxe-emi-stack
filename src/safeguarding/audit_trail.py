@@ -47,6 +47,8 @@ import logging
 from typing import Any
 import uuid
 
+from services.config import CLICKHOUSE_DB, CLICKHOUSE_PASSWORD, CLICKHOUSE_USER
+
 logger = logging.getLogger(__name__)
 
 # ClickHouse INSERT template — parameterised via VALUES
@@ -98,10 +100,10 @@ class AuditTrail:
     def __init__(
         self,
         clickhouse_url: str = "http://localhost:8123",
-        database: str = "banxe",
+        database: str = CLICKHOUSE_DB,
         dry_run: bool = True,
-        clickhouse_user: str = "default",
-        clickhouse_password: str = "",
+        clickhouse_user: str = CLICKHOUSE_USER,
+        clickhouse_password: str = CLICKHOUSE_PASSWORD,
     ) -> None:
         self.clickhouse_url = clickhouse_url.rstrip("/")
         self.database = database
@@ -173,7 +175,7 @@ class AuditTrail:
         resp = httpx.post(
             self.clickhouse_url,
             params={"query": sql},
-            auth=(self.user, self.password) if self.password else None,
+            auth=(self.user, self.password) if self.user else None,
             timeout=5.0,
         )
         resp.raise_for_status()
@@ -218,7 +220,7 @@ class AuditTrail:
             resp = httpx.post(
                 self.clickhouse_url,
                 params={"query": ddl},
-                auth=(self.user, self.password) if self.password else None,
+                auth=(self.user, self.password) if self.user else None,
                 timeout=10.0,
             )
             resp.raise_for_status()
