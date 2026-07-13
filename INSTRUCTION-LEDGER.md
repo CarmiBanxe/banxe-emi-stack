@@ -741,3 +741,4 @@
 - observability/PASSPORT.md → GREEN / gated (advisory; MUST NOT auto-remediate I-27; append-only logs I-24) / decider COMPLIANCE_OFFICER (acknowledge violations) / promoted inline Autonomy→section. (supersedes #285)
 - DM after ## Autonomy Level; Priority Note; zone from file; activation deferred. Operator should CLOSE #283/#284/#285 as superseded.
 - Refs: ADR-030; ADR-131/162; I-24/I-27; ADR-030 §9 runtime-gate.
+- reconciliation ACTIVATION (2026-07-13, sandbox) → RED / status PROPOSED->ACTIVE / gate: red_activation_check PASS (kill_switch+decision_record+budget+metrics+audit_sampling) + budget 200000/£10/24h / sign-offs: Operator + MLRO (SMF17) + CEO (SMF1) [simulated, sandbox] / OPERATOR-OVERRIDE of runbook CTIO+CFO — reason: agent PASSPORT ADR-030 §8/§9 designates MLRO+CEO for this RED agent / systemd timer start = separate operator step / refs: ADR-030 §8/§9, #302 budget, #305 recon-403-fix.
