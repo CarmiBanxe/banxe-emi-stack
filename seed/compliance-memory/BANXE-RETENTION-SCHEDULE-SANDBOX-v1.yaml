@@ -1,0 +1,266 @@
+# BANXE Data Retention Schedule — SANDBOX v1
+# BANXE AI Bank | Compliance Memory Seed
+# ⚠️ SANDBOX ONLY. ALL PERIODS ARE PLACEHOLDER unless marked (invariant).
+# Requires MLRO + DPO + Legal sign-off before production use.
+# Invariant I-08: ClickHouse TTL ≥ 5 years (NON-NEGOTIABLE).
+
+---
+_meta:
+  document_type: retention-schedule
+  version: sandbox-v1
+  status: PLACEHOLDER
+  sandbox: true
+  requires_approval:
+    - MLRO
+    - DPO
+    - Legal
+  non_negotiable_invariants:
+    - "I-08: ClickHouse audit TTL minimum 5 years — NEVER reduce"
+    - "I-24: Audit records are append-only — NEVER delete"
+  graphiti_tags:
+    - retention
+    - schedule
+    - i-08
+    - i-24
+    - gdpr
+    - fca
+    - sandbox
+
+# ──────────────────────────────────────────────
+# Retention Classes
+# ──────────────────────────────────────────────
+retention_classes:
+  SANDBOX:
+    description: "Тестовые/синтетические данные без реальных клиентов"
+    ttl_years: null          # удаляются по завершению sandbox
+    legal_basis: "None — no real data"
+    auto_delete: true
+
+  STANDARD_5Y:
+    description: "Стандартный FCA/MLR минимум: 5 лет"
+    ttl_years: 5
+    legal_basis: "MLR 2017 reg.40 / FCA CASS / FCA SYSC"
+    auto_delete: false       # PLACEHOLDER — требует DPO review перед удалением
+    storage_systems:
+      - "ClickHouse (TTL enforced by I-08)"
+      - "PostgreSQL (row-level TTL PLACEHOLDER)"
+
+  EXTENDED_7Y:
+    description: "Расширенное хранение: 7 лет (Мифид II, бухгалтерский учёт)"
+    ttl_years: 7
+    legal_basis: "MiFID II / HMRC / Companies Act"
+    auto_delete: false
+    storage_systems:
+      - "ClickHouse (TTL extended per data type)"
+      - "Cold storage PLACEHOLDER"
+
+  SM_CR_6Y:
+    description: "SM&CR: 6 лет (FCA SYSC)"
+    ttl_years: 6
+    legal_basis: "FCA SYSC 9 / SM&CR"
+    auto_delete: false
+
+  PERMANENT:
+    description: "Постоянное хранение — для регуляторных прецедентов, ADR, board минут"
+    ttl_years: null
+    legal_basis: "Board decision / FCA guidance"
+    auto_delete: false
+
+# ──────────────────────────────────────────────
+# Data Category Schedule
+# ──────────────────────────────────────────────
+schedule:
+
+  # ── AML / KYC ──────────────────────────────
+  aml_kyc:
+    cdd_documents:
+      retention_class: STANDARD_5Y
+      start_from: "end_of_customer_relationship"
+      legal_basis: "MLR 2017 reg.40"
+      storage: "PostgreSQL + encrypted blob store PLACEHOLDER"
+      notes: "5 лет с момента ОКОНЧАНИЯ деловых отношений, не с момента сбора"
+
+    edd_documents:
+      retention_class: STANDARD_5Y
+      start_from: "end_of_customer_relationship"
+      legal_basis: "MLR 2017 reg.40"
+
+    transaction_records_aml:
+      retention_class: STANDARD_5Y
+      start_from: "transaction_date"
+      legal_basis: "MLR 2017 reg.40"
+      storage: "ClickHouse safeguarding_events (I-08)"
+
+    sar_records:
+      retention_class: STANDARD_5Y
+      start_from: "sar_submission_date"
+      legal_basis: "POCA 2002 / MLR 2017"
+      notes: "НЕ раскрывать клиенту (tipping off запрещён)"
+
+    monitoring_records:
+      retention_class: STANDARD_5Y
+      start_from: "record_creation_date"
+      legal_basis: "MLR 2017"
+
+  # ── Safeguarding (CASS 15) ──────────────────
+  safeguarding:
+    daily_reconciliation_results:
+      retention_class: STANDARD_5Y
+      start_from: "reconciliation_date"
+      legal_basis: "FCA CASS 15 / PS25/12"
+      storage: "ClickHouse safeguarding_events (I-08)"
+
+    segregated_account_records:
+      retention_class: STANDARD_5Y
+      start_from: "record_date"
+      legal_basis: "FCA CASS 15"
+
+    safeguarding_audit_trail:
+      retention_class: STANDARD_5Y
+      start_from: "event_timestamp"
+      legal_basis: "FCA CASS 15 / I-08"
+      storage: "ClickHouse — TTL enforced by I-08 invariant"
+      note: "NON-NEGOTIABLE: минимум 5 лет. I-08 не допускает уменьшения TTL."
+
+    breach_reports:
+      retention_class: "STANDARD_5Y + 1 year buffer"
+      start_from: "breach_date"
+      legal_basis: "FCA CASS 15 / PS25/12"
+
+  # ── Financial Records ───────────────────────
+  financial:
+    transaction_ledger:
+      retention_class: STANDARD_5Y
+      start_from: "transaction_date"
+      legal_basis: "FCA SYSC 9 / MLR 2017"
+      storage: "Midaz ledger + ClickHouse"
+
+    fin060_reports:
+      retention_class: STANDARD_5Y
+      start_from: "report_date"
+      legal_basis: "FCA supervisory returns"
+      storage: "Object storage PLACEHOLDER"
+
+    fx_rate_records:
+      retention_class: STANDARD_5Y
+      start_from: "rate_date"
+      legal_basis: "FCA SYSC 9"
+      storage: "Frankfurter rate cache + ClickHouse PLACEHOLDER"
+
+    accounting_records:
+      retention_class: EXTENDED_7Y
+      start_from: "financial_year_end"
+      legal_basis: "Companies Act 2006 / HMRC"
+
+  # ── Customer / GDPR ─────────────────────────
+  customer:
+    customer_profile:
+      retention_class: STANDARD_5Y
+      start_from: "end_of_customer_relationship"
+      legal_basis: "MLR 2017 + GDPR Art.17 balance"
+      gdpr_notes: "GDPR right to erasure: balancing test with AML obligations"
+
+    communications:
+      retention_class: STANDARD_5Y
+      start_from: "communication_date"
+      legal_basis: "FCA COBS 9A / SYSC"
+
+    complaints:
+      retention_class: STANDARD_5Y
+      start_from: "complaint_resolution_date"
+      legal_basis: "FCA DISP"
+
+    consumer_duty_records:
+      retention_class: STANDARD_5Y
+      start_from: "assessment_date"
+      legal_basis: "FCA PS22/9"
+
+  # ── SM&CR ───────────────────────────────────
+  smcr:
+    responsibilities_map:
+      retention_class: SM_CR_6Y
+      start_from: "version_date"
+      legal_basis: "FCA SYSC / SM&CR"
+      notes: "Хранить все версии, не только актуальную"
+
+    statements_of_responsibilities:
+      retention_class: SM_CR_6Y
+      start_from: "sor_date"
+      legal_basis: "FCA SM&CR"
+
+    conduct_rule_breaches:
+      retention_class: SM_CR_6Y
+      start_from: "breach_date"
+      legal_basis: "FCA SM&CR"
+
+    fitness_assessments:
+      retention_class: SM_CR_6Y
+      start_from: "assessment_date"
+      legal_basis: "FCA SM&CR"
+
+  # ── AI / Agent Audit ───────────────────────
+  ai_agents:
+    agent_decision_log:
+      retention_class: STANDARD_5Y
+      start_from: "decision_timestamp"
+      legal_basis: "EU AI Act Art.14 / I-28 / I-27"
+      storage: "ClickHouse agent_decisions PLACEHOLDER"
+      notes: "Каждое AI-решение с execution trace"
+
+    hitl_escalation_log:
+      retention_class: STANDARD_5Y
+      start_from: "escalation_timestamp"
+      legal_basis: "EU AI Act / FCA"
+      storage: "ClickHouse hitl_events PLACEHOLDER"
+
+    graphiti_events:
+      retention_class: STANDARD_5Y
+      start_from: "event_timestamp"
+      legal_basis: "I-08 / I-24"
+      storage: "Neo4j (compliance-memory) — SANDBOX TTL: per sandbox policy"
+      notes: "SANDBOX: данные удаляются при teardown sandbox окружения"
+
+  # ── Infrastructure / Security ───────────────
+  infrastructure:
+    access_logs:
+      retention_class: STANDARD_5Y
+      start_from: "log_date"
+      legal_basis: "FCA / GDPR / cyber security"
+
+    pgaudit_logs:
+      retention_class: STANDARD_5Y
+      start_from: "log_date"
+      legal_basis: "FCA / I-08"
+      storage: "PostgreSQL pgAudit → ClickHouse export PLACEHOLDER"
+
+    incident_records:
+      retention_class: STANDARD_5Y
+      start_from: "incident_date"
+      legal_basis: "FCA / ISO 27001"
+
+  # ── Permanent Records ───────────────────────
+  permanent:
+    board_minutes:
+      retention_class: PERMANENT
+      legal_basis: "Companies Act 2006"
+
+    regulatory_correspondence:
+      retention_class: PERMANENT
+      legal_basis: "FCA engagement"
+
+    adr_decisions:
+      retention_class: PERMANENT
+      legal_basis: "Internal governance"
+
+# ──────────────────────────────────────────────
+# Deletion Procedure (PLACEHOLDER)
+# ──────────────────────────────────────────────
+deletion_procedure:
+  steps:
+    - "1. DPO review: подтвердить, что срок хранения истёк"
+    - "2. Legal hold check: убедиться, что нет активных судебных запросов"
+    - "3. MLRO review: убедиться, что нет активных SAR/расследований"
+    - "4. CFO sign-off: для финансовых записей"
+    - "5. Secure deletion: [PLACEHOLDER — метод уничтожения данных]"
+    - "6. Certificate of destruction: аудит-запись об уничтожении (I-24)"
+  note: "Запись об уничтожении данных является ЧАСТЬЮ audit trail и хранится PERMANENTLY"
