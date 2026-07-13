@@ -20,7 +20,7 @@ ClickHouse table (create once):
   ENGINE = MergeTree
   PARTITION BY toYYYYMM(occurred_at)
   ORDER BY (occurred_at, event_type, entity_id)
-  TTL occurred_at + INTERVAL 6 YEAR DELETE
+  TTL toDateTime(occurred_at) + toIntervalYear(6)
   SETTINGS index_granularity = 8192;
 
 If ClickHouse is unavailable the trail falls back to stderr (fail-open
@@ -210,7 +210,7 @@ class AuditTrail:
         ENGINE = MergeTree
         PARTITION BY toYYYYMM(occurred_at)
         ORDER BY (occurred_at, event_type, entity_id)
-        TTL occurred_at + INTERVAL 6 YEAR DELETE
+        TTL toDateTime(occurred_at) + toIntervalYear(6)
         SETTINGS index_granularity = 8192
         """.strip()
 
