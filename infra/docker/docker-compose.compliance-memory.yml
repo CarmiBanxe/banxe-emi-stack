@@ -28,6 +28,12 @@ services:
     image: neo4j:5.18-community
     container_name: neo4j-compliance
     restart: unless-stopped
+    security_opt:
+      - "no-new-privileges:true"
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run/neo4j   # PID file written by neo4j process
     environment:
       NEO4J_AUTH: "${NEO4J_AUTH:-neo4j/CHANGEME_IN_DOT_ENV}"
       NEO4J_PLUGINS: '["apoc"]'
@@ -63,6 +69,12 @@ services:
     image: redis:7-alpine
     container_name: redis-compliance
     restart: unless-stopped
+    security_opt:
+      - "no-new-privileges:true"
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run   # redis PID file (/run/redis.pid on alpine)
     command: >
       redis-server
       --maxmemory 512mb
@@ -92,6 +104,11 @@ services:
     image: python:3.12-slim
     container_name: compliance-graphiti
     restart: unless-stopped
+    security_opt:
+      - "no-new-privileges:true"
+    read_only: true
+    tmpfs:
+      - /tmp   # pip --target /tmp/packages writes here; uvicorn tmp sockets
     depends_on:
       neo4j-compliance:
         condition: service_healthy
@@ -115,13 +132,16 @@ services:
       SERVICE_PORT: "8765"
       SANDBOX_MODE: "true"
       LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+      # PYTHONPATH points to tmpfs install target (required with read_only: true)
+      PYTHONPATH: "/tmp/packages"
     ports:
       - "8765:8765"
     volumes:
       - ./../../infra/compliance-memory-service:/app:ro
     working_dir: /app
     command: >
-      sh -c "pip install --quiet graphiti-core fastapi uvicorn httpx pyyaml &&
+      sh -c "pip install --quiet --no-cache-dir --target /tmp/packages
+             graphiti-core fastapi uvicorn httpx pyyaml &&
              python server.py"
     networks:
       - compliance-net
@@ -143,6 +163,11 @@ services:
     image: python:3.12-slim
     container_name: compliance-seed-loader
     restart: "no"
+    security_opt:
+      - "no-new-privileges:true"
+    read_only: true
+    tmpfs:
+      - /tmp   # pip --target /tmp/packages writes here
     depends_on:
       compliance-graphiti:
         condition: service_healthy
@@ -150,12 +175,14 @@ services:
       GRAPHITI_API_URL: "http://compliance-graphiti:8765"
       SEED_DIR: "/seed"
       SANDBOX_MODE: "true"
+      # PYTHONPATH points to tmpfs install target (required with read_only: true)
+      PYTHONPATH: "/tmp/packages"
     volumes:
       - ./../../seed/compliance-memory:/seed:ro
       - ./../../infra/compliance-memory-service:/app:ro
     working_dir: /app
     command: >
-      sh -c "pip install --quiet httpx pyyaml &&
+      sh -c "pip install --quiet --no-cache-dir --target /tmp/packages httpx pyyaml &&
              python load_seed.py"
     networks:
       - compliance-net
