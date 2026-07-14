@@ -2,7 +2,8 @@
 # DATE: 2026-07-14
 # STATUS: DRAFT — Legion/OpenManus code is still evolving; a second finer pass is planned.
 # SCOPE: Repository identities · topology summary · dependency manifests · Charter §8 forbidden-dep scan · anomalies.
-# NOT IN SCOPE (later passes): runtime entrypoints · safety/compliance surfaces · test harnesses.
+# PARTIAL DRAFT (2026-07-15): runtime entrypoints added as §7 — banxe scan INDICATIVE-ONLY (worktree noise).
+# NOT IN SCOPE (later passes): safety/compliance surfaces · test harnesses.
 
 ---
 
@@ -149,13 +150,117 @@ The following audit dimensions are deferred to later passes. They are explicitly
 
 | Audit dimension              | Status    | Notes                                                        |
 |------------------------------|-----------|--------------------------------------------------------------|
-| Runtime entrypoints          | NOT DONE  | FastAPI `main.py`, Legion `openmanus_integration.py`, etc.   |
+| Runtime entrypoints          | DONE (DRAFT) | See §7. Legion: verified. Banxe: indicative-only (worktree noise — clean pass needed). |
 | Safety / compliance surfaces | NOT DONE  | AML flows, KYC checks, safeguarding reconciliation engine    |
 | Test harnesses               | NOT DONE  | pytest suites (banxe: ~1900+ tests), Legion test coverage    |
 | Docker image provenance      | NOT DONE  | Base images, layer audit, no sanctioned-jurisdiction sources |
 | Secrets / env hygiene        | NOT DONE  | `.env.example` review, no real secrets in repo               |
 | API contract surfaces        | NOT DONE  | OpenAPI schema, MCP tool registry (34 tools)                 |
 | Inter-repo integration       | NOT DONE  | `merge_repositories.py` in Legion — intent and safety review |
+
+---
+
+## 7. Runtime Entrypoints (DRAFT)
+
+*Ground truth: verified read-only shell output at 2026-07-15 01:26 UTC.*
+*STATUS: DRAFT — Legion engine is evolving. Banxe scan is INDICATIVE-ONLY (see §7.2 hygiene caveat).*
+
+---
+
+### 7.1 Legion / OpenManus — Runtime Entrypoints
+
+#### 7.1.1 Top-level Python `__main__` / runnable scripts
+
+| Script | Purpose |
+|--------|---------|
+| `demo_decision_framework.py` | Demo — decision framework |
+| `example_decision_agent.py` | Example — decision agent |
+| `merge_repositories.py` | Utility — repo merge/sync tooling |
+| `openmanus_integration.py` | Primary integration entry point |
+| `test_decision_framework.py` | Test runner — decision framework |
+| `test_smart_decision_agent.py` | Test runner — smart decision agent |
+
+#### 7.1.2 API servers (`openmanus_rl/api/`)
+
+| File | Bind address | Port | S-18 §1.2 status |
+|------|-------------|------|------------------|
+| `health.py` | `127.0.0.1` | `8080` | OK — localhost only |
+| `server.py` | `cfg["host"]` (comment: `127.0.0.1` default) | `cfg` | OK if default holds; see open question below |
+| `streaming.py` | `127.0.0.1` | `8081` | OK — localhost only |
+
+#### 7.1.3 Docker / Compose
+
+| Artefact | Detail |
+|----------|--------|
+| `Dockerfile` | `EXPOSE 8000`; `CMD uvicorn openmanus_rl.api.server:app --host 0.0.0.0 --port 8000` |
+| `docker-compose.yml` | Services: `openmanus` + `redis:7-alpine` |
+| Ollama dependency | `http://localhost:11434`, model `qwen2.5:7b-instruct` (matches Legion baseline) |
+
+#### 7.1.4 Vendored `verl/` sub-library servers
+
+| File | Bind | Port | Notes |
+|------|------|------|-------|
+| `verl/.../local_dense_retriever/retrieval_server.py` | `0.0.0.0` | `8000` | uvicorn.run explicit |
+| `verl/.../rollout/async_server.py` | `["::","0.0.0.0"]` | (config) | dual-stack wildcard |
+
+---
+
+### ⚠️ S-18 §1.2 OPEN QUESTION — NEEDS-OPERATOR-CONFIRMATION
+
+> **Status: NEEDS-OPERATOR-CONFIRMATION — do NOT resolve without operator decision.**
+
+S-18 §1.2 requires that the uncensored Legion engine remains isolated to localhost / `share=False`
+and is never published on a routable network interface.
+
+The following binds have been observed in the Legion codebase:
+
+1. **`Dockerfile CMD`**: `uvicorn openmanus_rl.api.server:app --host 0.0.0.0 --port 8000`
+2. **`verl/.../retrieval_server.py`**: `uvicorn.run(host="0.0.0.0", port=8000)`
+3. **`verl/.../rollout/async_server.py`**: `host=["::","0.0.0.0"]` (IPv4 + IPv6 wildcard)
+
+**Open question for operator:** Are any of these `0.0.0.0` / `[::]` binds ever published
+to a routable interface via Docker port mapping (e.g., `-p 8000:8000` on a host with a
+LAN/tailnet NIC)? If yes, S-18 remediation is required before the Legion engine is
+considered network-isolated.
+
+**Audit action:** record and escalate. **No code changes made.** A clean network topology
+diagram (Legion container ↔ host ↔ external) is required to close this question.
+
+---
+
+### 7.2 banxe-emi-stack — Runtime Entrypoints (INDICATIVE ONLY)
+
+> **⚠️ AUDIT HYGIENE CAVEAT — results below are INDICATIVE, NOT verified.**
+>
+> The entrypoint grep during this pass matched files under
+> `.claude/worktrees/agent-*/` (nested agent worktrees), not the primary working tree.
+> Git reported branch `agent/factory/ledgerenv/sandbox-fix @ b420464` — a different
+> branch from the primary `fix/ledger-test-env @ 31f1cee`.
+>
+> **Required action for second pass:** exclude `.claude/worktrees/**` from all greps and
+> audit the primary worktree on a clean branch (e.g., checked out at the backup tag
+> `pre-reconcile/20260714 @ 2acf540`). Results below are informational only.
+
+#### 7.2.1 API entrypoints (indicative)
+
+| Artefact | Detail |
+|----------|--------|
+| `api/main.py` | FastAPI application root |
+| APIRouter modules observed | `auth`, `sanctions`, `statements`, `lending`, `batch_payments` (and others) |
+
+#### 7.2.2 Docker services (indicative)
+
+| Dockerfile | `EXPOSE` | CMD / entrypoint |
+|------------|----------|-----------------|
+| `docker/Dockerfile.mcp` | `8100` | `python -m banxe_mcp` |
+| `docker/Dockerfile.mock-aspsp` | `8888` | `uvicorn services.recon.mock_aspsp:app --host 0.0.0.0 --port 8888` |
+
+Compose stack services observed (indicative): `postgres`, `clickhouse`, `redis`, `grafana`,
+`n8n`, `superset`, `marble`, `mock-aspsp`, `banxe-mcp`.
+
+**Note:** `mock-aspsp` binds `0.0.0.0:8888` — this is a test stub and not a production
+service, but should be confirmed as network-isolated in the Docker Compose network config.
+Record for second pass; no action taken here.
 
 ---
 
