@@ -151,7 +151,7 @@ The following audit dimensions are deferred to later passes. They are explicitly
 | Audit dimension              | Status    | Notes                                                        |
 |------------------------------|-----------|--------------------------------------------------------------|
 | Runtime entrypoints          | DONE (DRAFT) | See §7. Legion: verified. Banxe: indicative-only (worktree noise — clean pass needed). |
-| Safety / compliance surfaces | NOT DONE  | AML flows, KYC checks, safeguarding reconciliation engine    |
+| Safety / compliance surfaces | DONE (DRAFT) | See §8. HIGH open item: S-18 secret in Legion config. Banxe scan indicative-only. |
 | Test harnesses               | NOT DONE  | pytest suites (banxe: ~1900+ tests), Legion test coverage    |
 | Docker image provenance      | NOT DONE  | Base images, layer audit, no sanctioned-jurisdiction sources |
 | Secrets / env hygiene        | NOT DONE  | `.env.example` review, no real secrets in repo               |
@@ -261,6 +261,135 @@ Compose stack services observed (indicative): `postgres`, `clickhouse`, `redis`,
 **Note:** `mock-aspsp` binds `0.0.0.0:8888` — this is a test stub and not a production
 service, but should be confirmed as network-isolated in the Docker Compose network config.
 Record for second pass; no action taken here.
+
+---
+
+## 8. Safety / Compliance Surfaces (DRAFT)
+
+*Ground truth: verified read-only shell output at 2026-07-15 01:32 UTC.*
+*STATUS: DRAFT — Legion engine evolving. Banxe scan INDICATIVE-ONLY (see §7.2 hygiene caveat).*
+
+---
+
+### 8.1 ██ HIGH — S-18 §1.2: Real-Looking API Key in Committed Config
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  FINDING: HIGH SEVERITY — S-18 §1.2 VIOLATION (OPEN)                       │
+│  Repo:    Legion / OpenManus                                                │
+│  File:    config/config.toml                                                │
+│  Lines:   62, 72, 101                                                       │
+│  Status:  OPEN / HIGH — awaiting operator action                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Description:**  
+Lines 62, 72, and 101 of `config/config.toml` contain commented example entries with what
+appears to be a real LLM-gateway API key. The masked form is:
+
+```
+api_key = "sk-banxe-llm-gateway-2026-**REDACTED**"
+```
+
+The key follows the `sk-banxe-llm-gateway-2026-` prefix pattern consistent with a live
+Banxe infrastructure credential. Presence in comments does not reduce risk — git history
+retains all committed versions regardless of comment status.
+
+**S-18 §1.2 requirement (verbatim rule):**  
+Secrets must come only from environment variables or a secrets manager. They must never
+appear in source files, configuration files, or comments committed to version control.
+
+**Recommended operator actions (record only — factory executes nothing):**
+
+1. **Rotate immediately** — if `sk-banxe-llm-gateway-2026-**REDACTED**` is a live key,
+   treat it as compromised and rotate at the LLM gateway before any other action.
+2. **Remove from config.toml** — replace the literal key with a placeholder or env
+   reference (e.g. `api_key = "${LLM_GATEWAY_API_KEY}"`). Do NOT leave even masked/commented
+   real keys in the file.
+3. **Purge from git history** — if the key was ever committed in a non-comment position,
+   or if the comment history must be cleaned, use `git filter-repo` or equivalent.
+   This action is **operator-gated** (Charter §4: factory never deletes / rewrites history).
+4. **Scan full history** — run `git log -p | grep -i "sk-banxe-llm"` across both repos to
+   confirm no additional occurrences in older commits.
+
+> **Factory action: NONE.** `config/config.toml` has NOT been modified. Full key value
+> has NOT been printed in this document. This finding must be closed by the operator before
+> the audit can be marked COMPLETE.
+
+---
+
+### 8.2 banxe-emi-stack — FCA Compliance Surfaces (INDICATIVE ONLY)
+
+> **⚠️ Same hygiene caveat as §7.2:** grep ran against branch
+> `agent/factory/ledgerenv/sandbox-fix @ b420464`, not the primary working tree, and some
+> hits originated from `.pytest_cache/`, `apps/.openapi-snapshot.json`, and
+> `data/audit/experiments.jsonl`. The second pass must exclude these paths and run against
+> the primary branch at backup tag `pre-reconcile/20260714 @ 2acf540`.
+
+#### 8.2.1 FCA Financial Invariants (I-01 … I-27) — key files observed
+
+| Invariant cluster | Files (indicative) |
+|-------------------|--------------------|
+| Monetary / Decimal (I-01) | `services/fx_engine/models.py`, `services/ledger/gl_service.py`, `services/payment/payment_processing_service.py`, `services/consumer_duty/models.py`, `services/consent_management/models.py`, `services/swift_correspondent/models.py` |
+| Jurisdiction hard-block (I-02) | `services/payment/payment_auth_guard.py` |
+| Invariant registry / policy | `ROADMAP.md`, `banxe_mcp/server.py` |
+
+#### 8.2.2 HITL / Audit Trail / Approval Surfaces
+
+| Surface | Files (indicative) |
+|---------|--------------------|
+| HITL service + org roles | `services/hitl/org_roles.py`, `api/routers/hitl.py` |
+| HITL test coverage | `tests/test_hitl_service.py`, `services/banking-engine/tests/test_b5_hitl.py` |
+| Ledger / IL tracking | `INSTRUCTION-LEDGER.md` |
+
+#### 8.2.3 Sanctions / AML / Jurisdiction Surfaces
+
+| Surface | Files (indicative) |
+|---------|--------------------|
+| AML pipeline | `services/fraud/fraud_aml_pipeline.py` |
+| Cards agent (jurisdiction) | `services/agents/cards_agent.py` |
+| Sanctions routers | Sanctions-specific routers (exact paths: second pass required) |
+| Test coverage | Present (exact files: second pass required) |
+
+**Note:** Cache and snapshot hits (`.pytest_cache/`, `apps/.openapi-snapshot.json`,
+`data/audit/experiments.jsonl`) have been excluded from the above; they were artefacts of
+the branch state, not primary source files.
+
+---
+
+### 8.3 Legion / OpenManus — Safety Surfaces
+
+*Branch: `main @ 70fa07f` at time of safety scan.*
+
+#### 8.3.1 S-18 / Security Config Files
+
+| File | Purpose |
+|------|---------|
+| `config/config.toml` | Runtime configuration (contains HIGH finding — see §8.1) |
+| `docs/NETWORK_HARDENING.md` | Network hardening runbook / guidance |
+| `scripts/security_validator.py` | Security validation script |
+| `tests/integration/test_external_api_integration.py` | Integration tests for external API calls |
+
+#### 8.3.2 Decision / Compliance Framework
+
+| File | Role |
+|------|------|
+| `openmanus_rl/llm_agent/openmanus.py` | Core LLM agent — decision logic |
+| `openmanus_rl/agents/smart_decision_agent.py` | Smart decision agent |
+| `rollout_loop.py` | RL rollout loop |
+| ALFWorld env (reward / tasks) | Environment reward signals and task definitions |
+
+#### 8.3.3 Benign Secret-Smells (NOT violations — explicitly cleared)
+
+The following patterns triggered secret-smell detectors but are **not** violations:
+
+| Pattern | Location | Reason cleared |
+|---------|----------|---------------|
+| `WANDB_API_KEY=` | Legion config / env template | Value is empty — placeholder only |
+| `secrets.token_urlsafe(32)` | Legion source | Python stdlib call to *generate* a token, not a hardcoded secret |
+| `summary_api_key=None` | Legion source | Explicitly null — no secret present |
+
+These are recorded here so future auditors do not re-triage them. Only the `sk-banxe-llm-gateway-2026-**REDACTED**` entry (§8.1) is a genuine finding.
 
 ---
 
