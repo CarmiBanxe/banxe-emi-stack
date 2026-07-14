@@ -1,9 +1,9 @@
 # Phase-1 Audit — Topology & Dependency Manifests
 # DATE: 2026-07-14
-# STATUS: DRAFT — Legion/OpenManus code is still evolving; a second finer pass is planned.
+# STATUS: DRAFT COMPLETE (2026-07-15) — Phase-1 pass done across all 5 Charter audit dimensions. Finer second pass planned.
 # SCOPE: Repository identities · topology summary · dependency manifests · Charter §8 forbidden-dep scan · anomalies.
-# PARTIAL DRAFT (2026-07-15): runtime entrypoints added as §7 — banxe scan INDICATIVE-ONLY (worktree noise).
-# NOT IN SCOPE (later passes): safety/compliance surfaces · test harnesses.
+# DRAFT (2026-07-15): §7 runtime entrypoints · §8 safety/compliance surfaces · §9 test harnesses · §10 conclusion — all added.
+# OPEN ITEMS (forward to second pass): S-18 HIGH key in Legion config.toml · 0.0.0.0 bind open question · banxe non-main baseline · OpenManus evolving HEAD.
 
 ---
 
@@ -152,7 +152,7 @@ The following audit dimensions are deferred to later passes. They are explicitly
 |------------------------------|-----------|--------------------------------------------------------------|
 | Runtime entrypoints          | DONE (DRAFT) | See §7. Legion: verified. Banxe: indicative-only (worktree noise — clean pass needed). |
 | Safety / compliance surfaces | DONE (DRAFT) | See §8. HIGH open item: S-18 secret in Legion config. Banxe scan indicative-only. |
-| Test harnesses               | NOT DONE  | pytest suites (banxe: ~1900+ tests), Legion test coverage    |
+| Test harnesses               | DONE (DRAFT) | See §9. Asymmetric maturity: banxe production-grade, OpenManus early-stage. |
 | Docker image provenance      | NOT DONE  | Base images, layer audit, no sanctioned-jurisdiction sources |
 | Secrets / env hygiene        | NOT DONE  | `.env.example` review, no real secrets in repo               |
 | API contract surfaces        | NOT DONE  | OpenAPI schema, MCP tool registry (34 tools)                 |
@@ -390,6 +390,160 @@ The following patterns triggered secret-smell detectors but are **not** violatio
 | `summary_api_key=None` | Legion source | Explicitly null — no secret present |
 
 These are recorded here so future auditors do not re-triage them. Only the `sk-banxe-llm-gateway-2026-**REDACTED**` entry (§8.1) is a genuine finding.
+
+---
+
+## 9. Test Harnesses (DRAFT)
+
+*Ground truth: verified read-only shell output at 2026-07-15 01:44 UTC.*
+*STATUS: DRAFT — Legion engine evolving; banxe audited from non-main branch (indicative-only caveat applies).*
+
+---
+
+### 9.1 Legion / OpenManus — Test Harness
+
+| Metric | Value |
+|--------|-------|
+| Total test files | 49 |
+| `tests/unit/` | 22 files |
+| `tests/integration/` | 20 files |
+| Scattered test scripts | `test_setup.py`, `test_rollout_mock.py`, `test_rollout_env.py`, `test_openmanus.py`, `test_decision_integration.py` |
+| Test runner config | `pytest.ini`, `conftest.py`, `pyproject.toml`, `.github/workflows` present |
+| Coverage gate | **NONE** — no `--cov-fail-under` threshold found |
+| Quality-gate script | **NONE** — no equivalent to `quality-gate.sh` found |
+| Maturity | **EARLY-STAGE** |
+
+**Assessment:**  
+Test infrastructure is present (pytest + CI workflows) but lacks a coverage enforcement gate.
+The split between `unit/` (22) and `integration/` (20) is healthy, with integration tests representing
+a significant share — typical for RL/agent repos where end-to-end correctness matters more than unit
+isolation. No blocking issues found; the gap is in quality-gate rigour, not test absence.
+
+---
+
+### 9.2 banxe-emi-stack — Test Harness
+
+| Metric | Value |
+|--------|-------|
+| Total test files | 686 |
+| `tests/unit/` | 35 files |
+| `tests/agents/` | 25 files |
+| `tests/smoke/` | 12 files |
+| `tests/test_transaction_monitor/` | 11 files |
+| `tests/test_intent_layer/` | 11 files |
+| `tests/test_treasury/` | 10 files |
+| `services/safeguarding-engine/` (tests) | 10 files |
+| `tests/test_experiment_copilot/` | 9 files |
+| `tests/integration/` | 9 files |
+| `tests/watchdog/` | 8 files |
+| `tests/test_support/` | 8 files |
+| `tests/test_design_pipeline/` | 8 files |
+| Coverage gate | `--cov-fail-under=35` (pyproject.toml `[tool.pytest.ini_options]`) |
+| Coverage targets | `services/`, `api/`, `src/` |
+| Makefile targets | `make lint` (Ruff + Biome), `make test`, `make test-full`, `make quality-gate` |
+| Quality-gate script | `scripts/quality-gate.sh` (lint + semgrep + tests) |
+| CI integration | GitHub Actions, semgrep SAST, Biome frontend lint |
+| Maturity | **PRODUCTION-GRADE** |
+
+> **Hygiene caveat (same as §7.2 / §8.2):** this count comes from branch
+> `agent/factory/ledgerenv/sandbox-fix @ b420464`, not `main`. The finer second pass MUST
+> re-run against `main` at tag `pre-reconcile/20260714 @ 2acf540` with noisy paths excluded
+> (`.claude/worktrees/**`, `.pytest_cache/`, `apps/.openapi-snapshot.json`,
+> `data/audit/experiments.jsonl`).
+
+**Assessment:**  
+Production-grade test infrastructure. 686 test files across well-organised domain directories,
+CI quality-gate, semgrep SAST, and Makefile targets. Coverage threshold is conservative (35%)
+relative to the CLAUDE.md target of 80%; this is consistent with a rapid-growth codebase and
+may reflect the threshold being a floor rather than a ceiling.
+
+---
+
+### 9.3 Test Maturity Comparison
+
+| Dimension | banxe-emi-stack | Legion / OpenManus |
+|-----------|-----------------|--------------------|
+| Test file count | 686 | 49 |
+| Coverage gate | ✅ `--cov-fail-under=35` | ❌ None |
+| Quality-gate script | ✅ `quality-gate.sh` | ❌ None |
+| Semgrep in CI | ✅ Yes | Not confirmed |
+| Makefile targets | ✅ lint / test / quality-gate | Not confirmed |
+| Maturity | PRODUCTION-GRADE | EARLY-STAGE |
+
+**Maturity is ASYMMETRIC.** This is expected: banxe is a regulated FCA P0 platform; OpenManus is
+a private RL research engine. The gap is not a defect — it reflects different regulatory contexts.
+
+---
+
+### 9.4 SAFE-PORT CANDIDATE (Charter-allowed EXTRACT PATTERN — proposal only)
+
+The quality-gate structure from banxe could be adapted for OpenManus:
+- Coverage threshold (`--cov-fail-under=N`)
+- `Makefile quality-gate` target (lint + semgrep + tests)
+- Semgrep config in CI
+
+**Constraints (Charter §9 — non-negotiable):**
+- MUST NOT port any FCA-regulated invariants, compliance checks, or financial rules.
+- Patterns and scaffolding only — no business logic transfer.
+- This is a **candidate note**, not an approved action. Execution requires a dedicated Proposal
+  document approved by the operator with an explicit "yes".
+
+---
+
+## 10. Draft Pass Conclusion
+
+**Phase-1 DRAFT audit pass: COMPLETE.**
+
+All five Charter audit dimensions have been completed at DRAFT level:
+
+| # | Audit Dimension | Status | Section |
+|---|-----------------|--------|---------|
+| 1 | Repository topology & identity | DONE (DRAFT) | §1–§2 |
+| 2 | Dependency manifests & §8 forbidden-dep scan | DONE (DRAFT) | §3–§4 |
+| 3 | Runtime entrypoints | DONE (DRAFT) | §7 |
+| 4 | Safety / compliance surfaces | DONE (DRAFT) | §8 |
+| 5 | Test harnesses | DONE (DRAFT) | §9 |
+
+---
+
+### 10.1 Open Items (carried forward to second pass)
+
+| ID | Severity | Item | Owner |
+|----|----------|------|-------|
+| OI-01 | **HIGH** | S-18 §1.2: Real-looking API key `sk-banxe-llm-gateway-2026-**REDACTED**` in `OpenManus/config/config.toml` lines 62/72/101. Must rotate if live; remove from file; purge git history (operator-gated). | Operator |
+| OI-02 | MEDIUM | S-18 §1.2 open question: banxe processes binding to `0.0.0.0` — verify these are container-internal or otherwise not routable from the host network. Confirmed problematic only if host-network exposed. | Finer pass |
+| OI-03 | LOW | banxe scan throughout this draft ran against branch `agent/factory/ledgerenv/sandbox-fix @ b420464`, not `main`. All banxe findings are indicative-only. Finer pass MUST use clean `main` baseline at tag `pre-reconcile/20260714 @ 2acf540` with noisy paths excluded (`.claude/worktrees/**`, `.pytest_cache/`, `apps/.openapi-snapshot.json`, `data/audit/experiments.jsonl`). | Finer pass |
+| OI-04 | LOW | OpenManus HEAD moved several times during this audit (commits observed: `38c0ce6` → `70fa07f` → `e5c186a`). All Legion findings are DRAFT-only; finer pass must pin to a stable HEAD or tag. | Finer pass (after Legion stabilises) |
+
+---
+
+### 10.2 Finer Second Pass Plan
+
+The second, finer pass will:
+
+1. **Re-run all five dimensions** on clean, stable baselines:
+   - banxe: `main` branch at `pre-reconcile/20260714 @ 2acf540`, with noisy path exclusions.
+   - Legion: a stable post-evolution tag (once HEAD stabilises).
+2. **Resolve OI-01** — confirm with operator whether key has been rotated and removed.
+3. **Resolve OI-02** — verify 0.0.0.0 bind scope against Docker network configuration.
+4. **Extend to remaining Charter audit dimensions** not covered in this draft:
+   - Docker image provenance (base images, layer audit, sanctioned-jurisdiction check).
+   - Secrets / env hygiene (`.env.example` review, production secret layout).
+   - API contract surfaces (OpenAPI schema diff, MCP tool registry — 34 tools).
+   - Inter-repo integration (`merge_repositories.py` intent and safety review).
+5. **Produce Proposal docs** for any confirmed SAFE-PORT candidates (§9.4), each requiring
+   explicit operator "yes" before any execution.
+
+---
+
+### 10.3 What This Document Is Not
+
+- Not a final compliance artefact.
+- Not an approved Proposal for any action.
+- Not authoritative for the banxe FCA compliance record (use `banxe-architecture/docs/COMPLIANCE-MATRIX.md`).
+
+This document is the baseline snapshot for Phase-1 reconciliation. Its value is as a structured
+record of what was observed, what is open, and what the second pass must do.
 
 ---
 
