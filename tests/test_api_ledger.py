@@ -6,10 +6,24 @@ Tests run in sandbox mode (MIDAZ_BASE_URL not set → mock data).
 """
 
 from fastapi.testclient import TestClient
+import pytest
 
 from api.main import app
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def _force_sandbox(monkeypatch):
+    """These endpoint tests are written for sandbox mode (mock data).
+
+    The ledger router (api/routers/ledger.py::_is_sandbox) treats MIDAZ_BASE_URL
+    being set as "production" and then proxies to the real Midaz CBS. A local
+    ``.env`` (untracked) can leak MIDAZ_BASE_URL into the test process and flip
+    the router into the production path, so unset it here to keep these tests
+    deterministic regardless of ambient env / .env.
+    """
+    monkeypatch.delenv("MIDAZ_BASE_URL", raising=False)
 
 
 def test_list_accounts_returns_200():

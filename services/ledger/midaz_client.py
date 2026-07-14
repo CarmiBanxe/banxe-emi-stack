@@ -11,15 +11,27 @@ import httpx
 
 from services.ledger.ledger_port import LedgerInfrastructureError
 
-MIDAZ_BASE_URL = os.environ["MIDAZ_BASE_URL"]
-MIDAZ_ORG_ID = os.environ["MIDAZ_ORG_ID"]
-MIDAZ_LEDGER_ID = os.environ["MIDAZ_LEDGER_ID"]
-MIDAZ_TOKEN = os.environ.get("MIDAZ_TOKEN", "")
 
-_HEADERS = {
-    "Authorization": f"Bearer {MIDAZ_TOKEN}",
-    "Content-Type": "application/json",
-}
+def _require_env(name: str) -> str:
+    """Read a required Midaz env var at call time — never at import.
+
+    Fail-closed: raises LedgerInfrastructureError (mapped to 503 by the router)
+    if the var is unset, so production never builds a silent/empty Midaz URL
+    (FCA CASS 7.15). Import stays side-effect-free so the module loads in
+    sandbox/test contexts where Midaz is not configured.
+    """
+    value = os.environ.get(name)
+    if not value:
+        raise LedgerInfrastructureError(f"Midaz not configured: {name} is unset")
+    return value
+
+
+def _headers() -> dict[str, str]:
+    token = os.environ.get("MIDAZ_TOKEN", "")
+    return {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
 
 
 async def get_balance(account_id: str) -> Decimal | None:
@@ -31,13 +43,16 @@ async def get_balance(account_id: str) -> Decimal | None:
     (fail-closed) if Midaz is unreachable or returns a 5xx — never a silent
     balance that masks an outage. NEVER returns float — FCA CASS invariant.
     """
+    base_url = _require_env("MIDAZ_BASE_URL")
+    org_id = _require_env("MIDAZ_ORG_ID")
+    ledger_id = _require_env("MIDAZ_LEDGER_ID")
     url = (
-        f"{MIDAZ_BASE_URL}/v1/organizations/{MIDAZ_ORG_ID}"
-        f"/ledgers/{MIDAZ_LEDGER_ID}/accounts/{account_id}/balances"
+        f"{base_url}/v1/organizations/{org_id}"
+        f"/ledgers/{ledger_id}/accounts/{account_id}/balances"
     )
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(url, headers=_HEADERS)
+            resp = await client.get(url, headers=_headers())
             resp.raise_for_status()
             data = resp.json()
     except httpx.HTTPStatusError as exc:
@@ -67,10 +82,13 @@ async def list_accounts() -> list[dict]:
     Raises LedgerInfrastructureError (fail-closed) if Midaz is unreachable or
     returns a 5xx; a 4xx returns [] (reachable, definite).
     """
-    url = f"{MIDAZ_BASE_URL}/v1/organizations/{MIDAZ_ORG_ID}/ledgers/{MIDAZ_LEDGER_ID}/accounts"
+    base_url = _require_env("MIDAZ_BASE_URL")
+    org_id = _require_env("MIDAZ_ORG_ID")
+    ledger_id = _require_env("MIDAZ_LEDGER_ID")
+    url = f"{base_url}/v1/organizations/{org_id}/ledgers/{ledger_id}/accounts"
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(url, headers=_HEADERS)
+            resp = await client.get(url, headers=_headers())
             resp.raise_for_status()
             data = resp.json()
     except httpx.HTTPStatusError as exc:
