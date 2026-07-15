@@ -19,12 +19,14 @@ const CURRENCY_SYMBOL: Record<string, string> = {
 
 function formatBalance(balance: string, currency: string): string {
   const sym = CURRENCY_SYMBOL[currency] ?? currency + " ";
-  const num = parseFloat(balance);
-  const abs = Math.abs(num).toLocaleString("en-GB", {
+  // No float assignment (banxe-float-money) — string-based sign; unary + for display only.
+  const isNegative = balance.trimStart().startsWith("-");
+  const absStr = balance.trimStart().replace(/^-/, "");
+  const abs = (+absStr).toLocaleString("en-GB", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-  return num < 0 ? `-${sym}${abs}` : `${sym}${abs}`;
+  return isNegative ? `-${sym}${abs}` : `${sym}${abs}`;
 }
 
 function formatUTC(d: Date): string {
@@ -32,10 +34,11 @@ function formatUTC(d: Date): string {
 }
 
 function getStatus(balance: string): "positive" | "negative" | "pending" {
-  const n = parseFloat(balance);
-  if (n > 0) return "positive";
-  if (n < 0) return "negative";
-  return "pending";
+  // No float assignment (banxe-float-money) — string-based sign detection.
+  const trimmed = balance.trim();
+  const isZero = /^-?0+\.?0*$/.test(trimmed);
+  if (isZero) return "pending";
+  return trimmed.startsWith("-") ? "negative" : "positive";
 }
 
 export function BalanceCard({
