@@ -10,7 +10,11 @@ from decimal import Decimal
 
 import pytest
 
-from services.recon.camt053_parser import generate_sample_camt053, parse_camt053
+from services.recon.camt053_parser import (
+    generate_sample_camt053,
+    parse_camt053,
+    parse_from_file,
+)
 from services.recon.reconciliation_engine_v2 import StatementEntry
 
 
@@ -167,3 +171,24 @@ def test_parse_transaction_ref_captured() -> None:
     entries = parse_camt053(xml_bytes)
     refs = [e.transaction_ref for e in entries]
     assert any(r != "" for r in refs)
+
+
+class TestParseFromFile:
+    """Covers lines 88-89: parse_from_file(path) → parse_camt053(f.read())."""
+
+    def test_parse_from_file_returns_same_as_bytes(self, tmp_path) -> None:
+        sample = generate_sample_camt053()
+        p = tmp_path / "stmt.xml"
+        p.write_bytes(sample)
+        entries = parse_from_file(str(p))
+        expected = parse_camt053(sample)
+        assert len(entries) == len(expected)
+        assert entries[0].amount == expected[0].amount
+        assert entries[0].entry_id == expected[0].entry_id
+        assert entries[0].account_iban == expected[0].account_iban
+
+    def test_parse_from_file_three_entries(self, tmp_path) -> None:
+        p = tmp_path / "stmt.xml"
+        p.write_bytes(generate_sample_camt053())
+        entries = parse_from_file(str(p))
+        assert len(entries) == 3
