@@ -3,7 +3,18 @@
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["tests"]
+# Only runtime_gate is safely collectable from root: it is a valid package
+# (services/runtime_gate/__init__.py) so its suite loads as `runtime_gate.tests`.
+# banking-engine and safeguarding-engine are NOT included — the hyphen makes them
+# invalid Python package names, so their `tests/` collapse to the top-level `tests`
+# package and collide with the root tests/conftest.py (pytest ImportPathMismatchError,
+# aborts the whole run). safeguarding-engine additionally does a bare `from app...`
+# import with no sys.path insert. Both need a separate structural fix (rename dir /
+# drop __init__.py + importlib / add sys.path shim) — see PR body (CI-TESTPATHS-01).
+testpaths = [
+    "tests",
+    "services/runtime_gate/tests",
+]
 addopts = "--cov=services --cov=api --cov=src --cov-report=term-missing --cov-fail-under=35 -q"
 filterwarnings = [
     "ignore::DeprecationWarning",
