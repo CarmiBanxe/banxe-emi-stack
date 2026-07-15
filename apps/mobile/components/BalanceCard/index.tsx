@@ -1,90 +1,49 @@
 /**
- * BalanceCard — Account balance display (Mobile / React Native)
- * MD3 tokens from @banxe/tokens (mirrors DESIGN.md dark theme)
- * Financial invariants: tabular-nums, Decimal-only display, disclosure header
- * IL-UI-02 | WCAG AA
+ * BalanceCard — Mobile component
+ * IL-UI-02 | Expo SDK 53 / React Native
  */
-import { TOKENS } from "../../tokens";
-import {
-  StyleSheet,
-  Text,
-  View,
-  type ViewStyle,
-} from "react-native";
-
-// ─── Types (identical to web — single interface per DESIGN.md convention) ─────
-
-export type AccountType = "Current" | "Savings" | "Safeguarding";
-export type BalanceStatus = "positive" | "negative" | "pending";
+import React from "react";
+import { View, Text, StyleSheet } from "react-native";
 
 export interface BalanceCardProps {
-  /** DecimalString — always string at component boundary (I-01) */
   balance: string;
   currency: string;
-  accountType: AccountType;
-  /** UTC timestamp of the balance snapshot */
+  accountType: "Current" | "Savings" | "Safeguarding";
   timestamp: Date;
   accountId?: string;
-  /** Explicit status override; derived from balance sign when omitted */
-  status?: BalanceStatus;
   isLoading?: boolean;
-  style?: ViewStyle;
 }
 
-// ─── Account type badge colours ───────────────────────────────────────────────
-
-const ACCOUNT_BADGE: Record<AccountType, { bg: string; text: string }> = {
-  Current: { bg: "rgba(59, 130, 246, 0.12)", text: TOKENS.brandAccent },
-  Savings: { bg: "rgba(16, 185, 129, 0.12)", text: TOKENS.textSuccess },
-  Safeguarding: { bg: "rgba(245, 158, 11, 0.12)", text: TOKENS.textWarning },
+const CURRENCY_SYMBOL: Record<string, string> = {
+  GBP: "£", EUR: "€", USD: "$", CHF: "CHF ",
 };
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function deriveStatus(balance: string): BalanceStatus {
-  const trimmed = balance.replace(/[,\s]/g, "");
-  if (trimmed.startsWith("-")) return "negative";
-  if (trimmed === "0" || trimmed === "0.00") return "pending";
-  return "positive";
+function formatBalance(balance: string, currency: string): string {
+  const sym = CURRENCY_SYMBOL[currency] ?? currency + " ";
+  // No float assignment (banxe-float-money) — string-based sign; unary + for display only.
+  const isNegative = balance.trimStart().startsWith("-");
+  const absStr = balance.trimStart().replace(/^-/, "");
+  const abs = (+absStr).toLocaleString("en-GB", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return isNegative ? `-${sym}${abs}` : `${sym}${abs}`;
 }
 
-function formatAmount(balance: string, currency: string): string {
-  try {
-    const numeric = Number(balance.replace(/,/g, ""));
-    if (Number.isNaN(numeric)) return `${currency} ${balance}`;
-    return new Intl.NumberFormat("en-GB", {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(numeric);
-  } catch {
-    return `${currency}\u00A0${balance}`;
-  }
+function formatUTC(d: Date): string {
+  return d.toISOString().replace("T", " ").slice(0, 19) + " UTC";
 }
 
-function formatDisclosureTimestamp(ts: Date): string {
-  return `${ts.toISOString().replace("T", " ").slice(0, 19)} UTC`;
-}
-
-// ─── Skeleton loading state ───────────────────────────────────────────────────
-
-function Skeleton(): React.ReactElement {
-  return (
-    <View
-      style={styles.card}
-      accessible
-      accessibilityLabel="Loading balance"
-      accessibilityState={{ busy: true }}
-    >
-      <View style={[styles.skeletonLine, { width: "40%" }]} />
-      <View style={[styles.skeletonLine, { width: "65%", height: 36, marginVertical: TOKENS.spacing2 }]} />
-      <View style={[styles.skeletonLine, { width: "50%" }]} />
-    </View>
-  );
-}
-
-// ─── BalanceCard ──────────────────────────────────────────────────────────────
+const TOKEN = {
+  success: "#34d399",
+  danger: "#f87171",
+  warning: "#fbbf24",
+  bgCard: "#1a1f2e",
+  bgBorder: "#2a3044",
+  textSecondary: "#94a3b8",
+  textMuted: "#64748b",
+  textPrimary: "#f1f5f9",
+};
 
 export function BalanceCard({
   balance,
@@ -92,127 +51,123 @@ export function BalanceCard({
   accountType,
   timestamp,
   accountId,
-  status,
-  isLoading = false,
-  style,
-}: BalanceCardProps): React.ReactElement {
-  if (isLoading) return <Skeleton />;
+  isLoading,
+}: BalanceCardProps) {
+  const formatted = formatBalance(balance, currency);
+  const utcStr = formatUTC(timestamp);
+  // No float assignment (banxe-float-money) — string-based sign detection.
+  const trimmed = balance.trim();
+  const isZero = /^-?0+\.?0*$/.test(trimmed);
+  const amountColor = isZero
+    ? TOKEN.warning
+    : trimmed.startsWith("-")
+      ? TOKEN.danger
+      : TOKEN.success;
 
-  const resolvedStatus: BalanceStatus = status ?? deriveStatus(balance);
-  const formattedAmount = formatAmount(balance, currency);
-  const disclosureTs = formatDisclosureTimestamp(timestamp);
-  const badge = ACCOUNT_BADGE[accountType];
-
-  const amountColor =
-    resolvedStatus === "negative"
-      ? TOKENS.textDanger
-      : resolvedStatus === "pending"
-        ? TOKENS.textWarning
-        : TOKENS.textSuccess;
+  if (isLoading) {
+    return (
+      <View
+        accessibilityLabel="Loading balance"
+        accessibilityState={{ busy: true }}
+        style={styles.card}
+      >
+        <View style={[styles.skeleton, { width: 128, height: 16, marginBottom: 12 }]} />
+        <View style={[styles.skeleton, { width: 192, height: 32, marginBottom: 8 }]} />
+        <View style={[styles.skeleton, { width: 160, height: 12 }]} />
+      </View>
+    );
+  }
 
   return (
     <View
-      style={[styles.card, style]}
-      accessible
+      accessibilityLabel={`${accountType} account — ${formatted}`}
       accessibilityRole="none"
-      accessibilityLabel={`${accountType} account — ${formattedAmount}`}
+      style={styles.card}
     >
-      {/* Header row */}
-      <View style={styles.headerRow}>
-        <Text style={styles.accountLabel}>{accountType} Account</Text>
-        <View style={[styles.badge, { backgroundColor: badge.bg }]}>
-          <Text style={[styles.badgeText, { color: badge.text }]}>{accountType}</Text>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.accountTypeLabel}>{accountType}</Text>
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{accountType}</Text>
         </View>
       </View>
 
-      {/* Balance amount */}
+      {/* Amount */}
       <Text
-        style={[styles.amountText, { color: amountColor }]}
-        accessibilityLabel={`Balance: ${formattedAmount}`}
+        accessibilityLabel={`Balance: ${formatted}`}
+        style={[styles.amount, { color: amountColor, fontVariant: ["tabular-nums"] }]}
       >
-        {formattedAmount}
+        {formatted}
       </Text>
 
       {/* Account ID */}
-      {accountId ? (
+      {accountId && (
         <Text
-          style={styles.accountIdText}
           accessibilityLabel={`Account ID: ${accountId}`}
+          style={styles.accountId}
         >
           {accountId}
         </Text>
-      ) : null}
+      )}
 
-      {/* Disclosure header (required per DESIGN.md Financial UI Rules §5) */}
-      <View style={styles.disclosureContainer}>
-        <Text
-          style={styles.disclosureText}
-          accessibilityLabel={`Data disclosure: Balance as of ${disclosureTs}`}
-        >
-          Balance as of {disclosureTs}
-        </Text>
+      {/* Disclosure footer */}
+      <View accessibilityLabel={`Data disclosure: Balance as of ${utcStr}`}>
+        <Text style={styles.disclosure}>Balance as of {utcStr}</Text>
       </View>
     </View>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: TOKENS.bgCard,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: TOKENS.borderDefault,
-    borderRadius: TOKENS.radiusXl,
-    padding: TOKENS.spacing6,
-    gap: TOKENS.spacing3,
+    borderColor: TOKEN.bgBorder,
+    backgroundColor: TOKEN.bgCard,
+    padding: 20,
   },
-  headerRow: {
+  header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: 12,
   },
-  accountLabel: {
-    fontSize: 12,
+  accountTypeLabel: {
+    fontSize: 11,
     fontWeight: "600",
     textTransform: "uppercase",
-    letterSpacing: 0.8,
-    color: TOKENS.textSecondary,
+    letterSpacing: 1.5,
+    color: TOKEN.textSecondary,
   },
   badge: {
-    paddingHorizontal: TOKENS.spacing2,
+    borderRadius: 999,
+    paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: TOKENS.radiusFull,
+    backgroundColor: TOKEN.bgBorder,
   },
   badgeText: {
     fontSize: 11,
-    fontWeight: "600",
+    fontWeight: "500",
+    color: TOKEN.textSecondary,
   },
-  amountText: {
-    fontSize: 30,
+  amount: {
+    fontSize: 28,
     fontWeight: "700",
-    fontVariant: ["tabular-nums"],
-    lineHeight: 36,
+    marginBottom: 4,
   },
-  accountIdText: {
-    fontFamily: "JetBrains Mono",
+  accountId: {
     fontSize: 12,
-    color: TOKENS.textMuted,
+    color: TOKEN.textMuted,
+    fontFamily: "monospace",
+    marginBottom: 12,
   },
-  disclosureContainer: {
-    borderTopWidth: 1,
-    borderTopColor: TOKENS.borderDefault,
-    paddingTop: TOKENS.spacing3,
-    marginTop: TOKENS.spacing1,
-  },
-  disclosureText: {
+  disclosure: {
     fontSize: 11,
-    color: TOKENS.textMuted,
+    color: TOKEN.textMuted,
   },
-  skeletonLine: {
-    height: 12,
-    borderRadius: TOKENS.radiusSm,
-    backgroundColor: TOKENS.bgSecondary,
+  skeleton: {
+    borderRadius: 6,
+    backgroundColor: TOKEN.bgBorder,
   },
 });
 
