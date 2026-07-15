@@ -683,9 +683,7 @@ def test_legacy_sepa_validation_fail_closed() -> None:
         == "invalid_iban"
     )
     assert (
-        _codes(
-            _sepa_intent(creditor_account=BankAccount(account_holder_name="C", iban="INVALID"))
-        )
+        _codes(_sepa_intent(creditor_account=BankAccount(account_holder_name="C", iban="INVALID")))
         == "invalid_iban"
     )
     # invalid BIC
@@ -704,9 +702,7 @@ def test_legacy_sepa_validation_fail_closed() -> None:
     )
     assert (
         _codes(
-            _sepa_intent(
-                creditor_account=BankAccount(account_holder_name="A" * 71, iban=good_iban)
-            )
+            _sepa_intent(creditor_account=BankAccount(account_holder_name="A" * 71, iban=good_iban))
         )
         == "creditor_name_too_long"
     )
