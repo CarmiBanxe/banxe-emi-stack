@@ -144,8 +144,8 @@ operator-approved implementation step.
 
 | # | Item | Why first |
 |---|------|-----------|
-| 1a | Fix `test_update_policy` KeyError (`total_experiences`) | Only confirmed REAL-CODE-BUG; blocks clean test suite |
-| 1b | Audit `test_select_action` fixture isolation | Low-cost; eliminates order-dependent flakiness |
+| 1a | ~~Fix `test_update_policy` KeyError (`total_experiences`)~~ **DONE** — commit `75d5342` in quality-gate worktree (2026-07-15) | Engine correct; test wrong — monkeypatched Ollama calls, added `select_action()` before `update_policy()`; 451/9 (was 450/10) |
+| 1b | Audit `test_select_action` — Ollama timeout + missing `_fallback_prediction` method | Obkatka misclassified as ORDER-DEPENDENT; confirmed REAL-CODE-BUG (AttributeError after 30s timeout); separate operator-approved step |
 | 1c | Add `import torch` guard in `text_detector/tool.py:111` | Single-line fix; prevents silent NameError at runtime |
 | 1d | Replace bare `except:` in `env_manager.py`, `modular_stages.py`, `openmanus_rollout.py` | E722 in rollout critical path — silently swallows exceptions including SIGINT |
 
