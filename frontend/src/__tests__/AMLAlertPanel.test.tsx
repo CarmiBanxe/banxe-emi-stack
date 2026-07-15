@@ -6,17 +6,6 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 import { type AMLAlert, AMLAlertPanel } from "../components/ui/AMLAlertPanel";
 
-/**
- * Normalize CSS color to rgb() for comparison.
- * JSDOM returns rgb() from computed styles, not hex.
- */
-function hexToRgb(hex: string): string {
-  const r = Number.parseInt(hex.slice(1, 3), 16);
-  const g = Number.parseInt(hex.slice(3, 5), 16);
-  const b = Number.parseInt(hex.slice(5, 7), 16);
-  return `rgb(${r}, ${g}, ${b})`;
-}
-
 const makeAlert = (severity: AMLAlert["severity"], overrides?: Partial<AMLAlert>): AMLAlert => ({
   id: `AML-TEST-${severity}`,
   severity,
@@ -51,19 +40,19 @@ describe("AMLAlertPanel", () => {
   test("CRITICAL uses #f43f5e border color", () => {
     render(<AMLAlertPanel alert={makeAlert("CRITICAL")} />);
     const article = screen.getByRole("article");
-    expect(article.style.borderLeftColor).toBe(hexToRgb("#f43f5e"));
+    expect(article.style.borderLeftColor).toBe("#f43f5e");
   });
 
   test("HIGH uses #f97316 border color", () => {
     render(<AMLAlertPanel alert={makeAlert("HIGH")} />);
     const article = screen.getByRole("article");
-    expect(article.style.borderLeftColor).toBe(hexToRgb("#f97316"));
+    expect(article.style.borderLeftColor).toBe("#f97316");
   });
 
   test("MEDIUM uses #f59e0b border color", () => {
     render(<AMLAlertPanel alert={makeAlert("MEDIUM")} />);
     const article = screen.getByRole("article");
-    expect(article.style.borderLeftColor).toBe(hexToRgb("#f59e0b"));
+    expect(article.style.borderLeftColor).toBe("#f59e0b");
   });
 
   test("has data-severity attribute matching severity level", () => {
