@@ -46,10 +46,7 @@ async def get_balance(account_id: str) -> Decimal | None:
     base_url = _require_env("MIDAZ_BASE_URL")
     org_id = _require_env("MIDAZ_ORG_ID")
     ledger_id = _require_env("MIDAZ_LEDGER_ID")
-    url = (
-        f"{base_url}/v1/organizations/{org_id}"
-        f"/ledgers/{ledger_id}/accounts/{account_id}/balances"
-    )
+    url = f"{base_url}/v1/organizations/{org_id}/ledgers/{ledger_id}/accounts/{account_id}/balances"
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(url, headers=_headers())
