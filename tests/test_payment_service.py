@@ -486,3 +486,237 @@ class TestBuildPaymentServiceFactory:
 
         types = _get_event_bus_types()
         assert len(types) == 3  # BanxeEventType, DomainEvent, InMemoryEventBus
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# IL-S4-WAVE3-01 — Wave 3 coverage for the legacy payment adapters (tests only;
+# NO service code changed). All three are in-memory sandbox rewrites (TypeORM /
+# Redis / gRPC transport dropped per ADR-025 §15-16) — nothing live to mock.
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def _bifrost_intent(key: str = "bif-1") -> PaymentIntent:
+    return PaymentIntent(
+        idempotency_key=key,
+        rail=PaymentRail.SEPA_CT,
+        direction=PaymentDirection.OUTBOUND,
+        amount=Decimal("100.00"),
+        currency="EUR",
+        debtor_account=eu_account("Banxe"),
+        creditor_account=eu_account("Payee"),
+        reference="BIF-REF",
+        end_to_end_id="E2E-BIF-1",
+        requested_at=datetime.now(UTC),
+    )
+
+
+def test_bifrost_submit_status_xml_inbound() -> None:
+    from services.payment.legacy.bifrost_adapter import (
+        BifrostAdapter,
+        BifrostInboundMessage,
+        BifrostXmlRequest,
+    )
+    from services.payment.legacy.legacy_abs_payment_adapter import AbsPaymentStatus
+
+    adapter = BifrostAdapter()
+    assert adapter.health() is True
+    intent = _bifrost_intent("bif-1")
+    res = adapter.submit_payment(intent)
+    assert res.status == PaymentStatus.PENDING
+    # idempotent: same key → same provider_payment_id
+    assert adapter.submit_payment(intent).provider_payment_id == res.provider_payment_id
+    # status lookup found + fail-closed KeyError
+    assert adapter.get_payment_status(res.provider_payment_id).provider_payment_id == (
+        res.provider_payment_id
+    )
+    with pytest.raises(KeyError):
+        adapter.get_payment_status("missing")
+    # outbound XML descriptor (no live GCP call)
+    xml_req = adapter.build_outbound_xml(intent, res.provider_payment_id)
+    assert isinstance(xml_req, BifrostXmlRequest)
+    assert xml_req.amount_minor == 10000  # 100.00 EUR → minor units
+    assert "requestToGCPProcessing" in xml_req.xml
+    # inbound: known status maps + updates the stored record
+    st = adapter.handle_inbound(
+        BifrostInboundMessage(
+            message_id="m1", provider_payment_id=res.provider_payment_id, bifrost_status="SETTLED"
+        )
+    )
+    assert st == AbsPaymentStatus.SETTLED
+    assert adapter.get_payment_status(res.provider_payment_id).status == PaymentStatus.COMPLETED
+    # unknown inbound status → fail-closed ValueError
+    with pytest.raises(ValueError, match="unknown bifrost status"):
+        adapter.handle_inbound(
+            BifrostInboundMessage(
+                message_id="m2", provider_payment_id=res.provider_payment_id, bifrost_status="WAT"
+            )
+        )
+    # inbound for an unknown payment id still maps the status (no record to update)
+    assert (
+        adapter.handle_inbound(
+            BifrostInboundMessage(
+                message_id="m3", provider_payment_id="ghost", bifrost_status="ACCEPTED"
+            )
+        )
+        == AbsPaymentStatus.SUBMITTED
+    )
+
+
+def test_legacy_transactions_adapter_full() -> None:
+    from services.payment.legacy.legacy_transactions_adapter import (
+        LegacyTransactionsAdapter,
+        TransactionApplicationError,
+        _resolve_status,
+    )
+
+    adapter = LegacyTransactionsAdapter()
+    assert adapter.health() is True
+    # _resolve_status: valid + unknown (fail-closed)
+    assert _resolve_status("completed") == PaymentStatus.COMPLETED
+    with pytest.raises(TransactionApplicationError):
+        _resolve_status("BOGUS")
+    # register across statuses → exercises every _audit_event_for branch
+    cases = [
+        ("COMPLETED", PaymentStatus.COMPLETED),
+        ("FAILED", PaymentStatus.FAILED),
+        ("RETURNED", PaymentStatus.RETURNED),
+        ("PENDING", PaymentStatus.PENDING),
+        ("PROCESSING", PaymentStatus.PROCESSING),
+    ]
+    for raw, expected in cases:
+        rec = adapter.register_external_transaction(
+            transaction_id=f"tx-{raw}",
+            idempotency_key=f"idem-{raw}",
+            raw_status=raw,
+            rail=PaymentRail.FPS,
+            direction=PaymentDirection.OUTBOUND,
+            amount=Decimal("10.00"),
+            currency="GBP",
+            submitted_at=datetime.now(UTC),
+        )
+        assert rec.status == expected
+    # advance_status: not found → error; valid → updates
+    with pytest.raises(TransactionApplicationError):
+        adapter.advance_status("nope", "COMPLETED")
+    updated = adapter.advance_status("tx-PENDING", "COMPLETED", settled_at=datetime.now(UTC))
+    assert updated.status == PaymentStatus.COMPLETED
+    # audit trail accumulated (I-24) + status lookup found/not-found
+    assert len(adapter.collect_audit_records()) >= 6
+    assert adapter.get_payment_status("tx-COMPLETED").status == PaymentStatus.COMPLETED
+    with pytest.raises(TransactionApplicationError):
+        adapter.get_payment_status("ghost")
+
+
+def _sepa_intent(**overrides: object) -> PaymentIntent:
+    base: dict = {
+        "idempotency_key": str(uuid.uuid4()),
+        "rail": PaymentRail.SEPA_CT,
+        "direction": PaymentDirection.OUTBOUND,
+        "amount": Decimal("100.00"),
+        "currency": "EUR",
+        "debtor_account": eu_account("Banxe"),
+        "creditor_account": eu_account("Payee"),
+        "reference": "SEPA-REF",
+        "end_to_end_id": "E2E-SEPA",
+        "requested_at": datetime.now(UTC),
+        "metadata": {"customer_id": "cust-1"},
+    }
+    base.update(overrides)
+    return PaymentIntent(**base)
+
+
+def test_legacy_sepa_event_mapping_and_happy_path() -> None:
+    from services.payment.legacy.legacy_sepa_adapter import (
+        LegacySepaAdapter,
+        SepaApplicationError,
+        SepaPaymentStatus,
+        _sepa_event_for,
+    )
+
+    # direct mapping — every branch incl. the CREATED fallback (PENDING)
+    assert _sepa_event_for(SepaPaymentStatus.SUBMITTED) == "SUBMITTED"
+    assert _sepa_event_for(SepaPaymentStatus.SETTLED) == "SETTLED"
+    assert _sepa_event_for(SepaPaymentStatus.REJECTED) == "REJECTED"
+    assert _sepa_event_for(SepaPaymentStatus.CANCELLED) == "CANCELLED"
+    assert _sepa_event_for(SepaPaymentStatus.PENDING) == "CREATED"
+
+    adapter = LegacySepaAdapter()
+    assert adapter.health() is True
+    res = adapter.submit_payment(_sepa_intent())
+    assert res.status == PaymentStatus.PENDING
+    # idempotent by (customer_id, reference) composite
+    assert adapter.submit_payment(_sepa_intent()).provider_payment_id == res.provider_payment_id
+    # status lookup found + not-found
+    assert adapter.get_payment_status(res.provider_payment_id).provider_payment_id == (
+        res.provider_payment_id
+    )
+    with pytest.raises(SepaApplicationError):
+        adapter.get_payment_status("ghost")
+    # advance_to drives the state machine (SUBMITTED → SETTLED)
+    adapter.advance_to(res.provider_payment_id, SepaPaymentStatus.SUBMITTED)
+    settled = adapter.advance_to(res.provider_payment_id, SepaPaymentStatus.SETTLED)
+    assert settled.status == SepaPaymentStatus.SETTLED
+    # illegal transition (SETTLED is terminal) + unknown payment → fail-closed
+    with pytest.raises(SepaApplicationError):
+        adapter.advance_to(res.provider_payment_id, SepaPaymentStatus.SUBMITTED)
+    with pytest.raises(SepaApplicationError):
+        adapter.advance_to("ghost", SepaPaymentStatus.SUBMITTED)
+    assert adapter.collect_audit_records()  # I-24 trail populated
+
+
+def test_legacy_sepa_validation_fail_closed() -> None:
+    from services.payment.legacy.legacy_sepa_adapter import LegacySepaAdapter, SepaApplicationError
+
+    adapter = LegacySepaAdapter()
+    good_iban = "DE89370400440532013000"
+
+    def _codes(intent: PaymentIntent) -> str:
+        with pytest.raises(SepaApplicationError) as exc:
+            adapter.submit_payment(intent)
+        return exc.value.code
+
+    # unsupported rail (FPS is not a SEPA rail)
+    assert _codes(_sepa_intent(rail=PaymentRail.FPS, currency="GBP")) == "unsupported_rail"
+    # invalid debtor / creditor IBAN
+    assert (
+        _codes(_sepa_intent(debtor_account=BankAccount(account_holder_name="B", iban="INVALID")))
+        == "invalid_iban"
+    )
+    assert (
+        _codes(
+            _sepa_intent(creditor_account=BankAccount(account_holder_name="C", iban="INVALID"))
+        )
+        == "invalid_iban"
+    )
+    # invalid BIC
+    assert (
+        _codes(
+            _sepa_intent(
+                creditor_account=BankAccount(account_holder_name="C", iban=good_iban, bic="BAD")
+            )
+        )
+        == "invalid_bic"
+    )
+    # empty / too-long creditor name
+    assert (
+        _codes(_sepa_intent(creditor_account=BankAccount(account_holder_name="  ", iban=good_iban)))
+        == "invalid_creditor_name"
+    )
+    assert (
+        _codes(
+            _sepa_intent(
+                creditor_account=BankAccount(account_holder_name="A" * 71, iban=good_iban)
+            )
+        )
+        == "creditor_name_too_long"
+    )
+    # empty / too-long reference
+    assert _codes(_sepa_intent(reference="   ")) == "invalid_reference"
+    assert _codes(_sepa_intent(reference="A" * 141)) == "reference_too_long"
+    # amount precision (> 2 dp)
+    assert _codes(_sepa_intent(amount=Decimal("1.001"))) == "invalid_amount_precision"
+    # SCT_INST over the €100 000 cap
+    assert (
+        _codes(_sepa_intent(rail=PaymentRail.SEPA_INSTANT, amount=Decimal("100001.00")))
+        == "amount_exceeds_sct_inst_limit"
+    )

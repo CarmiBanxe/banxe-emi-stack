@@ -190,3 +190,24 @@ def test_record_payment_failure_includes_notification_status(agent: ScheduledPay
         customer_id="cust-3",
     )
     assert "notification_status" in result
+
+
+# ── IL-S4-WAVE3-01: NotificationBridge (stub — no external hub call) ──────────
+
+
+def test_notification_bridge_all_message_types() -> None:
+    from services.scheduled_payments.notification_bridge import NotificationBridge
+
+    bridge = NotificationBridge()
+    reminder = bridge.send_upcoming_reminder("sch-1", "pay-1", "100.00", 3)
+    assert reminder["status"] == "QUEUED"
+    assert reminder["notification_type"] == "PAYMENT_REMINDER"
+    assert reminder["days_before"] == 3
+
+    alert = bridge.send_failure_alert("fail-1", "pay-1", "AC04")
+    assert alert["notification_type"] == "PAYMENT_FAILED"
+    assert alert["failure_code"] == "AC04"
+
+    mandate = bridge.send_mandate_change_notification("mand-1", "CANCELLED")
+    assert mandate["notification_type"] == "MANDATE_CHANGE"
+    assert mandate["change_type"] == "CANCELLED"
