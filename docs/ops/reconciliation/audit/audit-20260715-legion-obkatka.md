@@ -256,9 +256,42 @@ satisfied by the user-site install of `structlog 26.1.0`. No `pyproject.toml` ch
 | Tests — integration, observability | ✅ PASS | 14 tests now collected and passing |
 | Tests — integration, health endpoint | ✅ PASS | 5 tests now passing (structlog resolved the 503) |
 | Tests — real code bug | ✅ RESOLVED | 0 outstanding (test_update_policy + test_select_action both fixed) |
-| Tests — needs-package | ⚠️ 3 REMAINING | sphinx / gradio / streamlit — install required |
+| Tests — needs-package | ✅ RESOLVED | sphinx / gradio / streamlit — `pytest.importorskip()` guards added; now SKIP (not FAIL) when absent |
 | Lint — vendored HIGH (F821) | ℹ️ VENDOR | 83 in alfworld; unchanged, suppress not edit |
 | Lint — first-party HIGH | ⚠️ 26 FINDINGS | E722 bare-except (rollout critical path), F403/F405, 1 F821; unchanged |
+
+---
+
+### 7.7 Task E — importorskip Fix (2026-07-15)
+
+Three tests were FAILING with `ModuleNotFoundError` instead of skipping. Fixed by adding
+`pytest.importorskip()` guards at the start of each optional-dep test:
+
+| Test | Guard added | File |
+|------|-------------|------|
+| `test_sphinx_build_succeeds` | `pytest.importorskip("sphinx")` | `tests/integration/test_docs_build.py` |
+| `test_gradio_build_returns_blocks` | `gr = pytest.importorskip("gradio")` | `tests/integration/test_ui_smoke.py` |
+| `test_streamlit_module_imports` | `pytest.importorskip("streamlit")` | `tests/integration/test_ui_smoke.py` |
+
+Optional packages NOT added to requirements (operator instruction). Engine code NOT modified.
+
+**Final result: 488 passed, 5 skipped, 0 failed. Coverage 42%.** Commit `9c30416`.
+
+### 7.8 Final Summary Scorecard
+
+| Dimension | Status | Detail |
+|-----------|--------|--------|
+| Coverage floor (20%) | ✅ PASS | 42% |
+| Tests — unit | ✅ PASS | all green |
+| Tests — integration, observability | ✅ PASS | 14 tests passing |
+| Tests — integration, health endpoint | ✅ PASS | 5 tests passing |
+| Tests — real code bugs | ✅ ALL RESOLVED | `test_update_policy` + `test_select_action` fixed |
+| Tests — optional-dep | ✅ ALL RESOLVED | 3 now SKIP instead of FAIL |
+| Tests — env-gated | ✅ CORRECT | 2 skipped (RUN_LITELLM_TESTS, websocket) |
+| Lint — vendored HIGH (F821) | ℹ️ VENDOR | 83 in alfworld; unchanged |
+| Lint — first-party HIGH | ⚠️ 26 FINDINGS | E722/F403/F405/F821; unchanged (out of obkatka scope) |
+
+**All PROP-2026-0714-001 Task A–E complete. Push pending operator authorization (I-71).**
 
 ---
 
