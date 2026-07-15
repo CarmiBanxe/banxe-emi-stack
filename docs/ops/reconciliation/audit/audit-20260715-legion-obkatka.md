@@ -196,6 +196,72 @@ operator-approved implementation step.
 
 ---
 
+## 7. Honest Baseline After structlog Install (Observability Tests Now Collected)
+
+*Run: 2026-07-15 | Suite: FULL (no --ignore) | structlog 26.1.0 now in user-site*
+
+### 7.1 New Totals
+
+| Metric | Pre-structlog baseline | Post-structlog (honest) | Delta |
+|--------|----------------------|------------------------|-------|
+| **Tests passed** | 451 | **488** | **+37** |
+| **Tests failed** | 9 | **3** | **−6** |
+| Tests skipped (env-gated) | 2 | 2 | 0 |
+| Tests collected total | 462 | 493 | +31 |
+| **Coverage — TOTAL** | 37% | **42%** | **+5 pp** |
+| Coverage floor (20%) | ✅ PASS | ✅ PASS | — |
+| Runtime | ~97 s | ~113 s | +16 s |
+
+### 7.2 Why +37 Passed / −6 Failed
+
+| Change | Count | Root cause |
+|--------|-------|-----------|
+| Observability tests now collected & passing | +31 | `structlog` import no longer fails; `test_observability.py` (unit, 17 tests) + `test_observability_integration.py` (integration, 14 tests) both green |
+| Health endpoint tests moved FAILED → PASSED | +5 | `test_health_endpoint.py` x5 were returning 503 because the observability module (imported by the server) failed to import `structlog`; now resolves cleanly |
+| `test_select_action` moved FAILED → PASSED | +1 | Fixed by `_fallback_prediction` method restore (commit `14cb7cf`); Ollama absent → fallback now reachable |
+
+### 7.3 Remaining 3 FAILED Tests — All NEEDS-PACKAGE
+
+All remaining failures are pure missing-package; zero real code bugs outstanding.
+
+| Node ID | Bucket | Reason |
+|---------|--------|--------|
+| `tests/integration/test_docs_build.py::TestDocsBuild::test_sphinx_build_succeeds` | NEEDS-PACKAGE | `No module named sphinx` — sphinx not in dev deps |
+| `tests/integration/test_ui_smoke.py::TestUiSmoke::test_gradio_build_returns_blocks` | NEEDS-PACKAGE | `No module named 'gradio'` |
+| `tests/integration/test_ui_smoke.py::TestUiSmoke::test_streamlit_module_imports` | NEEDS-PACKAGE | `No module named 'streamlit'` |
+
+**Recommended action (separate operator-approved step):**
+Install `sphinx`, `gradio`, `streamlit` as optional dev deps and add them to
+`[project.optional-dependencies].test` in `pyproject.toml`.
+
+### 7.4 Previously-Fixed Tests — Confirmed Green
+
+| Test | Status | Fix applied |
+|------|--------|-------------|
+| `test_update_policy` | ✅ PASSED | commit `75d5342` — monkeypatched Ollama; `select_action()` before `update_policy()` |
+| `test_select_action` | ✅ PASSED | commit `14cb7cf` — `_fallback_prediction` method restored |
+
+### 7.5 Dependency Note
+
+`structlog>=24.1.0` was already listed in `requirements-legion.txt`; the dependency was
+satisfied by the user-site install of `structlog 26.1.0`. No `pyproject.toml` change required.
+
+### 7.6 Updated Summary Scorecard
+
+| Dimension | Status | Detail |
+|-----------|--------|--------|
+| Coverage floor (20%) | ✅ PASS | 42% observed (was 37%) |
+| Tests — unit | ✅ PASS | all unit tests green incl. observability unit (17 tests) |
+| Tests — integration, offline | ✅ PASS | 2 env-gated skipped (correct) |
+| Tests — integration, observability | ✅ PASS | 14 tests now collected and passing |
+| Tests — integration, health endpoint | ✅ PASS | 5 tests now passing (structlog resolved the 503) |
+| Tests — real code bug | ✅ RESOLVED | 0 outstanding (test_update_policy + test_select_action both fixed) |
+| Tests — needs-package | ⚠️ 3 REMAINING | sphinx / gradio / streamlit — install required |
+| Lint — vendored HIGH (F821) | ℹ️ VENDOR | 83 in alfworld; unchanged, suppress not edit |
+| Lint — first-party HIGH | ⚠️ 26 FINDINGS | E722 bare-except (rollout critical path), F403/F405, 1 F821; unchanged |
+
+---
+
 *BANXE Factory Agent | Reconciliation Worktree | 2026-07-15*
 *Worktree: banxe-emi-stack-reconciliation-20260714 | Branch: feat/reconciliation-charter-20260714*
 *Source data: /home/mmber/OpenManus-quality-gate-20260714 @ feat/quality-gate-safe-port-20260714*
