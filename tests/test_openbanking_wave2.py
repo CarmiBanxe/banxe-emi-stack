@@ -577,9 +577,7 @@ def test_intl_scheduled_lifecycle_and_minor_units() -> None:
     )
 
     provider = SandboxIntlScheduledProvider(id_generator=lambda: "INTL-1")
-    intent = provider.create_consent(
-        file_dedup_key="f1", amount=Decimal("12.34"), **_INTL_KW
-    )
+    intent = provider.create_consent(file_dedup_key="f1", amount=Decimal("12.34"), **_INTL_KW)
     assert intent.amount_minor == 1234  # Decimal (I-01) → minor units (I-05)
     assert intent.stage is IntlScheduledStage.CONSENT_AWAITING
     # idempotent by file_dedup_key (a different amount does not create a new intent)
