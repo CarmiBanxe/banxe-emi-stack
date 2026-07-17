@@ -62,3 +62,13 @@ tools/
 # Auto-generated UI prototypes (mobile + web) — reproduced via scripts/proto-sync.py from FastAPI OpenAPI spec
 apps/mobile/components/generated/
 apps/web/components/generated/
+
+# Factory runtime memory (added 2026-07-17, ISO-FIX-01) — the whole directory is
+# factory-generated runtime state (commit-log.jsonl, services-map.md, per-session
+# snapshots), not source. Supersedes the narrower .claude/memory/*.jsonl /
+# test-coverage.md / commit-log.jsonl entries above, which only ever caught
+# jsonl files and left services-map.md / new snapshot files tracked-dirty.
+.claude/memory/
+
+# Local docker-compose overrides written by factory tooling (recon sandbox etc.)
+docker/docker-compose.*.override.yml
