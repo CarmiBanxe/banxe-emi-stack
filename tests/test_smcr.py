@@ -45,9 +45,7 @@ def registry() -> InMemorySMCRRegistry:
 
 
 @pytest.fixture
-def framework(
-    registry: InMemorySMCRRegistry, audit: InMemorySMCRAuditPort
-) -> SMCRFramework:
+def framework(registry: InMemorySMCRRegistry, audit: InMemorySMCRAuditPort) -> SMCRFramework:
     return SMCRFramework(registry=registry, audit=audit)
 
 
@@ -335,9 +333,7 @@ def test_list_breaches_status_filter(framework: SMCRFramework) -> None:
 # ── FCA reporting ────────────────────────────────────────────────────────────
 
 
-def test_export_fca_reporting_data(
-    framework: SMCRFramework, audit: InMemorySMCRAuditPort
-) -> None:
+def test_export_fca_reporting_data(framework: SMCRFramework, audit: InMemorySMCRAuditPort) -> None:
     framework.register_smf(
         person_id="p-1",
         name="Alice",
