@@ -102,20 +102,27 @@ def _run_safeguarding_agent(recon_date: date, dry_run: bool) -> int:
             SafeguardingAgentPorts,
         )
         from src.safeguarding.audit_trail import AuditTrail  # noqa: PLC0415
+        from src.safeguarding.clickhouse_streak_counter import (  # noqa: PLC0415
+            ClickHouseStreakCounter,
+        )
         from src.safeguarding.three_leg import InMemoryRailBalancePort  # noqa: PLC0415
 
         from services.recon.safeguarding_adapters import (  # noqa: PLC0415
             MidazClientFundsPort,
             StatementBankPort,
-            ZeroStreakCounter,
         )
 
-        clickhouse_url = __import__("os").environ.get("CLICKHOUSE_URL", "")
+        clickhouse_url = os.environ.get("CLICKHOUSE_URL", "http://localhost:8123")
         ports = SafeguardingAgentPorts(
             ledger=MidazClientFundsPort(),
             bank=StatementBankPort(),
             audit=AuditTrail(clickhouse_url=clickhouse_url, dry_run=dry_run),
-            streak_counter=ZeroStreakCounter(),
+            streak_counter=ClickHouseStreakCounter(
+                clickhouse_url=clickhouse_url,
+                database=os.environ.get("CLICKHOUSE_DB", "banxe"),
+                clickhouse_user=os.environ.get("CLICKHOUSE_USER", "default"),
+                clickhouse_password=os.environ.get("CLICKHOUSE_PASSWORD", ""),
+            ),
             # Leg C rail: starts as InMemoryRailBalancePort (PENDING path).
             # Wire a real RailBalancePort when the payment-rail adapter is ready.
             rail=InMemoryRailBalancePort(),
