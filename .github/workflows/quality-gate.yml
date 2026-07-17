@@ -20,7 +20,7 @@ jobs:
     outputs:
       docs_only: ${{ steps.detect.outputs.docs_only }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           fetch-depth: 0
       - name: Detect whether the PR touches code or docs only
@@ -49,7 +49,7 @@ jobs:
     name: Gitleaks - Secrets Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           fetch-depth: 0
       - name: Install gitleaks
@@ -60,7 +60,7 @@ jobs:
           test -s gitleaks.sarif || echo '{"version":"2.1.0","runs":[]}' > gitleaks.sarif
       - name: Upload SARIF
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
           name: gitleaks-sarif
           path: gitleaks.sarif
@@ -71,14 +71,14 @@ jobs:
     name: Ruff lint + format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       - name: Ruff lint (GitHub annotations)
-        uses: astral-sh/ruff-action@v3
+        uses: astral-sh/ruff-action@4919ec5cf1f49eff0871dbcea0da843445b837e6 # v3
         with:
           version: "0.15.20"
           args: "check --output-format=github"
       - name: Ruff format check
-        uses: astral-sh/ruff-action@v3
+        uses: astral-sh/ruff-action@4919ec5cf1f49eff0871dbcea0da843445b837e6 # v3
         with:
           version: "0.15.20"
           args: "format --check"
@@ -91,14 +91,14 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: "20"
       - name: Install frontend deps
         run: npm install --legacy-peer-deps
       - name: Biome CI
-        uses: biomejs/setup-biome@v2
+        uses: biomejs/setup-biome@4c91541eaada48f67d7dbd7833600ce162b68f51 # v2
         with:
           version: 2.3.0
       - name: Run Biome lint
@@ -113,8 +113,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ruff]
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
           cache: "pip"
@@ -133,7 +133,7 @@ jobs:
           echo "## Test Results" >> $GITHUB_STEP_SUMMARY
           echo "All tests passed (coverage >= 80%)" >> $GITHUB_STEP_SUMMARY
       - name: Upload coverage report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         if: always()
         continue-on-error: true
         with:
@@ -145,7 +145,7 @@ jobs:
     name: Semgrep (banxe-rules)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       - name: Install semgrep
         run: pip install semgrep
       - name: Run Semgrep
@@ -163,7 +163,7 @@ jobs:
     needs: changes
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           fetch-depth: 0
       - name: Install semgrep
@@ -199,8 +199,8 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: "20"
       - name: Install frontend deps
@@ -219,8 +219,8 @@ jobs:
     continue-on-error: true
     needs: [test, semgrep]
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
           cache: "pip"

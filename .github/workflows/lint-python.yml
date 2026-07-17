@@ -29,7 +29,7 @@ jobs:
     outputs:
       docs_only: ${{ steps.detect.outputs.docs_only }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           fetch-depth: 0
       - name: Detect whether the PR touches code or docs only
@@ -60,16 +60,16 @@ jobs:
     needs: changes
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       - name: Ruff lint (check mode, GitHub annotations)
         if: needs.changes.outputs.docs_only != 'true'
-        uses: astral-sh/ruff-action@v3
+        uses: astral-sh/ruff-action@4919ec5cf1f49eff0871dbcea0da843445b837e6 # v3
         with:
           version: "0.15.20"
           args: "check --output-format=github"
       - name: Ruff format (check only)
         if: needs.changes.outputs.docs_only != 'true'
-        uses: astral-sh/ruff-action@v3
+        uses: astral-sh/ruff-action@4919ec5cf1f49eff0871dbcea0da843445b837e6 # v3
         with:
           version: "0.15.20"
           args: "format --check"
@@ -82,7 +82,7 @@ jobs:
     needs: changes
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
       - name: Install semgrep
         if: needs.changes.outputs.docs_only != 'true'
         run: pip install semgrep
@@ -91,7 +91,7 @@ jobs:
         run: semgrep --config .semgrep/banxe-rules.yml --error --sarif-output=semgrep.sarif || true
       - name: Upload SARIF
         if: needs.changes.outputs.docs_only != 'true'
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@b7351df727350dca84cb9d725d57dcf5bc82ba26 # v3
         with:
           sarif_file: semgrep.sarif
       - name: Docs-only PR — Semgrep security rules not required
