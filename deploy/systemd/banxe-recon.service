@@ -14,6 +14,9 @@ WorkingDirectory=/home/mmber/banxe-emi-stack
 EnvironmentFile=/home/mmber/banxe-emi-stack/.env
 # Activate venv and run via Python module path (keeps relative imports working)
 ExecStart=/opt/banxe/compliance/venv/bin/python -m services.recon.cron_daily_recon
+# Exit codes: 0=MATCHED, 1=DISCREPANCY (MLRO alerted via n8n webhook, CASS 7.15.29R),
+# 2=PENDING (no statement, non-critical) are all success. Only 3=FATAL is a real failure.
+SuccessExitStatus=0 1 2
 # systemd-native output: journal captures both stdout and stderr
 StandardOutput=journal
 StandardError=journal
