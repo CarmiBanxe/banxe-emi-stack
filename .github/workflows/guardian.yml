@@ -18,7 +18,7 @@ jobs:
         family: [factory, project]
     steps:
       - name: Checkout PR head
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
@@ -50,7 +50,7 @@ jobs:
 
       - name: Connect to Tailscale (MagicDNS for evo1)
         if: steps.cfg.outputs.configured == 'true'
-        uses: tailscale/github-action@v3
+        uses: tailscale/github-action@6cae46e2d796f265265cfcf628b72a32b4d7cade # v3
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
           tags: tag:github-runner
