@@ -179,7 +179,7 @@ _Source: `agents/passports/audit/PASSPORT.md` — merged verbatim, zero loss._
 > **Priority Note:** this section governs the CHOICE between options; it **CANNOT override `## HITL Gates`**. Priority: **HITL Gates > Trust Zone > B5-IRREVOCABLE > Decision Method > Autonomy Level**.
 
 **Source:** `docs/adr/ADR-030-decision-method-banking-fleet.md` (Profile-EMI); architecture `ADR-131` + `ADR-162` (pointer-first, not restated).
-**Cluster:** B-4 (Audit / Reporting)  ·  **Trust Zone:** GREEN (passport — no RED declared)  ·  **Execution-class:** gated
+**Cluster:** B-4 (Audit / Reporting)  ·  **Trust Zone:** AMBER (ratified by operator 2026-07-18; resolves SOUL/PASSPORT mismatch — PASSPORT declares HITL gates, so not GREEN)  ·  **Execution-class:** gated
 **Decider (HITL, verbatim from `## HITL Gates`):** COMPLIANCE_OFFICER — export_audit_report → COMPLIANCE_OFFICER approves before data leaves the system (I-27)
 
 ### Core Algorithm: enumerate → score (MAUT) → satisfice within HITL → escalate
@@ -241,12 +241,16 @@ technical metadata into one source, with zero information loss. The two original
 here (pointer stubs). Merge is **PROPOSED / docs-only** per operator/SMF decision: no behaviour,
 Trust-Zone, autonomy, HITL, or metadata change — content is byte-identical to the sources above.
 
-**Known discrepancy, preserved not resolved:** the SOUL declares **Trust Zone AMBER** (explicit,
-in its own Identity prose: "I operate in Trust Zone AMBER"). The PASSPORT's Decision-Method block
-declares **"GREEN (passport — no RED declared)"** — but the PASSPORT's own body text never states
-a Trust Zone anywhere outside that block; "GREEN" reads as a training-pass default for a
-zone-silent document, not an independent conflicting assertion. Both are preserved verbatim above,
-unresolved, for operator/SMF attention — this merge does not pick a winner or invent a zone.
+**Known discrepancy — RESOLVED = AMBER (operator-ratified 2026-07-18):** the SOUL declared
+**Trust Zone AMBER** (explicit, in its own Identity prose: "I operate in Trust Zone AMBER"). The
+PASSPORT's Decision-Method block declared **"GREEN (passport — no RED declared)"** — but the
+PASSPORT's own body text never stated a Trust Zone anywhere outside that block, and its own
+`## HITL Gates` section documents a real gate (`export_audit_report` → COMPLIANCE_OFFICER, I-27),
+which contradicts GREEN's "no HITL" criterion (ADR-030). "GREEN" was a training-pass default for a
+zone-silent document, not an independent conflicting declaration. The operator has ratified
+**AMBER** as correct, evidence-based on the PASSPORT's own HITL gate; the mismatch is no longer
+pending — the zone above is updated accordingly. HITL Gates, decider, capabilities, and Status are
+unchanged.
 
 Refs: ADR-102 (pointer-first), ADR-117 (project perimeter), ADR-030 (Decision Method — Profile-EMI).
 Merged 2026-07-18.
