@@ -4,11 +4,11 @@
 schema: agent-budget-policy/v1
 window: 24h                      # default rolling window
 agents:
-  audit_trail:                   # RED (PR #284)
+  audit_trail:                   # RED — see agents/passports/audit_trail/AGENT.md (status: PROPOSED; supersedes parked PRs #283/#284/#285 — #284 alone is a stale reference)
     max_tokens_window: 200000
     max_cost_window: "5.00"      # GBP, Decimal
     window: 24h
-  banxe_aml_orchestrator:        # RED (future AML activation)
+  banxe_aml_orchestrator:        # RED (future AML activation) — RESERVED: no agent passport/soul file exists yet (audited 2026-07-18, fleet governance audit). Pre-provisioned budget for a planned agent; do not remove without confirming a passport/soul file has landed under this name.
     max_tokens_window: 500000
     max_cost_window: "20.00"
     window: 24h
