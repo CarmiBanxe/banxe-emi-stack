@@ -361,7 +361,8 @@
     ]
   },
   "enabledMcpjsonServers": [
-    "lucidshark"
+    "lucidshark",
+    "xapi"
   ],
   "commands": [
     "/banxe-generate-migration",
