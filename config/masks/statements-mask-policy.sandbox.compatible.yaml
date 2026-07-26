@@ -1,0 +1,54 @@
+# Statements mask policy — SANDBOX profile (non-production only).
+# Schema-compatible with services/shared/mask_policy.py::load_statements_mask_policy
+# (same schema as the production config/masks/statements-mask-policy.yaml).
+#
+# This file is a SEPARATE, additional sandbox config — it does NOT replace or modify
+# config/masks/statements-mask-policy.yaml, which remains status: PROPOSED, gated by
+# the operator ratification pack at
+# .ai/reports/statements-mask-policy-ratification-2026-07-25.md, and untouched here.
+#
+# NON-PRODUCTION ONLY. "Mock-only egress" / "no real client destinations" are
+# environment- and runtime-level guarantees (adapter/routing wiring), not something
+# this YAML file can enforce by itself — see the two caveats below before assuming
+# this file alone makes anything safe to run.
+#
+# Known deviation from the documented contract (flagged, not silently applied):
+# ADR-055 / StatementPort's own docstring treats EMAIL and EXPORT identically as
+# external data-egress (both REVIEW). This sandbox file sets EXPORT: AUTO, a
+# deliberate operator choice for this file, not a re-derivation of the contract.
+#
+# Known implementation gap (flagged, not silently applied): the existing
+# StatementAdapter.deliver_statement() hardcodes its own AUTO/REVIEW channel logic
+# (IN_APP -> DELIVERED, anything else -> PENDING_REVIEW) and does not currently read
+# delivery_channel_classification from any loaded policy. Loading this file changes
+# what StatementMask.in_boundary_channels reports at the governance layer, but does
+# NOT change the adapter's actual EXPORT behavior today — the two would disagree
+# until the adapter is updated to consult this config (not done in this patchset).
+
+schema: statements-mask-policy/v1
+mask_id: statements
+status: ACTIVE   # sandbox-only; the production file is untouched and stays PROPOSED
+profile: SANDBOX
+sandbox_mode: true
+non_production_only: true
+
+cost_cap:
+  window: 1h
+  currency: GBP
+  max_tokens_window: 120000
+  max_cost_window: "25.00"
+  max_request_tokens: 12000
+  max_request_cost: "2.50"
+
+confidence_bands:
+  auto_min_confidence: 0.90
+  review_min_confidence: 0.70
+
+delivery_channel_classification:
+  IN_APP: AUTO
+  EMAIL: REVIEW
+  EXPORT: AUTO   # deviates from the documented EMAIL/EXPORT-both-REVIEW contract — see note above
+
+escalation_roles:
+  pii_compliance_block: SANDBOX_DPO
+  data_egress_review: SANDBOX_EGRESS

@@ -91,3 +91,22 @@ banxe_mcp/
 .mcp.json        — Claude Code MCP server config
 tests/test_transaction_monitor/test_mcp_tools.py  — test pattern reference
 ```
+
+## Analytics / Statements Mask-Agent Family — Config Substrate Only (not yet MCP-exposed)
+
+`AnalyticsPort`/`StatementPort` (ADR-054/055) and their governed client-facing agents
+(`AnalyticsClientAgent`/`StatementClientAgent`, `services/agents/`) implement the full
+ADR-049 §D2 mask gate chain but are **not called by any MCP tool** — this is true of the
+whole mask-agent family (cards, KYC onboarding, CRM, notification agents included), not
+just Analytics/Statements. This patchset adds only their config-as-data foundation:
+`config/masks/{analytics,statements}-mask-policy.yaml` + the typed loader
+`services/shared/mask_policy.py` (see `docs/API.md` → "Analytics / Statements Mask
+Config-as-Data Substrate" for the fail-loud contract). No adapter implements either port
+yet, and no MCP tool reads this config yet — that is deliberately out of scope here and
+requires a separate, explicitly-approved patchset (production activation is gated for
+operator/counsel review, not implied by this substrate existing).
+
+Separately: the existing `statement_generate`/`statement_download` MCP tools
+(`banxe_mcp/server.py` ~6969/~7002) call `api/routers/client_statements.py`, which does
+not use `StatementPort` at all — a live governance gap, tracked as mandatory follow-on
+work, not addressed by this patchset.

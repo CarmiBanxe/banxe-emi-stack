@@ -527,3 +527,74 @@ adapter = MockPaymentAdapter(failure_rate=0.0)
 adapter.payments   # dict of idempotency_key → PaymentResult
 adapter.reset()
 ```
+
+---
+
+## Analytics / Statements Mask Config-as-Data Substrate
+
+**Status (2026-07-25): Statements has a real adapter + wiring now (Option B step 1-3);
+Analytics is still config-as-data only. Neither is wired into any live MCP tool or API
+route yet — that is the deliberately-deferred final step for both.**
+
+`AnalyticsPort` (`services/reporting_analytics/analytics_port.py`, ADR-054 C7 mask) and
+`StatementPort` (`services/client_statements/statement_port.py`, ADR-055 Statements mask)
+are fully built, typed, read/report/export-oriented CONTRACT interfaces, with
+`AnalyticsClientAgent`/`StatementClientAgent` (`services/agents/{analytics,statement}_agent.py`)
+already implementing the full ADR-049 §D2 gate chain in front of them. Neither had a
+config-as-data source for cost caps, confidence bands, export/delivery materiality, or
+escalation roles before this patchset (CLAUDE.md Configuration-over-Hardcoding).
+
+This patchset adds only the config substrate:
+
+- `config/masks/analytics-mask-policy.yaml`, `config/masks/statements-mask-policy.yaml` —
+  schema-versioned YAML (same convention as `config/runtime_gate/agent-budget-policy.yaml`),
+  `status: PROPOSED`. Every field requiring an operator/counsel value is `null`; the
+  `delivery_channel_classification` block in the Statements file is the one exception —
+  its AUTO/REVIEW values are already fixed by `StatementPort`'s own documented contract,
+  not invented here.
+- `services/shared/mask_policy.py` — typed loader (`load_analytics_mask_policy`,
+  `load_statements_mask_policy`). Fails loudly (`MaskPolicyFileNotFound`,
+  `MaskPolicySchemaError`, `MaskPolicyNotReady`) rather than silently defaulting; loading
+  a `PROPOSED` file with `null` fields is expected and succeeds — it only raises if
+  `status: ACTIVE` is set while a required field is still unset.
+
+**Statements — Option B step 1-3, done:**
+- `services/client_statements/statement_adapter.py` — `StatementAdapter(StatementPort)`,
+  delegating to the existing untouched `StatementGenerator`. Known, documented
+  limitations: in-process statement cache only (no persistence layer), `CUSTOM`
+  period unsupported (raises `StatementPortError` — no dates available in
+  `GenerateStatementRequest` to resolve it from), EMAIL/EXPORT delivery always steps
+  to `PENDING_REVIEW` (no destination address in the port signature to actually send
+  to). `DeliveryResult` gained one additive field, `download_url: str | None = None`
+  (populated only for DELIVERED/IN_APP) — backward-compatible, existing callers
+  unaffected.
+- `services/client_statements/wiring.py` — `build_statement_client_agent()` assembles
+  a real `StatementClientAgent` from the config-as-data policy. **Refuses to build
+  anything unless `status: ACTIVE`** — confirmed by test to raise `MaskPolicyNotReady`
+  against the actual shipped (still `PROPOSED`) `config/masks/statements-mask-policy.yaml`.
+- `services/shared/mask_policy.py`'s `CostCap` was extended (additive) with
+  `max_request_tokens`/`max_request_cost` — the real `StatementMask`/`AnalyticsClientAgent`
+  contract requires both per-request AND per-window caps (ADR-047 §D2), which Option A's
+  original schema missed; both YAML files gained the two new `null` fields.
+
+**Governed cutover status (2026-07-25): policy-blocked pending ratification.** The
+Statements final reroute is fully prepared (adapter + wiring built and tested) but
+cannot be activated until `config/masks/statements-mask-policy.yaml`'s 8 blocking
+fields are supplied by their real owners (Finance / Engineering / Compliance / DPO)
+and `status` is set to `ACTIVE` — see
+`.ai/reports/statements-mask-policy-ratification-2026-07-25.md` for the exact
+checklist. No timeline is implied by this note.
+
+**Explicitly NOT done — this is the deliberate stopping point:**
+- `banxe_mcp/server.py`'s `statement_generate`/`statement_download` (~6969/~7002) and
+  `api/routers/client_statements.py` still bypass this governed path entirely and are
+  **unchanged**. Rerouting them requires `config/masks/statements-mask-policy.yaml` to
+  actually be filled in with real operator/counsel values and set to `status: ACTIVE`
+  first — `build_statement_client_agent()` will refuse to construct an agent otherwise,
+  and the alternative (making it work anyway) would mean either inventing threshold
+  values or silently disabling the fail-loud gate, both of which this canon forbids.
+  Flipping the live tools onto this path today, before that config exists, would take
+  both tools down for every caller the instant it deployed — that is a production
+  decision for the operator, not an implementation detail.
+- No concrete adapter implements `AnalyticsPort` yet; no MCP tool calls either
+  `AnalyticsClientAgent` or `StatementClientAgent`.

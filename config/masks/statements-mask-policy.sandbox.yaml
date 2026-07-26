@@ -1,0 +1,59 @@
+# ============================================================================
+# SANDBOX / NON-PROD ACTIVE policy — DO NOT USE IN PRODUCTION.
+# Separate file so the shipped statements-mask-policy.yaml stays PROPOSED
+# (contract enforced by tests). Values are Fable-advisor SANDBOX placeholders
+# (2026-07-26), NOT ratified. Prod cutover forbidden until Finance/Compliance/DPO
+# sign off real values + ADR-047/049/054/055 ratified.
+# ============================================================================
+# Statements mask policy — config-as-data (CLAUDE.md Configuration-over-Hardcoding;
+# StatementPort / StatementClientAgent docstrings, ADR-055 §D1/§D3/§D4, ADR-047 cost
+# governance). Money is Decimal (quoted strings, never float — I-01).
+#
+# STATUS: PROPOSED. Every field marked `null` below is a required operator/counsel
+# decision, not a default this file invents. The loader
+# (services/shared/mask_policy.py::load_statements_mask_policy) will load this file
+# successfully while status is PROPOSED, but will raise loudly if status is ever set
+# to ACTIVE while a required field is still null.
+#
+# This file is config-as-data ONLY in this patchset: no adapter or MCP tool reads it
+# yet. Existing MCP tools `statement_generate`/`statement_download`
+# (banxe_mcp/server.py ~6969/~7002) still bypass the governed StatementPort path
+# entirely and are NOT touched by this file — rerouting them is Option B, tracked
+# separately and deliberately not implemented here.
+
+schema: statements-mask-policy/v1
+mask_id: statements
+status: ACTIVE   # SANDBOX activation; prod cutover forbidden
+
+cost_cap:
+  # Extended with per-request caps: ADR-047 §D2 requires BOTH per-request and
+  # per-window dimensions (confirmed against StatementClientAgent's own docstring
+  # during Option B wiring).
+  window: 24h
+  max_tokens_window: 2000000        # SANDBOX (Fable) Eng/Operator to ratify
+                             # (multi-period itemisation, document rendering — ADR-047)
+  max_cost_window: "40.00"        # SANDBOX (Fable) GBP Finance to ratify
+  max_request_tokens: 250000         # SANDBOX (Fable) Eng/Operator to ratify
+  max_request_cost: "5.00"         # SANDBOX (Fable) GBP Finance to ratify
+  currency: GBP
+
+confidence_bands:
+  # See the same caveat as analytics-mask-policy.yaml: ADR-047's cited default
+  # (AUTO > 0.90 / REVIEW 0.70-0.90 / BLOCK < 0.70) is NOT copied here as fact.
+  auto_min_confidence: 0.95           # SANDBOX (Fable) Compliance to ratify
+  review_min_confidence: 0.80          # SANDBOX (Fable) Compliance to ratify
+
+delivery_channel_classification:
+  # Unlike the fields above, these three values are NOT invented — they are
+  # already fixed by StatementPort's own documented contract (ADR-055 §D1):
+  # IN_APP stays inside the application boundary (AUTO); EMAIL/EXPORT egress a
+  # PII-bearing funds artefact and step to REVIEW. Encoding them here moves an
+  # already-decided rule out of hardcoded logic and into config-as-data —
+  # it does not introduce a new business decision.
+  IN_APP: AUTO
+  EMAIL: REVIEW
+  EXPORT: REVIEW
+
+escalation_roles:
+  pii_compliance_block: "DPO"          # SANDBOX (Fable) DPO/Legal to ratify
+  data_egress_review: "Compliance Officer"  # SANDBOX (Fable) Compliance+DPO

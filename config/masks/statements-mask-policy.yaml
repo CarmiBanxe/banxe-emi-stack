@@ -1,0 +1,52 @@
+# Statements mask policy — config-as-data (CLAUDE.md Configuration-over-Hardcoding;
+# StatementPort / StatementClientAgent docstrings, ADR-055 §D1/§D3/§D4, ADR-047 cost
+# governance). Money is Decimal (quoted strings, never float — I-01).
+#
+# STATUS: PROPOSED. Every field marked `null` below is a required operator/counsel
+# decision, not a default this file invents. The loader
+# (services/shared/mask_policy.py::load_statements_mask_policy) will load this file
+# successfully while status is PROPOSED, but will raise loudly if status is ever set
+# to ACTIVE while a required field is still null.
+#
+# This file is config-as-data ONLY in this patchset: no adapter or MCP tool reads it
+# yet. Existing MCP tools `statement_generate`/`statement_download`
+# (banxe_mcp/server.py ~6969/~7002) still bypass the governed StatementPort path
+# entirely and are NOT touched by this file — rerouting them is Option B, tracked
+# separately and deliberately not implemented here.
+
+schema: statements-mask-policy/v1
+mask_id: statements
+status: PROPOSED   # PROPOSED -> ACTIVE only after explicit operator/counsel sign-off
+
+cost_cap:
+  # Extended with per-request caps: ADR-047 §D2 requires BOTH per-request and
+  # per-window dimensions (confirmed against StatementClientAgent's own docstring
+  # during Option B wiring).
+  window: 24h
+  max_tokens_window: null    # TODO(operator): statement generation can be heavy
+                             # (multi-period itemisation, document rendering — ADR-047)
+  max_cost_window: null      # TODO(operator): monetary cap per window, Decimal string
+  max_request_tokens: null   # TODO(operator): token budget per single request (int)
+  max_request_cost: null     # TODO(operator): monetary cap per single request, Decimal string
+  currency: GBP
+
+confidence_bands:
+  # See the same caveat as analytics-mask-policy.yaml: ADR-047's cited default
+  # (AUTO > 0.90 / REVIEW 0.70-0.90 / BLOCK < 0.70) is NOT copied here as fact.
+  auto_min_confidence: null
+  review_min_confidence: null
+
+delivery_channel_classification:
+  # Unlike the fields above, these three values are NOT invented — they are
+  # already fixed by StatementPort's own documented contract (ADR-055 §D1):
+  # IN_APP stays inside the application boundary (AUTO); EMAIL/EXPORT egress a
+  # PII-bearing funds artefact and step to REVIEW. Encoding them here moves an
+  # already-decided rule out of hardcoded logic and into config-as-data —
+  # it does not introduce a new business decision.
+  IN_APP: AUTO
+  EMAIL: REVIEW
+  EXPORT: REVIEW
+
+escalation_roles:
+  pii_compliance_block: null   # TODO(operator): who a ComplianceBlock escalates to
+  data_egress_review: null     # TODO(operator): who a REVIEW-gated delivery escalates to

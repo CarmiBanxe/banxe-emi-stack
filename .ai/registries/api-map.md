@@ -247,3 +247,19 @@
 
 ---
 *Last updated: 2026-04-13 (Sprint 12: safeguarding CASS 15 + tri-party recon API)*
+
+## Addendum: Analytics / Statements Mask Config Substrate (config-as-data only)
+
+`config/masks/analytics-mask-policy.yaml` and `config/masks/statements-mask-policy.yaml`
+(loaded via `services/shared/mask_policy.py`) are new config-as-data sources for the
+`AnalyticsPort`/`StatementPort` mask-agent family (see `docs/API.md` and
+`docs/architecture/ARCHITECTURE-MCP-SERVER.md` for the full picture). Neither has an
+API endpoint yet — no route is registered here because none exists. Not counted in the
+endpoint total above.
+
+**Audit note, not addressed in this patchset**: this registry lists `Statements` (2
+endpoints, `api/routers/statements.py`, `/v1/accounts/{account_id}/statement[.csv]`), but
+a *separate* router `api/routers/client_statements.py` (`/v1/statements/generate`,
+`/v1/statements/{id}/download` — backing the `statement_generate`/`statement_download`
+MCP tools) is not listed here at all. Two distinct statements surfaces exist; this
+registry only tracks one. Flagged for a future audit pass, not resolved here.

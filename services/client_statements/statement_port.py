@@ -282,12 +282,24 @@ class DeliveryResult:
       egress_redacted — whether the egressed artefact was PII-redacted; defaults
                         to True (redacted unless the compliance overlay authorises
                         otherwise).
+      download_url    — narrow, additive field (Option B canon-integration patch):
+                        present only when status is DELIVERED; None while
+                        PENDING_REVIEW/REJECTED, since no artefact may be handed
+                        out before REVIEW clears it. Added because the pre-existing
+                        `/v1/statements/{id}/download` surface returns a URL that
+                        the original ADR-055 contract had no field for — this is
+                        the smallest change that lets that surface be expressed as
+                        a governed deliver_statement(channel=EXPORT) call instead
+                        of bypassing the port entirely. Backward-compatible:
+                        defaults to None, so existing callers of this dataclass
+                        are unaffected.
     """
 
     statement_id: StatementId
     channel: DeliveryChannel
     status: DeliveryStatus
     egress_redacted: bool = True
+    download_url: str | None = None
 
 
 # ---------------------------------------------------------------------------

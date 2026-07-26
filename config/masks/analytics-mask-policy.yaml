@@ -1,0 +1,53 @@
+# Analytics (C7) mask policy — config-as-data (CLAUDE.md Configuration-over-Hardcoding;
+# AnalyticsPort / AnalyticsClientAgent docstrings, ADR-054 §D1/§D4, ADR-047 cost governance).
+# Money is Decimal (quoted strings, never float — I-01).
+#
+# STATUS: PROPOSED. Every field marked `null` below is a required operator/counsel
+# decision, not a default this file invents. The loader
+# (services/shared/mask_policy.py::load_analytics_mask_policy) will load this file
+# successfully while status is PROPOSED (that's the honest current state), but will
+# raise loudly if status is ever set to ACTIVE while a required field is still null —
+# so a half-configured file can never silently pass as ready.
+#
+# This file is config-as-data ONLY in this patchset: no adapter or MCP tool reads it
+# yet (see docs/API.md "Analytics / Statements mask config substrate" section for the
+# planned next step).
+
+schema: analytics-mask-policy/v1
+mask_id: analytics_c7
+status: PROPOSED   # PROPOSED -> ACTIVE only after explicit operator/counsel sign-off
+
+cost_cap:
+  # Same shape as the established config/runtime_gate/agent-budget-policy.yaml
+  # convention (schema-versioned, Decimal-as-quoted-string, fail-closed), extended
+  # with per-request caps: ADR-047 §D2 requires BOTH per-request and per-window
+  # dimensions, not per-window alone (confirmed against AnalyticsClientAgent's own
+  # docstring during Option B wiring).
+  window: 24h
+  max_tokens_window: null    # TODO(operator): token budget per window (int) — analytics
+                             # aggregation can be compute-heavy (ADR-047 §D2 emphasis)
+  max_cost_window: null      # TODO(operator): monetary cap per window, Decimal string
+                             # e.g. "20.00" — see currency below
+  max_request_tokens: null   # TODO(operator): token budget per single request (int)
+  max_request_cost: null     # TODO(operator): monetary cap per single request, Decimal string
+  currency: GBP
+
+confidence_bands:
+  # AnalyticsClientAgent's own docstring cites "AUTO > 0.90 / REVIEW 0.70-0.90 /
+  # BLOCK < 0.70" as an ADR-047 default — that citation is NOT copied here as a
+  # confirmed value. It must be verified against the real ADR-047 document (not
+  # present in this repo — see docs/API.md note) or explicitly set by the operator.
+  auto_min_confidence: null    # TODO(operator): confirm against ADR-047, or override
+  review_min_confidence: null  # TODO(operator): confirm against ADR-047, or override
+
+export_materiality:
+  # Gates AnalyticsPort.request_export (ADR-054 §D1): below threshold -> AUTO
+  # (ExportStatus.READY); at/above -> REVIEW (ExportTooLarge / PENDING_REVIEW).
+  max_auto_export_bytes: null   # TODO(operator): materiality threshold, bytes
+  max_auto_export_rows: null    # TODO(operator): optional alternate dimension, row count
+
+escalation_roles:
+  # AnalyticsPort/AnalyticsClientAgent docstrings say "DPO by default" for PII
+  # escalation — NOT treated as confirmed here; must be the real, current role.
+  pii_compliance_block: null   # TODO(operator): who a ComplianceBlock escalates to
+  data_egress_review: null     # TODO(operator): who an ExportTooLarge/REVIEW escalates to
