@@ -45,3 +45,29 @@ that governs it, and what remains a HUMAN decision.
 2. Prod cutover (statements / any adverse-media node): needs Finance+Compliance+DPO+MLRO
    sign-off + UK-GDPR lawful-basis assessment + re-issue SANDBOX ADRs as ratified.
 3. Wire adverse_media into periodic_review for ongoing monitoring (Stage 1 CDD-owned).
+
+
+## OPEN ITEMS — STATUS & SANDBOX MARKING (updated 2026-07-27)
+
+### ✅ DONE — Item 3: adverse-media wired into periodic monitoring
+Commit ae04dee. PeriodicReview.run_adverse_media_screening — ongoing re-screening
+(not only onboarding). SANDBOX-off by default (ADVERSE_MEDIA_PERIODIC_ENABLED=1 to enable).
+Stage-1 CDD research -> Stage-2 MLRO decision. service.py/HITL routing untouched.
+
+### ⛔ NOT USED NOW — Item 1: X-feed cron (automation)
+STATUS: prepared, NOT enabled. Headless claude -p + --mcp-config verified possible.
+SANDBOX: we do NOT run any cron. DO NOT enable until, at prod:
+  - operator sets a Spend Cap in X Billing (currently Unlimited — hard blocker),
+  - Auto-Recharge stays OFF,
+  - then a guarded cron may call the headless feed refresh.
+Marking: SANDBOX-only intent recorded; enable at prod after the Spend Cap gate.
+
+### ⛔ NOT USED NOW — Item 2: prod cutover (statements + adverse-media nodes)
+STATUS: all activations are SANDBOX-only. NOTHING runs against real customers.
+  - statements-mask-policy: shipped file stays PROPOSED; only .sandbox.yaml is ACTIVE.
+  - adverse-media X/RSS/Web nodes: SANDBOX-off (env opt-in), advisory-only.
+DO NOT enable at prod until:
+  - Finance + Compliance + DPO + MLRO sign-off on real values,
+  - UK-GDPR lawful-basis assessment for social-media screening of individuals,
+  - SANDBOX ADRs (047/049/054/055) re-issued as ratified (not DRAFT/SANDBOX).
+Marking: SANDBOX-only; prod requires the above human decisions.
