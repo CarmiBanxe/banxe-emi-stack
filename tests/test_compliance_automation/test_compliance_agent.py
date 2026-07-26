@@ -67,7 +67,7 @@ async def test_evaluate_compliance_returns_dict():
 async def test_evaluate_compliance_has_default_rules():
     agent = _make_agent()
     result = await agent.evaluate_compliance("ent-1")
-    assert len(result["checks"]) == 5  # 5 default rules
+    assert len(result["checks"]) == 6  # 6 default rules (incl. adverse-media)
 
 
 @pytest.mark.asyncio
@@ -90,7 +90,7 @@ async def test_evaluate_compliance_aml_passes():
 async def test_get_rules_returns_list():
     agent = _make_agent()
     rules = await agent.get_rules()
-    assert len(rules) == 5
+    assert len(rules) == 6
 
 
 @pytest.mark.asyncio

@@ -21,6 +21,7 @@ class RuleType(str, Enum):
     KYC = "KYC"
     SANCTIONS = "SANCTIONS"
     PEP = "PEP"
+    ADVERSE_MEDIA = "ADVERSE_MEDIA"
     DATA_RETENTION = "DATA_RETENTION"
     REPORTING = "REPORTING"
     POLICY = "POLICY"
@@ -343,6 +344,25 @@ _DEFAULT_RULES: list[ComplianceRule] = [
         severity=RuleSeverity.HIGH,
         description="Re-screen customers for Politically Exposed Person status every 180 days.",
         evaluation_logic="pep_rescreen",
+        is_active=True,
+        version=1,
+        created_at=datetime(2026, 1, 1, tzinfo=UTC),
+    ),
+    ComplianceRule(
+        # ⚠️ SANDBOX / NON-PROD: periodic adverse-media re-screening is gated OFF by
+        # default (ADVERSE_MEDIA_PERIODIC_ENABLED=1 to enable). 90-day cadence is a
+        # SANDBOX-tunable default. Prod enablement requires Compliance/MLRO sign-off
+        # + UK-GDPR lawful-basis + ADR ratification. Advisory only — hits route to
+        # MLRO HITL (agent-authority.md two-stage chain).
+        rule_id="rule-adverse-media-001",
+        name="Adverse-media periodic re-screening",
+        rule_type=RuleType.ADVERSE_MEDIA,
+        severity=RuleSeverity.HIGH,
+        description=(
+            "Re-screen customers against adverse-media/OSINT feeds every 90 days "
+            "(MLR 2017 Reg.28 ongoing monitoring; SANDBOX default, disabled by env)."
+        ),
+        evaluation_logic="adverse_media_rescreen",
         is_active=True,
         version=1,
         created_at=datetime(2026, 1, 1, tzinfo=UTC),

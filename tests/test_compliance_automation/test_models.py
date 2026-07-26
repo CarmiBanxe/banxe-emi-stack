@@ -208,7 +208,7 @@ def test_ruleset_contains_rules():
 
 
 def test_default_rules_count():
-    assert len(_DEFAULT_RULES) == 5
+    assert len(_DEFAULT_RULES) == 6
 
 
 def test_default_rules_rule_ids():
@@ -218,6 +218,7 @@ def test_default_rules_rule_ids():
     assert "rule-sanctions-001" in ids
     assert "rule-pep-001" in ids
     assert "rule-reporting-001" in ids
+    assert "rule-adverse-media-001" in ids
 
 
 def test_default_rules_aml_is_critical():

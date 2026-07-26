@@ -3,9 +3,17 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from decimal import Decimal
+import time
 
 import pytest
 
+from services.adverse_media.models import (
+    AdverseMediaArticle,
+    AdverseMediaHit,
+    AdverseMediaResult,
+    ScreeningAction,
+)
 from services.compliance_automation.models import (
     CheckStatus,
     ComplianceCheck,
@@ -17,6 +25,7 @@ from services.compliance_automation.models import (
     RuleType,
 )
 from services.compliance_automation.periodic_review import PeriodicReview
+from services.sanctions_screening.models import MatchConfidence
 
 _NOW = datetime(2026, 1, 15, 12, 0, 0, tzinfo=UTC)
 
@@ -203,3 +212,141 @@ async def test_run_sanctions_ignores_aml_rules(review):
     report = await rv.run_sanctions_screening("ent-1")
     assert len(report.checks) == 1
     assert report.checks[0].rule_id == "rule-san-1"
+
+
+# ── Adverse-media periodic re-screening (SANDBOX-off by default) ───────────────
+
+
+def _am_clear() -> AdverseMediaResult:
+    return AdverseMediaResult(
+        customer_id="ent-1",
+        screened_at=_NOW,
+        action=ScreeningAction.CLEAR,
+        risk="NONE",
+    )
+
+
+def _am_hit() -> AdverseMediaResult:
+    article = AdverseMediaArticle(
+        article_id="a-1",
+        subject_name="Jane Doe",
+        headline="Jane Doe charged in fraud investigation",
+        source="rss:news.example.com",
+        categories=["rss-osint"],
+    )
+    hit = AdverseMediaHit(
+        article=article,
+        name_score=Decimal("90"),
+        dob_match=False,
+        nat_match=True,
+        composite_score=Decimal("80"),
+        confidence=MatchConfidence.HIGH,
+    )
+    return AdverseMediaResult(
+        customer_id="ent-1",
+        screened_at=_NOW,
+        action=ScreeningAction.HITL_REVIEW,
+        risk="HIGH",
+        hits=[hit],
+        marble_case_id="marble-1",
+        hitl_case_id="hitl-1",  # the SERVICE enqueued MLRO HITL — not the periodic caller
+    )
+
+
+class _FakeAdverseMedia:
+    """Records calls; returns a canned result. Raises if constructed to be untouchable."""
+
+    def __init__(self, result: AdverseMediaResult | None = None, *, forbid: bool = False) -> None:
+        self._result = result
+        self._forbid = forbid
+        self.calls: list[tuple[str, str]] = []
+
+    def screen_customer(self, customer_id: str, *, actor_id: str = "system") -> AdverseMediaResult:
+        if self._forbid:
+            raise AssertionError("adverse-media feed must NOT be called when sandbox-disabled")
+        self.calls.append((customer_id, actor_id))
+        assert self._result is not None
+        return self._result
+
+
+def _review_with(service: _FakeAdverseMedia) -> PeriodicReview:
+    return PeriodicReview(
+        InMemoryRuleStore(),
+        InMemoryCheckStore(),
+        InMemoryReportStore(),
+        adverse_media=service,  # type: ignore[arg-type]
+    )
+
+
+@pytest.mark.asyncio
+async def test_adverse_media_disabled_by_default_skips_and_never_calls_feed(monkeypatch):
+    monkeypatch.delenv("ADVERSE_MEDIA_PERIODIC_ENABLED", raising=False)
+    rv = _review_with(_FakeAdverseMedia(forbid=True))
+    report = await rv.run_adverse_media_screening("ent-1")
+    assert len(report.checks) == 1
+    assert report.checks[0].status == CheckStatus.SKIPPED
+    assert "sandbox" in report.checks[0].finding.lower()
+    assert report.overall_status == CheckStatus.PASS  # SKIPPED never fails a report
+
+
+@pytest.mark.asyncio
+async def test_adverse_media_env_zero_still_disabled(monkeypatch):
+    monkeypatch.setenv("ADVERSE_MEDIA_PERIODIC_ENABLED", "0")
+    rv = _review_with(_FakeAdverseMedia(forbid=True))
+    report = await rv.run_adverse_media_screening("ent-1")
+    assert report.checks[0].status == CheckStatus.SKIPPED
+
+
+@pytest.mark.asyncio
+async def test_adverse_media_enabled_clear_gives_pass(monkeypatch):
+    monkeypatch.setenv("ADVERSE_MEDIA_PERIODIC_ENABLED", "1")
+    fake = _FakeAdverseMedia(_am_clear())
+    rv = _review_with(fake)
+    report = await rv.run_adverse_media_screening("ent-1")
+    assert report.overall_status == CheckStatus.PASS
+    assert report.checks[0].status == CheckStatus.PASS
+    assert fake.calls == [("ent-1", "cdd_review_agent:periodic")]
+
+
+@pytest.mark.asyncio
+async def test_adverse_media_enabled_hit_gives_warning_not_fail(monkeypatch):
+    monkeypatch.setenv("ADVERSE_MEDIA_PERIODIC_ENABLED", "1")
+    fake = _FakeAdverseMedia(_am_hit())
+    rv = _review_with(fake)
+    report = await rv.run_adverse_media_screening("ent-1")
+    # Advisory only: a hit is WARNING, never auto-FAIL — the decision is the MLRO
+    # HITL case the service enqueued (evidenced by hitl_case_id in the check).
+    assert report.overall_status == CheckStatus.WARNING
+    assert report.checks[0].status == CheckStatus.WARNING
+    assert "hitl_case_id=hitl-1" in report.checks[0].evidence
+    assert len(fake.calls) == 1  # MLRO-HITL routing is the SERVICE's responsibility
+
+
+@pytest.mark.asyncio
+async def test_adverse_media_sync_service_does_not_block_loop(monkeypatch):
+    monkeypatch.setenv("ADVERSE_MEDIA_PERIODIC_ENABLED", "1")
+
+    class _SlowFake(_FakeAdverseMedia):
+        def screen_customer(
+            self, customer_id: str, *, actor_id: str = "system"
+        ) -> AdverseMediaResult:
+            time.sleep(0.01)  # sync work runs in a thread via asyncio.to_thread
+            return super().screen_customer(customer_id, actor_id=actor_id)
+
+    rv = _review_with(_SlowFake(_am_clear()))
+    report = await rv.run_adverse_media_screening("ent-1")
+    assert report.overall_status == CheckStatus.PASS
+
+
+@pytest.mark.asyncio
+async def test_adverse_media_report_is_persisted(monkeypatch):
+    monkeypatch.setenv("ADVERSE_MEDIA_PERIODIC_ENABLED", "1")
+    report_store = InMemoryReportStore()
+    rv = PeriodicReview(
+        InMemoryRuleStore(),
+        InMemoryCheckStore(),
+        report_store,
+        adverse_media=_FakeAdverseMedia(_am_clear()),  # type: ignore[arg-type]
+    )
+    report = await rv.run_adverse_media_screening("ent-1")
+    assert await report_store.get_report(report.report_id) is not None
