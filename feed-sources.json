@@ -1,0 +1,22 @@
+{
+  "feed": "x-agent-intelligence",
+  "description": "Source configuration for the local AI/agent-intelligence feed (feed.html). Edit handles here; story content lives in feed.html.",
+  "generated_at": "2026-07-26T02:40:01Z",
+  "lookback_hours": 24,
+  "max_stories": 20,
+  "categories": ["Coding Agents", "Frameworks", "Agent Research", "Papers", "Models", "Meta"],
+  "sources": [
+    { "handle": "omarsar0",       "user_id": "3448284313",          "name": "elvis",             "verified": false },
+    { "handle": "AnthropicAI",    "user_id": "1353836358901501952", "name": "Anthropic",         "verified": true },
+    { "handle": "OpenAI",         "user_id": "4398626122",          "name": "OpenAI",            "verified": true },
+    { "handle": "OpenAIDevs",     "user_id": "1633874951508721686", "name": "OpenAI Developers", "verified": true },
+    { "handle": "GoogleDeepMind", "user_id": "4783690002",          "name": "Google DeepMind",   "verified": true },
+    { "handle": "karpathy",       "user_id": "33836629",            "name": "Andrej Karpathy",   "verified": false },
+    { "handle": "simonw",         "user_id": "12497",               "name": "Simon Willison",    "verified": false },
+    { "handle": "swyx",           "user_id": "33521530",            "name": "swyx",              "verified": false },
+    { "handle": "huggingface",    "user_id": "778764142412984320",  "name": "Hugging Face",      "verified": false },
+    { "handle": "_akhaliq",       "user_id": "2465283662",          "name": "AK",                "verified": false },
+    { "handle": "cognition",      "user_id": "1751810001751183361", "name": "Cognition",         "verified": true },
+    { "handle": "cursor_ai",      "user_id": "1695890961094909952", "name": "Cursor",            "verified": true }
+  ]
+}
