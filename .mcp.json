@@ -12,7 +12,8 @@
       "url": "https://api.x.com/mcp",
       "headers": {
         "Authorization": "Bearer ${X_BEARER_TOKEN}"
-      }
+      },
+      "type": "http"
     }
   }
 }
