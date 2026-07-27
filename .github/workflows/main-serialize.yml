@@ -1,0 +1,60 @@
+name: main-serialize
+
+# STEP1b port from banxe-architecture (Fable 5 roadmap §3/§6): software serialization
+# of merges into `main`. Variant B: a concurrency-group queues the gate one-PR-at-a-time,
+# and a base-drift guard fails any PR that is behind origin/main so it must be rebased
+# before merge (prevents stale-base revert / DIRTY). Complements the merge queue: in a
+# merge_group event the queue itself already serializes and rebases, so the gate
+# resolves OK immediately (context must resolve inside the queue, never time out).
+# See banxe-architecture docs/governance/MERGE-SERIALIZATION-FALLBACK.md (ADR-102 pointer).
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main]
+  merge_group:
+
+permissions:
+  contents: read
+
+# cancel-in-progress:false → gates line up in the Actions queue instead of cancelling
+# each other = soft serialization (one base-drift evaluation at a time).
+concurrency:
+  group: "main-merge-serialize-${{ github.event.pull_request.number || github.run_id }}"
+  cancel-in-progress: false
+
+jobs:
+  main-merge-serialize:
+    name: main-merge-serialize
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge queue — already serialized, gate resolves OK
+        if: github.event_name == 'merge_group'
+        run: |
+          echo "main-merge-serialize OK (merge_group: the queue serializes and rebases; base drift impossible)"
+
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        if: github.event_name == 'pull_request'
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Base-drift guard (PR must be up-to-date with origin/main)
+        if: github.event_name == 'pull_request'
+        run: |
+          set -e
+          git fetch --quiet origin main
+          MAIN_SHA=$(git rev-parse origin/main)
+          HEAD_SHA=$(git rev-parse HEAD)
+          BASE_SHA=$(git merge-base HEAD origin/main)
+          BEHIND=$(git rev-list --count HEAD..origin/main)
+          AHEAD=$(git rev-list --count origin/main..HEAD)
+          echo "origin/main  : $MAIN_SHA"
+          echo "PR head      : $HEAD_SHA"
+          echo "merge-base   : $BASE_SHA"
+          echo "behind/ahead : $BEHIND / $AHEAD"
+          if [ "$BEHIND" -gt 0 ]; then
+            echo "::error::BASE DRIFT: PR is $BEHIND commits behind origin/main — rebase before merge (prevents stale-base revert / DIRTY)."
+            exit 1
+          fi
+          echo "main-merge-serialize OK (up-to-date with origin/main; behind=0)"
