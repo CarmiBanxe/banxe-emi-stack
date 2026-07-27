@@ -365,3 +365,116 @@ def test_collect_audit_records_returns_copy(adapter: LegacySumSubAdapter) -> Non
     copy1.clear()
     copy2 = adapter.collect_audit_records()
     assert len(copy2) == 1
+
+
+# ── 14. advance_to — additional branches ──────────────────────────────────────
+
+
+def test_advance_to_expired_from_pending(adapter: LegacySumSubAdapter) -> None:
+    created = adapter.create_workflow(_request(customer_id="cust-exp-01"))
+    record = adapter.advance_to(created.workflow_id, KYCStatus.EXPIRED)
+    assert record.status == KYCStatus.EXPIRED
+
+
+def test_advance_to_unknown_workflow_raises(adapter: LegacySumSubAdapter) -> None:
+    with pytest.raises(SumSubApplicationError) as exc_info:
+        adapter.advance_to("ssub-ghost", KYCStatus.DOCUMENT_REVIEW)
+    assert exc_info.value.code == "workflow_not_found"
+
+
+def test_advance_to_emits_matching_audit_event(adapter: LegacySumSubAdapter) -> None:
+    created = adapter.create_workflow(_request(customer_id="cust-adv-evt"))
+    adapter.submit_documents(created.workflow_id, ["doc-z"])
+    adapter.advance_to(created.workflow_id, KYCStatus.RISK_ASSESSMENT)
+    events = [r.event_type for r in adapter.collect_audit_records()]
+    assert events[-1] == "RISK_ASSESSED"
+
+
+def test_advance_to_edd_triggered_event(adapter: LegacySumSubAdapter) -> None:
+    created = adapter.create_workflow(_request(customer_id="cust-edd-evt", is_pep=True))
+    adapter.submit_documents(created.workflow_id, ["doc-a"])
+    adapter.advance_to(created.workflow_id, KYCStatus.RISK_ASSESSMENT)
+    adapter.advance_to(created.workflow_id, KYCStatus.EDD_REQUIRED)
+    events = [r.event_type for r in adapter.collect_audit_records()]
+    assert "EDD_TRIGGERED" in events
+
+
+def test_advance_to_preserves_risk_score_without_note(adapter: LegacySumSubAdapter) -> None:
+    created = adapter.create_workflow(_request(customer_id="cust-adv-rs"))
+    adapter.submit_documents(created.workflow_id, ["doc-b"])
+    record = adapter.advance_to(created.workflow_id, KYCStatus.RISK_ASSESSMENT, risk_score=77)
+    assert record.risk_score == 77
+    assert record.notes == ()
+
+
+# ── 15. reject_workflow — mid-state ────────────────────────────────────────────
+
+
+def test_reject_workflow_from_document_review(adapter: LegacySumSubAdapter) -> None:
+    created = adapter.create_workflow(_request(customer_id="cust-rej-mid"))
+    adapter.submit_documents(created.workflow_id, ["doc-1"])
+    result = adapter.reject_workflow(created.workflow_id, RejectionReason.AML_PATTERN)
+    assert result.status == KYCStatus.REJECTED
+    assert result.rejection_reason == RejectionReason.AML_PATTERN
+
+
+def test_reject_workflow_unknown_raises(adapter: LegacySumSubAdapter) -> None:
+    with pytest.raises(SumSubApplicationError) as exc_info:
+        adapter.reject_workflow("ssub-nope", RejectionReason.AML_PATTERN)
+    assert exc_info.value.code == "workflow_not_found"
+
+
+def test_reject_after_approval_raises(adapter: LegacySumSubAdapter) -> None:
+    wf_id = _workflow_at_mlro_review(adapter)
+    adapter.approve_edd(wf_id, mlro_user_id="mlro-approve")
+    with pytest.raises(SumSubApplicationError) as exc_info:
+        adapter.reject_workflow(wf_id, RejectionReason.AML_PATTERN)
+    assert exc_info.value.code == "workflow_already_terminal"
+
+
+# ── 16. approve_edd — unknown workflow ─────────────────────────────────────────
+
+
+def test_approve_edd_unknown_workflow_raises(adapter: LegacySumSubAdapter) -> None:
+    with pytest.raises(SumSubApplicationError) as exc_info:
+        adapter.approve_edd("ssub-absent", mlro_user_id="mlro-x")
+    assert exc_info.value.code == "workflow_not_found"
+
+
+# ── 17. result mapping fidelity ────────────────────────────────────────────────
+
+
+def test_result_maps_all_fields(adapter: LegacySumSubAdapter) -> None:
+    created = adapter.create_workflow(_request(customer_id="cust-map-01"))
+    fetched = adapter.get_workflow(created.workflow_id)
+    assert fetched is not None
+    assert fetched.customer_id == "cust-map-01"
+    assert fetched.status == KYCStatus.PENDING
+    assert fetched.mlro_sign_off is False
+    assert fetched.rejection_reason is None
+    assert fetched.risk_score is None
+    assert fetched.notes == []
+
+
+def test_nationality_and_residence_uppercased(adapter: LegacySumSubAdapter) -> None:
+    adapter.create_workflow(_request(customer_id="cust-upper", nationality="gb"))
+    record = adapter._by_customer_id["cust-upper"]
+    assert record.nationality == "GB"
+    assert record.country_of_residence == "GB"
+
+
+# ── 18. full lifecycle audit trail ─────────────────────────────────────────────
+
+
+def test_full_lifecycle_audit_sequence(adapter: LegacySumSubAdapter) -> None:
+    wf_id = _workflow_at_mlro_review(adapter)
+    adapter.approve_edd(wf_id, mlro_user_id="mlro-final")
+    events = [r.event_type for r in adapter.collect_audit_records()]
+    assert events == [
+        "CREATED",
+        "DOCUMENTS_SUBMITTED",
+        "RISK_ASSESSED",
+        "EDD_TRIGGERED",
+        "MLRO_REVIEW_STARTED",
+        "APPROVED",
+    ]

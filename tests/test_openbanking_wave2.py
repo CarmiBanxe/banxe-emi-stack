@@ -484,3 +484,259 @@ async def test_aspsp_adapter_unified_delegation() -> None:
         await adapter.build_payment_request(_make_payment(aspsp_id="unknown"))
     with pytest.raises(ValueError, match="ASPSP not found"):
         await adapter.parse_payment_response("unknown", {})
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# IL-S4-WAVE2-01 — Wave 2 coverage (tests only; NO service code changed):
+#   cbpii_consent / intl_scheduled / psd2_flow_handler / adorsys_client.
+# All four are sandbox/stub (in-memory) — no live HTTP, nothing to mock out.
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+# ── 12. open_banking.cbpii_consent.SandboxCbpiiProvider ──────────────────────
+
+
+def test_cbpii_consent_lifecycle_and_idempotency() -> None:
+    from services.open_banking.cbpii_consent import (
+        EXISTING_CHECK_REF,
+        CbpiiConsentStage,
+        FundsConfirmationRef,
+        SandboxCbpiiProvider,
+        _default_consent_id,
+    )
+
+    provider = SandboxCbpiiProvider(id_generator=lambda: "CBPII-fixed-1")
+    c = provider.create_consent(
+        idempotency_key="idem-1", debtor_account_ref="INTERNAL", timestamp="2026-07-15T00:00:00Z"
+    )
+    assert c.stage is CbpiiConsentStage.AWAITING_AUTHORISATION
+    assert c.consent_id == "CBPII-fixed-1"
+    # idempotent by key: same key returns the same object (no new id minted)
+    assert (
+        provider.create_consent(
+            idempotency_key="idem-1",
+            debtor_account_ref="INTERNAL",
+            timestamp="2026-07-15T00:00:00Z",
+        )
+        is c
+    )
+    assert provider.get_consent("CBPII-fixed-1") is c
+    assert provider.get_consent("nope") is None
+    ref = provider.funds_confirmation_ref("CBPII-fixed-1")
+    assert isinstance(ref, FundsConfirmationRef)
+    assert ref.delegates_to == EXISTING_CHECK_REF
+    assert "INTERNAL" in provider.known_account_refs()
+    assert _default_consent_id().startswith("CBPII-")
+
+
+def test_cbpii_advance_transitions_and_fail_closed() -> None:
+    from services.open_banking.cbpii_consent import CbpiiConsentStage, SandboxCbpiiProvider
+
+    provider = SandboxCbpiiProvider(id_generator=lambda: "CBPII-adv")
+    provider.create_consent(idempotency_key="k", debtor_account_ref="INTERNAL", timestamp="t")
+    a = provider.advance(consent_id="CBPII-adv", to_stage=CbpiiConsentStage.AUTHORISED)
+    assert a.stage is CbpiiConsentStage.AUTHORISED
+    r = provider.advance(consent_id="CBPII-adv", to_stage=CbpiiConsentStage.REVOKED)
+    assert r.stage is CbpiiConsentStage.REVOKED
+    # REVOKED is terminal → illegal transition is fail-closed
+    with pytest.raises(ValueError, match="illegal transition"):
+        provider.advance(consent_id="CBPII-adv", to_stage=CbpiiConsentStage.AUTHORISED)
+    with pytest.raises(KeyError):
+        provider.advance(consent_id="ghost", to_stage=CbpiiConsentStage.AUTHORISED)
+
+
+def test_cbpii_id_collision_is_fail_closed() -> None:
+    from services.open_banking.cbpii_consent import SandboxCbpiiProvider
+
+    # generator that always returns the same id → second create exhausts attempts
+    provider = SandboxCbpiiProvider(id_generator=lambda: "DUP")
+    provider.create_consent(idempotency_key="a", debtor_account_ref="INTERNAL", timestamp="t")
+    with pytest.raises(RuntimeError, match="unique consent_id"):
+        provider.create_consent(idempotency_key="b", debtor_account_ref="INTERNAL", timestamp="t")
+
+
+# ── 13. open_banking.intl_scheduled.SandboxIntlScheduledProvider ─────────────
+
+_INTL_KW = {
+    "payment_intent_ref": "pi-1",
+    "debtor_account_ref": "INTERNAL",
+    "creditor_account_ref": "EXTERNAL",
+    "creditor_iban": "DE89370400440532013000",
+    "creditor_country": "DE",
+    "currency": "GBP",
+    "fx_indicator": False,
+    "execution_date": "2026-08-01",
+}
+
+
+def test_intl_scheduled_lifecycle_and_minor_units() -> None:
+    from services.open_banking.intl_scheduled import (
+        IntlScheduledStage,
+        SandboxIntlScheduledProvider,
+        _default_intent_id,
+    )
+
+    provider = SandboxIntlScheduledProvider(id_generator=lambda: "INTL-1")
+    intent = provider.create_consent(file_dedup_key="f1", amount=Decimal("12.34"), **_INTL_KW)
+    assert intent.amount_minor == 1234  # Decimal (I-01) → minor units (I-05)
+    assert intent.stage is IntlScheduledStage.CONSENT_AWAITING
+    # idempotent by file_dedup_key (a different amount does not create a new intent)
+    assert (
+        provider.create_consent(file_dedup_key="f1", amount=Decimal("99.99"), **_INTL_KW) is intent
+    )
+    assert provider.get_intent("INTL-1") is intent
+    assert provider.get_intent("none") is None
+    assert "INTERNAL" in provider.known_account_refs()
+    assert _default_intent_id().startswith("INTLSCHED-")
+
+
+def test_intl_scheduled_advance_and_fail_closed() -> None:
+    from services.open_banking.intl_scheduled import (
+        IntlScheduledStage,
+        SandboxIntlScheduledProvider,
+    )
+
+    provider = SandboxIntlScheduledProvider(id_generator=lambda: "INTL-adv")
+    provider.create_consent(file_dedup_key="f", amount=Decimal("1.00"), **_INTL_KW)
+    provider.advance(intent_id="INTL-adv", to_stage=IntlScheduledStage.CONSENT_AUTHORISED)
+    provider.advance(intent_id="INTL-adv", to_stage=IntlScheduledStage.SCHEDULED)
+    ex = provider.advance(intent_id="INTL-adv", to_stage=IntlScheduledStage.EXECUTED)
+    assert ex.stage is IntlScheduledStage.EXECUTED
+    with pytest.raises(ValueError, match="illegal transition"):
+        provider.advance(intent_id="INTL-adv", to_stage=IntlScheduledStage.SCHEDULED)
+    with pytest.raises(KeyError):
+        provider.advance(intent_id="ghost", to_stage=IntlScheduledStage.SCHEDULED)
+
+
+def test_intl_scheduled_id_collision_is_fail_closed() -> None:
+    from services.open_banking.intl_scheduled import SandboxIntlScheduledProvider
+
+    provider = SandboxIntlScheduledProvider(id_generator=lambda: "DUP")
+    provider.create_consent(file_dedup_key="a", amount=Decimal("1.00"), **_INTL_KW)
+    with pytest.raises(RuntimeError, match="unique intent_id"):
+        provider.create_consent(file_dedup_key="b", amount=Decimal("1.00"), **_INTL_KW)
+
+
+# ── 14. psd2_gateway.adorsys_client.AdorsysClient (stub — no live HTTP) ───────
+
+
+def test_adorsys_client_full_read_flow() -> None:
+    from services.psd2_gateway.adorsys_client import AdorsysClient
+    from services.psd2_gateway.psd2_models import (
+        AccountInfo,
+        BalanceResponse,
+        ConsentRequest,
+        Transaction,
+    )
+
+    client = AdorsysClient(base_url="http://x:8889/")  # trailing slash exercises rstrip
+    req = ConsentRequest(
+        iban="GB29NWBK60161331926819", access_type="allAccounts", valid_until="2027-01-01"
+    )
+    consent = client.create_consent(req)
+    assert consent.consent_id.startswith("cns_")
+    assert consent.iban == req.iban
+    accts = client.get_accounts(consent.consent_id)
+    assert isinstance(accts[0], AccountInfo)
+    acc_id = accts[0].account_id
+    txns = client.get_transactions(consent.consent_id, acc_id, "2026-01-01", "2026-02-01")
+    assert isinstance(txns[0], Transaction)
+    assert txns[0].amount == Decimal("1500.00")
+    bal = client.get_balances(consent.consent_id, acc_id)
+    assert isinstance(bal, BalanceResponse)
+    assert bal.balance_amount == Decimal("50000.00")
+
+
+def test_adorsys_blocked_jurisdiction_and_unknown_consent() -> None:
+    from services.psd2_gateway.adorsys_client import AdorsysClient
+    from services.psd2_gateway.psd2_models import ConsentRequest
+
+    client = AdorsysClient()
+    # I-02: IBAN from a blocked jurisdiction (RU) is rejected
+    with pytest.raises(ValueError, match="I-02"):
+        client.create_consent(
+            ConsentRequest(
+                iban="RU0204452560040702810412345678901",
+                access_type="allAccounts",
+                valid_until="2027-01-01",
+            )
+        )
+    # unknown consent is fail-closed (KeyError) on every read path
+    with pytest.raises(KeyError):
+        client.get_accounts("nope")
+    with pytest.raises(KeyError):
+        client.get_transactions("nope", "acc", "2026-01-01", "2026-02-01")
+    with pytest.raises(KeyError):
+        client.get_balances("nope", "acc")
+
+
+def test_adorsys_pisp_initiation_not_enabled() -> None:
+    from services.psd2_gateway.adorsys_client import AdorsysClient
+
+    with pytest.raises(RuntimeError, match="BT-007"):
+        AdorsysClient().initiate_payment_via_psd2()
+
+
+# ── 15. consent_management.psd2_flow_handler.PSD2FlowHandler ─────────────────
+
+
+def test_psd2_flow_aisp_initiate_and_activate() -> None:
+    from services.consent_management.models import ConsentScope, ConsentStatus
+    from services.consent_management.psd2_flow_handler import (
+        PSD2FlowHandler,
+        _make_consent_id,
+        _make_event_id,
+    )
+
+    handler = PSD2FlowHandler()
+    # unregistered TPP → fail-closed ValueError (PSD2 Art.65)
+    with pytest.raises(ValueError, match="not REGISTERED"):
+        handler.initiate_aisp_flow("cust-1", "tpp_unknown", [ConsentScope.ACCOUNTS], "https://cb")
+    # seeded REGISTERED TPP → PENDING consent
+    grant = handler.initiate_aisp_flow(
+        "cust-1", "tpp_plaid_uk", [ConsentScope.ACCOUNTS], "https://cb", ttl_days=30
+    )
+    assert grant.status is ConsentStatus.PENDING
+    active = handler.complete_aisp_flow(grant.consent_id, customer_approved=True)
+    assert active.status is ConsentStatus.ACTIVE
+    assert _make_consent_id("aisp", "c", "t", "ts").startswith("cns_")
+    assert _make_event_id("cns", "X", "ts").startswith("evt_")
+
+
+def test_psd2_flow_complete_reject_and_not_found() -> None:
+    from services.consent_management.models import ConsentScope, ConsentStatus
+    from services.consent_management.psd2_flow_handler import PSD2FlowHandler
+
+    handler = PSD2FlowHandler()
+    with pytest.raises(ValueError, match="not found"):
+        handler.complete_aisp_flow("ghost", customer_approved=True)
+    grant = handler.initiate_aisp_flow(
+        "cust-2", "tpp_truelayer", [ConsentScope.BALANCES], "https://cb"
+    )
+    revoked = handler.complete_aisp_flow(grant.consent_id, customer_approved=False)
+    assert revoked.status is ConsentStatus.REVOKED
+
+
+def test_psd2_flow_pisp_is_always_hitl() -> None:
+    from services.consent_management.psd2_flow_handler import PSD2FlowHandler
+
+    proposal = PSD2FlowHandler().initiate_pisp_payment("cns-x", Decimal("42.00"), "payee-1")
+    assert proposal.action == "INITIATE_PISP_PAYMENT"
+    assert proposal.requires_approval_from == "COMPLIANCE_OFFICER"
+    assert proposal.autonomy_level == "L4"  # I-27
+
+
+def test_psd2_flow_cbpii_edd_threshold_and_funds_confirmed() -> None:
+    from services.consent_management.models import ConsentScope
+    from services.consent_management.psd2_flow_handler import EDD_THRESHOLD, PSD2FlowHandler
+
+    handler = PSD2FlowHandler()
+    # amount at/above EDD threshold → ValueError (I-04)
+    with pytest.raises(ValueError, match="EDD"):
+        handler.handle_cbpii_check("any", EDD_THRESHOLD)
+    # ACTIVE consent + amount below threshold → funds confirmed True
+    grant = handler.initiate_aisp_flow(
+        "cust-3", "tpp_plaid_uk", [ConsentScope.ACCOUNTS], "https://cb"
+    )
+    handler.complete_aisp_flow(grant.consent_id, customer_approved=True)
+    assert handler.handle_cbpii_check(grant.consent_id, Decimal("50")) is True

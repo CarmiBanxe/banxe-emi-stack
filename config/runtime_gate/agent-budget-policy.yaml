@@ -4,11 +4,11 @@
 schema: agent-budget-policy/v1
 window: 24h                      # default rolling window
 agents:
-  audit_trail:                   # RED (PR #284)
+  audit_trail:                   # RED — see agents/passports/audit_trail/AGENT.md (status: PROPOSED; supersedes parked PRs #283/#284/#285 — #284 alone is a stale reference)
     max_tokens_window: 200000
     max_cost_window: "5.00"      # GBP, Decimal
     window: 24h
-  banxe_aml_orchestrator:        # RED (future AML activation)
+  banxe_aml_orchestrator:        # RED (future AML activation) — RESERVED: no agent passport/soul file exists yet (audited 2026-07-18, fleet governance audit). Pre-provisioned budget for a planned agent; do not remove without confirming a passport/soul file has landed under this name.
     max_tokens_window: 500000
     max_cost_window: "20.00"
     window: 24h
@@ -45,6 +45,82 @@ agents:
     max_cost_window: "5.00"
     window: 24h
   lending:                       # RED (operator 2026-07-13, PROPOSED)
+    max_tokens_window: 200000
+    max_cost_window: "5.00"
+    window: 24h
+  crypto:                        # RED (operator 2026-07-18, PROPOSED)
+    max_tokens_window: 500000
+    max_cost_window: "20.00"
+    window: 24h
+  risk:                          # RED (operator 2026-07-18, PROPOSED)
+    max_tokens_window: 500000
+    max_cost_window: "20.00"
+    window: 24h
+  sanctions_screening:           # RED (operator 2026-07-18, PROPOSED)
+    max_tokens_window: 500000
+    max_cost_window: "20.00"
+    window: 24h
+  swift_correspondent:           # RED (operator 2026-07-18, PROPOSED)
+    max_tokens_window: 500000
+    max_cost_window: "20.00"
+    window: 24h
+  aml_check_agent:                # RED (operator 2026-07-18, PROPOSED)
+    max_tokens_window: 500000
+    max_cost_window: "20.00"
+    window: 24h
+  fraud_detection_agent:          # RED (operator 2026-07-18, PROPOSED)
+    max_tokens_window: 500000
+    max_cost_window: "20.00"
+    window: 24h
+  jube_adapter_agent:              # RED (operator 2026-07-18, PROPOSED)
+    max_tokens_window: 500000
+    max_cost_window: "20.00"
+    window: 24h
+  tm_agent:                        # RED (operator 2026-07-18, PROPOSED)
+    max_tokens_window: 500000
+    max_cost_window: "20.00"
+    window: 24h
+  consent_management:            # RED (operator 2026-07-18, PROPOSED)
+    max_tokens_window: 300000
+    max_cost_window: "10.00"
+    window: 24h
+  psd2_gateway:                  # RED (operator 2026-07-18, PROPOSED)
+    max_tokens_window: 300000
+    max_cost_window: "10.00"
+    window: 24h
+  kyb_onboarding:                # RED (operator 2026-07-18, PROPOSED)
+    max_tokens_window: 300000
+    max_cost_window: "10.00"
+    window: 24h
+  mlro_agent:                     # RED (operator 2026-07-18, PROPOSED)
+    max_tokens_window: 300000
+    max_cost_window: "10.00"
+    window: 24h
+  compliance_calendar:           # RED (operator 2026-07-18, PROPOSED)
+    max_tokens_window: 200000
+    max_cost_window: "5.00"
+    window: 24h
+  multi_tenancy:                 # RED (operator 2026-07-18, PROPOSED)
+    max_tokens_window: 200000
+    max_cost_window: "5.00"
+    window: 24h
+  cdd_review_agent:                # RED (operator 2026-07-18, PROPOSED)
+    max_tokens_window: 200000
+    max_cost_window: "5.00"
+    window: 24h
+  breach_prediction_agent:         # RED (operator 2026-07-18, PROPOSED)
+    max_tokens_window: 200000
+    max_cost_window: "5.00"
+    window: 24h
+  recon_analysis_agent:            # RED (operator 2026-07-18, PROPOSED)
+    max_tokens_window: 200000
+    max_cost_window: "5.00"
+    window: 24h
+  mcp_server_agent:                # RED (operator 2026-07-18, PROPOSED)
+    max_tokens_window: 200000
+    max_cost_window: "5.00"
+    window: 24h
+  feedback_analytics_agent:        # RED (operator 2026-07-18, PROPOSED) — advisory/no-gate floor value
     max_tokens_window: 200000
     max_cost_window: "5.00"
     window: 24h
