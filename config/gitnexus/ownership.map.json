@@ -20,7 +20,8 @@
       "role": "CTIO + DBA (operator-binding-required)",
       "patterns": [
         "/alembic/"
-      ]
+      ],
+      "scip_index": true
     },
     {
       "zone": "ledger-core",
@@ -31,7 +32,8 @@
         "/services/banking-engine/",
         "/services/payment/",
         "/services/batch_payments/"
-      ]
+      ],
+      "scip_index": true
     },
     {
       "zone": "compliance-aml",
@@ -46,7 +48,8 @@
         "/services/fraud_tracer/",
         "/services/case_management/",
         "/services/hitl/"
-      ]
+      ],
+      "scip_index": true
     },
     {
       "zone": "consumer-duty",
@@ -57,7 +60,8 @@
         "/services/consumer_duty/",
         "/services/fatca_crs/",
         "/services/customer_lifecycle/"
-      ]
+      ],
+      "scip_index": true
     },
     {
       "zone": "safeguarding-recon",
@@ -69,7 +73,8 @@
         "/services/safeguarding-engine/",
         "/services/statements/",
         "/services/client_statements/"
-      ]
+      ],
+      "scip_index": true
     },
     {
       "zone": "reporting-fca",
@@ -79,7 +84,8 @@
         "/services/reporting/",
         "/services/reporting_analytics/",
         "/dbt/"
-      ]
+      ],
+      "scip_index": true
     },
     {
       "zone": "audit-append-only",
@@ -89,7 +95,8 @@
         "/services/audit_trail/",
         "/services/audit/",
         "/services/audit_dashboard/"
-      ]
+      ],
+      "scip_index": true
     },
     {
       "zone": "infra-governance",
@@ -110,7 +117,8 @@
         "/CLAUDE.md",
         "/INSTRUCTION-LEDGER.md",
         "/CODEOWNERS"
-      ]
+      ],
+      "scip_index": false
     },
     {
       "zone": "api-contracts",
@@ -119,7 +127,8 @@
       "patterns": [
         "/api/",
         "/banxe_mcp/"
-      ]
+      ],
+      "scip_index": true
     },
     {
       "zone": "agents",
@@ -127,7 +136,8 @@
       "role": "CTIO + Compliance Officer (EU AI Act Art.14) (operator-binding-required)",
       "patterns": [
         "/agents/"
-      ]
+      ],
+      "scip_index": true
     },
     {
       "zone": "frontend",
@@ -136,12 +146,44 @@
       "patterns": [
         "/frontend/",
         "/apps/"
-      ]
+      ],
+      "scip_index": true
     }
   ],
   "extension_points": {
     "step3_scip": "per-zone key `scip_index: true` will opt zones into symbol indexing granularity",
     "step4_fleet_graph": "zones[].zone names are the join key to banxe-architecture org-path-ownership departments; fleet builder consumes both maps read-only",
-    "step8_merge_queue": "criticality feeds the merge-time impact gate thresholds (CRITICAL -> owner ack required)"
+    "step8_merge_queue": "criticality feeds the merge-time impact gate thresholds (CRITICAL -> owner ack required)",
+    "step3_scip_status": "POPULATED by STEP3 — see top-level `scip` block and zones[].scip_index"
+  },
+  "scip": {
+    "targets_file": "config/gitnexus/scip.targets.json",
+    "indexers": {
+      "python": "@sourcegraph/scip-python@0.6.6",
+      "typescript": "@sourcegraph/scip-typescript@0.4.0"
+    },
+    "artifact_contract": {
+      "name": "scip-<slug>",
+      "files": [
+        "index.scip",
+        "scip-meta.json"
+      ],
+      "meta_fields": [
+        "project",
+        "path",
+        "lang",
+        "graph_commit",
+        "built_at",
+        "indexer",
+        "status",
+        "reason",
+        "scip_bytes"
+      ],
+      "status_values": [
+        "OK",
+        "UNKNOWN"
+      ],
+      "no_mock_rule": "indexer failure => status UNKNOWN + visible warning; an empty/absent index is NEVER published as OK"
+    }
   }
 }
