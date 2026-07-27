@@ -1,25 +1,26 @@
 #!/bin/bash
-# LucidShark pre-commit quality scan
-# BUG-006 fix: prevent AI-generated code issues from reaching commit
+# Pre-commit quality scan — banxe-emi-stack
+# Primary: LucidShark MCP (when connected in Claude Code). CLI fallback: semgrep with
+# the repo's OWN fintech rules (.semgrep/banxe-rules.yml), NOT generic --config=auto.
+set -uo pipefail
+ROOT="$(git rev-parse --show-toplevel)"
+RULES="$ROOT/.semgrep/banxe-rules.yml"
 
-echo "🔍 Running LucidShark scan..."
+echo "🔍 Pre-commit quality scan..."
 
-# Check if lucidshark is available
-if command -v lucidshark &> /dev/null; then
-    lucidshark scan --fail-on=critical
-    if [ $? -ne 0 ]; then
-        echo "❌ LucidShark found critical issues. Fix before committing."
-        exit 1
+if command -v lucidshark >/dev/null 2>&1 && lucidshark --version 2>/dev/null | grep -qvE '0\.0\.0\.dev'; then
+    echo "→ LucidShark CLI"
+    lucidshark scan --fail-on=critical || { echo "❌ LucidShark critical issues."; exit 1; }
+elif command -v semgrep >/dev/null 2>&1; then
+    if [ -f "$RULES" ]; then
+        echo "→ semgrep with banxe fintech rules ($RULES)"
+        semgrep scan --config "$RULES" --error --severity=ERROR "$ROOT/services" "$ROOT/api" "$ROOT/src" \
+            || { echo "❌ semgrep (banxe-rules) found ERROR-level issues."; exit 1; }
+    else
+        echo "⚠️ banxe-rules.yml missing — semgrep auto config"
+        semgrep scan --config=auto --error --severity=ERROR || { echo "❌ semgrep issues."; exit 1; }
     fi
 else
-    echo "⚠️ LucidShark not installed. Running semgrep fallback..."
-    if command -v semgrep &> /dev/null; then
-        semgrep scan --config=auto --error --severity=ERROR
-        if [ $? -ne 0 ]; then
-            echo "❌ Semgrep found critical issues. Fix before committing."
-            exit 1
-        fi
-    fi
+    echo "❌ No scanner available (neither LucidShark nor semgrep)."; exit 1
 fi
-
 echo "✅ Quality scan passed"
