@@ -1,19 +1,22 @@
 {
   "mcpServers": {
-    "lucidshark": {
-      "command": "lucidshark",
-      "args": [
-        "serve",
-        "--mcp",
-        "."
-      ]
-    },
     "xapi": {
       "url": "https://api.x.com/mcp",
       "headers": {
         "Authorization": "Bearer ${X_BEARER_TOKEN}"
       },
       "type": "http"
+    }
+  },
+  "mcpServers_disabled": {
+    "lucidshark": {
+      "reason": "no working binary (pip 0.0.0.dev0 stub; no install.sh; only duplo helper present). Re-enable when a real LucidShark binary/MCP is provisioned.",
+      "command": "lucidshark",
+      "args": [
+        "serve",
+        "--mcp",
+        "."
+      ]
     }
   }
 }

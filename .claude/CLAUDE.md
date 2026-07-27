@@ -1,8 +1,13 @@
-<!-- lucidshark:start - managed by lucidshark init, do not edit manually -->
-## LucidShark — REQUIRED: Scan After Every Code Change
-Run `mcp__lucidshark__scan(fix=true)` after every Edit/Write. Before commits: `domains=["all"]`.
-Do NOT report task as done until scan shows zero issues.
-<!-- lucidshark:end -->
+<!-- quality-scanner status — corrected 2026-07-27 -->
+## Quality Scanner — ACTUAL state
+Primary gate (REAL, runs on every commit): semgrep with the repo's own fintech rules
+(.semgrep/banxe-rules.yml) via .githooks/pre-commit, after .githooks/role-guard.sh.
+Also available: ruff, mypy, bandit, pytest, coverage (see pyproject.toml, scripts/quality-gate.sh).
+LucidShark: OPTIONAL / NOT INSTALLED here (pip pkg is 0.0.0.dev0 stub; no working binary;
+no install.sh in repo). If a real LucidShark binary/MCP is provisioned, its hooks/skill
+(.claude/skills/lucidshark, .claude/hooks/post-edit-scan.sh) will pick it up; until then it is
+NOT required and NOT a blocker. Do NOT claim a task is blocked on LucidShark.
+<!-- end quality-scanner status -->
 
 ---
 
