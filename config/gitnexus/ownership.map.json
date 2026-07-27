@@ -1,0 +1,147 @@
+{
+  "$schema_note": "STEP2 ownership source of truth for banxe-emi-stack (repo-scope only, ADR-117). .github/CODEOWNERS is GENERATED from this file by scripts/gitnexus/gen_codeowners.py — never hand-edit both. Fleet-level counterpart: banxe-architecture config/gitnexus/org-path-ownership.map.yaml (STEP4 merges them).",
+  "schema_version": "1.0",
+  "freshness": {
+    "generated_at": "2026-07-27T18:00:00Z",
+    "review_by": "2026-10-27",
+    "policy": "Fable 5 hard rule: a stale map is more dangerous than no map. CI (codeowners-coverage) emits a warning once review_by is past; the quarterly review re-stamps both dates. Staleness never hard-fails merges (I-27: humans decide), it surfaces."
+  },
+  "identity_note": "USER-OWNED repo (no org): GitHub CODEOWNERS enforces only collaborators with write access — today that is exactly @CarmiBanxe. Role fields are OPERATOR-BINDING-REQUIRED placeholders: when the org/teams exist, bind each role to a real team and regenerate. Previous CODEOWNERS pointed at @mmber — an unrelated non-collaborator account (8 errors in GitHub codeowners API) — every rule was silently non-functional.",
+  "default_owner": {
+    "github": [
+      "CarmiBanxe"
+    ],
+    "role": "Operator (CEO, SMF1)"
+  },
+  "zones": [
+    {
+      "zone": "migrations",
+      "criticality": "CRITICAL",
+      "role": "CTIO + DBA (operator-binding-required)",
+      "patterns": [
+        "/alembic/"
+      ]
+    },
+    {
+      "zone": "ledger-core",
+      "criticality": "CRITICAL",
+      "role": "CTIO / Core Banking (operator-binding-required)",
+      "patterns": [
+        "/services/ledger/",
+        "/services/banking-engine/",
+        "/services/payment/",
+        "/services/batch_payments/"
+      ]
+    },
+    {
+      "zone": "compliance-aml",
+      "criticality": "CRITICAL",
+      "role": "MLRO (SMF17) / Compliance Officer (operator-binding-required)",
+      "patterns": [
+        "/services/aml/",
+        "/services/kyc/",
+        "/services/sanctions_screening/",
+        "/services/adverse_media/",
+        "/services/fraud/",
+        "/services/fraud_tracer/",
+        "/services/case_management/",
+        "/services/hitl/"
+      ]
+    },
+    {
+      "zone": "consumer-duty",
+      "criticality": "CRITICAL",
+      "role": "Compliance Officer (PS22/9) (operator-binding-required)",
+      "patterns": [
+        "/services/complaints/",
+        "/services/consumer_duty/",
+        "/services/fatca_crs/",
+        "/services/customer_lifecycle/"
+      ]
+    },
+    {
+      "zone": "safeguarding-recon",
+      "criticality": "CRITICAL",
+      "role": "CFO / CASS oversight (operator-binding-required)",
+      "patterns": [
+        "/services/recon/",
+        "/services/safeguarding/",
+        "/services/safeguarding-engine/",
+        "/services/statements/",
+        "/services/client_statements/"
+      ]
+    },
+    {
+      "zone": "reporting-fca",
+      "criticality": "CRITICAL",
+      "role": "CFO (FIN060 sign-off) (operator-binding-required)",
+      "patterns": [
+        "/services/reporting/",
+        "/services/reporting_analytics/",
+        "/dbt/"
+      ]
+    },
+    {
+      "zone": "audit-append-only",
+      "criticality": "CRITICAL",
+      "role": "MLRO + CTIO (I-24) (operator-binding-required)",
+      "patterns": [
+        "/services/audit_trail/",
+        "/services/audit/",
+        "/services/audit_dashboard/"
+      ]
+    },
+    {
+      "zone": "infra-governance",
+      "criticality": "HIGH",
+      "role": "Operator (CEO, SMF1)",
+      "patterns": [
+        "/.github/",
+        "/.githooks/",
+        "/.semgrep/",
+        "/.claude/",
+        "/infra/",
+        "/deploy/",
+        "/docker/",
+        "/config/gitnexus/",
+        "/docs/canon/",
+        "/docs/adr/",
+        "/ledger/",
+        "/CLAUDE.md",
+        "/INSTRUCTION-LEDGER.md",
+        "/CODEOWNERS"
+      ]
+    },
+    {
+      "zone": "api-contracts",
+      "criticality": "HIGH",
+      "role": "CTIO (operator-binding-required)",
+      "patterns": [
+        "/api/",
+        "/banxe_mcp/"
+      ]
+    },
+    {
+      "zone": "agents",
+      "criticality": "HIGH",
+      "role": "CTIO + Compliance Officer (EU AI Act Art.14) (operator-binding-required)",
+      "patterns": [
+        "/agents/"
+      ]
+    },
+    {
+      "zone": "frontend",
+      "criticality": "MEDIUM",
+      "role": "Frontend lead (operator-binding-required)",
+      "patterns": [
+        "/frontend/",
+        "/apps/"
+      ]
+    }
+  ],
+  "extension_points": {
+    "step3_scip": "per-zone key `scip_index: true` will opt zones into symbol indexing granularity",
+    "step4_fleet_graph": "zones[].zone names are the join key to banxe-architecture org-path-ownership departments; fleet builder consumes both maps read-only",
+    "step8_merge_queue": "criticality feeds the merge-time impact gate thresholds (CRITICAL -> owner ack required)"
+  }
+}

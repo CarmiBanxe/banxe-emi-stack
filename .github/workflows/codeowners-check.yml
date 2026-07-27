@@ -1,0 +1,57 @@
+name: codeowners-check
+
+# STEP2 (Fable 5 rollout): CODEOWNERS is GENERATED from config/gitnexus/ownership.map.json.
+# This check enforces (a) no drift between map and generated file, (b) every CRITICAL
+# zone pattern still points at a real directory, (c) freshness policy — a stale map
+# WARNS (never hard-fails: I-27, humans decide; staleness must surface, not block).
+# stdlib-only; no external products. Runs on pull_request AND merge_group so the
+# context resolves inside the merge queue (STEP1b pattern).
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  codeowners-coverage:
+    name: codeowners-coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - name: Drift check (CODEOWNERS == render(ownership.map.json))
+        run: python3 scripts/gitnexus/gen_codeowners.py --check
+      - name: Critical-zone coverage + freshness
+        run: |
+          python3 - <<'EOF'
+          import datetime as dt
+          import json
+          import pathlib
+          import sys
+
+          data = json.loads(pathlib.Path("config/gitnexus/ownership.map.json").read_text())
+          failures = []
+          for zone in data["zones"]:
+              if zone["criticality"] != "CRITICAL":
+                  continue
+              for pattern in zone["patterns"]:
+                  path = pathlib.Path(pattern.strip("/"))
+                  if not path.exists():
+                      failures.append(f"{zone['zone']}: pattern {pattern} matches no real path")
+          if failures:
+              print("FAIL: CRITICAL zone patterns out of sync with the tree "
+                    "(update config/gitnexus/ownership.map.json and regenerate):")
+              print("\n".join(f"  - {f}" for f in failures))
+              sys.exit(1)
+          review_by = dt.date.fromisoformat(data["freshness"]["review_by"])
+          today = dt.datetime.now(dt.UTC).date()
+          if today > review_by:
+              print(f"::warning title=Ownership map stale::review_by {review_by} is past "
+                    f"(today {today}). Fable 5 rule: a stale map is more dangerous than no map — "
+                    f"re-review config/gitnexus/ownership.map.json and re-stamp freshness.")
+          else:
+              print(f"freshness OK (review_by {review_by})")
+          print("codeowners-coverage OK")
+          EOF

@@ -1,25 +1,84 @@
-# CODEOWNERS — banxe-emi-stack
-# IL-PROT-01 (Sprint 42) | Effective: 2026-04-27
+# CODEOWNERS — banxe-emi-stack  [GENERATED — DO NOT HAND-EDIT]
+# Source of truth: config/gitnexus/ownership.map.json
+# Regenerate:      python3 scripts/gitnexus/gen_codeowners.py
+# Drift check:     python3 scripts/gitnexus/gen_codeowners.py --check  (CI: codeowners-coverage)
+# Canon:           docs/canon/GITNEXUS-STEP2-CODEOWNERS.md (STEP2, Fable 5 rollout)
 #
-# All pull requests require review from the code owner of the
-# modified path. GitHub enforces this when "Require review from
-# CODEOWNERS" is enabled in branch protection settings.
-#
-# Syntax: <pattern> <@owner> [<@owner2> ...]
-# Patterns follow .gitignore rules; last matching pattern wins.
+# USER-OWNED repo: only collaborators with write access are enforceable owners.
+# Role names below are OPERATOR-BINDING-REQUIRED placeholders (comments only) —
+# bind to real teams and regenerate when the GitHub org exists.
+# Syntax: .gitignore-style patterns; LAST matching pattern wins.
 
-# Default owner for everything not matched below
-*                                @mmber
+# freshness: generated_at=2026-07-27T18:00:00Z review_by=2026-10-27
 
-# Compliance-critical service paths (FCA CASS 15 / PS22/9)
-/services/complaints/            @mmber
-/services/fatca_crs/             @mmber
-/services/customer_lifecycle/    @mmber
-/services/client_statements/     @mmber
+# default — role: Operator (CEO, SMF1)
+*	@CarmiBanxe
 
-# CI/CD workflows — changes require extra scrutiny
-/.github/workflows/              @mmber
+# zone: migrations [CRITICAL] — role: CTIO + DBA (operator-binding-required)
+/alembic/	@CarmiBanxe
 
-# Claude Code configuration — policy files
-/.claude/                        @mmber
-/CLAUDE.md                       @mmber
+# zone: ledger-core [CRITICAL] — role: CTIO / Core Banking (operator-binding-required)
+/services/ledger/	@CarmiBanxe
+/services/banking-engine/	@CarmiBanxe
+/services/payment/	@CarmiBanxe
+/services/batch_payments/	@CarmiBanxe
+
+# zone: compliance-aml [CRITICAL] — role: MLRO (SMF17) / Compliance Officer (operator-binding-required)
+/services/aml/	@CarmiBanxe
+/services/kyc/	@CarmiBanxe
+/services/sanctions_screening/	@CarmiBanxe
+/services/adverse_media/	@CarmiBanxe
+/services/fraud/	@CarmiBanxe
+/services/fraud_tracer/	@CarmiBanxe
+/services/case_management/	@CarmiBanxe
+/services/hitl/	@CarmiBanxe
+
+# zone: consumer-duty [CRITICAL] — role: Compliance Officer (PS22/9) (operator-binding-required)
+/services/complaints/	@CarmiBanxe
+/services/consumer_duty/	@CarmiBanxe
+/services/fatca_crs/	@CarmiBanxe
+/services/customer_lifecycle/	@CarmiBanxe
+
+# zone: safeguarding-recon [CRITICAL] — role: CFO / CASS oversight (operator-binding-required)
+/services/recon/	@CarmiBanxe
+/services/safeguarding/	@CarmiBanxe
+/services/safeguarding-engine/	@CarmiBanxe
+/services/statements/	@CarmiBanxe
+/services/client_statements/	@CarmiBanxe
+
+# zone: reporting-fca [CRITICAL] — role: CFO (FIN060 sign-off) (operator-binding-required)
+/services/reporting/	@CarmiBanxe
+/services/reporting_analytics/	@CarmiBanxe
+/dbt/	@CarmiBanxe
+
+# zone: audit-append-only [CRITICAL] — role: MLRO + CTIO (I-24) (operator-binding-required)
+/services/audit_trail/	@CarmiBanxe
+/services/audit/	@CarmiBanxe
+/services/audit_dashboard/	@CarmiBanxe
+
+# zone: infra-governance [HIGH] — role: Operator (CEO, SMF1)
+/.github/	@CarmiBanxe
+/.githooks/	@CarmiBanxe
+/.semgrep/	@CarmiBanxe
+/.claude/	@CarmiBanxe
+/infra/	@CarmiBanxe
+/deploy/	@CarmiBanxe
+/docker/	@CarmiBanxe
+/config/gitnexus/	@CarmiBanxe
+/docs/canon/	@CarmiBanxe
+/docs/adr/	@CarmiBanxe
+/ledger/	@CarmiBanxe
+/CLAUDE.md	@CarmiBanxe
+/INSTRUCTION-LEDGER.md	@CarmiBanxe
+/CODEOWNERS	@CarmiBanxe
+
+# zone: api-contracts [HIGH] — role: CTIO (operator-binding-required)
+/api/	@CarmiBanxe
+/banxe_mcp/	@CarmiBanxe
+
+# zone: agents [HIGH] — role: CTIO + Compliance Officer (EU AI Act Art.14) (operator-binding-required)
+/agents/	@CarmiBanxe
+
+# zone: frontend [MEDIUM] — role: Frontend lead (operator-binding-required)
+/frontend/	@CarmiBanxe
+/apps/	@CarmiBanxe
