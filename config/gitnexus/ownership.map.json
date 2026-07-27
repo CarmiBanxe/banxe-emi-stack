@@ -154,7 +154,8 @@
     "step3_scip": "per-zone key `scip_index: true` will opt zones into symbol indexing granularity",
     "step4_fleet_graph": "zones[].zone names are the join key to banxe-architecture org-path-ownership departments; fleet builder consumes both maps read-only",
     "step8_merge_queue": "criticality feeds the merge-time impact gate thresholds (CRITICAL -> owner ack required)",
-    "step3_scip_status": "POPULATED by STEP3 — see top-level `scip` block and zones[].scip_index"
+    "step3_scip_status": "POPULATED by STEP3 — see top-level `scip` block and zones[].scip_index",
+    "step4_fleet_graph_status": "POPULATED by STEP4 — see fleet_graph block; STEP7 MCP serves fleet-graph-db read-only"
   },
   "scip": {
     "targets_file": "config/gitnexus/scip.targets.json",
@@ -184,6 +185,29 @@
         "UNKNOWN"
       ],
       "no_mock_rule": "indexer failure => status UNKNOWN + visible warning; an empty/absent index is NEVER published as OK"
+    }
+  },
+  "fleet_graph": {
+    "db_artifact": "fleet-graph-db",
+    "schema_version": "1.0",
+    "builder": "scripts/gitnexus/build_fleet_graph.py — single-writer: exactly one CI builder job (concurrency group fleet-graph-<ref>), fresh DB per run, never merged into an old one",
+    "crosslink_file": "config/gitnexus/fleet.crosslink.json",
+    "freshness_slo": {
+      "max_lag_commits": 50,
+      "stale_behavior": "degrade to structural impact (scripts/gitnexus/detect_impact.py, PHASE1) + human ack — never blind-block, never silent-pass",
+      "note": "SLO enforcement activates at STEP7/STEP8 when a canonical main DB is consumed across runs; per-PR DBs are same-commit by construction"
+    },
+    "impact_gate": {
+      "ack_label": "cross-repo-ack",
+      "thresholds": {
+        "CRITICAL": "ack-required",
+        "HIGH": "warn",
+        "MEDIUM": "report",
+        "LOW": "report"
+      },
+      "cross_zone_rule": "any impacted zone outside the changed zones => ack-required",
+      "unknown_rule": "changed file's target UNKNOWN => verdict UNKNOWN (fail-closed-visible, NO-MOCK)",
+      "enforcement": "advisory (STEP4) — enforce at STEP4c/STEP8 via --enforce"
     }
   }
 }

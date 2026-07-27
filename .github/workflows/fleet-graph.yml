@@ -1,0 +1,147 @@
+name: fleet-graph
+
+# STEP4 (Fable 5 rollout): fleet symbol graph + reverse-dependency impact gate.
+# Consumes the STEP3 scip-<slug> artifacts of the SAME commit, builds ONE SQLite
+# fleet DB (single-writer: one builder job, concurrency-grouped), then runs the
+# impact gate over the PR's changed files. PRODUCER-ONLY: contexts fleet-graph +
+# impact-gate are NOT in branch protection until STEP4c (STEP1..3 pattern).
+# NO-MOCK: missing artifact => target UNKNOWN in DB; gate verdict UNKNOWN is
+# visible-fail-closed, never empty-safe. Freshness: DB carries graph_commit+built_at.
+# Canon: docs/canon/GITNEXUS-STEP4-FLEET-GRAPH.md.
+
+on:
+  pull_request:
+    paths:
+      - '**.py'
+      - '**.ts'
+      - '**.tsx'
+      - '**/pyproject.toml'
+      - '**/tsconfig.json'
+      - '**/package.json'
+      - 'config/gitnexus/**'
+      - 'scripts/gitnexus/**'
+      - '.github/workflows/fleet-graph.yml'
+      - '.github/workflows/scip-index.yml'
+  push:
+    branches: [main]
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+
+# single-writer: one graph build per ref at a time; PR reruns supersede
+concurrency:
+  group: fleet-graph-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  fleet-graph:
+    name: fleet-graph
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - name: Builder self-check (wire parser round-trip)
+        run: python3 scripts/gitnexus/build_fleet_graph.py --check
+      - name: Locate + await scip-index run for this commit
+        id: scip
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          run_id=""
+          for i in $(seq 1 60); do
+            run_id=$(gh run list --workflow scip-index --commit "$HEAD_SHA" \
+              --json databaseId,status --jq '.[0].databaseId // empty' || true)
+            status=$(gh run list --workflow scip-index --commit "$HEAD_SHA" \
+              --json status --jq '.[0].status // empty' || true)
+            if [ -n "$run_id" ] && [ "$status" = "completed" ]; then break; fi
+            echo "waiting for scip-index run (attempt $i, run=$run_id status=$status)"
+            sleep 30
+          done
+          if [ -z "$run_id" ]; then
+            echo "::warning::no scip-index run found for $HEAD_SHA — all targets will be UNKNOWN (NO-MOCK)"
+            echo "run_id=" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Download SCIP artifacts (missing => UNKNOWN, never empty)
+        if: steps.scip.outputs.run_id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p scip-artifacts
+          # download what exists; absent artifacts surface as UNKNOWN in the builder
+          gh run download "${{ steps.scip.outputs.run_id }}" \
+            --pattern 'scip-*' --dir scip-artifacts || \
+            echo "::warning::artifact download partial/failed — builder will mark gaps UNKNOWN"
+      - name: Build fleet.db (single-writer)
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p scip-artifacts
+          python3 scripts/gitnexus/build_fleet_graph.py \
+            --scip-dir scip-artifacts \
+            --targets config/gitnexus/scip.targets.json \
+            --out fleet.db \
+            --graph-commit "$HEAD_SHA" \
+            --crosslink config/gitnexus/fleet.crosslink.json
+      - name: Upload fleet-graph-db
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: fleet-graph-db
+          path: |
+            fleet.db
+            fleet-meta.json
+          retention-days: 14
+          if-no-files-found: error
+
+  impact-gate:
+    name: impact-gate
+    needs: fleet-graph
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 0
+      - name: Gate self-test
+        run: python3 scripts/gitnexus/impact_gate.py --self-test
+      - name: Download fleet-graph-db (this run)
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: fleet-graph-db
+      - name: Detect cross-repo-ack label
+        id: ack
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          has=$(gh pr view ${{ github.event.pull_request.number }} \
+            --json labels --jq '[.labels[].name] | contains(["cross-repo-ack"])')
+          echo "present=$has" >> "$GITHUB_OUTPUT"
+      - name: Run impact gate (ADVISORY in STEP4 — no --enforce)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
+        run: |
+          set -euo pipefail
+          git diff --name-only "$BASE_SHA" "$HEAD_SHA" > changed.txt
+          ACK_FLAG=""
+          [ "${{ steps.ack.outputs.present || 'false' }}" = "true" ] && ACK_FLAG="--ack"
+          python3 scripts/gitnexus/impact_gate.py \
+            --db fleet.db --changed-files changed.txt --json impact.json $ACK_FLAG
+          {
+            echo "## Impact gate ($(jq -r .verdict impact.json))"
+            echo ""
+            echo "- graph_commit: \`$(jq -r .graph_commit impact.json)\` built_at: $(jq -r .built_at impact.json)"
+            echo "- changed: $(jq -r .changed_files impact.json) files, zones: $(jq -cr .changed_zones impact.json), max criticality: $(jq -r .max_criticality impact.json)"
+            echo "- impacted: $(jq -r .impacted_total impact.json) file(s), cross-zone: $(jq -r .cross_zone impact.json)"
+            echo "- blind spots: $(jq -cr '[.blind_spots[].project]' impact.json)"
+            echo "- unknown: $(jq -cr .unknown_reasons impact.json)"
+          } >> "$GITHUB_STEP_SUMMARY"
