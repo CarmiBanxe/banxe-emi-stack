@@ -72,6 +72,31 @@ pre-commit install
 pre-commit run --all-files
 ```
 
+### GitNexus hook (opt-in, sandbox-only)
+
+The GitNexus structural impact gate (`.githooks/pre-commit.gitnexus`) is installed but
+**inert by default** — the active `.githooks/pre-commit` chain-calls it only when
+`GITNEXUS_PRECOMMIT=1` is set. Enabling/disabling it never bypasses the governance
+gates (role-guard, ruff, bandit, mypy, semgrep always run regardless).
+
+```bash
+# enable for one commit
+GITNEXUS_PRECOMMIT=1 git commit -m "..."
+
+# enable for the shell session
+export GITNEXUS_PRECOMMIT=1
+
+# disable again (default state)
+unset GITNEXUS_PRECOMMIT
+```
+
+When enabled, staged **CRITICAL** paths (ledger-core, compliance-aml,
+safeguarding-recon, reporting-fca, migrations, audit) fail-closed unless the operator
+acknowledges with `GITNEXUS_ACK=1` (I-27: the gate proposes, the human decides).
+Details: `docs/canon/GITNEXUS-PHASE1-EMI-STACK-CODE-CONTOUR.md`. License: GitNexus is
+PolyForm-Noncommercial-1.0.0 — sandbox use only (`gitnexus_env.sh` guard fail-closes
+outside sandbox).
+
 ---
 
 ## Key Invariants (I-series)

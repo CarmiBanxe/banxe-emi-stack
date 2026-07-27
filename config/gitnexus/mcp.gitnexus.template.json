@@ -1,0 +1,24 @@
+{
+  "_DISCLAIMER": "GitNexus license: PolyForm-Noncommercial-1.0.0. Sandbox/TRAINING use only without a license; PROD/commercial use requires a purchased GitNexus license.",
+  "_OPERATOR_NOTE": "TEMPLATE ONLY — do NOT merge into ~/.claude.json or .mcp.json automatically. The MCP connection is performed by the OPERATOR/INFRA manually (PROD-gate sprint step, mirrors banxe-architecture GITNEXUS01 phase2). The factory never edits live MCP config.",
+  "_SCOPE": "banxe-emi-stack ONLY (ADR-117 perimeter): the exposed code context must be limited to this repository root. No cross-repo indexing from this server entry.",
+  "_APPLY_HOW": "Operator: copy the mcpServers.gitnexus-emi block below into the target MCP config (merge by hand), replacing <PLACEHOLDERS>. Repo root must resolve to /home/mmber/banxe-emi-stack (or the deployment checkout).",
+  "_ENV_CONTRACT": "BANXE_ENV=sandbox, data_class=TRAINING, PROD_READY=false. GITNEXUS_ENV must stay 'sandbox' until a commercial license is purchased (gitnexus_guard fail-closes otherwise). No runtime AI agent activation via this entry — code intelligence context only.",
+  "mcpServers": {
+    "gitnexus-emi": {
+      "command": "<GITNEXUS_LAUNCH_COMMAND e.g. npx>",
+      "args": [
+        "<GITNEXUS_PACKAGE_OR_BIN e.g. gitnexus>",
+        "mcp",
+        "--registry",
+        "<GITNEXUS_REGISTRY_PATH e.g. ~/.gitnexus>",
+        "--repo-root",
+        "<EMI_STACK_CHECKOUT e.g. /home/mmber/banxe-emi-stack>"
+      ],
+      "env": {
+        "GITNEXUS_ENV": "sandbox",
+        "GITNEXUS_MCP_ENDPOINT": "<ENDPOINT_SET_BY_OPERATOR e.g. stdio>"
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────────────
+# pre-commit.gitnexus — GitNexus impact gate for banxe-emi-stack
+# (PHASE1 code-contour, sandbox-scope; NOT ACTIVE by itself).
+#
+# LICENSE DISCLAIMER: GitNexus = PolyForm-Noncommercial-1.0.0. Sandbox use only
+#   without a license; PROD/commercial use requires a purchased GitNexus license.
+#
+# NOT activated by default: the existing ACTIVE .githooks/pre-commit (role-guard
+#   + ruff/bandit/mypy/semgrep) is preserved untouched. Activation = opt-in
+#   chain-call guarded by GITNEXUS_PRECOMMIT=1 — see README.md §GitNexus hook.
+#
+# Contract (mirrors banxe-architecture GITNEXUS01 phase1, adapted): STRUCTURAL
+#   contour only — no external engine, no MCP delegation in this repo. CRITICAL
+#   paths (ledger/aml/recon/reporting/migrations/audit) require GITNEXUS_ACK=1
+#   (fail-closed). Fast: one stdlib python call on staged names only.
+# ─────────────────────────────────────────────────────────────────────────────
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+# shellcheck source=scripts/gitnexus/gitnexus_env.sh
+. "${REPO_ROOT}/scripts/gitnexus/gitnexus_env.sh"
+
+gitnexus_guard || exit 1
+
+# Structural impact + fail-closed CRITICAL gate (stdlib-only, auditable).
+exec python3 "${REPO_ROOT}/scripts/gitnexus/detect_impact.py"

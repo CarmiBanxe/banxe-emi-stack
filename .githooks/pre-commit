@@ -22,4 +22,15 @@ else
     fi
 fi
 
+# GitNexus impact contour — OPT-IN chain (inert unless GITNEXUS_PRECOMMIT=1;
+# see README §GitNexus hook). Self-contained on purpose: this base hook has no
+# fail()/$ROOT helpers, so the chain computes its own root and exits explicitly.
+if [ "${GITNEXUS_PRECOMMIT:-0}" = "1" ]; then
+    GITNEXUS_ROOT="$(git rev-parse --show-toplevel)"
+    if ! "$GITNEXUS_ROOT/.githooks/pre-commit.gitnexus"; then
+        echo "❌ GitNexus impact gate failed (see output above)."
+        exit 1
+    fi
+fi
+
 echo "✅ Quality scan passed"
