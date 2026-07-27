@@ -1,0 +1,26 @@
+{
+  "$schema_note": "STEP4 cross-repo join — DERIVED METADATA ONLY (ADR-117). Zone -> room -> executive owner_line, derived from banxe-architecture config/gitnexus/org-path-ownership.map.yaml READ AS DATA at derivation time. CI never reads the architecture working tree; this committed snapshot is the only cross-repo surface. Regenerate manually when the source map changes (source_commit below tells you when it drifted).",
+  "schema_version": "1.0",
+  "source": {
+    "repo": "banxe-architecture",
+    "file": "config/gitnexus/org-path-ownership.map.yaml",
+    "source_commit": "94ce94c",
+    "source_canon": "0d-room-based (S1 ORG-MAP, PR #1157)",
+    "derived_at": "2026-07-27T19:40:00Z"
+  },
+  "joins": [
+    { "zone": "ledger-core",        "room": "F2-ledger-room",       "owner_line": "CFO Office (SMF2)" },
+    { "zone": "compliance-aml",     "room": "F3-aml-room",          "owner_line": "MLRO / Financial Crime (SMF17)" },
+    { "zone": "safeguarding-recon", "room": "F2-safeguarding-room", "owner_line": "CFO Office (SMF2)" },
+    { "zone": "reporting-fca",      "room": "F3-regrep-room",       "owner_line": "CFO Office (SMF2)" }
+  ],
+  "todo_operator": [
+    { "zone": "migrations",        "reason": "no unambiguous room in source map (NO-MOCK: not guessed)" },
+    { "zone": "consumer-duty",     "reason": "candidates F1-customer-ops-room vs F2-identity-room — operator decision" },
+    { "zone": "audit-append-only", "reason": "F4-audit-cell-room exists but was rooms_without_department in prior canon — confirm" },
+    { "zone": "infra-governance",  "reason": "platform stewardship (CTO SMF26) vs governance (CEO SMF1) — operator decision" },
+    { "zone": "api-contracts",     "reason": "no single room owns cross-cutting API surface" },
+    { "zone": "agents",            "reason": "F4-ai-platform-room candidate — confirm with CTO line" },
+    { "zone": "frontend",          "reason": "no frontend room in source map" }
+  ]
+}
