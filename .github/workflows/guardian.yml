@@ -3,6 +3,7 @@ name: Guardian
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  merge_group:
 
 permissions:
   contents: read
@@ -142,3 +143,80 @@ jobs:
         run: |
           echo "::error::Guardian (${{ matrix.family }}) verdict: ${{ steps.audit.outputs.summary }}"
           exit 1
+
+  # ── STEP1b ports from banxe-architecture guardian.yml (Fable 5 roadmap §3/§6) ──
+  # Both jobs run on pull_request AND merge_group so the status context resolves to
+  # success inside the merge queue instead of skipping → timeout (architecture pattern).
+
+  guardian-ledger:
+    name: guardian-ledger
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 0
+      - name: Ledger-coupling gate (ADR-056/ADR-060 shard bridge — emi-stack scope)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
+        run: |
+          set -e
+          CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          echo "Changed files:"; echo "$CHANGED"
+          # emi-stack ADAPTATION vs banxe-architecture (deliberate, documented in
+          # STEP1b IL shard): this is a CODE repo, so ADR-056 coupling binds
+          # GOVERNANCE paths only (positive list). Verbatim architecture semantics
+          # ("everything non-infra needs a shard") would demand a ledger shard on
+          # every feature PR — scope decision deferred to operator at STEP1c.
+          GOV_RE='^(docs/canon/|docs/adr/|\.claude/|config/gitnexus/|ledger/|INSTRUCTION-LEDGER\.md$)'
+          GOV=$(echo "$CHANGED" | grep -E "$GOV_RE" | grep -v '^ledger/entries/' || true)
+          if [ -z "$GOV" ]; then
+            echo "guardian-ledger OK (no governance-path changes — coupling not required, emi-stack scope)"
+            exit 0
+          fi
+          echo "Governance paths changed:"; echo "$GOV"
+          NEW_SHARD=$(git diff --name-status "$BASE_SHA" "$HEAD_SHA" -- 'ledger/entries/' | grep -E '^A' | grep -E 'IL-.*\.md$' || true)
+          if [ -z "$NEW_SHARD" ]; then
+            echo "FAIL: PR changes governance paths but adds no new ledger/entries shard (ADR-056 / ADR-060 — add an IL-*.md shard under ledger/entries/<session>/)"
+            exit 1
+          fi
+          echo "New shard(s):"; echo "$NEW_SHARD"
+          echo "guardian-ledger OK"
+
+  ledger-append-only:
+    name: ledger-append-only
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 0
+      - name: Ledger append-only immutability (ADR-057 / I-24 — emi-stack scope)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
+        run: |
+          set -e
+          if ! git cat-file -e "$BASE_SHA" 2>/dev/null; then
+            echo "Base $BASE_SHA unavailable (new branch/first push); skipping immutability check"
+            echo "ledger-append-only OK"
+            exit 0
+          fi
+          # emi-stack ADAPTATION: INSTRUCTION-LEDGER.md is TRACKED here (architecture
+          # gitignores + rebuilds it), so the line-removal check bites for real; and
+          # ledger/entries/ shards are additionally immutable (I-24) — corrections
+          # must be NEW shards, never edits/deletions of prior ones.
+          REMOVED=$(git diff "$BASE_SHA" "$HEAD_SHA" -- INSTRUCTION-LEDGER.md | grep -E '^-[^-]' || true)
+          if [ -n "$REMOVED" ]; then
+            echo "FAIL: existing INSTRUCTION-LEDGER.md lines removed/modified (I-24 / ADR-057). Corrections must be a NEW appended IL block:"
+            echo "$REMOVED"
+            exit 1
+          fi
+          TOUCHED=$(git diff --name-status "$BASE_SHA" "$HEAD_SHA" -- 'ledger/entries/' | grep -E '^(M|D|R)' || true)
+          if [ -n "$TOUCHED" ]; then
+            echo "FAIL: existing ledger/entries shard(s) modified/renamed/deleted (I-24 append-only). Corrections must be NEW shards:"
+            echo "$TOUCHED"
+            exit 1
+          fi
+          echo "ledger-append-only OK"
