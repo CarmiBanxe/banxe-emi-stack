@@ -173,3 +173,10 @@ _main() {
 if [ "${BASH_SOURCE[0]:-$0}" = "$0" ]; then
   _main
 fi
+
+# ── pytest-fast-gate (G4): full suite before push (heavy — not per-commit) ──
+ROOT="$(git rev-parse --show-toplevel)"
+PYTEST="$ROOT/.venv/bin/pytest"; [ -x "$PYTEST" ] || PYTEST="python3 -m pytest"
+echo "🧪 pre-push: running test suite (fast, no coverage)..."
+( cd "$ROOT" && $PYTEST tests/ -x -q --override-ini=addopts= ) || { echo "❌ tests failed — push blocked"; exit 1; }
+echo "✅ pre-push tests passed"
