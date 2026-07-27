@@ -6,6 +6,9 @@ set -uo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 RULES="$ROOT/.semgrep/banxe-rules.yml"
 
+# CANON role-guard first (operating-mode.md), then quality scan
+"$(git rev-parse --show-toplevel)/.githooks/role-guard.sh" || exit 1
+
 echo "🔍 Pre-commit quality scan..."
 
 if command -v lucidshark >/dev/null 2>&1 && lucidshark --version 2>/dev/null | grep -qvE '0\.0\.0\.dev'; then
