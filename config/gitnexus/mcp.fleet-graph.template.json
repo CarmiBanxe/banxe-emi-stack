@@ -1,0 +1,16 @@
+{
+  "_DISCLAIMER": "Sandbox/TRAINING only (BANXE_ENV=sandbox, PROD_READY=false). The fleet-graph MCP server is READ-ONLY by construction: sqlite mode=ro, no write tools, no filesystem access beyond the DB artifact + committed maps (ADR-117).",
+  "_OPERATOR_NOTE": "TEMPLATE ONLY — do NOT merge into ~/.claude.json or .mcp.json automatically. Operator applies by hand, replacing <PLACEHOLDERS>. The server serves DERIVED METADATA only (symbols/zones/owners/criticality/crosslink) — never foreign working trees.",
+  "_DB_SOURCE": "FLEET_GRAPH_DB points at a downloaded fleet-graph-db CI artifact (fleet.db). Freshness is carried in every response (graph_commit + built_at); a stale or missing DB yields UNKNOWN objects, never empty=safe (NO-MOCK).",
+  "mcpServers": {
+    "fleet-graph": {
+      "command": "python3",
+      "args": [
+        "<EMI_STACK_CHECKOUT e.g. /home/mmber/banxe-emi-stack>/scripts/gitnexus/fleet_graph_mcp.py"
+      ],
+      "env": {
+        "FLEET_GRAPH_DB": "<PATH_TO_DOWNLOADED_ARTIFACT e.g. ~/fleet-artifacts/fleet.db>"
+      }
+    }
+  }
+}

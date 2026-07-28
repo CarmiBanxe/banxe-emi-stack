@@ -157,7 +157,9 @@
     "step3_scip_status": "POPULATED by STEP3 — see top-level `scip` block and zones[].scip_index",
     "step4_fleet_graph_status": "POPULATED by STEP4 — see fleet_graph block; STEP7 MCP serves fleet-graph-db read-only",
     "step5_contract_status": "POPULATED by PASS A — see contract_gate block; STEP9 (Pact/schemathesis) builds on the same baseline",
-    "step6_sbom_status": "POPULATED by PASS A — see sbom block; Dependency-Track activation is an operator infra step"
+    "step6_sbom_status": "POPULATED by PASS A — see sbom block; Dependency-Track activation is an operator infra step",
+    "step7_mcp_status": "POPULATED by PASS B — see mcp block; serves STEP4 fleet-graph-db read-only",
+    "step8_merge_queue_status": "POPULATED by PASS B — see merge_queue block (extension_points.step8_merge_queue text preserved verbatim)"
   },
   "scip": {
     "targets_file": "config/gitnexus/scip.targets.json",
@@ -239,5 +241,26 @@
     ],
     "no_mock_rule": "SBOM with 0 components = tool failure => FAIL, never a clean bill",
     "dependency_track": "OPTIONAL: uploads only when operator secrets DT_API_KEY + DT_URL are set; absent => documented degrade-to-skip SUCCESS (artifacts still produced)"
+  },
+  "mcp": {
+    "server": "scripts/gitnexus/fleet_graph_mcp.py",
+    "template": "config/gitnexus/mcp.fleet-graph.template.json",
+    "posture": "READ-ONLY by construction (ADR-117): sqlite mode=ro, no write tools, derived metadata only — never foreign working trees",
+    "tools": [
+      "graph_freshness",
+      "impacted_by",
+      "owners_of",
+      "criticality_of"
+    ],
+    "freshness_rule": "every response carries graph_commit + built_at; missing/stale DB => UNKNOWN objects, never empty=safe (NO-MOCK)",
+    "activation": "operator-applied template only; no CI check (served artifact); optional mcp-selftest check is a PASS-B-c decision"
+  },
+  "merge_queue": {
+    "check": "mq-impact (.github/workflows/merge-queue-impact.yml)",
+    "semantics": "queue-time RE-RUN of impact_gate.py --enforce against the fleet-graph built for the merge-group head (fresh, not PR-time)",
+    "thresholds": "reuses fleet_graph.impact_gate thresholds (CRITICAL -> ack-required; cross-zone -> ack-required)",
+    "ack_label": "cross-repo-ack (PR number derived from gh-readonly-queue head_ref)",
+    "no_mock_rule": "no fleet-graph run / empty artifact / UNKNOWN verdict at queue time => FAIL VISIBLY; documented recovery = structural review + human ack",
+    "enforcement": "producer-only (PASS B) — required at PASS-B-c after observed green queue runs"
   }
 }
