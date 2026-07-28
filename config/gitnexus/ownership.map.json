@@ -159,7 +159,9 @@
     "step5_contract_status": "POPULATED by PASS A — see contract_gate block; STEP9 (Pact/schemathesis) builds on the same baseline",
     "step6_sbom_status": "POPULATED by PASS A — see sbom block; Dependency-Track activation is an operator infra step",
     "step7_mcp_status": "POPULATED by PASS B — see mcp block; serves STEP4 fleet-graph-db read-only",
-    "step8_merge_queue_status": "POPULATED by PASS B — see merge_queue block (extension_points.step8_merge_queue text preserved verbatim)"
+    "step8_merge_queue_status": "POPULATED by PASS B — see merge_queue block (extension_points.step8_merge_queue text preserved verbatim)",
+    "step9_contract_tests_status": "POPULATED by PASS C — see contract_tests block",
+    "step10_observability_status": "POPULATED by PASS C — see observability block; Fable 5 roadmap STEP1-10 COMPLETE"
   },
   "scip": {
     "targets_file": "config/gitnexus/scip.targets.json",
@@ -262,5 +264,27 @@
     "ack_label": "cross-repo-ack (PR number derived from gh-readonly-queue head_ref)",
     "no_mock_rule": "no fleet-graph run / empty artifact / UNKNOWN verdict at queue time => FAIL VISIBLY; documented recovery = structural review + human ack",
     "enforcement": "producer-only (PASS B) — required at PASS-B-c after observed green queue runs"
+  },
+  "contract_tests": {
+    "check": "contract-tests (.github/workflows/contracts-tests-obs.yml)",
+    "tool": "schemathesis==3.39.16 (pinned; v3 CLI in-process ASGI via --app — v4 CLI unverifiable at pin time, documented in canon)",
+    "runner": "scripts/gitnexus/contract_tests.py (reuses STEP5 generate_current_spec)",
+    "tier": "smoke: GET-only, 2 hypothesis examples/op, 2s deadline (463-path API time bound)",
+    "verdicts": [
+      "PASS",
+      "FAIL",
+      "UNKNOWN"
+    ],
+    "no_mock_rule": "schema-generation or tool failure => UNKNOWN, fails visibly; rc=0 without a real run is never PASS",
+    "always_report": "no pull_request paths filter; git-diff relevance step; irrelevant diffs => SUCCESS no-op (safe to require at PASS-C-c)",
+    "followups": "deeper tiers (mutating methods, more examples) + Pact broker consumer contracts = operator follow-up (broker needs a running service — deliberately NOT stood up)"
+  },
+  "observability": {
+    "check": "obs-manifest (.github/workflows/contracts-tests-obs.yml)",
+    "producer": "scripts/gitnexus/obs_manifest.py — per-run manifest of the commit's check-runs (name/status/conclusion/durations) via gh api",
+    "artifact": "obs-manifest (obs-manifest.json), retention 14d",
+    "no_mock_rule": "empty check-run list => UNKNOWN (this job itself is a check-run — empty means collection failed)",
+    "always_report": "cheap => runs fully on every PR (trivially always-report)",
+    "langfuse": "OPTIONAL live ingestion behind LANGFUSE_HOST/LANGFUSE_PUBLIC_KEY/LANGFUSE_SECRET_KEY secrets — absent => documented skip-success; self-hosted Langfuse-over-LiteLLM wiring is an operator infra follow-up"
   }
 }
