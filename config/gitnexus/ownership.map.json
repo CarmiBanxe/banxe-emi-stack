@@ -155,7 +155,9 @@
     "step4_fleet_graph": "zones[].zone names are the join key to banxe-architecture org-path-ownership departments; fleet builder consumes both maps read-only",
     "step8_merge_queue": "criticality feeds the merge-time impact gate thresholds (CRITICAL -> owner ack required)",
     "step3_scip_status": "POPULATED by STEP3 — see top-level `scip` block and zones[].scip_index",
-    "step4_fleet_graph_status": "POPULATED by STEP4 — see fleet_graph block; STEP7 MCP serves fleet-graph-db read-only"
+    "step4_fleet_graph_status": "POPULATED by STEP4 — see fleet_graph block; STEP7 MCP serves fleet-graph-db read-only",
+    "step5_contract_status": "POPULATED by PASS A — see contract_gate block; STEP9 (Pact/schemathesis) builds on the same baseline",
+    "step6_sbom_status": "POPULATED by PASS A — see sbom block; Dependency-Track activation is an operator infra step"
   },
   "scip": {
     "targets_file": "config/gitnexus/scip.targets.json",
@@ -209,5 +211,33 @@
       "unknown_rule": "changed file's target UNKNOWN => verdict UNKNOWN (fail-closed-visible, NO-MOCK)",
       "enforcement": "advisory (STEP4) — enforce at STEP4c/STEP8 via --enforce"
     }
+  },
+  "contract_gate": {
+    "baseline": "apps/.openapi-snapshot.json",
+    "static_specs": [
+      "services/payment/openapi.yml"
+    ],
+    "tool": "oasdiff v1.26.1 (pinned release binary, linux_amd64)",
+    "runner": "scripts/gitnexus/contract_check.py",
+    "ack_label": "api-breaking-ack",
+    "verdicts": [
+      "NON_BREAKING",
+      "BREAKING",
+      "UNKNOWN"
+    ],
+    "no_mock_rule": "spec-generation or oasdiff failure => UNKNOWN, gate fails visibly — never a silent pass; empty tool output from a failed run is never 'no breaking changes'",
+    "refresh_policy": "baseline refresh is INTENTIONAL ONLY via contract_check.py --refresh-baseline, committed together with the API change + ack label; CI never auto-refreshes (see canon STEP5-6)"
+  },
+  "sbom": {
+    "format": "CycloneDX JSON",
+    "tools": {
+      "python": "cyclonedx-bom==7.3.1 (requirements mode)",
+      "frontend": "@cyclonedx/cyclonedx-npm@6.0.0 (--package-lock-only)"
+    },
+    "artifacts": [
+      "sbom-cyclonedx (sbom-python.cdx.json, sbom-frontend.cdx.json), retention 14d"
+    ],
+    "no_mock_rule": "SBOM with 0 components = tool failure => FAIL, never a clean bill",
+    "dependency_track": "OPTIONAL: uploads only when operator secrets DT_API_KEY + DT_URL are set; absent => documented degrade-to-skip SUCCESS (artifacts still produced)"
   }
 }
