@@ -1,0 +1,152 @@
+name: contracts-sbom
+
+# PASS A (Fable 5 rollout, STEP5+STEP6): API contract breaking-change gate +
+# CycloneDX SBOM producer. PRODUCER-ONLY: contexts `contract-diff` and `sbom`
+# are NOT in branch protection until PASS-A-c (STEP1..4 pattern: observe green
+# first). NO-MOCK: spec-generation/oasdiff failure => UNKNOWN, fails visibly,
+# never passes silently; an empty SBOM is never OK. Dependency-Track upload is
+# OPTIONAL behind operator secrets (DT_API_KEY + DT_URL) — absent => documented
+# degrade-to-skip SUCCESS, SBOM artifacts still produced.
+# Canon: docs/canon/GITNEXUS-STEP5-6-CONTRACTS-SBOM.md.
+# Baseline: apps/.openapi-snapshot.json — refreshed ONLY intentionally via
+# scripts/gitnexus/contract_check.py --refresh-baseline (never by CI).
+
+on:
+  pull_request:
+    paths:
+      - 'api/**'
+      - 'services/**'
+      - 'apps/.openapi-snapshot.json'
+      - 'requirements*.txt'
+      - 'pyproject.toml'
+      - 'frontend/package*.json'
+      - 'scripts/gitnexus/contract_check.py'
+      - '.github/workflows/contracts-sbom.yml'
+  push:
+    branches: [main]
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: contracts-sbom-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  contract-diff:
+    name: contract-diff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 0
+      - name: Gate self-check
+        run: python3 scripts/gitnexus/contract_check.py --check
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install app deps (needed to import api.main for spec generation)
+        run: pip install -q -r requirements.txt
+      - name: Install oasdiff (pinned v1.26.1)
+        run: |
+          set -euo pipefail
+          curl -sSL -o /tmp/oasdiff.tgz \
+            https://github.com/oasdiff/oasdiff/releases/download/v1.26.1/oasdiff_1.26.1_linux_amd64.tar.gz
+          tar -xzf /tmp/oasdiff.tgz -C /tmp oasdiff
+          /tmp/oasdiff --version
+      - name: Detect api-breaking-ack label
+        id: ack
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          has=$(gh pr view ${{ github.event.pull_request.number }} \
+            --json labels --jq '[.labels[].name] | contains(["api-breaking-ack"])')
+          echo "present=$has" >> "$GITHUB_OUTPUT"
+      - name: Run contract gate (oasdiff breaking vs baseline + static specs)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
+        run: |
+          set -euo pipefail
+          ACK_FLAG=""
+          [ "${{ steps.ack.outputs.present || 'false' }}" = "true" ] && ACK_FLAG="--ack"
+          python3 scripts/gitnexus/contract_check.py --run \
+            --oasdiff /tmp/oasdiff \
+            --base-sha "$BASE_SHA" \
+            --workdir "$RUNNER_TEMP/contract" \
+            --json "$RUNNER_TEMP/contract/verdict.json" $ACK_FLAG
+      - name: Upload contract evidence (current spec + verdict)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: contract-diff-evidence
+          path: ${{ runner.temp }}/contract
+          retention-days: 14
+          if-no-files-found: ignore
+
+  sbom:
+    name: sbom
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Python SBOM (cyclonedx-bom 7.3.1, requirements mode)
+        run: |
+          set -euo pipefail
+          pip install -q cyclonedx-bom==7.3.1
+          mkdir -p "$RUNNER_TEMP/sbom"
+          cyclonedx-py requirements requirements.txt \
+            --output-file "$RUNNER_TEMP/sbom/sbom-python.cdx.json" --output-format json
+      - name: Frontend SBOM (@cyclonedx/cyclonedx-npm 6.0.0, lock-only)
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npx --yes @cyclonedx/cyclonedx-npm@6.0.0 --package-lock-only \
+            --output-file "$RUNNER_TEMP/sbom/sbom-frontend.cdx.json" --output-format JSON
+      - name: NO-MOCK — empty SBOM is never OK
+        run: |
+          set -euo pipefail
+          for f in "$RUNNER_TEMP"/sbom/sbom-*.cdx.json; do
+            n=$(python3 -c "import json,sys; print(len(json.load(open('$f')).get('components',[])))")
+            echo "$f: $n components"
+            if [ "$n" -eq 0 ]; then
+              echo "::error title=sbom EMPTY::$f has 0 components — dependencies exist, so an empty SBOM is a tool failure, not a clean bill (NO-MOCK)"
+              exit 1
+            fi
+          done
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sbom-cyclonedx
+          path: ${{ runner.temp }}/sbom
+          retention-days: 14
+          if-no-files-found: error
+      - name: Dependency-Track upload (OPTIONAL — operator secrets; absent => skip SUCCESS)
+        env:
+          DT_API_KEY: ${{ secrets.DT_API_KEY }}
+          DT_URL: ${{ secrets.DT_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DT_API_KEY:-}" ] || [ -z "${DT_URL:-}" ]; then
+            echo "Dependency-Track not configured (DT_API_KEY/DT_URL unset) — skip (documented degrade; SBOM artifacts still produced)."
+            exit 0
+          fi
+          for f in "$RUNNER_TEMP"/sbom/sbom-*.cdx.json; do
+            name=$(basename "$f" .cdx.json)
+            curl -sSf -X POST "$DT_URL/api/v1/bom" \
+              -H "X-Api-Key: $DT_API_KEY" \
+              -F "autoCreate=true" \
+              -F "projectName=banxe-emi-stack-$name" \
+              -F "projectVersion=${GITHUB_SHA}" \
+              -F "bom=@$f" >/dev/null
+            echo "uploaded $name to Dependency-Track"
+          done
