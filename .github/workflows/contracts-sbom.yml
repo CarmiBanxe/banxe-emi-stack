@@ -19,7 +19,7 @@ on:
       - 'apps/.openapi-snapshot.json'
       - 'requirements*.txt'
       - 'pyproject.toml'
-      - 'frontend/package*.json'
+      - 'apps/banking-web/package*.json'
       - 'scripts/gitnexus/contract_check.py'
       - '.github/workflows/contracts-sbom.yml'
   push:
@@ -106,8 +106,11 @@ jobs:
           mkdir -p "$RUNNER_TEMP/sbom"
           cyclonedx-py requirements requirements.txt \
             --output-file "$RUNNER_TEMP/sbom/sbom-python.cdx.json" --output-format json
-      - name: Frontend SBOM (@cyclonedx/cyclonedx-npm 6.0.0, lock-only)
-        working-directory: frontend
+      # JS surface root = apps/banking-web: the ONLY package-lock.json in the repo
+      # (audit 2026-07-28); --package-lock-only requires a real lockfile. frontend/
+      # and the other apps/* have package.json but no lockfile — not usable here.
+      - name: Frontend SBOM (@cyclonedx/cyclonedx-npm 6.0.0, lock-only, apps/banking-web)
+        working-directory: apps/banking-web
         run: |
           set -euo pipefail
           npx --yes @cyclonedx/cyclonedx-npm@6.0.0 --package-lock-only \
