@@ -96,3 +96,21 @@ def test_manifest_bad_timestamps_degrade_to_none_duration() -> None:
 def test_self_checks_green() -> None:
     assert ct.self_check() == 0
     assert om.self_check() == 0
+
+
+def test_loading_error_without_executed_tests_is_unknown() -> None:
+    tail = "Schema Loading Error\nThe provided schema uses Open API 3.1.0, which is currently not fully supported."
+    assert ct.is_tool_level_error(tail) is True  # => verdict refined to UNKNOWN, not FAIL
+
+
+def test_import_error_is_tool_level() -> None:
+    assert ct.is_tool_level_error("Unable to import application from 'api.main:app'") is True
+
+
+def test_real_violations_after_executed_tests_stay_fail() -> None:
+    tail = "Performed checks:\n  not_a_server_error  33 / 66 passed  FAILED"
+    assert ct.is_tool_level_error(tail) is False  # executed tests => real FAIL stays FAIL
+
+
+def test_clean_run_is_not_tool_error() -> None:
+    assert ct.is_tool_level_error("Performed checks:\n  all passed") is False

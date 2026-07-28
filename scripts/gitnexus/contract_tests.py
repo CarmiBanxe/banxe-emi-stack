@@ -65,6 +65,23 @@ def classify_exit(returncode: int, ran_ok: bool) -> str:
     return "UNKNOWN"  # any other exit = tool-level problem, never silent pass
 
 
+TOOL_ERROR_MARKERS = (
+    "Schema Loading Error",
+    "Unable to import application",
+    "not fully supported",
+)
+_EXECUTED_MARKER = "Performed checks:"  # printed by schemathesis only after real test cases ran
+
+
+def is_tool_level_error(tail: str) -> bool:
+    """True when the output shows a loading/import error AND no test cases executed.
+
+    Such runs must be UNKNOWN (the tool never tested anything), never FAIL —
+    and per NO-MOCK never PASS. Real violations from executed tests stay FAIL.
+    """
+    return any(m in tail for m in TOOL_ERROR_MARKERS) and _EXECUTED_MARKER not in tail
+
+
 def run_schemathesis(bin_name: str, schema_path: Path) -> tuple[int, bool, str]:
     """Invoke schemathesis in-process ASGI mode; (rc, ran_ok, tail_of_output)."""
     cmd = [bin_name, "run", str(schema_path), f"--app={ASGI_APP}", *SMOKE_ARGS]
@@ -112,6 +129,8 @@ def run(schemathesis_bin: str, json_out: Path | None, workdir: Path) -> int:
 
     rc, ran_ok, tail = run_schemathesis(schemathesis_bin, schema_path)
     verdict = classify_exit(rc, ran_ok)
+    if verdict == "FAIL" and is_tool_level_error(tail):
+        verdict = "UNKNOWN"  # tool never ran tests — misclassifying as FAIL hides the real state
     result = {
         "verdict": verdict,
         "tier": "smoke (GET-only, 2 examples/op)",
