@@ -10,18 +10,11 @@ name: fleet-graph
 # Canon: docs/canon/GITNEXUS-STEP4-FLEET-GRAPH.md.
 
 on:
+  # REQUIRED-CHECK/PATH-FILTER DEADLOCK FIX: paths: filter removed — REQUIRED
+  # contexts `fleet-graph` + `impact-gate` must ALWAYS report. Heavy build/gate
+  # is skipped internally (SUCCESS no-op) when no graph-relevant paths changed.
+  # See docs/canon/GITNEXUS-REQUIRED-CHECK-PATHFILTER-FIX.md.
   pull_request:
-    paths:
-      - '**.py'
-      - '**.ts'
-      - '**.tsx'
-      - '**/pyproject.toml'
-      - '**/tsconfig.json'
-      - '**/package.json'
-      - 'config/gitnexus/**'
-      - 'scripts/gitnexus/**'
-      - '.github/workflows/fleet-graph.yml'
-      - '.github/workflows/scip-index.yml'
   push:
     branches: [main]
   merge_group:
@@ -41,12 +34,34 @@ jobs:
   fleet-graph:
     name: fleet-graph
     runs-on: ubuntu-latest
+    outputs:
+      relevant: ${{ steps.rel.outputs.relevant }}
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 0
       - name: Builder self-check (wire parser round-trip)
         run: python3 scripts/gitnexus/build_fleet_graph.py --check
+      - name: Detect relevant changes (required check always reports; build is conditional)
+        id: rel
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "$BASE_SHA" ]; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"; echo "push/dispatch — full build"; exit 0
+          fi
+          RE='\.(py|ts|tsx)$|(^|/)(pyproject\.toml|tsconfig\.json|package\.json)$|^config/gitnexus/|^scripts/gitnexus/|^\.github/workflows/(fleet-graph|scip-index)\.yml$'
+          if git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -qE "$RE"; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"; echo "graph-relevant changes — full build"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+            echo "No graph-relevant changes — SUCCESS no-op (deadlock fix; graph identical to main's)"
+          fi
       - name: Locate + await scip-index run for this commit
         id: scip
+        if: steps.rel.outputs.relevant == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -69,7 +84,7 @@ jobs:
             echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
           fi
       - name: Download SCIP artifacts (missing => UNKNOWN, never empty)
-        if: steps.scip.outputs.run_id != ''
+        if: steps.rel.outputs.relevant == 'true' && steps.scip.outputs.run_id != ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -80,6 +95,7 @@ jobs:
             --pattern 'scip-*' --dir scip-artifacts || \
             echo "::warning::artifact download partial/failed — builder will mark gaps UNKNOWN"
       - name: Build fleet.db (single-writer)
+        if: steps.rel.outputs.relevant == 'true'
         env:
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
@@ -92,6 +108,7 @@ jobs:
             --graph-commit "$HEAD_SHA" \
             --crosslink config/gitnexus/fleet.crosslink.json
       - name: Upload fleet-graph-db
+        if: steps.rel.outputs.relevant == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: fleet-graph-db
@@ -100,6 +117,9 @@ jobs:
             fleet-meta.json
           retention-days: 14
           if-no-files-found: error
+      - name: No-op notice (context still reports SUCCESS)
+        if: steps.rel.outputs.relevant != 'true'
+        run: echo "fleet-graph SUCCESS (no graph-relevant changes)"
 
   impact-gate:
     name: impact-gate
@@ -113,12 +133,13 @@ jobs:
       - name: Gate self-test
         run: python3 scripts/gitnexus/impact_gate.py --self-test
       - name: Download fleet-graph-db (this run)
+        if: needs.fleet-graph.outputs.relevant == 'true'
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: fleet-graph-db
       - name: Detect cross-repo-ack label
         id: ack
-        if: github.event_name == 'pull_request'
+        if: needs.fleet-graph.outputs.relevant == 'true' && github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -126,6 +147,7 @@ jobs:
             --json labels --jq '[.labels[].name] | contains(["cross-repo-ack"])')
           echo "present=$has" >> "$GITHUB_OUTPUT"
       - name: Run impact gate (ADVISORY in STEP4 — no --enforce)
+        if: needs.fleet-graph.outputs.relevant == 'true'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
@@ -145,3 +167,6 @@ jobs:
             echo "- blind spots: $(jq -cr '[.blind_spots[].project]' impact.json)"
             echo "- unknown: $(jq -cr .unknown_reasons impact.json)"
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: No-op notice (context still reports SUCCESS)
+        if: needs.fleet-graph.outputs.relevant != 'true'
+        run: echo "impact-gate SUCCESS (no graph-relevant changes — nothing to gate)"

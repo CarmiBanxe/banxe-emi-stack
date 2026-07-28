@@ -1,27 +1,24 @@
 name: contracts-sbom
 
 # PASS A (Fable 5 rollout, STEP5+STEP6): API contract breaking-change gate +
-# CycloneDX SBOM producer. PRODUCER-ONLY: contexts `contract-diff` and `sbom`
-# are NOT in branch protection until PASS-A-c (STEP1..4 pattern: observe green
-# first). NO-MOCK: spec-generation/oasdiff failure => UNKNOWN, fails visibly,
+# CycloneDX SBOM producer. Contexts `contract-diff` and `sbom` are REQUIRED
+# (PASS-A-c). NO-MOCK: spec-generation/oasdiff failure => UNKNOWN, fails visibly,
 # never passes silently; an empty SBOM is never OK. Dependency-Track upload is
 # OPTIONAL behind operator secrets (DT_API_KEY + DT_URL) — absent => documented
 # degrade-to-skip SUCCESS, SBOM artifacts still produced.
 # Canon: docs/canon/GITNEXUS-STEP5-6-CONTRACTS-SBOM.md.
 # Baseline: apps/.openapi-snapshot.json — refreshed ONLY intentionally via
 # scripts/gitnexus/contract_check.py --refresh-baseline (never by CI).
+#
+# REQUIRED-CHECK/PATH-FILTER DEADLOCK FIX (docs/canon/GITNEXUS-REQUIRED-CHECK-
+# PATHFILTER-FIX.md): pull_request paths: filters were REMOVED — a required
+# context that never reports blocks every unrelated PR forever. The contexts now
+# ALWAYS report; the EXPENSIVE work is skipped internally (explicit SUCCESS +
+# "no relevant changes") via a pure `git diff` relevance step. When relevant
+# paths DID change, the full gate runs exactly as before — nothing weakened.
 
 on:
   pull_request:
-    paths:
-      - 'api/**'
-      - 'services/**'
-      - 'apps/.openapi-snapshot.json'
-      - 'requirements*.txt'
-      - 'pyproject.toml'
-      - 'apps/banking-web/package*.json'
-      - 'scripts/gitnexus/contract_check.py'
-      - '.github/workflows/contracts-sbom.yml'
   push:
     branches: [main]
   merge_group:
@@ -43,15 +40,35 @@ jobs:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
           fetch-depth: 0
-      - name: Gate self-check
+      - name: Gate self-check (always — cheap sanity on every PR)
         run: python3 scripts/gitnexus/contract_check.py --check
+      - name: Detect relevant changes (required check always reports; heavy work is conditional)
+        id: rel
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "$BASE_SHA" ]; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"; echo "push/dispatch — full run"; exit 0
+          fi
+          RE='^(api/|services/|apps/\.openapi-snapshot\.json|requirements[^/]*\.txt|pyproject\.toml|scripts/gitnexus/contract_check\.py|\.github/workflows/contracts-sbom\.yml)'
+          if git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -qE "$RE"; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"; echo "contract-relevant changes detected — full gate"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+            echo "No contract-relevant changes — SUCCESS no-op (deadlock fix; gate unchanged for relevant PRs)"
+          fi
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        if: steps.rel.outputs.relevant == 'true'
         with:
           python-version: '3.12'
           cache: pip
       - name: Install app deps (needed to import api.main for spec generation)
+        if: steps.rel.outputs.relevant == 'true'
         run: pip install -q -r requirements.txt
       - name: Install oasdiff (pinned v1.26.1)
+        if: steps.rel.outputs.relevant == 'true'
         run: |
           set -euo pipefail
           curl -sSL -o /tmp/oasdiff.tgz \
@@ -60,7 +77,7 @@ jobs:
           /tmp/oasdiff --version
       - name: Detect api-breaking-ack label
         id: ack
-        if: github.event_name == 'pull_request'
+        if: steps.rel.outputs.relevant == 'true' && github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -68,6 +85,7 @@ jobs:
             --json labels --jq '[.labels[].name] | contains(["api-breaking-ack"])')
           echo "present=$has" >> "$GITHUB_OUTPUT"
       - name: Run contract gate (oasdiff breaking vs baseline + static specs)
+        if: steps.rel.outputs.relevant == 'true'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
         run: |
@@ -80,26 +98,51 @@ jobs:
             --workdir "$RUNNER_TEMP/contract" \
             --json "$RUNNER_TEMP/contract/verdict.json" $ACK_FLAG
       - name: Upload contract evidence (current spec + verdict)
-        if: always()
+        if: always() && steps.rel.outputs.relevant == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: contract-diff-evidence
           path: ${{ runner.temp }}/contract
           retention-days: 14
           if-no-files-found: ignore
+      - name: No-op notice (context still reports SUCCESS)
+        if: steps.rel.outputs.relevant != 'true'
+        run: echo "contract-diff SUCCESS (no relevant changes — full gate not applicable to this diff)"
 
   sbom:
     name: sbom
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 0
+      - name: Detect relevant changes (required check always reports; heavy work is conditional)
+        id: rel
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "$BASE_SHA" ]; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"; echo "push/dispatch — full run"; exit 0
+          fi
+          RE='^(requirements[^/]*\.txt|pyproject\.toml|apps/banking-web/package.*\.json|\.github/workflows/contracts-sbom\.yml)'
+          if git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -qE "$RE"; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"; echo "dependency-relevant changes detected — full SBOM"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+            echo "No dependency-relevant changes — SUCCESS no-op (deadlock fix; SBOM unchanged by this diff)"
+          fi
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        if: steps.rel.outputs.relevant == 'true'
         with:
           python-version: '3.12'
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        if: steps.rel.outputs.relevant == 'true'
         with:
           node-version: '22'
       - name: Python SBOM (cyclonedx-bom 7.3.1, requirements mode)
+        if: steps.rel.outputs.relevant == 'true'
         run: |
           set -euo pipefail
           pip install -q cyclonedx-bom==7.3.1
@@ -110,12 +153,14 @@ jobs:
       # (audit 2026-07-28); --package-lock-only requires a real lockfile. frontend/
       # and the other apps/* have package.json but no lockfile — not usable here.
       - name: Frontend SBOM (@cyclonedx/cyclonedx-npm 6.0.0, lock-only, apps/banking-web)
+        if: steps.rel.outputs.relevant == 'true'
         working-directory: apps/banking-web
         run: |
           set -euo pipefail
           npx --yes @cyclonedx/cyclonedx-npm@6.0.0 --package-lock-only \
             --output-file "$RUNNER_TEMP/sbom/sbom-frontend.cdx.json" --output-format JSON
       - name: NO-MOCK — empty SBOM is never OK
+        if: steps.rel.outputs.relevant == 'true'
         run: |
           set -euo pipefail
           for f in "$RUNNER_TEMP"/sbom/sbom-*.cdx.json; do
@@ -127,6 +172,7 @@ jobs:
             fi
           done
       - name: Upload SBOM artifacts
+        if: steps.rel.outputs.relevant == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: sbom-cyclonedx
@@ -134,6 +180,7 @@ jobs:
           retention-days: 14
           if-no-files-found: error
       - name: Dependency-Track upload (OPTIONAL — operator secrets; absent => skip SUCCESS)
+        if: steps.rel.outputs.relevant == 'true'
         env:
           DT_API_KEY: ${{ secrets.DT_API_KEY }}
           DT_URL: ${{ secrets.DT_URL }}
@@ -153,3 +200,6 @@ jobs:
               -F "bom=@$f" >/dev/null
             echo "uploaded $name to Dependency-Track"
           done
+      - name: No-op notice (context still reports SUCCESS)
+        if: steps.rel.outputs.relevant != 'true'
+        run: echo "sbom SUCCESS (no dependency-relevant changes — SBOM identical to main's)"
