@@ -189,6 +189,15 @@ class InMemoryLiquidityStore:
     async def save_pool(self, pool: LiquidityPool) -> None:
         self._pools[pool.id] = pool
 
+    def seed_pool_sync(self, pool: LiquidityPool) -> None:
+        """Synchronous seed for wiring/startup contexts (InMemory stub only).
+
+        Needed because seeding may happen while an event loop is already
+        running (ASGI request context), where run_until_complete raises
+        RuntimeError. Semantically identical to save_pool.
+        """
+        self._pools[pool.id] = pool
+
     async def list_positions(self, pool_id: str) -> list[CashPosition]:
         return [p for p in self._positions if p.pool_id == pool_id]
 

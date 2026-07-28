@@ -84,11 +84,11 @@ def _get_agent() -> TreasuryAgent:
     recon_store = InMemoryReconciliationStore()
     audit = InMemoryTreasuryAudit()
 
-    # Seed one sample pool so GET endpoints return data immediately
-    import asyncio
-
-    sample_pool = make_sample_pool("pool-001")
-    asyncio.get_event_loop().run_until_complete(liquidity_store.save_pool(sample_pool))
+    # Seed one sample pool so GET endpoints return data immediately.
+    # MUST be synchronous: _get_agent() is called from async endpoints, where the
+    # event loop is already running — run_until_complete would raise RuntimeError
+    # and every GET /v1/treasury/* would 500 (found by STEP9 contract-tests).
+    liquidity_store.seed_pool_sync(make_sample_pool("pool-001"))
 
     monitor = LiquidityMonitor(liquidity_store, audit)
     forecaster = CashFlowForecaster(liquidity_store, forecast_store, audit)
