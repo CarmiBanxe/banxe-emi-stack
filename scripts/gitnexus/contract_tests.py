@@ -38,6 +38,10 @@ from contract_check import generate_current_spec  # noqa: E402  (sibling, reuse 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ASGI_APP = "api.main:app"
 SMOKE_ARGS = [
+    # FastAPI emits OpenAPI 3.1.0; schemathesis v3 supports it behind this flag
+    # (verified from CI evidence: "Schema Loading Error ... Tip: Proceed with
+    # `--experimental=openapi-3.1`"). Revisit when migrating to schemathesis v4.
+    "--experimental=openapi-3.1",
     "--method",
     "GET",
     "--hypothesis-max-examples",
