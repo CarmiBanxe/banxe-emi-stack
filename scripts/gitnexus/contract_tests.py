@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -63,9 +64,21 @@ def classify_exit(returncode: int, ran_ok: bool) -> str:
 def run_schemathesis(bin_name: str, schema_path: Path) -> tuple[int, bool, str]:
     """Invoke schemathesis in-process ASGI mode; (rc, ran_ok, tail_of_output)."""
     cmd = [bin_name, "run", str(schema_path), f"--app={ASGI_APP}", *SMOKE_ARGS]
+    # Console-script entrypoints do NOT put cwd on sys.path (unlike `python -c`),
+    # so --app=api.main:app cannot resolve without the repo root on PYTHONPATH.
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(REPO_ROOT) + (
+        os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else ""
+    )
     try:
         proc = subprocess.run(
-            cmd, capture_output=True, text=True, check=False, cwd=REPO_ROOT, timeout=1500
+            cmd,
+            capture_output=True,
+            text=True,
+            check=False,
+            cwd=REPO_ROOT,
+            timeout=1500,
+            env=env,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         return -1, False, f"schemathesis not runnable: {exc}"
