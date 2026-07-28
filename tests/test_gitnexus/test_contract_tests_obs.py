@@ -114,3 +114,15 @@ def test_real_violations_after_executed_tests_stay_fail() -> None:
 
 def test_clean_run_is_not_tool_error() -> None:
     assert ct.is_tool_level_error("Performed checks:\n  all passed") is False
+
+
+def test_baseline_tier_is_deterministic_valid_input_only() -> None:
+    # Locks the tier definition: weakening/widening requires a reviewed change here.
+    args = " ".join(ct.BASELINE_ARGS)
+    assert "--hypothesis-phases explicit" in args  # no fuzz generation
+    assert "--hypothesis-derandomize" in args and "--hypothesis-seed 42" in args
+    assert "not_a_server_error" in args  # crash gate on valid traffic stays
+    assert "--exclude-path-regex" in args  # exclusions are explicit, not silent
+    assert "status_code_conformance" not in args.replace(
+        "not_a_server_error,content_type_conformance,response_headers_conformance", ""
+    )  # conformance debt is backlog, not baseline

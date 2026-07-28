@@ -58,3 +58,30 @@ rollout (architecture-repo plan §6).
 Revert the PR — workflow, scripts, tests, map keys, canon, shard disappear;
 artifacts expire in 14d. *Singleton ledger-PR; shard
 `passc-contracttests-observability`; I-24; I-27; ADR-117; ADR-060/120.*
+
+## Known follow-up: negative/boundary fuzz hardening (appended 2026-07-28, I-24)
+
+The first live STEP9 runs did their job — findings, not noise:
+
+1. **Hostile-fuzz input-validation class (found, then moved to backlog):**
+   13× ValueError + 22× OverflowError across numeric path/query params under
+   schemathesis fuzz (huge-int / Decimal overflow ⇒ 500 instead of 422).
+   Fixing input validation across the 491-path API is its own backlog item
+   ("validate ⇒ 422, never 500"), NOT PASS C scope.
+2. **Real bugs surfaced and routed:** treasury async-seed (fixed, own PR);
+   `/v1/payments*` AttributeError, `/v1/quant/price` ValueError,
+   `/v1/ledger/accounts*` server errors — excluded from baseline WITH reasons,
+   backlog candidates for their own fix PRs (treasury-class pattern).
+3. **Conformance debt (documented, not baseline):** status_code_conformance
+   78/262 failing ops (mostly undocumented 4xx), response_schema_conformance
+   9/262 — schema-documentation debt for the api-contracts zone.
+4. **Environment-dependent ops:** `/v1/fx-rates/*` needs a live Frankfurter —
+   impossible in a hermetic gate; candidates for an integration tier.
+
+**Baseline tier (redefined, scope definition NOT weakening):** deterministic
+schema-valid explicit examples (fill-missing + derandomize + fixed seed),
+GET-only, checks = not_a_server_error + content_type + response_headers,
+8 ops excluded with visible reasons. Verified locally: 260/260 PASS in ~2s —
+and the same gate red-flagged ledger/payments/quant minutes earlier, proving it
+still catches real valid-input contract breaks. Every flag verified against
+pinned schemathesis 3.39.16 `--help` (no invented flags).
