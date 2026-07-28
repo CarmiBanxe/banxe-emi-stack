@@ -54,3 +54,17 @@ stage; STEP10 (Langfuse) will trace which `graph_commit` an agent consulted.
 Rollback: revert the PR — server script, template, workflow, map keys, canon
 and shard disappear; no state outside git + 14-day artifacts. *Singleton
 ledger-PR; shard `step78-mcp-mergequeue`; I-24; ADR-117; ADR-060/120.*
+
+## PASS-B-c decision (2026-07-28, appended — I-24)
+
+**`mq-impact` is queue-time-only and MUST NOT be added to
+`required_status_checks`.** The workflow is `merge_group`-triggered and does
+not report on normal PRs (verified on PR #337's rollup); per
+`GITNEXUS-REQUIRED-CHECK-PATHFILTER-FIX` (required ⇒ must always-report),
+requiring it would deadlock every PR with a permanently-missing context.
+Enforcement already happens where it belongs: inside the merge queue,
+`impact_gate.py --enforce` runs against the exact queue head — a failing
+`mq-impact` fails the merge-group and ejects the PR from the queue, which is
+strictly fresher than any PR-time verdict. STEP7 (fleet-graph MCP) is a served
+read-only artifact with no CI check. **PASS B is COMPLETE with NO
+branch-protection change; the required-checks count stays 20.**
