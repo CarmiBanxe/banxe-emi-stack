@@ -75,3 +75,17 @@ herdr session stop control-room
 - NEVER run the Control Room under a privileged user "just this once".
 
 If a task cannot be done within these limits — it does not belong in the Control Room.
+
+## Persistent autostart (operator)
+
+- Control-Room is a MANDATORY operational component: a shift is not considered active without it running.
+- Artifacts (host mark-legion): `scripts/control-room.sh` (idempotent tmux+herdr launcher, 6 read-only panes)
+  + user unit `~/.config/systemd/user/herdr-controlroom.service` (Type=forking; NOT enabled by factory — Rule 11).
+- Start:  `systemctl --user start herdr-controlroom.service`
+- Enable at boot:  `systemctl --user enable herdr-controlroom.service ; loginctl enable-linger $USER`
+- Attach:  `tmux attach -t banxe-controlroom`  (then herdr reattach)
+- Stop:  `systemctl --user stop herdr-controlroom.service`
+- Boundary (ADR-056 / INV-OPS-01): READ-ONLY; non-privileged; no engine/DB/midaz write; no client-instruction
+  path; herdr multiplexer-only (socket API OFF, plugins OFF). Note: the engine-services pane uses list-only
+  `docker ps`; under the canonical non-privileged user it degrades to "permission denied" — expected, and NOT
+  a reason to grant docker group membership.
