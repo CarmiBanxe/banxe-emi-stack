@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-31
 **Status:** Proposed
-**IL:** TBD (assigned per emi-stack ledger process)
+**IL:** IL-OPS-01
 **Author:** Moriel Carmi / Claude Code
 
 ---
