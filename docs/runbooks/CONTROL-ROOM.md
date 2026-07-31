@@ -121,3 +121,12 @@ V1 = read-only content AND non-privileged identity. Both are mandatory (ADR-056 
 - systemd unit sets `Environment=HERDR_BIN=/opt/banxe/control-room/herdr` so the launcher resolves herdr
   without depending on the user's HOME.
 - Dev/manual runs default to `$HOME/.local/bin/herdr` (HERDR_BIN unset).
+
+## Live pane commands (p2/p4/p5 — read-only, no auth)
+
+- p4 transaction-mon: gateway + banxe-mcp(:8100) health + txn-api(:8000) TCP reachability (no auth, no creds).
+- p5 recon-status: recon Grafana(:3001) health + clickhouse(:9002)/postgres(:5432) TCP reachability;
+  recon is RED-ZONE, DOWN expected when inactive.
+- p2 engine-services note: `:8000/health` requires auth (401) and `:8000/v1/monitor/health` is 404 —
+  both are FORBIDDEN in Control-Room panes (no credentials allowed); banxe-api is observed via
+  TCP reachability, app-level health via banxe-mcp(:8100) and Grafana dashboards.

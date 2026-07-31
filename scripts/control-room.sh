@@ -48,8 +48,7 @@ P2_CMD=$(cat <<'EOF'
 watch -n10 '
 for s in \
   "gateway      http://127.0.0.1:4000/health/liveliness" \
-  "banxe-api    http://localhost:8000/health" \
-  "txn-monitor  http://localhost:8000/v1/monitor/health" \
+  "banxe-mcp    http://localhost:8100/health" \
   "marble-aml   http://localhost:3000/health" \
   "grafana      http://localhost:3001/api/health" \
   "superset     http://localhost:8088/health" \
@@ -57,6 +56,7 @@ for s in \
   set -- $s
   printf "%-12s %s\n" "$1" "$(curl -fsS -o /dev/null -w "%{http_code}" -m 3 "$2" || echo DOWN)"
 done
+printf "%-12s %s\n" banxe-api  "$(timeout 2 bash -c "</dev/tcp/localhost/8000" 2>/dev/null && echo LISTEN || echo DOWN)"
 printf "%-12s %s\n" postgres   "$(pg_isready -h localhost -p 5432 -q && echo OK || echo DOWN)"
 printf "%-12s %s\n" clickhouse "$(curl -fsS -m 3 "http://localhost:8123/?query=SELECT%201" 2>/dev/null || echo DOWN)"
 printf "%-12s %s\n" redis      "$(redis-cli -h localhost -p 6379 ping 2>/dev/null || echo NOAUTH/DOWN)"
@@ -73,14 +73,22 @@ lit "echo 'Grafana (view-only): http://localhost:3000'; echo 'Superset: http://l
 # p4 transaction-monitor (another split right column)
 hk -- -
 ren "transaction-mon"
-lit "echo 'runbook: docs/runbooks/transaction-monitor.md'; :"
+lit "watch -n10 '
+for s in \"gateway    http://127.0.0.1:4000/health/liveliness\" \"banxe-mcp  http://localhost:8100/health\"; do
+  set -- \$s; printf \"%-11s %s\\n\" \"\$1\" \"\$(curl -fsS -o /dev/null -w \"%{http_code}\" -m3 \"\$2\" || echo DOWN)\";
+done;
+printf \"%-11s %s\\n\" txn-api \"\$(timeout 2 bash -c \"</dev/tcp/localhost/8000\" 2>/dev/null && echo LISTEN || echo DOWN)\"'"
 
 # back to left column for p5/p6
 hk h
 # p5 recon-status
 hk -- -
 ren "recon-status"
-lit "echo 'runbook: docs/runbooks/banxe-recon-service-activation.md'; :"
+lit "watch -n15 '
+printf \"%-13s %s\\n\" recon-grafana \"\$(curl -fsS -o /dev/null -w \"%{http_code}\" -m3 http://localhost:3001/api/health || echo DOWN)\";
+printf \"%-13s %s\\n\" clickhouse    \"\$(timeout 2 bash -c \"</dev/tcp/localhost/9002\" 2>/dev/null && echo LISTEN || echo DOWN)\";
+printf \"%-13s %s\\n\" postgres      \"\$(timeout 2 bash -c \"</dev/tcp/localhost/5432\" 2>/dev/null && echo LISTEN || echo DOWN)\";
+echo \"NOTE: recon is RED-ZONE (operator+HITL activates) — DOWN is expected when inactive\"'"
 
 # p6 ops-readonly
 hk -- -
