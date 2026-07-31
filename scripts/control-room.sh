@@ -18,7 +18,7 @@
 set -euo pipefail
 
 SESSION=banxe-controlroom
-HERDR="$HOME/.local/bin/herdr"
+HERDR="${HERDR_BIN:-$HOME/.local/bin/herdr}"   # prod: systemd sets HERDR_BIN=/opt/banxe/control-room/herdr
 TMUX=/usr/bin/tmux
 
 if "$TMUX" has-session -t "$SESSION" 2>/dev/null; then

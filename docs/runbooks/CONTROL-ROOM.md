@@ -114,3 +114,10 @@ V1 = read-only content AND non-privileged identity. Both are mandatory (ADR-056 
       Control-Room environment.
 - [ ] Verify boundary after setup: as bx-controlroom, `docker ps` must fail; no `.pgpass`/token
       files in home; POST to any engine API must be impossible for lack of credentials.
+
+## Production install path (non-privileged service)
+
+- Service user bx-controlroom runs from `/opt/banxe/control-room/` (script + herdr copy, root-owned, read-only).
+- systemd unit sets `Environment=HERDR_BIN=/opt/banxe/control-room/herdr` so the launcher resolves herdr
+  without depending on the user's HOME.
+- Dev/manual runs default to `$HOME/.local/bin/herdr` (HERDR_BIN unset).
