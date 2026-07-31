@@ -1,7 +1,7 @@
 # ADR-056: Herdr Control Room — Read-Only Observability Surface for Operator/Director
 
 **Date:** 2026-07-31
-**Status:** Proposed
+**Status:** Accepted
 **IL:** IL-OPS-01
 **Author:** Moriel Carmi / Claude Code
 
