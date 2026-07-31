@@ -96,3 +96,28 @@ EMI-сервисы НЕ ВПРАВЕ хранить direct user/password или 
 - ADR-022 (IAM cutover mirror): `docs/adr/ADR-022-keycloak-iam-cutover.md`
 - AI-PLUMBING.md (LiteLLM aliases + deny-paths): `docs/AI-PLUMBING.md`
 - Security policy: `.claude/rules/security-policy.md`
+
+---
+
+## Ops-plane invariants
+
+### INV-OPS-01 — No interactive terminal multiplexer in client-instruction execution
+
+- **Status:** Proposed (binding upon ADR-056 acceptance)
+- **Date:** 2026-07-31
+- **Source:** ADR-056 (`docs/adr/ADR-056-herdr-control-room.md`); cross-ref
+  banxe-architecture ADR-164 / ADR-102 / ADR-103 / ADR-059-A
+- **Scope:** banxe-emi-stack, весь regulated execution path (client instructions, payments)
+
+Никакой интерактивный терминальный мультиплексор (herdr/tmux) НЕ УЧАСТВУЕТ в исполнении
+клиентских инструкций. Control Room — строго read-only наблюдательная поверхность:
+работает под выделенным непривилегированным OS-пользователем (без docker group, без
+engine/DB credentials, без write-scoped токенов), без какого-либо write path к engine,
+платёжным API и midaz. herdr — multiplexer-only: socket API OFF, plugins OFF.
+Все мутации — вне Control Room, через существующие gated runbooks с ledger-атрибуцией.
+
+**Enforcement:** ADR-056 boundary + runbook `docs/runbooks/CONTROL-ROOM.md`
+(non-privileged-user checklist, "NEVER do" list) + review checklist.
+
+**Violation severity:** P0 если затронут путь клиентских инструкций/платежей;
+иначе P1 (architecture invariant breach).
