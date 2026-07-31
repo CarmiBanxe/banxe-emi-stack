@@ -75,3 +75,42 @@ herdr session stop control-room
 - NEVER run the Control Room under a privileged user "just this once".
 
 If a task cannot be done within these limits — it does not belong in the Control Room.
+
+## Persistent autostart (operator)
+
+- Control-Room is a MANDATORY operational component: a shift is not considered active without it running.
+- Artifacts (host mark-legion): `scripts/control-room.sh` (idempotent tmux+herdr launcher, 6 read-only panes)
+  + user unit `~/.config/systemd/user/herdr-controlroom.service` (Type=forking; NOT enabled by factory — Rule 11).
+- Start:  `systemctl --user start herdr-controlroom.service`
+- Enable at boot:  `systemctl --user enable herdr-controlroom.service ; loginctl enable-linger $USER`
+- Attach:  `tmux attach -t banxe-controlroom`  (then herdr reattach)
+- Stop:  `systemctl --user stop herdr-controlroom.service`
+- Boundary (ADR-056 / INV-OPS-01): READ-ONLY; non-privileged; no engine/DB/midaz write; no client-instruction
+  path; herdr multiplexer-only (socket API OFF, plugins OFF). Note: the engine-services pane uses list-only
+  `docker ps`; under the canonical non-privileged user it degrades to "permission denied" — expected, and NOT
+  a reason to grant docker group membership.
+  UPDATE (V1, operator-ratified 2026-07-31): the docker-ps pane is REPLACED by HTTP-health/TCP checks —
+  see §1 below; the note above is retained for history (append-only).
+
+## §1 Dedicated user checklist (bx-controlroom) — V1 full compliance
+
+V1 = read-only content AND non-privileged identity. Both are mandatory (ADR-056 / INV-OPS-01).
+
+- [ ] `sudo useradd -r -s /usr/sbin/nologin -m bx-controlroom`   (operator; note: for tmux/herdr
+      attach sessions a login shell may be preferred — operator may use `-s /bin/bash` instead;
+      the hard requirement is the privilege set below, not the shell)
+- [ ] Do NOT add bx-controlroom to the docker group; no DB creds; no write tokens; no midaz access.
+- [ ] `loginctl enable-linger bx-controlroom`
+- [ ] Install the unit FOR THAT USER: copy `herdr-controlroom.service` into
+      `~bx-controlroom/.config/systemd/user/` (drop the `User=` line in user-scope — systemd honors
+      `User=` only in system units), then as bx-controlroom:
+      `systemctl --user enable herdr-controlroom.service && systemctl --user start herdr-controlroom.service`
+      (Alternative: install system-wide in /etc/systemd/system/ keeping `User=bx-controlroom`.)
+- [ ] engine-services pane observes via HTTP-health/TCP ONLY (no docker socket): curl GET on
+      gateway/banxe-api/txn-monitor/marble/grafana/superset/mock-aspsp health endpoints,
+      `pg_isready`, ClickHouse `SELECT 1` over HTTP, `redis-cli ping`.
+- [ ] Degradation rule: a check that demands auth falls back to TCP reachability
+      (`timeout 2 bash -c "</dev/tcp/localhost/PORT"`); NEVER put credentials into the
+      Control-Room environment.
+- [ ] Verify boundary after setup: as bx-controlroom, `docker ps` must fail; no `.pgpass`/token
+      files in home; POST to any engine API must be impossible for lack of credentials.
